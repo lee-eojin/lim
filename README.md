@@ -1,32 +1,138 @@
 # LIM
 
-**Less is more.** Small Claude Code plugins that each do one job, prove it with numbers, and stay out of your way.
+**Less is more.** Small Claude Code plugins. Each plugin does one job and shows the measurements behind it.
 
-> **Status: pre-release.** Nothing is installable yet. Watch the repo or open an issue to shape what ships first.
+[![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
+[![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](plugins/review-loop/CHANGELOG.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## What's coming
+English | [한국어](docs/i18n/README.ko.md) | [日本語](docs/i18n/README.ja.md) | [简体中文](docs/i18n/README.zh-CN.md) | [繁體中文](docs/i18n/README.zh-TW.md) | [Español](docs/i18n/README.es.md) | [Português (Brasil)](docs/i18n/README.pt-BR.md) | [Français](docs/i18n/README.fr.md) | [Deutsch](docs/i18n/README.de.md) | [Русский](docs/i18n/README.ru.md) | [Tiếng Việt](docs/i18n/README.vi.md) | [Bahasa Indonesia](docs/i18n/README.id.md)
 
-| Plugin | One job |
-|---|---|
-| `review-loop` | Reviews your diff before you commit. Fixes P1 and P2 findings, re-reviews, then hands P3 to P5 to you as decisions. Loop, I am. |
-| `forge` | Turns a reviewer's PR comment history into a reviewer skill, with a faithfulness report that says how close it gets. |
+## Why LIM
 
-## Principles
+Large agent harnesses load many instructions into every session and run hooks on many commands. LIM keeps each plugin small, optional, and measured.
 
-1. **One plugin, one job.** Install only what you need.
-2. **Checks before opinions.** Tests, types, and lint run before any model review.
-3. **Hooks are opt-in.** Nothing watches your prompts or commands unless you turn it on.
-4. **Ask before installing.** Anything a plugin needs is explained first: what it is, what it improves, where it lives, and how to remove it.
-5. **Show the numbers.** Every plugin ships with how it was measured and what that measurement does not cover.
+- **One plugin, one job.** Install only what you need. review-loop adds about 188 tokens to a session, as reported by `claude plugin details`.
+- **Checks before opinions.** Your tests, types, and lint run before any model review.
+- **Hooks are opt-in.** Nothing watches your prompts or commands unless you turn it on.
+- **Ask before installing.** Anything a plugin needs is explained first: what it is, what it improves, where it lives, and how to remove it.
+- **Show the numbers.** Every plugin ships with what was measured and what that measurement does not cover.
 
-## Install
+## Plugins
 
-Coming soon. It will look like this:
+| Plugin | Status | One job |
+|---|---|---|
+| [review-loop](plugins/review-loop) | 0.1.1 | Reviews your changes before you commit, fixes P1 and P2 findings, re-reviews, and hands the rest to you. |
+| forge | planned | Turns a reviewer's pull request comments into a reviewer skill, with a report on how faithful it is. |
+
+## Quick start
+
+You need Claude Code, git, and Node.js 18 or later.
 
 ```
 /plugin marketplace add lee-eojin/lim
 /plugin install review-loop@lim
 ```
+
+Restart Claude Code if it asks. Then, in a git repository with uncommitted changes:
+
+```
+/review-loop:review-loop
+```
+
+Adding the marketplace only registers the catalog. Each plugin is installed on its own, so you get only what you pick.
+
+## review-loop
+
+Before you commit, review-loop runs a short loop and stops on its own.
+
+1. **Checks.** It runs the `typecheck`, `lint`, and `test` scripts from your `package.json`. A failing check, or a `package.json` that is not valid JSON, becomes a P1 finding. A check that runs past its time limit is reported as "not verified" instead of failing.
+2. **Fresh review.** A separate reviewer agent gets the diff and a one-line summary of what you wanted, but not Claude's reasoning about the change. It can read surrounding code for context. It labels findings P1 to P5. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it. Claims without evidence are shown to you as unverified.
+3. **Fix.** Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one way to fix it, a visible behavior change, removing a feature, changing tests), you choose first.
+4. **Re-review.** A new reviewer checks only the fixes and the findings still open. Up to 3 rounds.
+5. **Stop.** A script, not the model, decides when to stop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
+6. **Decide.** You decide the rest once: every P3 to P5, plus any P1 or P2 that is still open or could not be verified. For each one you choose: keep as is, fix this time only, or make it a rule.
+7. **Commit.** Claude asks before committing unless you chose "stop asking in this repo". It never pushes.
+
+Every round ends with a report:
+
+```
+Review round 2 of 3
+Checks: test passed
+
+Resolved since last round:
+- F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal
+
+Trend (P1 + P2): 1 -> 0
+Stopped: no P1 or P2 left in this change
+Left for you: P3 1, P4 0, P5 0
+```
+
+### Severity
+
+Based on Banksalad's public Pn rule.
+
+| Level | Meaning | Loop behavior |
+|---|---|---|
+| P1 | Must fix: a failing check, data loss, a security hole, a crash, or the requested feature does not work | Fixed if it has evidence |
+| P2 | Should fix: a bug a specific input reproduces, a missing requirement, a broken project rule | Fixed if it has evidence |
+| P3 | Worth fixing: maintainability, a misleading name, a missing test on a minor path | You decide |
+| P4 | Optional: a structural preference people disagree on | You decide |
+| P5 | Trivial: a typo or formatting | You decide |
+
+### Measured
+
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 35 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 32 of them, including runs against real temporary git repositories. The other 3 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, asking before a commit, and showing the report before any question.
+
+review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed.
+
+### Data
+
+State, diffs, check logs, and a decision ledger live in `.git/lim/review-loop/` inside your repository. Nothing is written to your working tree. Delete that folder to reset.
+
+review-loop makes no network calls of its own. Claude and the reviewer read the diff, the findings, and the check output like any other file in your session, so that content goes to the model provider in the same way as the rest of your Claude Code session.
+
+### Limits
+
+- Checks are detected from `package.json` scripts only.
+- Each check gets up to 5 minutes, and all checks together up to 9 minutes. Set `LIM_CHECK_TIMEOUT_MS` to change the per-check limit.
+- Asking before a commit is an instruction to Claude, not a hook. An opt-in commit gate hook is planned ([#5](https://github.com/lee-eojin/lim/issues/5)).
+- It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
+
+## FAQ
+
+**Does review-loop start on its own?**
+Not always. Claude starts a skill only when it decides that the skill's description fits the conversation. If you ask Claude to review or commit, Claude can start review-loop, but this is not guaranteed. The command `/review-loop:review-loop` always starts it. The planned commit gate hook ([#5](https://github.com/lee-eojin/lim/issues/5)) will make it run before every commit, if you turn it on.
+
+**Will it push or merge?**
+Never. It asks before every commit unless you choose "stop asking in this repo". You can turn that off again by asking Claude to turn off review-loop's commit delegation.
+
+**Will it conflict with my other plugins?**
+review-loop adds one skill, one agent, and no hooks. Its names start with `review-loop:`, so they cannot collide with names from other plugins. If you ask in plain words, Claude can pick a different review skill instead. The command always starts review-loop.
+
+**What happens if a session ends in the middle of a loop?**
+Run the command again. It offers to continue from the round and step where it stopped, or to start over.
+
+**How do I uninstall it?**
+
+```
+claude plugin uninstall review-loop@lim
+claude plugin marketplace remove lim
+```
+
+Then delete `.git/lim/review-loop/` in each repository where you ran it.
+
+## How LIM is built
+
+- **Issues first.** Every change starts from an issue and lands through a pull request that a maintainer squash-merges.
+- **Versions per plugin.** Each plugin follows Semantic Versioning, keeps its own `CHANGELOG.md`, and is tagged `<plugin>--v<version>`. Minor and major releases get a GitHub Release.
+- **Small on purpose.** A plugin has one entry skill, a `SKILL.md` under 250 lines, and opt-in hooks only.
+
+## Roadmap
+
+- review-loop: opt-in commit gate hook ([#5](https://github.com/lee-eojin/lim/issues/5)), an option to confirm every P2 before fixing ([#4](https://github.com/lee-eojin/lim/issues/4)), a stronger test-weakening check ([#6](https://github.com/lee-eojin/lim/issues/6)), faster snapshots on large repositories ([#7](https://github.com/lee-eojin/lim/issues/7))
+- forge: a faithfulness report for reviewer skills distilled from pull request comments
+- Model-level evals with `claude plugin eval` for the behaviors unit tests cannot cover
 
 ## Contributing
 

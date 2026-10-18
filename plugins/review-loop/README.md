@@ -51,7 +51,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Data
 
-State, diffs, check logs, and a decision ledger are stored in `.git/lim/review-loop/` inside your repository. Nothing leaves your machine. Delete that folder to reset. Snapshots add blob objects to git's object store; `git gc` removes the unreferenced ones.
+State, diffs, check logs, and a decision ledger are stored in `.git/lim/review-loop/` inside your repository. Delete that folder to reset. review-loop makes no network calls of its own; Claude and the reviewer read the diff, findings, and check output like any other file, so that content goes to the model provider like the rest of your session. Snapshots add blob objects to git's object store; `git gc` removes the unreferenced ones.
 
 ## Limits in v0.1
 

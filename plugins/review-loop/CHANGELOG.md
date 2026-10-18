@@ -4,7 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
-Nothing yet.
+- Fixed: The README no longer says that nothing leaves your machine. review-loop makes no network calls of its own, but the diff, findings, and check output go to the model provider like the rest of your Claude Code session. (#14)
 
 ## 0.1.1 (2026-10-19)
 

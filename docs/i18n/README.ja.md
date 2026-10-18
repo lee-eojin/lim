@@ -1,0 +1,145 @@
+# LIM
+
+**Less is more.** 小さなClaude Codeプラグインを集めたリポジトリです。各プラグインは1つの仕事だけを行い、その根拠となる測定結果を公開します。
+
+[![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
+[![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
+
+> このドキュメントは、2026-10-19時点の[英語版README](../../README.md)の翻訳です。両者の内容が異なる場合は、英語版READMEが正しい内容です。
+
+[English](../../README.md) | [한국어](README.ko.md) | 日本語 | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
+
+## LIMを作った理由
+
+大規模なエージェントハーネスは、すべてのセッションで多くの指示を読み込み、多くのコマンドでhookを実行します。LIMは各プラグインを小さく保ちます。各プラグインは必要な場合だけインストールでき、測定結果と一緒に提供されます。
+
+- **1つのプラグインに1つの仕事。** 必要なものだけをインストールします。`claude plugin details`の報告によると、review-loopがセッションに追加する量は約188トークンです。
+- **意見より先にチェック。** モデルによるレビューの前に、プロジェクトのテスト、型チェック、lintを実行します。
+- **hookはオプトイン。** ユーザーが有効にしなければ、プロンプトやコマンドを監視する機能は動きません。
+- **インストールの前に確認。** プラグインが何かを必要とする場合は、先に説明します。説明する項目は、それが何か、何を改善するか、どこに置かれるか、どう削除するかです。
+- **数値を公開。** すべてのプラグインは、何を測定したかと、その測定がカバーしない範囲を一緒に提供します。
+
+## プラグイン
+
+| プラグイン | 状態 | 担当する仕事 |
+|---|---|---|
+| [review-loop](../../plugins/review-loop) | 0.1.1 | コミット前に変更をレビューし、P1とP2の指摘を修正し、再レビューしてから、残りをユーザーに渡します。 |
+| forge | 計画中 | レビュアーのpull requestコメントをレビュアースキルに変換し、そのスキルの忠実度レポートを提供します。 |
+
+## クイックスタート
+
+Claude Code、git、Node.js 18以降が必要です。
+
+```
+/plugin marketplace add lee-eojin/lim
+/plugin install review-loop@lim
+```
+
+Claude Codeが再起動を求めた場合は、再起動します。次に、コミットしていない変更があるgitリポジトリで、次のコマンドを実行します。
+
+```
+/review-loop:review-loop
+```
+
+marketplaceを追加すると、カタログが登録されるだけです。各プラグインは個別にインストールするため、ユーザーが選んだプラグインだけが入ります。
+
+## review-loop
+
+コミットの前に、review-loopは短いループを実行し、自分で停止します。
+
+1. **チェック。** `package.json`の`typecheck`、`lint`、`test`スクリプトを実行します。チェックが失敗した場合、または`package.json`が正しいJSONでない場合は、P1の指摘になります。チェックが制限時間を超えた場合は、失敗の代わりに「未検証」(not verified)として報告します。
+2. **新しいレビュー。** 別のレビュアーエージェントは、diffと、ユーザーが望んだ内容の1行の要約を受け取ります。レビュアーは、この変更についてのClaudeの推論を受け取りません。レビュアーは、文脈を理解するために周辺のコードを読むことができます。レビュアーは指摘にP1からP5のラベルを付けます。P1とP2には根拠が必要です。根拠とは、該当する行、失敗するシナリオ、既存の仕組みがその失敗を防げない理由です。根拠のない指摘は、検証されていない指摘としてユーザーに表示します。
+3. **修正。** Claudeは何を修正するかを先に伝え、その後でP1とP2を修正します。修正に設計上の選択が必要な場合(修正方法が複数ある、目に見える動作が変わる、機能を削除する、テストを変更する)は、先にユーザーが選びます。
+4. **再レビュー。** 新しいレビュアーが、修正箇所とまだ解決していない指摘だけを確認します。最大3ラウンドです。
+5. **停止。** 停止のタイミングは、モデルの代わりにスクリプトが決めます。スクリプトは次のいずれかに当てはまると停止します：P1とP2が残っていない、ラウンドの上限に達した、2回修正しても残る指摘がある、解決済みの指摘が再び現れた、P1 + P2の数が減らなくなった、修正がテストやチェックを弱めた。
+6. **判断。** 残りの指摘は、ユーザーが1回だけ判断します。対象は、すべてのP3からP5と、まだ解決していないか検証できなかったP1とP2です。ユーザーは指摘ごとに、そのまま残す、今回だけ修正する、ルールにする、の3つから選びます。
+7. **コミット。** ユーザーが「このリポジトリでは今後確認しない」を選んでいなければ、Claudeはコミット前に確認します。pushは一切行いません。
+
+すべてのラウンドの最後にレポートを表示します。
+
+```
+Review round 2 of 3
+Checks: test passed
+
+Resolved since last round:
+- F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal
+
+Trend (P1 + P2): 1 -> 0
+Stopped: no P1 or P2 left in this change
+Left for you: P3 1, P4 0, P5 0
+```
+
+### 重大度
+
+Banksaladが公開しているPnルールに基づきます。
+
+| レベル | 意味 | ループの動作 |
+|---|---|---|
+| P1 | 必ず修正：チェックの失敗、データ損失、セキュリティホール、クラッシュ、または要求された機能が動かない | 根拠がある場合だけ修正 |
+| P2 | 修正すべき：特定の入力で再現するバグ、要件の欠落、プロジェクトルールの違反 | 根拠がある場合だけ修正 |
+| P3 | 修正する価値あり：保守性、誤解を招く名前、重要度の低い経路のテスト不足 | ユーザーが判断 |
+| P4 | 任意：人によって意見が分かれる構造の好み | ユーザーが判断 |
+| P5 | 些細：タイプミスやフォーマット | ユーザーが判断 |
+
+### 測定結果
+
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる35個の動作が記載されています。CIの単体テストが、そのうち32個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行も含まれます。残りの3個はモデルの実行が必要なため、`claude plugin eval`で測定する予定です。その3個は、P3からP5について1回だけ確認すること、コミット前に確認すること、質問より先にレポートを表示することです。
+
+review-loopは、LIM自身のpull requestをレビューしています。[#8](https://github.com/lee-eojin/lim/pull/8)は、review-loopの初版で実行した2回のループを示しています。そのうち1回は、review-loop自身のテスト弱体化チェックの誤検知が原因で停止しました。この誤検知は、その後修正されました。
+
+### データ
+
+状態、diff、チェックのログ、判断の記録(decision ledger)は、リポジトリ内の`.git/lim/review-loop/`に保存されます。review-loopは作業ツリーに何も書き込みません。リセットするには、このフォルダを削除します。
+
+review-loop自体はネットワーク通信を行いません。Claudeとレビュアーは、diff、指摘、チェックの出力を、セッション内の他のファイルと同じように読みます。そのため、これらの内容は、Claude Codeセッションの他の内容と同じように、モデルの提供元に送信されます。
+
+### 制限事項
+
+- チェックは`package.json`のスクリプトからのみ検出します。
+- 各チェックは最大5分、すべてのチェックの合計は最大9分です。チェックごとの制限時間を変更するには、`LIM_CHECK_TIMEOUT_MS`を設定します。
+- コミット前の確認はClaudeへの指示であり、hookで強制するものではありません。オプトインのコミットゲートhookを計画しています([#5](https://github.com/lee-eojin/lim/issues/5))。
+- レビュー対象は、`git add -A`が含めるすべての変更です。手動で選んでステージした変更だけをレビューするわけではありません。
+
+## FAQ
+
+**review-loopは自動で開始しますか？**
+常に開始するわけではありません。Claudeは、スキルの説明が会話に合うと判断した場合にだけ、そのスキルを開始します。ユーザーがClaudeにレビューやコミットを頼むと、Claudeがreview-loopを開始する場合がありますが、開始する保証はありません。`/review-loop:review-loop`コマンドを使うと、必ずreview-loopが開始します。計画中のコミットゲートhook([#5](https://github.com/lee-eojin/lim/issues/5))をユーザーが有効にすると、すべてのコミットの前にreview-loopが実行されます。
+
+**pushやmergeをしますか？**
+一切しません。ユーザーが「このリポジトリでは今後確認しない」を選んでいなければ、すべてのコミットの前に確認します。この設定を元に戻すには、review-loopのコミット委任をオフにするようClaudeに頼みます。
+
+**他のプラグインと競合しますか？**
+review-loopが追加するのは、スキル1つとエージェント1つです。hookは追加しません。名前はすべて`review-loop:`で始まるため、他のプラグインの名前と衝突しません。ユーザーが普通の文章で頼んだ場合は、Claudeが別のレビュースキルを選ぶ場合があります。コマンドを使えば、必ずreview-loopが開始します。
+
+**ループの途中でセッションが終了した場合はどうなりますか？**
+コマンドをもう一度実行します。コマンドは、停止したラウンドとステップから続けるか、最初からやり直すかを提案します。
+
+**アンインストールするには？**
+
+```
+claude plugin uninstall review-loop@lim
+claude plugin marketplace remove lim
+```
+
+その後、review-loopを実行した各リポジトリで`.git/lim/review-loop/`を削除します。
+
+## LIMの作り方
+
+- **まずIssueから。** すべての変更はIssueから始まります。変更はpull requestを通じて取り込まれ、メンテナーがそのpull requestをsquash mergeします。
+- **プラグインごとのバージョン。** 各プラグインはSemantic Versioningに従い、独自の`CHANGELOG.md`を持ち、`<plugin>--v<version>`の形式でタグを付けます。マイナーリリースとメジャーリリースでは、GitHub Releaseを作成します。
+- **意図的に小さく。** 1つのプラグインが持つのは、エントリースキル1つ、250行未満の`SKILL.md`、オプトインのhookだけです。
+
+## ロードマップ
+
+- review-loop：オプトインのコミットゲートhook([#5](https://github.com/lee-eojin/lim/issues/5))、修正前にすべてのP2を確認するオプション([#4](https://github.com/lee-eojin/lim/issues/4))、より強いテスト弱体化チェック([#6](https://github.com/lee-eojin/lim/issues/6))、大規模リポジトリでのスナップショットの高速化([#7](https://github.com/lee-eojin/lim/issues/7))
+- forge：pull requestコメントから抽出したレビュアースキルの忠実度レポート
+- 単体テストではカバーできない動作のための、`claude plugin eval`によるモデルレベルの評価
+
+## コントリビュート
+
+Issueとpull requestを歓迎します。まず[CONTRIBUTING.md](../../CONTRIBUTING.md)を読んでください。
+
+## ライセンス
+
+MITライセンスです。詳細は[LICENSE](../../LICENSE)を参照してください。
