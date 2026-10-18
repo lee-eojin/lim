@@ -24,6 +24,6 @@ Guidance for AI agents working in this repository. Humans are welcome to read it
 
 ## Writing
 
-- English for code, docs, and skills. Skills reply in the user's language.
+- English for code, docs, and skills. Skills reply in the user's language. The only exception is README translations in `docs/i18n/`.
 - Commit messages and pull request titles use `<type>: <summary>` with `feat`, `fix`, `refactor`, `test`, `docs`, or `chore`.
 - Keep it small. Follow the plugin rules in CONTRIBUTING.md.

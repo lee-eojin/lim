@@ -19,7 +19,7 @@ Every plugin under `plugins/` follows these rules.
 4. Hooks are opt-in, documented in the plugin README, and exit 0 on their own errors so they never block the user by accident.
 5. No network calls unless the plugin README says where data goes and how to turn it off.
 6. Anything a plugin needs to install is explained to the user first: what, why, where, and how to remove it.
-7. Skills, docs, and code are written in English. Skills reply in the user's language.
+7. Skills, docs, and code are written in English. Skills reply in the user's language. The only exception is README translations in `docs/i18n/` (see Translations).
 
 ## Before you open a pull request
 
@@ -60,6 +60,10 @@ Use `Added`, `Changed`, `Fixed`, or `Removed`. Group changes users will not noti
 While a plugin is below 1.0.0, a breaking change raises the minor number and everything else raises the patch number.
 
 **Release pull request.** A maintainer opens `release: <plugin> <version>`, which turns `## Unreleased` into `## <version> (YYYY-MM-DD)` and updates `version` in both the plugin's `plugin.json` and `.claude-plugin/marketplace.json`. After the squash merge, the maintainer tags the merge commit with `claude plugin tag plugins/<plugin> --push`, which creates `<plugin>--v<version>`. Major and minor releases also get a GitHub Release whose notes are copied from the changelog. Patch releases get the tag and the changelog entry only. Tags are never moved; a mistake gets a new version.
+
+## Translations
+
+`README.md` is the source. Translations live in `docs/i18n/README.<language>.md`, and each one has a note near the top with the date of the English README it was translated from. After the English README changes, a translation can lag behind the English README. If the two differ, the English README is correct. Pull requests that update a translation are welcome. Keep commands, file paths, code blocks, and plugin names unchanged.
 
 ## Review
 
