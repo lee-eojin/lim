@@ -1,0 +1,23 @@
+name: Idea or new plugin
+description: Suggest an improvement or propose a new plugin.
+labels: [idea]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What goes wrong today, and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The smallest change that would solve it.
+    validations:
+      required: true
+  - type: textarea
+    id: measure
+    attributes:
+      label: How would we know it works?
+      description: A test, a number, or a before and after.

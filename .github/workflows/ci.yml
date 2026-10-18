@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repository checks
+        env:
+          LIM_DENYLIST: ${{ secrets.LIM_DENYLIST }}
+        run: scripts/check.sh
