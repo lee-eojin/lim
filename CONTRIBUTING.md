@@ -25,10 +25,11 @@ Every plugin under `plugins/` follows these rules.
 
 ```bash
 claude plugin validate --strict .
+node --test
 scripts/check.sh
 ```
 
-Both must pass. CI runs `scripts/check.sh` on every pull request.
+All three must pass. CI runs `node --test` and `scripts/check.sh` on every pull request.
 
 ## Commit messages
 
@@ -37,6 +38,28 @@ Use `<type>: <summary>` with one of `feat`, `fix`, `refactor`, `test`, `docs`, `
 ```
 feat: add round report to review-loop
 ```
+
+## Releases
+
+Each plugin has its own version, `CHANGELOG.md`, and tags.
+
+**Feature pull requests do not change versions.** If users will notice the change, add one line under `## Unreleased` in the plugin's `CHANGELOG.md`:
+
+```
+- Fixed: what the user sees now, in one line (#123)
+```
+
+Use `Added`, `Changed`, `Fixed`, or `Removed`. Group changes users will not notice into one `Internal:` line.
+
+**Version numbers.** Check these in order and stop at the first that applies:
+
+1. **Major**: users can no longer do something the way they did before. A skill, command, or agent is renamed or removed, saved state can no longer be read, an option is renamed, something that used to ask no longer asks by default, or the minimum Node.js or Claude Code version goes up.
+2. **Minor**: users can do something new, and the old way still works. New opt-in options, opt-in hooks, and checks that catch more fall here.
+3. **Patch**: everything else. Bug fixes, false positive fixes, wording, docs, tests, and internal changes.
+
+While a plugin is below 1.0.0, a breaking change raises the minor number and everything else raises the patch number.
+
+**Release pull request.** A maintainer opens `release: <plugin> <version>`, which turns `## Unreleased` into `## <version> (YYYY-MM-DD)` and updates `version` in both the plugin's `plugin.json` and `.claude-plugin/marketplace.json`. After the squash merge, the maintainer tags the merge commit with `claude plugin tag plugins/<plugin> --push`, which creates `<plugin>--v<version>`. Major and minor releases also get a GitHub Release whose notes are copied from the changelog. Patch releases get the tag and the changelog entry only. Tags are never moved; a mistake gets a new version.
 
 ## Review
 

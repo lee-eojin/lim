@@ -1,0 +1,12 @@
+{
+  "name": "review-loop",
+  "version": "0.1.0",
+  "description": "Review before you commit: checks first, a fresh reviewer labels findings P1 to P5, P1 and P2 are fixed and re-reviewed, and the rest is your call.",
+  "author": {
+    "name": "lee-eojin"
+  },
+  "homepage": "https://github.com/lee-eojin/lim",
+  "repository": "https://github.com/lee-eojin/lim",
+  "license": "MIT",
+  "keywords": ["code-review", "pre-commit", "review-loop"]
+}

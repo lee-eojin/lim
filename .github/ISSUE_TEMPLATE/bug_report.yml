@@ -10,6 +10,12 @@ body:
     validations:
       required: true
   - type: input
+    id: plugin-commit
+    attributes:
+      label: Plugin commit
+      description: The `gitCommitSha` for the plugin in `~/.claude/plugins/installed_plugins.json`. Two installs of the same version can come from different commits.
+      placeholder: daee6cf
+  - type: input
     id: claude-version
     attributes:
       label: Claude Code version

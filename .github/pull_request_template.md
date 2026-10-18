@@ -5,6 +5,8 @@
 ## Checklist
 
 - [ ] `claude plugin validate --strict .` passes
+- [ ] `node --test` passes
 - [ ] `scripts/check.sh` passes
 - [ ] Docs updated if behavior changed
+- [ ] One line under `## Unreleased` in the plugin's `CHANGELOG.md` if users will notice
 - [ ] New hooks are opt-in and documented
