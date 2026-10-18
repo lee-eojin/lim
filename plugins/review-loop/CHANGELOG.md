@@ -4,6 +4,10 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.1 (2026-10-19)
+
 - Fixed: Claude shows the round report before asking how to fix anything. The report now comes first in the script output, and the skill says so explicitly. (#9)
 - Fixed: The README names the installed command, `/review-loop:review-loop`. (#10)
 - Added: Running the skill again after a session ends mid-loop offers to continue from the round and step where it stopped, including pending decisions. `loop start --fresh` starts over, and a saved state that cannot be read is treated as no review in progress. (#11)
