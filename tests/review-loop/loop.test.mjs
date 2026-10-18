@@ -389,6 +389,88 @@ describe('loop.mjs in a git repository', () => {
     assert.deepEqual(JSON.parse(output).review, null);
   });
 
+  test('record puts the report first', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const result = loop(root, ['record'], { findings: [doubledPrice] });
+    assert.equal(Object.keys(result)[0], 'report');
+  });
+
+  test('start resumes a review in progress', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPrice, { ...doubledPrice, severity: 'P1', multipleFixes: true, quote: 'items.reduce', title: 'Second' }] });
+    const resumed = loop(root, ['start']);
+    assert.deepEqual([resumed.status, resumed.awaiting], ['in-progress', 'fix']);
+    assert.deepEqual([resumed.fix.map((item) => item.id), resumed.ask.map((item) => item.id)], [['F-1'], ['F-2']]);
+    assert.match(resumed.report, /Fixing next:/);
+    const fresh = loop(root, ['start', '--fresh']);
+    assert.deepEqual([fresh.status, fresh.round], ['review', 1]);
+  });
+
+  test('start resumes pending decisions after a stop', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [{ severity: 'P3', file: 'src/cart.js', title: 'Name total as sumPrices' }] });
+    const resumed = loop(root, ['start']);
+    assert.deepEqual([resumed.awaiting, resumed.cards.map((card) => card.id)], ['decisions', ['F-1']]);
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'keep']);
+    assert.equal(loop(root, ['start']).status, 'review');
+  });
+
+  test('start resumes while waiting for review and flags a stale diff', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const statePath = path.join(root, '.git', 'lim', 'review-loop', 'state.json');
+    const state = JSON.parse(readFileSync(statePath, 'utf8'));
+    writeFileSync(statePath, JSON.stringify({ ...state, checks: null }));
+    const waiting = loop(root, ['start']);
+    assert.deepEqual([waiting.awaiting, waiting.checksFinished, waiting.treeMatchesReview], ['review', false, true]);
+    writeFiles(root, { 'src/other.js': 'export const flag = true;\n' });
+    assert.equal(loop(root, ['start']).treeMatchesReview, false);
+  });
+
+  test('start resumes after an integrity stop with the report first', () => {
+    const root = createRepository({ 'src/cart.js': correctCart, 'src/cart.test.js': "it('totals', () => {});\n" });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPrice] });
+    writeFiles(root, { 'src/cart.test.js': "it.skip('totals', () => {});\n" });
+    assert.equal(Object.keys(loop(root, ['next']))[0], 'report');
+    const resumed = loop(root, ['start']);
+    assert.equal(Object.keys(resumed)[0], 'report');
+    assert.deepEqual([resumed.awaiting, resumed.stillOpen.map((item) => item.id)], ['decisions', ['F-1']]);
+    assert.match(resumed.report, /weakened tests or checks/);
+  });
+
+  test('start treats an unreadable state file as no review', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const statePath = path.join(root, '.git', 'lim', 'review-loop', 'state.json');
+    writeFileSync(statePath, '{"round": 1, "open": [');
+    assert.equal(loop(root, ['start']).status, 'review');
+    writeFileSync(statePath, '{"round": 1, "open": [');
+    assert.equal(loop(root, ['start', '--fresh']).status, 'review');
+  });
+
+  test('resume asks about findings saved without a route', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [{ ...doubledPrice, severity: 'P1', multipleFixes: true }] });
+    const statePath = path.join(root, '.git', 'lim', 'review-loop', 'state.json');
+    const state = JSON.parse(readFileSync(statePath, 'utf8'));
+    const withoutRoute = state.open.map(({ route, ...item }) => item);
+    writeFileSync(statePath, JSON.stringify({ ...state, open: withoutRoute }));
+    const resumed = loop(root, ['start']);
+    assert.deepEqual([resumed.fix.length, resumed.ask.map((item) => item.id)], [0, ['F-1']]);
+  });
+
   test('decisions are recorded against finding ids', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     writeFiles(root, { 'src/cart.js': brokenCart });

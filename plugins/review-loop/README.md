@@ -13,7 +13,9 @@ Needs Node.js 18 or later and git.
 
 ## Use
 
-Ask Claude to review or commit your changes, or run `/review-loop`.
+Run `/review-loop:review-loop`. Asking Claude to review or commit your changes can also start it, but that depends on the model noticing, so the command is the reliable way.
+
+If a session ends in the middle of a loop, running it again offers to continue where it stopped.
 
 ## How it works
 
@@ -45,7 +47,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 27 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 25 of them. The other 2 (asking about P3 to P5 once, and asking before a commit) need a model run and are planned for `claude plugin eval`.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 35 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 32 of them. The other 3 (asking about P3 to P5 once, asking before a commit, and showing the report before any question) need a model run and are planned for `claude plugin eval`.
 
 ## Data
 

@@ -26,3 +26,11 @@ B24,tell,Status reports checks that timed out in the latest run including runs a
 B25,evidence,The reviewer cannot set internal fields that skip the evidence gate or mark a decision,test: reviewer cannot set internal fields,yes
 B26,tell,A finding the reviewer reports twice is counted once,test: duplicate reviewer findings are counted once,yes
 B27,do,The script runs when it is called through a symlinked path,test: runs when called through a symlink,yes
+B28,tell,The script output puts the round report first,test: record puts the report first,yes
+B29,do,Calling the skill again continues an unfinished loop from the round and step it stopped at,test: start resumes a review in progress,yes
+B30,ask,Pending decisions survive a new session and are asked again,test: start resumes pending decisions after a stop,yes
+B31,tell,Claude shows the round report before any other tool call or question,eval: planned for claude plugin eval,no
+B32,do,An unreadable state file does not block start or start --fresh,test: start treats an unreadable state file as no review,yes
+B33,ask,A finding saved by an older version without a route is asked about when it needs a design choice,test: resume asks about findings saved without a route,yes
+B34,do,Resuming while waiting for review reports unfinished checks and a stale diff,test: start resumes while waiting for review and flags a stale diff,yes
+B35,tell,Resuming after an integrity stop shows the saved report first and the open findings,test: start resumes after an integrity stop with the report first,yes
