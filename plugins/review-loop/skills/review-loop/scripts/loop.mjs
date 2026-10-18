@@ -361,8 +361,52 @@ function runRoundChecks(repository, state) {
   return state.checks;
 }
 
+function pendingDecisionIds(state) {
+  return [...state.cards, ...state.open].filter((item) => !item.decision).map((item) => item.id);
+}
+
+function readSavedState(repository) {
+  try {
+    return readJson(repository.file('state.json'), null);
+  } catch {
+    return null;
+  }
+}
+
+function routeOf(item) {
+  if (item.route) return item.route;
+  return ASK_FLAGS.some((flag) => item[flag] === true) || item.attempts > 0 ? 'ask' : 'fix';
+}
+
+function isInProgress(state) {
+  return ['review', 'fix'].includes(state.awaiting) || pendingDecisionIds(state).length > 0;
+}
+
+function resumeView(repository, state) {
+  const openPath = repository.file(`round-${state.round}.open.json`);
+  const fixing = state.awaiting === 'fix';
+  const deciding = state.awaiting === 'decisions';
+  return {
+    report: state.lastReport ?? null,
+    status: 'in-progress',
+    round: state.round,
+    maxRounds: state.maxRounds,
+    awaiting: state.awaiting,
+    diffPath: repository.file(`round-${state.round}.diff`),
+    openPath: existsSync(openPath) ? openPath : null,
+    checksFinished: state.checks !== null,
+    fix: fixing ? state.open.filter((item) => routeOf(item) === 'fix') : [],
+    ask: fixing ? state.open.filter((item) => routeOf(item) === 'ask') : [],
+    stillOpen: deciding ? state.open.filter((item) => !item.decision) : [],
+    cards: deciding ? state.cards.filter((card) => !card.decision) : [],
+    treeMatchesReview: snapshotTree(repository) === state.reviewedTree,
+  };
+}
+
 function start(cwd, options) {
   const repository = openRepository(cwd);
+  const existing = options.fresh ? null : readSavedState(repository);
+  if (existing && isInProgress(existing)) return resumeView(repository, existing);
   const maxRounds = clampRounds(options['max-rounds']);
   const baseTree = headTree(repository.root);
   const reviewedTree = snapshotTree(repository);
@@ -424,9 +468,11 @@ function record(cwd, options, input) {
   const outside = classify(reported.filter((finding) => !filesInRound.has(finding.file)), sourcesFor);
   const outsideCards = [...outside.fix, ...outside.ask, ...outside.cards].map((item) => ({ ...item, outOfScope: true }));
 
-  const assignIds = (items) => items.map((item) => ({ ...item, id: `F-${state.nextId++}`, round: state.round, attempts: 0 }));
-  const fix = assignIds(classified.fix);
-  const ask = [...assignIds(classified.ask), ...retried];
+  const assignIds = (items, route) => items.map((item) => ({
+    ...item, id: `F-${state.nextId++}`, round: state.round, attempts: 0, ...(route ? { route } : {}),
+  }));
+  const fix = assignIds(classified.fix, 'fix');
+  const ask = [...assignIds(classified.ask, 'ask'), ...retried.map((item) => ({ ...item, route: 'ask' }))];
   const cards = assignIds([...classified.cards, ...outsideCards]);
   const resolvedPrints = new Set(state.resolved.map((item) => item.fingerprint));
   const regressions = [...fix, ...ask].filter((item) => resolvedPrints.has(item.fingerprint));
@@ -437,29 +483,32 @@ function record(cwd, options, input) {
   });
   const stopped = decision === 'stop';
 
+  const allCards = [...state.cards, ...cards];
+  const view = {
+    round: state.round, maxRounds: state.maxRounds, checks: state.checks, resolved,
+    fix: stopped ? [] : fix, ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
+    regressions, cards: allCards, counts, decision, reason,
+  };
+  const report = renderReport(view);
   Object.assign(state, {
     open,
     resolved: [...state.resolved, ...resolved],
-    cards: [...state.cards, ...cards],
+    cards: allCards,
     counts,
     awaiting: stopped ? 'decisions' : 'fix',
     stopped: stopped ? { reason, at: now() } : null,
+    lastReport: report,
   });
   saveState(repository, state);
   logEvent(repository, {
     event: 'record', round: state.round, decision, reason, counts,
     open: open.map(summarize), cards: cards.map(summarize),
   });
-  const view = {
-    round: state.round, maxRounds: state.maxRounds, checks: state.checks, resolved,
-    fix: stopped ? [] : fix, ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
-    regressions, cards: state.cards, counts, decision, reason,
-  };
   return {
+    report,
     decision, reason, round: state.round,
     fix: view.fix, ask: view.ask, stillOpen: view.stillOpen,
     cards: stopped ? state.cards : [],
-    report: renderReport(view),
   };
 }
 
@@ -481,14 +530,16 @@ function next(cwd) {
   writeFileSync(openPath, JSON.stringify(openForReviewer, null, 2));
 
   if (integrity.length) {
-    Object.assign(state, { checks: null, awaiting: 'decisions', stopped: { reason: 'integrity', at: now() } });
-    saveState(repository, state);
-    logEvent(repository, { event: 'next', round: state.round, integrity });
     const report = renderReport({
       round: state.round, maxRounds: state.maxRounds, checks: null, stillOpen: state.open,
       integrity, cards: state.cards, counts: state.counts, decision: 'stop', reason: 'integrity',
     });
-    return { status: 'stopped', reason: 'integrity', integrity, stillOpen: state.open, cards: state.cards, report };
+    Object.assign(state, {
+      checks: null, awaiting: 'decisions', stopped: { reason: 'integrity', at: now() }, lastReport: report,
+    });
+    saveState(repository, state);
+    logEvent(repository, { event: 'next', round: state.round, integrity });
+    return { report, status: 'stopped', reason: 'integrity', integrity, stillOpen: state.open, cards: state.cards };
   }
 
   const fixedFiles = filesBetween(repository, state.reviewedTree, fixedTree);
@@ -544,7 +595,6 @@ function status(cwd) {
   const state = readJson(repository.file('state.json'), null);
   const delegation = readJson(repository.file('delegation.json'), { scope: 'off' });
   if (!state) return { review: null, delegation };
-  const decisionItems = [...state.cards, ...state.open];
   return {
     review: {
       round: state.round,
@@ -553,7 +603,7 @@ function status(cwd) {
       stopped: state.stopped,
       counts: state.counts,
       open: state.open.map(summarize),
-      pendingDecisions: decisionItems.filter((item) => !item.decision).map((item) => item.id),
+      pendingDecisions: pendingDecisionIds(state),
       notVerifiedChecks: (state.latestChecks ?? state.checks ?? []).filter((check) => check.timedOut).map((check) => check.name),
     },
     treeMatchesReview: snapshotTree(repository) === state.reviewedTree,
@@ -567,8 +617,12 @@ function parseOptions(args) {
   const options = {};
   for (let index = 0; index < args.length; index += 1) {
     const match = args[index].match(/^--([\w-]+)$/);
-    if (match) {
-      options[match[1]] = args[index + 1];
+    if (!match) continue;
+    const value = args[index + 1];
+    if (value === undefined || value.startsWith('--')) {
+      options[match[1]] = true;
+    } else {
+      options[match[1]] = value;
       index += 1;
     }
   }
