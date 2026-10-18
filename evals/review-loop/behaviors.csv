@@ -1,0 +1,28 @@
+id,axis,behavior,verified_by,blocking
+B01,do,Failing project checks become P1 findings that go to the fix list,test: failing checks become P1 findings,yes
+B02,do,P1 and P2 findings with evidence go to the fix list,test: classify routes evidenced P2 to fix,yes
+B03,ask,A P1 or P2 that needs a design choice asks how to fix before fixing,test: classify routes flagged P1 to ask,yes
+B04,ask,A finding still open after one fix moves to ask and stops the loop after a second,test: still open finding moves to ask then stops as stuck,yes
+B05,ask,P3 to P5 are asked once at the end with keep / once / rule,eval: planned for claude plugin eval,no
+B06,ask,The user is asked before a commit unless the repo delegated commits,eval: planned for claude plugin eval,no
+B07,tell,Every round prints a report with checks and trend and the decision,test: report shows checks trend and stop reason,yes
+B08,tell,Stopping with open P1 or P2 lists them under Still open,test: max rounds report lists still open,yes
+B09,silence,An empty findings list ends the loop as clean,test: empty review stops clean,yes
+B10,silence,Findings outside the round's diff are noted but do not extend the loop,test: out of scope findings are not looped,yes
+B11,stop,The loop stops at the round limit (default 3),test: decideNext stops at max rounds,yes
+B12,stop,P1 + P2 not decreasing for two rounds stops the loop and says so even at the round limit,test: decideNext reports stalled instead of the round limit,yes
+B13,stop,A fix that skips tests or disables lint or suppresses types stops the loop,test: fix that skips a test stops the loop,yes
+B14,evidence,A P1 or P2 without quote and scenario and reason becomes an unproven card,test: classify demotes missing evidence,yes
+B15,evidence,A P1 or P2 whose quote is in neither the file nor the diff becomes an unproven card,test: classify demotes a quote that is not in the file or diff,yes
+B16,ask,A P1 or P2 outside the round's diff becomes a decision card and is counted in Left for you,test: out of scope findings are not looped,yes
+B17,tell,After a fix weakens a test the tree is reported as not reviewed,test: integrity stop leaves the tree unreviewed,yes
+B18,do,File names with spaces or Korean characters stay in scope under any diff prefix setting,test: file names with spaces and Korean characters stay in scope,yes
+B19,stop,Recording a review is refused until the round's checks have finished,test: record refuses when checks did not finish,yes
+B20,silence,Skip calls inside strings such as test fixtures do not stop the loop,test: ignores skip calls inside strings such as test fixtures,yes
+B21,do,A package.json that is not valid JSON becomes a P1 check failure,test: invalid package.json becomes a P1 check failure,yes
+B22,tell,A check that runs past its time limit is reported as not verified and does not become a P1,test: timed out check is reported as not verified instead of failing,yes
+B23,stop,A failing check that later times out stays open instead of counting as resolved,test: a failing check that later times out stays open,yes
+B24,tell,Status reports checks that timed out in the latest run including runs after decisions,test: status reports timeouts from the latest checks run,yes
+B25,evidence,The reviewer cannot set internal fields that skip the evidence gate or mark a decision,test: reviewer cannot set internal fields,yes
+B26,tell,A finding the reviewer reports twice is counted once,test: duplicate reviewer findings are counted once,yes
+B27,do,The script runs when it is called through a symlinked path,test: runs when called through a symlink,yes

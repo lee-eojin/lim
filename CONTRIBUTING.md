@@ -25,10 +25,11 @@ Every plugin under `plugins/` follows these rules.
 
 ```bash
 claude plugin validate --strict .
+node --test
 scripts/check.sh
 ```
 
-Both must pass. CI runs `scripts/check.sh` on every pull request.
+All three must pass. CI runs `node --test` and `scripts/check.sh` on every pull request.
 
 ## Commit messages
 
