@@ -54,3 +54,16 @@ B52,silence,Backticks and $( inside single quotes are not read as command substi
 B53,silence,Option values such as -unormal or the word after -m are not read as skipping hooks,test: option values are not read as skipping hooks,yes
 B54,ask,A command substitution after an ANSI-C quoted string such as $'a\'' is still asked about,test: ANSI-C quoted strings do not hide command substitution,yes
 B55,ask,A heredoc passed as its own argument is checked as that argument so skipping hooks still asks,test: a heredoc passed as its own argument is read as that argument,yes
+B56,do,The gate expands ~ and $HOME in cd and git -C and drops line continuations,test: expands home paths and gives up on paths it cannot read,yes
+B57,do,The gate finds the repository of a commit made through a home path,test: gate finds the repository through a home path,yes
+B58,ask,A commit in a folder the gate cannot read or that does not exist is asked about when the gate is on,test: gate asks when it cannot tell which repository a commit runs in,yes
+B59,do,Linked worktrees share the gate and delegation of the main checkout and keep their own review,test: a linked worktree shares the gate and delegation but keeps its own review,yes
+B60,silence,A gate turned on inside a linked worktree by 0.2.0 still applies after the update,test: a gate turned on inside a worktree by 0.2.0 still applies,yes
+B61,stop,Skipping the review once is used only by a commit in the worktree that asked for it,test: skip once applies only to the worktree that asked for it,yes
+B62,ask,A commit through --git-dir or --work-tree or GIT_DIR is asked about,test: gate asks when git is pointed at another repository,yes
+B63,stop,A cd in a command with parentheses is checked in every folder the commit may run in,test: a cd in a command with parentheses is checked in every folder it may run in,yes
+B64,stop,Many cds in parentheses keep the folder list bounded and the commit is still blocked,test: many cds in parentheses stay bounded and still block,yes
+B65,ask,A commit that may run in more than one repository is never approved on its own and does not use a one-time skip,test: a commit that may run in more than one folder is not approved on its own,yes
+B66,stop,Turning the gate off and on cancels a pending one-time skip in every worktree,test: turning the gate off and on cancels a pending skip in every worktree,yes
+B67,stop,A one-time skip is used up once when every folder a commit may run in is in the same repository,test: a one-time skip is used once when every folder is in the same repository,yes
+B68,ask,A commit whose repository the gate cannot tell is asked about when the gate is on where Claude Code started,test: gate also checks the folder where Claude Code started,yes

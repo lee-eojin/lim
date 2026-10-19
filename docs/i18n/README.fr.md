@@ -68,8 +68,9 @@ Le commit gate est un hook. Ce hook est désactivé tant que vous ne l'activez p
 | Après la revue, seuls des fichiers déjà revus ont changé | Vous demande |
 | `git push` ou un force push | Demande toujours, même avec la délégation |
 | Un commit avec `--no-verify` | Demande, même avec la délégation, et bloque toujours un commit sans revue validée |
+| Un commit dans un dossier que le gate ne peut pas lire, comme `cd "$(...)"` ou un chemin qui n'existe pas | Demande, même avec la délégation, si le gate est activé dans le dépôt où vous avez lancé Claude Code |
 
-Pour faire un commit une seule fois sans revue, demandez à Claude de sauter la revue cette fois.
+Pour faire un commit une seule fois sans revue, demandez à Claude de sauter la revue cette fois. Le réglage du gate et la délégation des commits s'appliquent à tout le dépôt, y compris ses worktrees liés. Chaque worktree garde sa propre revue.
 
 Chaque tour se termine par un rapport :
 
@@ -99,7 +100,7 @@ L'échelle s'appuie sur la règle Pn publique de Banksalad.
 
 ### Mesures
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liste 55 comportements sur six axes : `do`, `tell`, `ask`, `silence`, `stop` et `evidence`. Les tests unitaires de la CI couvrent 53 de ces comportements, y compris des exécutions sur de vrais dépôts git temporaires et le hook de commit gate. Les 2 autres exigent une exécution du modèle et sont prévus pour `claude plugin eval` : demander une seule fois pour P3 à P5 et montrer le rapport avant toute question.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liste 68 comportements sur six axes : `do`, `tell`, `ask`, `silence`, `stop` et `evidence`. Les tests unitaires de la CI couvrent 66 de ces comportements, y compris des exécutions sur de vrais dépôts git temporaires et le hook de commit gate. Les 2 autres exigent une exécution du modèle et sont prévus pour `claude plugin eval` : demander une seule fois pour P3 à P5 et montrer le rapport avant toute question.
 
 review-loop fait la revue des pull requests de LIM lui-même. [#8](https://github.com/lee-eojin/lim/pull/8) montre deux boucles sur la première version de review-loop. Une de ces boucles s'est arrêtée à cause d'un faux positif dans la vérification d'affaiblissement des tests de review-loop. Ce faux positif a ensuite été corrigé.
 
@@ -115,6 +116,7 @@ review-loop ne fait aucun appel réseau par lui-même. Claude et le réviseur li
 - Chaque vérification dispose de 5 minutes au maximum, et l'ensemble des vérifications dispose de 9 minutes au maximum. Pour modifier la limite de chaque vérification, définissez `LIM_CHECK_TIMEOUT_MS`.
 - Sans le commit gate, demander avant un commit est une instruction pour Claude, et non une garantie.
 - Le commit gate vérifie uniquement les commandes que Claude exécute avec son outil Bash. Les commits que vous tapez dans votre propre terminal ne sont pas vérifiés. Les alias git comme `git ci` ne sont pas reconnus.
+- Si vous lancez Claude Code dans un dossier qui n'est pas un dépôt, le gate ne peut pas vérifier un commit dont il ne peut pas identifier le dépôt, par exemple après `cd "$(...)"`.
 - review-loop fait la revue de tout ce que `git add -A` inclurait, et non d'un ensemble de modifications en stage que vous choisissez à la main.
 
 ## Questions fréquentes

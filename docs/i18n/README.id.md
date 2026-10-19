@@ -68,8 +68,9 @@ Commit gate adalah sebuah hook. Hook ini mati sampai kamu menyalakannya di sebua
 | Setelah review, hanya file yang sudah di-review yang berubah | Bertanya kepadamu |
 | `git push` atau force push | Selalu bertanya, bahkan dengan delegasi |
 | Commit dengan `--no-verify` | Bertanya, bahkan dengan delegasi, dan tetap memblokir commit tanpa review yang lolos |
+| Commit di folder yang tidak bisa dibaca gate, seperti `cd "$(...)"` atau path yang tidak ada | Bertanya, bahkan dengan delegasi, jika gate aktif di repositori tempat kamu memulai Claude Code |
 
-Untuk commit satu kali tanpa review, minta Claude untuk melewati review kali ini.
+Untuk commit satu kali tanpa review, minta Claude untuk melewati review kali ini. Pengaturan gate dan delegasi commit berlaku untuk seluruh repositori, termasuk worktree yang tertaut. Setiap worktree punya review sendiri.
 
 Setiap putaran berakhir dengan laporan:
 
@@ -99,7 +100,7 @@ Tingkat ini berdasarkan aturan Pn publik dari Banksalad.
 
 ### Terukur
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 55 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 53 di antaranya. Unit test ini termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 2 perilaku sisanya membutuhkan eksekusi dengan model dan direncanakan untuk `claude plugin eval`: bertanya tentang P3 sampai P5 satu kali dan menampilkan laporan sebelum pertanyaan apa pun.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 68 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 66 di antaranya. Unit test ini termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 2 perilaku sisanya membutuhkan eksekusi dengan model dan direncanakan untuk `claude plugin eval`: bertanya tentang P3 sampai P5 satu kali dan menampilkan laporan sebelum pertanyaan apa pun.
 
 review-loop me-review pull request milik LIM sendiri. [#8](https://github.com/lee-eojin/lim/pull/8) menunjukkan dua loop pada versi pertama review-loop. Salah satunya berhenti karena false positive pada pemeriksaan test yang dilemahkan milik review-loop sendiri. Kesalahan ini kemudian diperbaiki.
 
@@ -115,6 +116,7 @@ review-loop tidak melakukan panggilan jaringan sendiri. Claude dan reviewer memb
 - Setiap pemeriksaan mendapat waktu maksimal 5 menit. Semua pemeriksaan bersama-sama mendapat waktu maksimal 9 menit. Atur `LIM_CHECK_TIMEOUT_MS` untuk mengubah batas per pemeriksaan.
 - Tanpa commit gate, bertanya sebelum commit adalah instruksi untuk Claude, bukan jaminan.
 - Commit gate hanya memeriksa perintah yang dijalankan Claude melalui tool Bash miliknya. Commit yang kamu ketik di terminalmu sendiri tidak diperiksa. Alias git seperti `git ci` tidak dikenali.
+- Jika kamu memulai Claude Code di folder yang bukan repositori, gate tidak bisa memeriksa commit yang repositorinya tidak bisa ia kenali, misalnya setelah `cd "$(...)"`.
 - review-loop me-review semua yang akan dimasukkan oleh `git add -A`. review-loop tidak me-review kumpulan perubahan staged yang kamu pilih sendiri.
 
 ## FAQ

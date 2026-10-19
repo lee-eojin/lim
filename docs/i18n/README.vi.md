@@ -68,8 +68,9 @@ Commit gate là một hook. Hook này tắt cho đến khi bạn bật nó trong
 | Sau review, chỉ có các file đã review thay đổi | Hỏi bạn |
 | `git push` hoặc force push | Luôn hỏi, kể cả khi đã ủy quyền |
 | Commit với `--no-verify` | Hỏi, kể cả khi đã ủy quyền, và vẫn chặn commit chưa có review đạt |
+| Commit trong thư mục mà gate không đọc được, ví dụ `cd "$(...)"` hoặc đường dẫn không tồn tại | Hỏi, kể cả khi đã ủy quyền, nếu gate đang bật trong repository nơi bạn khởi động Claude Code |
 
-Để commit một lần mà không review, hãy yêu cầu Claude bỏ qua review lần này.
+Để commit một lần mà không review, hãy yêu cầu Claude bỏ qua review lần này. Thiết lập gate và việc ủy quyền commit áp dụng cho toàn bộ repository, kể cả các worktree liên kết. Mỗi worktree có review riêng.
 
 Mỗi vòng kết thúc bằng một báo cáo:
 
@@ -99,7 +100,7 @@ Các mức này dựa trên quy tắc Pn công khai của Banksalad.
 
 ### Số đo
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 55 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 53 hành vi trong số đó. Các unit test này bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 2 hành vi còn lại cần một lần chạy với mô hình và được dự kiến cho `claude plugin eval`: hỏi về P3 đến P5 một lần và hiển thị báo cáo trước mọi câu hỏi.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 68 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 66 hành vi trong số đó. Các unit test này bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 2 hành vi còn lại cần một lần chạy với mô hình và được dự kiến cho `claude plugin eval`: hỏi về P3 đến P5 một lần và hiển thị báo cáo trước mọi câu hỏi.
 
 review-loop review chính các pull request của LIM. [#8](https://github.com/lee-eojin/lim/pull/8) cho thấy hai vòng lặp trên phiên bản đầu tiên của review-loop. Một vòng trong đó dừng vì một false positive trong check phát hiện test bị làm yếu của chính nó. Lỗi này sau đó đã được sửa.
 
@@ -115,6 +116,7 @@ review-loop không tự thực hiện lệnh gọi mạng nào. Claude và revie
 - Mỗi check có tối đa 5 phút. Tất cả check cộng lại có tối đa 9 phút. Đặt `LIM_CHECK_TIMEOUT_MS` để thay đổi giới hạn cho mỗi check.
 - Khi không có commit gate, việc hỏi trước khi commit là một chỉ dẫn cho Claude, không phải một sự đảm bảo.
 - Commit gate chỉ kiểm tra các lệnh mà Claude chạy qua công cụ Bash của nó. Các commit bạn tự gõ trong terminal của mình không được kiểm tra. Git alias như `git ci` không được nhận diện.
+- Nếu bạn khởi động Claude Code trong một thư mục không phải repository, gate không thể kiểm tra commit mà nó không xác định được repository, ví dụ sau `cd "$(...)"`.
 - review-loop review mọi thứ mà `git add -A` sẽ bao gồm. Nó không review một tập thay đổi đã stage do bạn tự chọn.
 
 ## FAQ

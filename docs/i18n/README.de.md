@@ -68,8 +68,9 @@ Das Commit-Gate ist ein Hook. Dieser Hook ist aus, bis du ihn in einem Repositor
 | Nach dem Review wurden nur geprüfte Dateien geändert | Fragt dich |
 | `git push` oder ein Force-Push | Fragt immer, auch mit Delegation |
 | Ein Commit mit `--no-verify` | Fragt, auch mit Delegation, und blockiert weiterhin einen Commit ohne bestandenes Review |
+| Ein Commit in einem Ordner, den das Gate nicht lesen kann, etwa `cd "$(...)"` oder ein Pfad, der nicht existiert | Fragt, auch mit Delegation, wenn das Gate in dem Repository eingeschaltet ist, in dem du Claude Code gestartet hast |
 
-Wenn du einmal ohne Review committen willst, bitte Claude, das Review dieses Mal zu überspringen.
+Wenn du einmal ohne Review committen willst, bitte Claude, das Review dieses Mal zu überspringen. Die Gate-Einstellung und die Commit-Delegation gelten für das ganze Repository, auch für seine verknüpften Worktrees. Jeder Worktree hat sein eigenes Review.
 
 Jede Runde endet mit einem Bericht:
 
@@ -99,7 +100,7 @@ Die Stufen basieren auf der öffentlichen Pn-Regel von Banksalad.
 
 ### Gemessen
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 55 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 53 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 2 brauchen einen Lauf mit einem Modell und sind für `claude plugin eval` geplant: einmal nach P3 bis P5 fragen und den Bericht vor jeder Frage zeigen.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 68 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 66 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 2 brauchen einen Lauf mit einem Modell und sind für `claude plugin eval` geplant: einmal nach P3 bis P5 fragen und den Bericht vor jeder Frage zeigen.
 
 review-loop prüft die Pull Requests von LIM selbst. [#8](https://github.com/lee-eojin/lim/pull/8) zeigt zwei Schleifen auf der ersten Version von review-loop. Eine davon stoppte wegen eines False Positive im eigenen Check auf geschwächte Tests. Dieser Fehler wurde danach behoben.
 
@@ -115,6 +116,7 @@ review-loop sendet selbst keine Netzwerkanfragen. Claude und der Reviewer lesen 
 - Jeder Check bekommt maximal 5 Minuten. Alle Checks zusammen bekommen maximal 9 Minuten. Setze `LIM_CHECK_TIMEOUT_MS`, um das Limit pro Check zu ändern.
 - Ohne Commit-Gate ist die Frage vor einem Commit eine Anweisung an Claude, keine Garantie.
 - Das Commit-Gate prüft nur Befehle, die Claude über sein Bash-Tool ausführt. Commits, die du in deinem eigenen Terminal eingibst, prüft es nicht. git-Aliase wie `git ci` erkennt es nicht.
+- Wenn du Claude Code in einem Ordner startest, der kein Repository ist, kann das Gate einen Commit nicht prüfen, dessen Repository es nicht erkennen kann, zum Beispiel nach `cd "$(...)"`.
 - review-loop prüft alles, was `git add -A` einschließen würde. Eine von Hand ausgewählte Menge von gestagten Änderungen prüft es nicht.
 
 ## FAQ
