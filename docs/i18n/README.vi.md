@@ -24,7 +24,7 @@ Các agent harness lớn nạp nhiều chỉ dẫn vào mỗi session và chạy
 
 | Plugin | Trạng thái | Một việc |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.0 | Review các thay đổi của bạn trước khi commit, sửa các phát hiện P1 và P2, review lại và giao phần còn lại cho bạn. |
+| [review-loop](../../plugins/review-loop) | 0.2.1 | Review các thay đổi của bạn trước khi commit, sửa các phát hiện P1 và P2, review lại và giao phần còn lại cho bạn. |
 | forge | dự kiến | Biến các bình luận pull request của một reviewer thành một reviewer skill, kèm một báo cáo về mức độ trung thực của skill đó. |
 
 ## Bắt đầu nhanh

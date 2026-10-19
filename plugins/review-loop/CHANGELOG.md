@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.2.1 (2026-10-19)
 
 - Fixed: With the commit gate on and commits delegated, a commit message from a quoted heredoc (`-m "$(cat <<'EOF' ... EOF)"`) or backticks inside single quotes no longer make the gate ask. A heredoc body that contains `)` still asks, because macOS `/bin/bash` 3.2 can end the substitution there. Option values such as `-unormal` are no longer read as skipping git hooks. (#17)
 - Fixed: The commit gate expands `~` and `$HOME` in `cd` and `git -C`. When it cannot tell which repository a commit runs in, for example after `cd "$(...)"` or with a path that does not exist, it asks instead of letting the commit through, if the gate is on in the current folder's repository or in the one where Claude Code started. Commits through `--git-dir`, `--work-tree`, or `GIT_DIR` are asked about too, and a `cd` in a command with parentheses is checked in every folder the commit may run in, and asks when those folders belong to more than one repository. The gate setting and commit delegation now apply to linked worktrees too, including a gate turned on inside a worktree with 0.2.0 while the main checkout has no gate setting of its own. Each worktree keeps its own review and its own one-time skip, and turning the gate off cancels a pending skip everywhere. (#17)
