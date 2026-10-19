@@ -14,7 +14,7 @@ Large agent harnesses load many instructions into every session and run hooks on
 
 - **One plugin, one job.** Install only what you need. review-loop adds about 188 tokens to a session, as reported by `claude plugin details`.
 - **Checks before opinions.** Your tests, types, and lint run before any model review.
-- **Hooks are opt-in.** Nothing watches your prompts or commands unless you turn it on.
+- **Hooks are opt-in.** A hook does nothing until you turn it on for a repository.
 - **Ask before installing.** Anything a plugin needs is explained first: what it is, what it improves, where it lives, and how to remove it.
 - **Show the numbers.** Every plugin ships with what was measured and what that measurement does not cover.
 
@@ -52,7 +52,22 @@ Before you commit, review-loop runs a short loop and stops on its own.
 4. **Re-review.** A new reviewer checks only the fixes and the findings still open. Up to 3 rounds.
 5. **Stop.** A script, not the model, decides when to stop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
 6. **Decide.** You decide the rest once: every P3 to P5, plus any P1 or P2 that is still open or could not be verified. For each one you choose: keep as is, fix this time only, or make it a rule.
-7. **Commit.** Claude asks before committing unless you chose "stop asking in this repo". It never pushes.
+7. **Commit.** Claude asks before committing unless you chose "stop asking in this repo". It never pushes. If you turn on the commit gate, a hook makes this a rule: Claude's commits are blocked until a review passes.
+
+### Commit gate
+
+The commit gate is a hook that is off until you turn it on in a repository. At the end of a review, Claude asks once whether to turn it on. With the gate on, every `git commit` that Claude runs is checked first:
+
+| Situation | What the gate does |
+|---|---|
+| No review, or files changed that the review did not cover | Blocks the commit and tells Claude to run the review |
+| A review loop is in progress, or decisions are still pending | Blocks the commit |
+| The review passed | Asks you before committing, or allows it if you delegated commits in this repository |
+| Only reviewed files changed after the review | Asks you |
+| `git push` or a force push | Always asks, even with delegation |
+| A commit with `--no-verify` | Asks, even with delegation, and still blocks a commit without a passing review |
+
+To commit once without a review, ask Claude to skip the review this time.
 
 Every round ends with a report:
 
@@ -82,7 +97,7 @@ Based on Banksalad's public Pn rule.
 
 ### Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 35 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 32 of them, including runs against real temporary git repositories. The other 3 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, asking before a commit, and showing the report before any question.
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 49 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 47 of them, including runs against real temporary git repositories and the commit gate hook. The other 2 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, and showing the report before any question.
 
 review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed.
 
@@ -96,19 +111,20 @@ review-loop makes no network calls of its own. Claude and the reviewer read the 
 
 - Checks are detected from `package.json` scripts only.
 - Each check gets up to 5 minutes, and all checks together up to 9 minutes. Set `LIM_CHECK_TIMEOUT_MS` to change the per-check limit.
-- Asking before a commit is an instruction to Claude, not a hook. An opt-in commit gate hook is planned ([#5](https://github.com/lee-eojin/lim/issues/5)).
+- Without the commit gate, asking before a commit is an instruction to Claude, not a guarantee.
+- The commit gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked, and git aliases such as `git ci` are not recognized.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
 
 ## FAQ
 
 **Does review-loop start on its own?**
-Not always. Claude starts a skill only when it decides that the skill's description fits the conversation. If you ask Claude to review or commit, Claude can start review-loop, but this is not guaranteed. The command `/review-loop:review-loop` always starts it. The planned commit gate hook ([#5](https://github.com/lee-eojin/lim/issues/5)) will make it run before every commit, if you turn it on.
+Not always. Claude starts a skill only when it decides that the skill's description fits the conversation. If you ask Claude to review or commit, Claude can start review-loop, but this is not guaranteed. The command `/review-loop:review-loop` always starts it. If you turn on the commit gate, a commit without a review is blocked and Claude is told to run review-loop first.
 
 **Will it push or merge?**
 Never. It asks before every commit unless you choose "stop asking in this repo". You can turn that off again by asking Claude to turn off review-loop's commit delegation.
 
 **Will it conflict with my other plugins?**
-review-loop adds one skill, one agent, and no hooks. Its names start with `review-loop:`, so they cannot collide with names from other plugins. If you ask in plain words, Claude can pick a different review skill instead. The command always starts review-loop.
+review-loop adds one skill, one agent, and one hook. The hook reads Bash commands, acts only on `git commit` and `git push`, and does nothing unless you turned the commit gate on in that repository. Its names start with `review-loop:`, so they cannot collide with names from other plugins. If you ask in plain words, Claude can pick a different review skill instead. The command always starts review-loop.
 
 **What happens if a session ends in the middle of a loop?**
 Run the command again. It offers to continue from the round and step where it stopped, or to start over.
@@ -130,7 +146,7 @@ Then delete `.git/lim/review-loop/` in each repository where you ran it.
 
 ## Roadmap
 
-- review-loop: opt-in commit gate hook ([#5](https://github.com/lee-eojin/lim/issues/5)), an option to confirm every P2 before fixing ([#4](https://github.com/lee-eojin/lim/issues/4)), a stronger test-weakening check ([#6](https://github.com/lee-eojin/lim/issues/6)), faster snapshots on large repositories ([#7](https://github.com/lee-eojin/lim/issues/7))
+- review-loop: an option to confirm every P2 before fixing ([#4](https://github.com/lee-eojin/lim/issues/4)), a stronger test-weakening check ([#6](https://github.com/lee-eojin/lim/issues/6)), faster snapshots on large repositories ([#7](https://github.com/lee-eojin/lim/issues/7))
 - forge: a faithfulness report for reviewer skills distilled from pull request comments
 - Model-level evals with `claude plugin eval` for the behaviors unit tests cannot cover
 

@@ -9,6 +9,8 @@ import {
   classify,
   decideNext,
   findWeakening,
+  gateDecision,
+  gitInvocations,
   isStalled,
   parseReview,
   renderReport,
@@ -48,6 +50,16 @@ function createRepository(files) {
     'commit', '-qm', 'base',
   );
   return root;
+}
+
+function commitAll(root) {
+  const runGit = (...args) => execFileSync('git', args, { cwd: root, stdio: 'ignore' });
+  runGit('add', '-A');
+  runGit(
+    '-c', 'user.name=test', '-c', 'user.email=test@example.com',
+    '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null',
+    'commit', '-qm', 'reviewed',
+  );
 }
 
 function loop(root, args, review, env = {}) {
@@ -152,6 +164,24 @@ describe('findWeakening', () => {
     const nameStatus = 'D\tsrc/old.test.js\nM\tsrc/__snapshots__/cart.snap\nM\t.github/workflows/ci.yml';
     const reasons = findWeakening('', nameStatus).map((issue) => issue.reason);
     assert.deepEqual(reasons, ['test file deleted', 'snapshot changed', 'CI config changed']);
+  });
+});
+
+describe('gitInvocations', () => {
+  test('finds commit and push in common command shapes', () => {
+    assert.deepEqual(
+      gitInvocations('git add -A && git commit -m "fix: a && b"', '/repo').map((invocation) => invocation.subcommand),
+      ['add', 'commit'],
+    );
+    assert.deepEqual(gitInvocations('git -C ../other commit -m x', '/repo/app')[0].directory, '/repo/other');
+    assert.equal(gitInvocations('git -c user.name=x commit -m y', '/repo')[0].subcommand, 'commit');
+    assert.equal(gitInvocations('cd packages/web && git commit -m x', '/repo')[0].directory, '/repo/packages/web');
+    assert.equal(gitInvocations('GIT_EDITOR=true git commit', '/repo')[0].subcommand, 'commit');
+  });
+
+  test('ignores git words inside other commands', () => {
+    assert.deepEqual(gitInvocations('echo "git commit"', '/repo'), []);
+    assert.deepEqual(gitInvocations("grep -r 'git push' .", '/repo'), []);
   });
 });
 
@@ -478,5 +508,163 @@ describe('loop.mjs in a git repository', () => {
     loop(root, ['record'], { findings: [{ severity: 'P3', file: 'src/cart.js', title: 'Name total as sumPrices' }] });
     const decision = loop(root, ['decide', '--id', 'F-1', '--choice', 'keep']);
     assert.deepEqual([decision.recorded, decision.pending], [true, []]);
+  });
+});
+
+describe('commit gate', () => {
+  const commit = (root, command = 'git commit -m "feat: coupon"') => gateDecision({ cwd: root, command });
+
+  function reviewedRepository() {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    return root;
+  }
+
+  test('gate off leaves commits alone', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    assert.equal(commit(root), null);
+  });
+
+  test('gate blocks an unreviewed commit', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const result = commit(root, 'git add -A && git commit -m "feat: coupon"');
+    assert.equal(result.decision, 'deny');
+    assert.match(result.reason, /\/review-loop:review-loop/);
+  });
+
+  test('gate asks after a clean review and allows with delegation', () => {
+    const root = reviewedRepository();
+    assert.equal(commit(root).decision, 'ask');
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root).decision, 'allow');
+  });
+
+  test('gate blocks while a loop is in progress or decisions are pending', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPrice] });
+    assert.match(commit(root).reason, /in progress/);
+    loop(root, ['start', '--fresh']);
+    loop(root, ['record'], { findings: [{ severity: 'P3', file: 'src/cart.js', title: 'Name total as sumPrices' }] });
+    assert.match(commit(root).reason, /decide F-1/);
+  });
+
+  test('gate asks for later edits to reviewed files and blocks unreviewed files', () => {
+    const root = reviewedRepository();
+    writeFiles(root, { 'src/cart.js': `${brokenCart}// reviewed file edited\n` });
+    assert.equal(commit(root).decision, 'ask');
+    writeFiles(root, { 'src/other.js': 'export const flag = true;\n' });
+    const result = commit(root);
+    assert.equal(result.decision, 'deny');
+    assert.match(result.reason, /src\/other\.js/);
+  });
+
+  test('gate blocks reusing a review that is already committed', () => {
+    const root = reviewedRepository();
+    commitAll(root);
+    writeFiles(root, { 'src/cart.js': correctCart });
+    assert.match(commit(root).reason, /already committed/);
+  });
+
+  test('skip once allows one commit without a review', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['gate', '--skip-once']);
+    assert.equal(commit(root).decision, 'ask');
+    assert.equal(commit(root).decision, 'deny');
+  });
+
+  test('push and --no-verify always ask even with delegation', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.match(commit(root, 'git push --force origin main').reason, /force push/);
+    assert.equal(commit(root, 'git push').decision, 'ask');
+    assert.equal(commit(root, 'git commit --no-verify -m x').decision, 'ask');
+  });
+
+  test('allow is lowered to ask when other commands run with the commit', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root, 'git add -A && git commit -m x').decision, 'allow');
+    assert.equal(commit(root, 'git commit -m x && rm -rf dist').decision, 'ask');
+  });
+
+  test('command substitution in a delegated commit is asked about', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root, 'git commit -m "$(rm -rf dist)"').decision, 'ask');
+    assert.equal(commit(root, 'git commit -m `rm -rf dist`').decision, 'ask');
+  });
+
+  test('a short flag cluster that starts with n is read as skipping hooks', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root, 'git commit -nm fix').decision, 'ask');
+    assert.equal(commit(root, 'git commit -mn').decision, 'allow');
+  });
+
+  test('an unreviewed commit that skips hooks is still blocked', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    assert.equal(commit(root, 'git commit --no-verify -m x').decision, 'deny');
+    assert.equal(commit(root, 'git commit -n -m x').decision, 'deny');
+    const reviewed = reviewedRepository();
+    loop(reviewed, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(reviewed, 'git commit -mcleanup').decision, 'allow');
+  });
+
+  test('a review is used up once HEAD moves', () => {
+    const root = reviewedRepository();
+    writeFiles(root, { 'src/cart.js': `${brokenCart}// fix from the decision step\n` });
+    commitAll(root);
+    writeFiles(root, { 'src/cart.js': `${brokenCart}// new unreviewed code\n` });
+    assert.match(commit(root).reason, /already committed/);
+  });
+
+  test('gate checks the repository named with git -C', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const elsewhere = mkdtempSync(path.join(tmpdir(), 'review-loop-cwd-'));
+    assert.equal(gateDecision({ cwd: elsewhere, command: `git -C ${root} commit -m x` }).decision, 'deny');
+  });
+});
+
+describe('commit gate hook script', () => {
+  const hook = fileURLToPath(new URL('../../plugins/review-loop/hooks/commit-gate.mjs', import.meta.url));
+
+  test('hook prints a permission decision', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const payload = JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git commit -m x' }, cwd: root });
+    const output = JSON.parse(execFileSync('node', [hook], { input: payload, encoding: 'utf8' }));
+    assert.equal(output.hookSpecificOutput.permissionDecision, 'deny');
+  });
+
+  test('hook stays silent on other commands and bad input', () => {
+    const quiet = JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'ls -la' }, cwd: tmpdir() });
+    assert.equal(execFileSync('node', [hook], { input: quiet, encoding: 'utf8' }), '');
+    assert.equal(execFileSync('node', [hook], { input: 'not json', encoding: 'utf8' }), '');
+  });
+});
+
+describe('loop.mjs decisions', () => {
+  test('decide rejects an unknown choice', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [{ severity: 'P3', file: 'src/cart.js', title: 'Name total as sumPrices' }] });
+    assert.throws(() => loop(root, ['decide', '--id', 'F-1', '--choice', 'ignore']), /choice must be one of/);
   });
 });

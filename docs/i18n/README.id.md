@@ -16,7 +16,7 @@ Agent harness yang besar memuat banyak instruksi ke setiap sesi dan menjalankan 
 
 - **Satu plugin, satu tugas.** Pasang hanya yang kamu butuhkan. review-loop menambahkan sekitar 188 token ke satu sesi. Angka ini dilaporkan oleh `claude plugin details`.
 - **Pemeriksaan dulu, opini kemudian.** Test, pemeriksaan tipe, dan lint milikmu berjalan sebelum review apa pun oleh model.
-- **Hook bersifat opt-in.** Jika kamu tidak menyalakannya, tidak ada yang memantau prompt atau perintahmu.
+- **Hook bersifat opt-in.** Sebuah hook tidak melakukan apa pun sampai kamu menyalakannya untuk sebuah repository.
 - **Bertanya sebelum memasang.** Semua yang dibutuhkan plugin dijelaskan lebih dulu: apa itu, apa yang diperbaikinya, di mana letaknya, dan cara menghapusnya.
 - **Tunjukkan angkanya.** Setiap plugin disertai informasi tentang apa yang diukur dan apa yang tidak dicakup oleh pengukuran itu.
 
@@ -54,7 +54,22 @@ Sebelum kamu commit, review-loop menjalankan satu loop pendek dan berhenti sendi
 4. **Review ulang.** Reviewer baru hanya memeriksa perbaikan dan temuan yang masih terbuka. Maksimal 3 putaran.
 5. **Berhenti.** Sebuah script yang memutuskan kapan berhenti, bukan model. Script menghentikan loop dalam kasus berikut: tidak ada P1 atau P2 yang tersisa, batas putaran tercapai, sebuah temuan tetap ada setelah dua perbaikan, temuan yang sudah selesai muncul lagi, P1 + P2 berhenti berkurang, atau sebuah perbaikan melemahkan test atau pemeriksaan.
 6. **Putuskan.** Kamu memutuskan sisanya satu kali: semua P3 sampai P5, ditambah setiap P1 atau P2 yang masih terbuka atau tidak dapat diverifikasi. Untuk setiap temuan, kamu memilih: biarkan apa adanya, perbaiki untuk kali ini saja, atau jadikan aturan.
-7. **Commit.** Claude bertanya sebelum commit, kecuali kamu memilih "berhenti bertanya di repo ini". Claude tidak pernah melakukan push.
+7. **Commit.** Claude bertanya sebelum commit, kecuali kamu memilih "berhenti bertanya di repo ini". Claude tidak pernah melakukan push. Jika kamu menyalakan commit gate, sebuah hook menjadikan ini aturan: commit Claude diblokir sampai sebuah review lolos.
+
+### Commit gate
+
+Commit gate adalah sebuah hook. Hook ini mati sampai kamu menyalakannya di sebuah repository. Di akhir review, Claude bertanya satu kali apakah hook ini perlu dinyalakan. Saat gate menyala, gate memeriksa terlebih dahulu setiap `git commit` yang dijalankan Claude:
+
+| Situasi | Yang dilakukan gate |
+|---|---|
+| Tidak ada review, atau ada file berubah yang tidak dicakup review | Memblokir commit dan meminta Claude menjalankan review |
+| Loop review sedang berjalan, atau masih ada keputusan yang tertunda | Memblokir commit |
+| Review lolos | Bertanya kepadamu sebelum commit, atau mengizinkan commit jika kamu sudah mendelegasikan commit di repository ini |
+| Setelah review, hanya file yang sudah di-review yang berubah | Bertanya kepadamu |
+| `git push` atau force push | Selalu bertanya, bahkan dengan delegasi |
+| Commit dengan `--no-verify` | Bertanya, bahkan dengan delegasi, dan tetap memblokir commit tanpa review yang lolos |
+
+Untuk commit satu kali tanpa review, minta Claude untuk melewati review kali ini.
 
 Setiap putaran berakhir dengan laporan:
 
@@ -84,7 +99,7 @@ Tingkat ini berdasarkan aturan Pn publik dari Banksalad.
 
 ### Terukur
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 35 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 32 di antaranya. Unit test ini termasuk eksekusi pada git repository sementara yang nyata. 3 perilaku sisanya membutuhkan eksekusi dengan model dan direncanakan untuk `claude plugin eval`: bertanya tentang P3 sampai P5 satu kali, bertanya sebelum commit, dan menampilkan laporan sebelum pertanyaan apa pun.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 49 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 47 di antaranya. Unit test ini termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 2 perilaku sisanya membutuhkan eksekusi dengan model dan direncanakan untuk `claude plugin eval`: bertanya tentang P3 sampai P5 satu kali dan menampilkan laporan sebelum pertanyaan apa pun.
 
 review-loop me-review pull request milik LIM sendiri. [#8](https://github.com/lee-eojin/lim/pull/8) menunjukkan dua loop pada versi pertama review-loop. Salah satunya berhenti karena false positive pada pemeriksaan test yang dilemahkan milik review-loop sendiri. Kesalahan ini kemudian diperbaiki.
 
@@ -98,19 +113,20 @@ review-loop tidak melakukan panggilan jaringan sendiri. Claude dan reviewer memb
 
 - review-loop mendeteksi pemeriksaan hanya dari script di `package.json`.
 - Setiap pemeriksaan mendapat waktu maksimal 5 menit. Semua pemeriksaan bersama-sama mendapat waktu maksimal 9 menit. Atur `LIM_CHECK_TIMEOUT_MS` untuk mengubah batas per pemeriksaan.
-- Bertanya sebelum commit adalah instruksi untuk Claude, bukan hook. Hook commit gate yang bersifat opt-in sedang direncanakan ([#5](https://github.com/lee-eojin/lim/issues/5)).
+- Tanpa commit gate, bertanya sebelum commit adalah instruksi untuk Claude, bukan jaminan.
+- Commit gate hanya memeriksa perintah yang dijalankan Claude melalui tool Bash miliknya. Commit yang kamu ketik di terminalmu sendiri tidak diperiksa. Alias git seperti `git ci` tidak dikenali.
 - review-loop me-review semua yang akan dimasukkan oleh `git add -A`. review-loop tidak me-review kumpulan perubahan staged yang kamu pilih sendiri.
 
 ## FAQ
 
 **Apakah review-loop mulai sendiri?**
-Tidak selalu. Claude memulai sebuah skill hanya jika Claude memutuskan bahwa deskripsi skill itu cocok dengan percakapan. Jika kamu meminta Claude untuk me-review atau commit, Claude dapat memulai review-loop, tetapi ini tidak dijamin. Perintah `/review-loop:review-loop` selalu memulai review-loop. Jika kamu menyalakan hook commit gate yang direncanakan ([#5](https://github.com/lee-eojin/lim/issues/5)), review-loop akan berjalan sebelum setiap commit.
+Tidak selalu. Claude memulai sebuah skill hanya jika Claude memutuskan bahwa deskripsi skill itu cocok dengan percakapan. Jika kamu meminta Claude untuk me-review atau commit, Claude dapat memulai review-loop, tetapi ini tidak dijamin. Perintah `/review-loop:review-loop` selalu memulai review-loop. Jika kamu menyalakan commit gate, commit tanpa review diblokir. Lalu Claude diminta untuk menjalankan review-loop terlebih dahulu.
 
 **Apakah review-loop akan melakukan push atau merge?**
 Tidak pernah. review-loop bertanya sebelum setiap commit, kecuali kamu memilih "berhenti bertanya di repo ini". Kamu dapat mematikan pilihan itu lagi: minta Claude untuk mematikan delegasi commit milik review-loop.
 
 **Apakah review-loop akan bentrok dengan plugin saya yang lain?**
-review-loop menambahkan satu skill, satu agent, dan tidak ada hook. Nama-namanya diawali dengan `review-loop:`. Karena itu, nama-nama ini tidak dapat bentrok dengan nama dari plugin lain. Jika kamu bertanya dengan kalimat biasa, Claude dapat memilih review skill lain. Perintah selalu memulai review-loop.
+review-loop menambahkan satu skill, satu agent, dan satu hook. Hook ini membaca perintah Bash dan hanya bertindak pada `git commit` dan `git push`. Jika kamu belum menyalakan commit gate di repository itu, hook ini tidak melakukan apa pun. Nama-namanya diawali dengan `review-loop:`. Karena itu, nama-nama ini tidak dapat bentrok dengan nama dari plugin lain. Jika kamu bertanya dengan kalimat biasa, Claude dapat memilih review skill lain. Perintah selalu memulai review-loop.
 
 **Apa yang terjadi jika sesi berakhir di tengah loop?**
 Jalankan perintah lagi. review-loop menawarkan dua pilihan: melanjutkan dari putaran dan langkah tempat review-loop berhenti, atau memulai dari awal.
@@ -132,7 +148,7 @@ Lalu hapus `.git/lim/review-loop/` di setiap repository tempat kamu menjalankan 
 
 ## Roadmap
 
-- review-loop: hook commit gate yang bersifat opt-in ([#5](https://github.com/lee-eojin/lim/issues/5)), opsi untuk mengonfirmasi setiap P2 sebelum memperbaikinya ([#4](https://github.com/lee-eojin/lim/issues/4)), pemeriksaan test yang dilemahkan yang lebih kuat ([#6](https://github.com/lee-eojin/lim/issues/6)), snapshot yang lebih cepat pada repository besar ([#7](https://github.com/lee-eojin/lim/issues/7))
+- review-loop: opsi untuk mengonfirmasi setiap P2 sebelum memperbaikinya ([#4](https://github.com/lee-eojin/lim/issues/4)), pemeriksaan test yang dilemahkan yang lebih kuat ([#6](https://github.com/lee-eojin/lim/issues/6)), snapshot yang lebih cepat pada repository besar ([#7](https://github.com/lee-eojin/lim/issues/7))
 - forge: laporan kesetiaan untuk reviewer skill yang disaring dari komentar pull request
 - Eval tingkat model dengan `claude plugin eval` untuk perilaku yang tidak dapat dicakup oleh unit test
 

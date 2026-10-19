@@ -16,7 +16,7 @@ Harnesses de agentes grandes carregam muitas instruções em cada sessão e exec
 
 - **Um plugin, um trabalho.** Instale apenas o que você precisa. O review-loop adiciona cerca de 188 tokens a uma sessão, de acordo com `claude plugin details`.
 - **Primeiro as verificações, depois as opiniões.** Seus testes, seus tipos e seu lint rodam antes de qualquer revisão do modelo.
-- **Os hooks são opt-in.** Nada observa seus prompts ou seus comandos, a menos que você ative.
+- **Os hooks são opt-in.** Um hook não faz nada até que você o ative em um repositório.
 - **Perguntar antes de instalar.** Se um plugin precisa de algo, ele explica primeiro: o que é, o que melhora, onde fica e como remover.
 - **Mostrar os números.** Cada plugin inclui o que foi medido e o que essa medição não cobre.
 
@@ -54,7 +54,22 @@ Antes do seu commit, o review-loop executa um ciclo curto e para sem a sua inter
 4. **Nova revisão.** Um revisor novo verifica apenas as correções e os achados que continuam abertos. O ciclo tem no máximo 3 rodadas.
 5. **Parada.** Um script, e não o modelo, decide quando o ciclo para. O ciclo para nestes casos: não restam P1 nem P2, o limite de rodadas é atingido, um achado continua aberto depois de duas correções, um achado resolvido volta a aparecer, P1 + P2 para de diminuir, ou uma correção enfraquece os testes ou as verificações.
 6. **Decisão.** Você decide o restante uma única vez: todos os P3 a P5, mais qualquer P1 ou P2 que continua aberto ou não verificado. Para cada achado, você escolhe: manter como está, corrigir só desta vez ou transformar em uma regra.
-7. **Commit.** O Claude pergunta antes do commit, a menos que você tenha escolhido "parar de perguntar neste repositório". O Claude nunca faz push.
+7. **Commit.** O Claude pergunta antes do commit, a menos que você tenha escolhido "parar de perguntar neste repositório". O Claude nunca faz push. Se você ativar o commit gate, um hook transforma isso em uma regra: os commits do Claude ficam bloqueados até que uma revisão seja aprovada.
+
+### Commit gate
+
+O commit gate é um hook. Esse hook fica desativado até que você o ative em um repositório. No fim de uma revisão, o Claude pergunta uma vez se você quer ativá-lo. Com o gate ativado, o gate verifica primeiro cada `git commit` que o Claude executa:
+
+| Situação | O que o gate faz |
+|---|---|
+| Não há revisão, ou mudaram arquivos que a revisão não cobriu | Bloqueia o commit e diz ao Claude para executar a revisão |
+| Um ciclo de revisão está em andamento, ou ainda há decisões pendentes | Bloqueia o commit |
+| A revisão foi aprovada | Pergunta a você antes do commit, ou permite o commit se você delegou os commits neste repositório |
+| Depois da revisão, só mudaram arquivos revisados | Pergunta a você |
+| `git push` ou um force push | Sempre pergunta, mesmo com delegação |
+| Um commit com `--no-verify` | Pergunta, mesmo com delegação, e continua bloqueando um commit sem uma revisão aprovada |
+
+Para fazer um commit uma única vez sem revisão, peça ao Claude para pular a revisão desta vez.
 
 Cada rodada termina com um relatório:
 
@@ -84,7 +99,7 @@ A escala é baseada na regra Pn pública do Banksalad.
 
 ### Medições
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lista 35 comportamentos em seis eixos: `do`, `tell`, `ask`, `silence`, `stop` e `evidence`. Os testes unitários no CI cobrem 32 desses comportamentos, incluindo execuções em repositórios git temporários reais. Os outros 3 precisam de uma execução do modelo e estão planejados para `claude plugin eval`: perguntar uma única vez sobre P3 a P5, perguntar antes de um commit e mostrar o relatório antes de qualquer pergunta.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lista 49 comportamentos em seis eixos: `do`, `tell`, `ask`, `silence`, `stop` e `evidence`. Os testes unitários no CI cobrem 47 desses comportamentos, incluindo execuções em repositórios git temporários reais e o hook de commit gate. Os outros 2 precisam de uma execução do modelo e estão planejados para `claude plugin eval`: perguntar uma única vez sobre P3 a P5 e mostrar o relatório antes de qualquer pergunta.
 
 O review-loop revisa os pull requests do próprio LIM. O [#8](https://github.com/lee-eojin/lim/pull/8) mostra dois ciclos na primeira versão do review-loop. Um desses ciclos parou por causa de um falso positivo na verificação de enfraquecimento de testes do próprio review-loop. Depois, esse falso positivo foi corrigido.
 
@@ -98,19 +113,20 @@ O review-loop não faz chamadas de rede próprias. O Claude e o revisor leem o d
 
 - O review-loop detecta as verificações apenas a partir dos scripts do `package.json`.
 - Cada verificação tem no máximo 5 minutos, e todas as verificações juntas têm no máximo 9 minutos. Para alterar o limite de cada verificação, defina `LIM_CHECK_TIMEOUT_MS`.
-- Perguntar antes de um commit é uma instrução para o Claude, e não um hook. Um hook opt-in de commit gate está planejado ([#5](https://github.com/lee-eojin/lim/issues/5)).
+- Sem o commit gate, perguntar antes de um commit é uma instrução para o Claude, e não uma garantia.
+- O commit gate verifica apenas os comandos que o Claude executa pela ferramenta Bash dele. Os commits que você digita no seu próprio terminal não são verificados. Aliases do git como `git ci` não são reconhecidos.
 - O review-loop revisa tudo o que `git add -A` incluiria, e não um conjunto de alterações em stage que você escolhe manualmente.
 
 ## Perguntas frequentes
 
 **O review-loop inicia sem que eu execute o comando?**
-Nem sempre. O Claude inicia uma skill apenas quando decide que a descrição da skill corresponde à conversa. Se você pedir ao Claude para revisar ou fazer um commit, o Claude pode iniciar o review-loop, mas isso não é garantido. O comando `/review-loop:review-loop` sempre inicia o review-loop. Se você ativar o hook de commit gate planejado ([#5](https://github.com/lee-eojin/lim/issues/5)), esse hook vai executar o review-loop antes de cada commit.
+Nem sempre. O Claude inicia uma skill apenas quando decide que a descrição da skill corresponde à conversa. Se você pedir ao Claude para revisar ou fazer um commit, o Claude pode iniciar o review-loop, mas isso não é garantido. O comando `/review-loop:review-loop` sempre inicia o review-loop. Se você ativar o commit gate, um commit sem revisão fica bloqueado. Então o Claude recebe a instrução de executar o review-loop primeiro.
 
 **Ele faz push ou merge?**
 Nunca. O review-loop pergunta antes de cada commit, a menos que você escolha "parar de perguntar neste repositório". Para desativar essa opção de novo, peça ao Claude para desativar a delegação de commits do review-loop.
 
 **Ele entra em conflito com meus outros plugins?**
-O review-loop adiciona uma skill, um agente e nenhum hook. Os nomes dele começam com `review-loop:`, então eles não podem coincidir com os nomes de outros plugins. Se você pedir com palavras comuns, o Claude pode escolher outra skill de revisão. O comando sempre inicia o review-loop.
+O review-loop adiciona uma skill, um agente e um hook. O hook lê comandos do Bash e só age sobre `git commit` e `git push`. O hook não faz nada se você não ativou o commit gate nesse repositório. Os nomes dele começam com `review-loop:`, então eles não podem coincidir com os nomes de outros plugins. Se você pedir com palavras comuns, o Claude pode escolher outra skill de revisão. O comando sempre inicia o review-loop.
 
 **O que acontece se uma sessão terminar no meio de um ciclo?**
 Execute o comando de novo. O review-loop oferece continuar a partir da rodada e da etapa em que parou, ou começar do zero.
@@ -132,7 +148,7 @@ Depois, apague `.git/lim/review-loop/` em cada repositório onde você executou 
 
 ## Roadmap
 
-- review-loop: hook opt-in de commit gate ([#5](https://github.com/lee-eojin/lim/issues/5)), uma opção para confirmar cada P2 antes de corrigir ([#4](https://github.com/lee-eojin/lim/issues/4)), uma verificação mais forte de enfraquecimento de testes ([#6](https://github.com/lee-eojin/lim/issues/6)), snapshots mais rápidos em repositórios grandes ([#7](https://github.com/lee-eojin/lim/issues/7))
+- review-loop: uma opção para confirmar cada P2 antes de corrigir ([#4](https://github.com/lee-eojin/lim/issues/4)), uma verificação mais forte de enfraquecimento de testes ([#6](https://github.com/lee-eojin/lim/issues/6)), snapshots mais rápidos em repositórios grandes ([#7](https://github.com/lee-eojin/lim/issues/7))
 - forge: um relatório de fidelidade para skills de revisor extraídas de comentários de pull request
 - Evals no nível do modelo com `claude plugin eval` para os comportamentos que os testes unitários não conseguem cobrir
 

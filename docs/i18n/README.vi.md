@@ -16,7 +16,7 @@ Các agent harness lớn nạp nhiều chỉ dẫn vào mỗi session và chạy
 
 - **Một plugin, một việc.** Bạn chỉ cài những gì bạn cần. review-loop thêm khoảng 188 token vào một session. `claude plugin details` báo cáo con số này.
 - **Check trước, ý kiến sau.** Test, kiểm tra kiểu và lint của bạn chạy trước mọi lần review bằng mô hình.
-- **Hook là opt-in.** Nếu bạn không bật, không có gì theo dõi prompt hoặc lệnh của bạn.
+- **Hook là opt-in.** Một hook không làm gì cho đến khi bạn bật nó cho một repository.
 - **Hỏi trước khi cài.** Mọi thứ một plugin cần đều được giải thích trước: nó là gì, nó cải thiện điều gì, nó nằm ở đâu và cách gỡ nó.
 - **Cho thấy con số.** Mỗi plugin đi kèm thông tin về những gì đã được đo và những gì số đo đó không bao gồm.
 
@@ -54,7 +54,22 @@ Trước khi bạn commit, review-loop chạy một vòng lặp ngắn và tự 
 4. **Review lại.** Một reviewer mới chỉ kiểm tra các bản sửa và các phát hiện còn mở. Tối đa 3 vòng.
 5. **Dừng.** Một script quyết định khi nào dừng, không phải mô hình. Script dừng vòng lặp trong các trường hợp sau: không còn P1 hoặc P2, đạt giới hạn số vòng, một phát hiện vẫn còn sau hai lần sửa, một phát hiện đã giải quyết quay lại, P1 + P2 không giảm nữa, hoặc một bản sửa làm yếu test hay check.
 6. **Quyết định.** Bạn quyết định phần còn lại một lần: mọi P3 đến P5, cùng với mọi P1 hoặc P2 vẫn còn mở hoặc chưa xác minh được. Với mỗi phát hiện, bạn chọn: giữ nguyên, chỉ sửa lần này, hoặc biến nó thành một quy tắc.
-7. **Commit.** Claude hỏi trước khi commit, trừ khi bạn đã chọn "không hỏi nữa trong repo này". Claude không bao giờ push.
+7. **Commit.** Claude hỏi trước khi commit, trừ khi bạn đã chọn "không hỏi nữa trong repo này". Claude không bao giờ push. Nếu bạn bật commit gate, một hook biến điều này thành quy tắc: commit của Claude bị chặn cho đến khi một lần review đạt.
+
+### Commit gate
+
+Commit gate là một hook. Hook này tắt cho đến khi bạn bật nó trong một repository. Khi một lần review kết thúc, Claude hỏi một lần xem có bật hook này không. Khi gate đang bật, gate kiểm tra trước mọi `git commit` mà Claude chạy:
+
+| Tình huống | Gate làm gì |
+|---|---|
+| Chưa có review, hoặc có file thay đổi mà review chưa bao phủ | Chặn commit và yêu cầu Claude chạy review |
+| Một vòng lặp review đang chạy, hoặc vẫn còn quyết định đang chờ | Chặn commit |
+| Review đã đạt | Hỏi bạn trước khi commit, hoặc cho phép commit nếu bạn đã ủy quyền commit trong repository này |
+| Sau review, chỉ có các file đã review thay đổi | Hỏi bạn |
+| `git push` hoặc force push | Luôn hỏi, kể cả khi đã ủy quyền |
+| Commit với `--no-verify` | Hỏi, kể cả khi đã ủy quyền, và vẫn chặn commit chưa có review đạt |
+
+Để commit một lần mà không review, hãy yêu cầu Claude bỏ qua review lần này.
 
 Mỗi vòng kết thúc bằng một báo cáo:
 
@@ -84,7 +99,7 @@ Các mức này dựa trên quy tắc Pn công khai của Banksalad.
 
 ### Số đo
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 35 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 32 hành vi trong số đó. Các unit test này bao gồm cả các lần chạy trên git repository tạm thời thật. 3 hành vi còn lại cần một lần chạy với mô hình và được dự kiến cho `claude plugin eval`: hỏi về P3 đến P5 một lần, hỏi trước khi commit và hiển thị báo cáo trước mọi câu hỏi.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 49 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 47 hành vi trong số đó. Các unit test này bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 2 hành vi còn lại cần một lần chạy với mô hình và được dự kiến cho `claude plugin eval`: hỏi về P3 đến P5 một lần và hiển thị báo cáo trước mọi câu hỏi.
 
 review-loop review chính các pull request của LIM. [#8](https://github.com/lee-eojin/lim/pull/8) cho thấy hai vòng lặp trên phiên bản đầu tiên của review-loop. Một vòng trong đó dừng vì một false positive trong check phát hiện test bị làm yếu của chính nó. Lỗi này sau đó đã được sửa.
 
@@ -98,19 +113,20 @@ review-loop không tự thực hiện lệnh gọi mạng nào. Claude và revie
 
 - review-loop chỉ phát hiện check từ các script trong `package.json`.
 - Mỗi check có tối đa 5 phút. Tất cả check cộng lại có tối đa 9 phút. Đặt `LIM_CHECK_TIMEOUT_MS` để thay đổi giới hạn cho mỗi check.
-- Việc hỏi trước khi commit là một chỉ dẫn cho Claude, không phải một hook. Một hook commit gate dạng opt-in đang được dự kiến ([#5](https://github.com/lee-eojin/lim/issues/5)).
+- Khi không có commit gate, việc hỏi trước khi commit là một chỉ dẫn cho Claude, không phải một sự đảm bảo.
+- Commit gate chỉ kiểm tra các lệnh mà Claude chạy qua công cụ Bash của nó. Các commit bạn tự gõ trong terminal của mình không được kiểm tra. Git alias như `git ci` không được nhận diện.
 - review-loop review mọi thứ mà `git add -A` sẽ bao gồm. Nó không review một tập thay đổi đã stage do bạn tự chọn.
 
 ## FAQ
 
 **review-loop có tự khởi động không?**
-Không phải lúc nào cũng vậy. Claude chỉ khởi động một skill khi Claude quyết định rằng mô tả của skill phù hợp với cuộc hội thoại. Nếu bạn yêu cầu Claude review hoặc commit, Claude có thể khởi động review-loop, nhưng điều này không được đảm bảo. Lệnh `/review-loop:review-loop` luôn khởi động review-loop. Nếu bạn bật hook commit gate đang dự kiến ([#5](https://github.com/lee-eojin/lim/issues/5)), review-loop sẽ chạy trước mỗi commit.
+Không phải lúc nào cũng vậy. Claude chỉ khởi động một skill khi Claude quyết định rằng mô tả của skill phù hợp với cuộc hội thoại. Nếu bạn yêu cầu Claude review hoặc commit, Claude có thể khởi động review-loop, nhưng điều này không được đảm bảo. Lệnh `/review-loop:review-loop` luôn khởi động review-loop. Nếu bạn bật commit gate, một commit không có review sẽ bị chặn. Khi đó Claude được yêu cầu chạy review-loop trước.
 
 **Nó có push hoặc merge không?**
 Không bao giờ. review-loop hỏi trước mỗi commit, trừ khi bạn chọn "không hỏi nữa trong repo này". Bạn có thể tắt lựa chọn đó: hãy yêu cầu Claude tắt việc ủy quyền commit của review-loop.
 
 **Nó có xung đột với các plugin khác của tôi không?**
-review-loop thêm một skill, một agent và không thêm hook nào. Tên của nó bắt đầu bằng `review-loop:`. Vì vậy các tên này không thể trùng với tên từ các plugin khác. Nếu bạn hỏi bằng lời thông thường, Claude có thể chọn một review skill khác. Lệnh luôn khởi động review-loop.
+review-loop thêm một skill, một agent và một hook. Hook này đọc các lệnh Bash và chỉ xử lý `git commit` và `git push`. Nếu bạn chưa bật commit gate trong repository đó, hook này không làm gì. Tên của nó bắt đầu bằng `review-loop:`. Vì vậy các tên này không thể trùng với tên từ các plugin khác. Nếu bạn hỏi bằng lời thông thường, Claude có thể chọn một review skill khác. Lệnh luôn khởi động review-loop.
 
 **Điều gì xảy ra nếu một session kết thúc giữa vòng lặp?**
 Chạy lại lệnh. review-loop đề xuất hai lựa chọn: tiếp tục từ vòng và bước nơi nó đã dừng, hoặc bắt đầu lại từ đầu.
@@ -132,7 +148,7 @@ Sau đó, xóa `.git/lim/review-loop/` trong mỗi repository mà bạn đã ch�
 
 ## Lộ trình
 
-- review-loop: hook commit gate dạng opt-in ([#5](https://github.com/lee-eojin/lim/issues/5)), một tùy chọn để xác nhận từng P2 trước khi sửa ([#4](https://github.com/lee-eojin/lim/issues/4)), một check mạnh hơn để phát hiện test bị làm yếu ([#6](https://github.com/lee-eojin/lim/issues/6)), snapshot nhanh hơn trên repository lớn ([#7](https://github.com/lee-eojin/lim/issues/7))
+- review-loop: một tùy chọn để xác nhận từng P2 trước khi sửa ([#4](https://github.com/lee-eojin/lim/issues/4)), một check mạnh hơn để phát hiện test bị làm yếu ([#6](https://github.com/lee-eojin/lim/issues/6)), snapshot nhanh hơn trên repository lớn ([#7](https://github.com/lee-eojin/lim/issues/7))
 - forge: một báo cáo về mức độ trung thực cho các reviewer skill được rút ra từ bình luận pull request
 - Eval ở cấp mô hình với `claude plugin eval` cho các hành vi mà unit test không bao phủ được
 

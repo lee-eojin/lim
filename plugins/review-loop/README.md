@@ -41,13 +41,28 @@ Stopped: no P1 or P2 left in this change
 Left for you: P3 1, P4 0, P5 2
 ```
 
+## Commit gate
+
+The commit gate is a hook that is off until you turn it on in a repository. At the end of a review, Claude asks once whether to turn it on. With the gate on, every `git commit` that Claude runs is checked first:
+
+| Situation | What the gate does |
+|---|---|
+| No review, or files changed that the review did not cover | Blocks the commit and tells Claude to run the review |
+| A review loop is in progress, or decisions are still pending | Blocks the commit |
+| The review passed | Asks you before committing, or allows it if you delegated commits in this repository |
+| Only reviewed files changed after the review (for example fixes from the decision step) | Asks you |
+| `git push` or a force push | Always asks, even with delegation |
+| A commit with `--no-verify` | Asks, even with delegation, and still blocks a commit without a passing review |
+
+To commit once without a review, ask Claude to skip the review this time. The gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked.
+
 ## Severity
 
 Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing, P4 optional, P5 trivial.
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 35 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 32 of them. The other 3 (asking about P3 to P5 once, asking before a commit, and showing the report before any question) need a model run and are planned for `claude plugin eval`.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 49 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 47 of them. The other 2 (asking about P3 to P5 once, and showing the report before any question) need a model run and are planned for `claude plugin eval`.
 
 ## Data
 
@@ -57,6 +72,7 @@ State, diffs, check logs, and a decision ledger are stored in `.git/lim/review-l
 
 - Check detection reads `package.json` scripts only.
 - Each check gets up to 5 minutes, and all checks together up to 9 minutes. A check past its limit is reported as "timed out (not verified)" instead of failing, and Claude tells you before committing. Set `LIM_CHECK_TIMEOUT_MS` to change the per-check limit.
-- Asking before a commit is an instruction to Claude, not a hook. A hook-based commit gate is planned for v0.2.
+- Without the commit gate, asking before a commit is an instruction to Claude, not a guarantee. Turn the gate on to make it a hook.
+- The commit gate does not resolve git aliases. A commit made through an alias such as `git ci` is not checked.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
 - "Make it a rule" is recorded but does not create a lint rule yet.
