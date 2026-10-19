@@ -22,7 +22,7 @@ Large agent harnesses load many instructions into every session and run hooks on
 
 | Plugin | Status | One job |
 |---|---|---|
-| [review-loop](plugins/review-loop) | 0.1.1 | Reviews your changes before you commit, fixes P1 and P2 findings, re-reviews, and hands the rest to you. |
+| [review-loop](plugins/review-loop) | 0.2.0 | Reviews your changes before you commit, fixes P1 and P2 findings, re-reviews, and hands the rest to you. |
 | forge | planned | Turns a reviewer's pull request comments into a reviewer skill, with a report on how faithful it is. |
 
 ## Quick start
