@@ -97,7 +97,7 @@ Based on Banksalad's public Pn rule.
 
 ### Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 49 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 47 of them, including runs against real temporary git repositories and the commit gate hook. The other 2 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, and showing the report before any question.
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 55 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 53 of them, including runs against real temporary git repositories and the commit gate hook. The other 2 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, and showing the report before any question.
 
 review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed.
 

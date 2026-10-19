@@ -605,6 +605,59 @@ describe('commit gate', () => {
     assert.equal(commit(root, 'git commit -m `rm -rf dist`').decision, 'ask');
   });
 
+  test('a commit message from a quoted heredoc is allowed with delegation', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    const body = 'feat: coupon\n\nSays "hi"; it\'s literal, so $HOME and `pwd` stay text.';
+    assert.equal(commit(root, `git add -A && git commit -m "$(cat <<'EOF'\n${body}\nEOF\n)"`).decision, 'allow');
+    assert.equal(commit(root, `git commit -m "$(cat <<-"MSG"\n\t${body}\n\tMSG\n)"`).decision, 'allow');
+  });
+
+  test('a heredoc that can run commands is still asked about', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root, 'git commit -m "$(cat <<EOF\nfix $(rm -rf dist)\nEOF\n)"').decision, 'ask');
+    assert.equal(commit(root, `git commit -m "$(cat <<'EOF'\nfix\nEOF\nrm -rf dist\nEOF\n)"`).decision, 'ask');
+    assert.equal(commit(root, `git commit -m "$(cat <<'EOF'; rm -rf dist\nfix\nEOF\n)"`).decision, 'ask');
+    assert.equal(commit(root, `git commit -m '$(cat <<'EOF'\nx'; rm -rf dist; echo '\nEOF\n)'`).decision, 'ask');
+    assert.equal(commit(root, `git commit -m "\\$(cat <<'EOF'\nx"; rm -rf dist; echo "\nEOF\n)"`).decision, 'ask');
+    assert.equal(commit(root, `git commit -m $(cat <<'EOF'\nx --no-verify\nEOF\n)`).decision, 'ask');
+    assert.equal(commit(root, `git commit -m "$(cat <<'EOF'\nx)"; rm -rf dist; echo "(\nEOF\n)"`).decision, 'ask');
+    assert.equal(commit(root, `git commit -m "$(cat <<'EOF'\nfix: coupon (#17)\nEOF\n)"`).decision, 'ask');
+  });
+
+  test('a heredoc passed as its own argument is read as that argument', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root, `git commit -m fix "$(cat <<'EOF'\n--no-verify\nEOF\n)"`).decision, 'ask');
+    assert.equal(commit(root, `git commit -m fix "$(cat <<'EOF'\n-n\nEOF\n)"`).decision, 'ask');
+    assert.equal(commit(root, `git commit -m "$(cat <<'EOF'\n--no-verify\nEOF\n)"`).decision, 'allow');
+  });
+
+  test('ANSI-C quoted strings do not hide command substitution', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root, "git commit -m $'a\\'' \"$(rm -rf dist)\"").decision, 'ask');
+    assert.equal(commit(root, "git commit -m $'fix: it\\'s done'").decision, 'allow');
+  });
+
+  test('backticks inside single quotes are not command substitution', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root, "git commit -m 'fix: round `total` and $(price)'").decision, 'allow');
+    assert.equal(commit(root, 'git commit -m "fix: round `total`"').decision, 'ask');
+  });
+
+  test('option values are not read as skipping hooks', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root, 'git commit -unormal -m x').decision, 'allow');
+    assert.equal(commit(root, 'git commit -Sn -m x').decision, 'allow');
+    assert.equal(commit(root, 'git commit -am -n').decision, 'allow');
+    assert.equal(commit(root, 'git commit -m x -- -n').decision, 'allow');
+    assert.equal(commit(root, 'git commit -m x -n').decision, 'ask');
+  });
+
   test('a short flag cluster that starts with n is read as skipping hooks', () => {
     const root = reviewedRepository();
     loop(root, ['delegate', '--scope', 'repo']);

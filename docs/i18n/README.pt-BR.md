@@ -99,7 +99,7 @@ A escala é baseada na regra Pn pública do Banksalad.
 
 ### Medições
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lista 49 comportamentos em seis eixos: `do`, `tell`, `ask`, `silence`, `stop` e `evidence`. Os testes unitários no CI cobrem 47 desses comportamentos, incluindo execuções em repositórios git temporários reais e o hook de commit gate. Os outros 2 precisam de uma execução do modelo e estão planejados para `claude plugin eval`: perguntar uma única vez sobre P3 a P5 e mostrar o relatório antes de qualquer pergunta.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lista 55 comportamentos em seis eixos: `do`, `tell`, `ask`, `silence`, `stop` e `evidence`. Os testes unitários no CI cobrem 53 desses comportamentos, incluindo execuções em repositórios git temporários reais e o hook de commit gate. Os outros 2 precisam de uma execução do modelo e estão planejados para `claude plugin eval`: perguntar uma única vez sobre P3 a P5 e mostrar o relatório antes de qualquer pergunta.
 
 O review-loop revisa os pull requests do próprio LIM. O [#8](https://github.com/lee-eojin/lim/pull/8) mostra dois ciclos na primeira versão do review-loop. Um desses ciclos parou por causa de um falso positivo na verificação de enfraquecimento de testes do próprio review-loop. Depois, esse falso positivo foi corrigido.
 
