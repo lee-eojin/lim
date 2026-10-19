@@ -16,7 +16,7 @@ Große Agent-Harnesses laden viele Anweisungen in jede Session und führen bei v
 
 - **Ein Plugin, eine Aufgabe.** Installiere nur, was du brauchst. review-loop fügt einer Session etwa 188 Tokens hinzu. Diesen Wert meldet `claude plugin details`.
 - **Erst Checks, dann Meinungen.** Deine Tests, deine Typprüfung und dein Lint laufen vor jedem Review durch ein Modell.
-- **Hooks sind Opt-in.** Wenn du es nicht einschaltest, überwacht nichts deine Prompts oder Befehle.
+- **Hooks sind Opt-in.** Ein Hook tut nichts, bis du ihn für ein Repository einschaltest.
 - **Erst fragen, dann installieren.** Alles, was ein Plugin braucht, wird vorher erklärt: was es ist, was es verbessert, wo es liegt und wie du es entfernst.
 - **Zahlen zeigen.** Jedes Plugin enthält, was gemessen wurde und was diese Messung nicht abdeckt.
 
@@ -54,7 +54,22 @@ Vor deinem Commit führt review-loop eine kurze Schleife aus und stoppt selbstst
 4. **Erneutes Review.** Ein neuer Reviewer prüft nur die Fixes und die noch offenen Findings. Es gibt maximal 3 Runden.
 5. **Stoppen.** Ein Skript entscheidet über den Stopp, nicht das Modell. Das Skript stoppt in diesen Fällen: Es gibt kein P1 oder P2 mehr, das Rundenlimit ist erreicht, ein Finding übersteht zwei Fixes, ein gelöstes Finding kommt zurück, P1 + P2 sinkt nicht mehr, oder ein Fix schwächt Tests oder Checks.
 6. **Entscheiden.** Du entscheidest einmal über den Rest: alle P3 bis P5 und jedes P1- oder P2-Finding, das noch offen oder nicht verifiziert ist. Für jedes Finding wählst du: so lassen, nur dieses Mal beheben oder eine Regel daraus machen.
-7. **Commit.** Claude fragt vor dem Commit, außer du hast "in diesem Repo nicht mehr fragen" gewählt. Claude pusht nie.
+7. **Commit.** Claude fragt vor dem Commit, außer du hast "in diesem Repo nicht mehr fragen" gewählt. Claude pusht nie. Wenn du das Commit-Gate einschaltest, macht ein Hook daraus eine Regel: Claudes Commits sind blockiert, bis ein Review bestanden ist.
+
+### Commit-Gate
+
+Das Commit-Gate ist ein Hook. Dieser Hook ist aus, bis du ihn in einem Repository einschaltest. Am Ende eines Reviews fragt Claude einmal, ob es das Gate einschalten soll. Wenn das Gate an ist, prüft das Gate zuerst jeden `git commit`, den Claude ausführt:
+
+| Situation | Was das Gate tut |
+|---|---|
+| Kein Review, oder Dateien wurden geändert, die das Review nicht abgedeckt hat | Blockiert den Commit und sagt Claude, dass es das Review ausführen soll |
+| Eine Review-Schleife läuft, oder Entscheidungen sind noch offen | Blockiert den Commit |
+| Das Review ist bestanden | Fragt dich vor dem Commit, oder erlaubt den Commit, wenn du Commits in diesem Repository delegiert hast |
+| Nach dem Review wurden nur geprüfte Dateien geändert | Fragt dich |
+| `git push` oder ein Force-Push | Fragt immer, auch mit Delegation |
+| Ein Commit mit `--no-verify` | Fragt, auch mit Delegation, und blockiert weiterhin einen Commit ohne bestandenes Review |
+
+Wenn du einmal ohne Review committen willst, bitte Claude, das Review dieses Mal zu überspringen.
 
 Jede Runde endet mit einem Bericht:
 
@@ -84,7 +99,7 @@ Die Stufen basieren auf der öffentlichen Pn-Regel von Banksalad.
 
 ### Gemessen
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 35 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 32 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories. Die übrigen 3 brauchen einen Lauf mit einem Modell und sind für `claude plugin eval` geplant: einmal nach P3 bis P5 fragen, vor einem Commit fragen und den Bericht vor jeder Frage zeigen.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 49 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 47 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 2 brauchen einen Lauf mit einem Modell und sind für `claude plugin eval` geplant: einmal nach P3 bis P5 fragen und den Bericht vor jeder Frage zeigen.
 
 review-loop prüft die Pull Requests von LIM selbst. [#8](https://github.com/lee-eojin/lim/pull/8) zeigt zwei Schleifen auf der ersten Version von review-loop. Eine davon stoppte wegen eines False Positive im eigenen Check auf geschwächte Tests. Dieser Fehler wurde danach behoben.
 
@@ -98,19 +113,20 @@ review-loop sendet selbst keine Netzwerkanfragen. Claude und der Reviewer lesen 
 
 - review-loop erkennt Checks nur aus den Skripten in `package.json`.
 - Jeder Check bekommt maximal 5 Minuten. Alle Checks zusammen bekommen maximal 9 Minuten. Setze `LIM_CHECK_TIMEOUT_MS`, um das Limit pro Check zu ändern.
-- Die Frage vor einem Commit ist eine Anweisung an Claude, kein Hook. Ein Opt-in-Hook als Commit-Gate ist geplant ([#5](https://github.com/lee-eojin/lim/issues/5)).
+- Ohne Commit-Gate ist die Frage vor einem Commit eine Anweisung an Claude, keine Garantie.
+- Das Commit-Gate prüft nur Befehle, die Claude über sein Bash-Tool ausführt. Commits, die du in deinem eigenen Terminal eingibst, prüft es nicht. git-Aliase wie `git ci` erkennt es nicht.
 - review-loop prüft alles, was `git add -A` einschließen würde. Eine von Hand ausgewählte Menge von gestagten Änderungen prüft es nicht.
 
 ## FAQ
 
 **Startet review-loop von selbst?**
-Nicht immer. Claude startet einen Skill nur, wenn Claude entscheidet, dass die Beschreibung des Skills zum Gespräch passt. Wenn du Claude um ein Review oder einen Commit bittest, kann Claude review-loop starten. Das ist aber nicht garantiert. Der Befehl `/review-loop:review-loop` startet review-loop immer. Wenn du den geplanten Commit-Gate-Hook ([#5](https://github.com/lee-eojin/lim/issues/5)) einschaltest, läuft review-loop vor jedem Commit.
+Nicht immer. Claude startet einen Skill nur, wenn Claude entscheidet, dass die Beschreibung des Skills zum Gespräch passt. Wenn du Claude um ein Review oder einen Commit bittest, kann Claude review-loop starten. Das ist aber nicht garantiert. Der Befehl `/review-loop:review-loop` startet review-loop immer. Wenn du das Commit-Gate einschaltest, wird ein Commit ohne Review blockiert. Claude bekommt dann die Anweisung, zuerst review-loop auszuführen.
 
 **Pusht oder merged es?**
 Nie. review-loop fragt vor jedem Commit, außer du wählst "in diesem Repo nicht mehr fragen". Du kannst das wieder ausschalten: Bitte Claude, die Commit-Delegation von review-loop auszuschalten.
 
 **Gibt es Konflikte mit meinen anderen Plugins?**
-review-loop fügt einen Skill und einen Agent hinzu, aber keine Hooks. Seine Namen beginnen mit `review-loop:`. Darum können sie nicht mit Namen aus anderen Plugins kollidieren. Wenn du in normalen Worten fragst, kann Claude stattdessen einen anderen Review-Skill wählen. Der Befehl startet immer review-loop.
+review-loop fügt einen Skill, einen Agent und einen Hook hinzu. Der Hook liest Bash-Befehle und reagiert nur auf `git commit` und `git push`. Wenn du das Commit-Gate in diesem Repository nicht eingeschaltet hast, tut der Hook nichts. Seine Namen beginnen mit `review-loop:`. Darum können sie nicht mit Namen aus anderen Plugins kollidieren. Wenn du in normalen Worten fragst, kann Claude stattdessen einen anderen Review-Skill wählen. Der Befehl startet immer review-loop.
 
 **Was passiert, wenn eine Session mitten in einer Schleife endet?**
 Führe den Befehl erneut aus. review-loop bietet zwei Wege an: Es macht ab der Runde und dem Schritt weiter, wo es gestoppt hat, oder es beginnt neu.
@@ -132,7 +148,7 @@ Lösche danach `.git/lim/review-loop/` in jedem Repository, in dem du review-loo
 
 ## Roadmap
 
-- review-loop: Opt-in-Hook als Commit-Gate ([#5](https://github.com/lee-eojin/lim/issues/5)), eine Option, jedes P2 vor dem Beheben zu bestätigen ([#4](https://github.com/lee-eojin/lim/issues/4)), ein stärkerer Check auf geschwächte Tests ([#6](https://github.com/lee-eojin/lim/issues/6)), schnellere Snapshots in großen Repositories ([#7](https://github.com/lee-eojin/lim/issues/7))
+- review-loop: eine Option, jedes P2 vor dem Beheben zu bestätigen ([#4](https://github.com/lee-eojin/lim/issues/4)), ein stärkerer Check auf geschwächte Tests ([#6](https://github.com/lee-eojin/lim/issues/6)), schnellere Snapshots in großen Repositories ([#7](https://github.com/lee-eojin/lim/issues/7))
 - forge: ein Bericht zur Treue für Reviewer-Skills, die aus Pull-Request-Kommentaren abgeleitet sind
 - Evals auf Modell-Ebene mit `claude plugin eval` für die Verhaltensweisen, die Unit-Tests nicht abdecken können
 

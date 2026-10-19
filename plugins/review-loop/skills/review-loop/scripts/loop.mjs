@@ -299,12 +299,20 @@ function git(args, options = {}) {
   return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...options });
 }
 
-function openRepository(cwd) {
+function openRepository(cwd, { create = true } = {}) {
   const root = git(['rev-parse', '--show-toplevel'], { cwd }).trim();
   const gitDir = git(['rev-parse', '--absolute-git-dir'], { cwd }).trim();
   const stateDir = path.join(gitDir, 'lim', 'review-loop');
-  mkdirSync(stateDir, { recursive: true });
+  if (create) mkdirSync(stateDir, { recursive: true });
   return { root, file: (name) => path.join(stateDir, name) };
+}
+
+function findRepository(directory) {
+  try {
+    return openRepository(directory, { create: false });
+  } catch {
+    return null;
+  }
 }
 
 function headTree(root) {
@@ -413,9 +421,10 @@ function start(cwd, options) {
   const diff = diffTrees(repository, baseTree, reviewedTree);
   if (!diff.trim()) return { status: 'nothing-to-review' };
   writeFileSync(repository.file('round-1.diff'), diff);
+  const files = filesBetween(repository, baseTree, reviewedTree);
   const state = {
     version: 1, startedAt: now(), round: 1, maxRounds, baseTree, reviewedTree, nextId: 1,
-    files: filesBetween(repository, baseTree, reviewedTree),
+    files, reviewedFiles: files,
     open: [], resolved: [], cards: [], counts: [], checks: null, awaiting: 'review', stopped: null,
   };
   saveState(repository, state);
@@ -543,7 +552,8 @@ function next(cwd) {
   }
 
   const fixedFiles = filesBetween(repository, state.reviewedTree, fixedTree);
-  Object.assign(state, { reviewedTree: fixedTree, files: fixedFiles, checks: null, awaiting: 'review' });
+  const reviewedFiles = [...new Set([...(state.reviewedFiles ?? state.files ?? []), ...fixedFiles])];
+  Object.assign(state, { reviewedTree: fixedTree, files: fixedFiles, reviewedFiles, checks: null, awaiting: 'review' });
   saveState(repository, state);
   const checks = runRoundChecks(repository, state);
   logEvent(repository, { event: 'next', round: state.round, fixedTree, changedFiles: state.files });
@@ -590,11 +600,216 @@ function delegate(cwd, options) {
   return delegation;
 }
 
+function readGate(repository) {
+  return readJson(repository.file('gate.json'), { enabled: false, configured: false, skipOnce: false });
+}
+
+function gate(cwd, options) {
+  const repository = openRepository(cwd);
+  const current = readGate(repository);
+  let next;
+  if (options.on) {
+    next = { ...current, enabled: true, configured: true };
+  } else if (options.off) {
+    next = { ...current, enabled: false, configured: true, skipOnce: false };
+  } else if (options['skip-once']) {
+    if (!current.enabled) throw new Error('the commit gate is off in this repository');
+    next = { ...current, skipOnce: true };
+  } else {
+    return current;
+  }
+  next.updatedAt = now();
+  writeFileSync(repository.file('gate.json'), JSON.stringify(next, null, 2));
+  logEvent(repository, { event: 'gate', enabled: next.enabled, skipOnce: next.skipOnce });
+  return next;
+}
+
+function splitShellSegments(command) {
+  const segments = [];
+  let current = '';
+  let quote = null;
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (quote) {
+      current += char;
+      if (char === quote) quote = null;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      current += char;
+    } else if (char === '\\') {
+      current += char + (command[index + 1] ?? '');
+      index += 1;
+    } else if (';&|\n()'.includes(char)) {
+      segments.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  segments.push(current);
+  return segments.map((segment) => segment.trim()).filter(Boolean);
+}
+
+function shellWords(segment) {
+  const words = [];
+  let current = '';
+  let quote = null;
+  let started = false;
+  for (let index = 0; index < segment.length; index += 1) {
+    const char = segment[index];
+    if (quote) {
+      if (char === quote) quote = null;
+      else current += char;
+    } else if (char === "'" || char === '"') {
+      quote = char;
+      started = true;
+    } else if (char === '\\') {
+      current += segment[index + 1] ?? '';
+      index += 1;
+      started = true;
+    } else if (/\s/.test(char)) {
+      if (started) words.push(current);
+      current = '';
+      started = false;
+    } else {
+      current += char;
+      started = true;
+    }
+  }
+  if (started) words.push(current);
+  return words;
+}
+
+export function gitInvocations(command, cwd = process.cwd()) {
+  const invocations = [];
+  let location = cwd;
+  for (const segment of splitShellSegments(String(command ?? ''))) {
+    const words = shellWords(segment);
+    if (words[0] === 'cd' && words[1]) {
+      location = path.resolve(location, words[1]);
+      continue;
+    }
+    let index = 0;
+    while (index < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index])) index += 1;
+    if (path.basename(words[index] ?? '') !== 'git') continue;
+    index += 1;
+    let directory = location;
+    while (index < words.length && words[index].startsWith('-')) {
+      const option = words[index];
+      if (option === '-C') {
+        directory = path.resolve(directory, words[index + 1] ?? '.');
+        index += 2;
+      } else if (['-c', '--git-dir', '--work-tree', '--namespace'].includes(option)) {
+        index += 2;
+      } else {
+        index += 1;
+      }
+    }
+    if (words[index]) invocations.push({ subcommand: words[index], args: words.slice(index + 1), directory });
+  }
+  return invocations;
+}
+
+const VERDICT_RANK = { allow: 1, ask: 2, deny: 3 };
+const REVIEW_COMMAND = '/review-loop:review-loop';
+
+function verdict(decision, reason) {
+  return { decision, reason };
+}
+
+function pushVerdict({ args }) {
+  const forced = args.some((arg) => ['--force', '-f', '--force-with-lease', '--force-if-includes'].includes(arg) || arg.startsWith('+'));
+  if (forced) return verdict('ask', 'review-loop: a force push rewrites history on the remote. Confirm before Claude runs it.');
+  return verdict('ask', 'review-loop: pushing publishes commits. review-loop asks before every push.');
+}
+
+const VALUE_FLAG_LETTERS = new Set(['m', 'F', 'C', 'c', 't']);
+
+function clusterSkipsHooks(arg) {
+  if (!/^-[A-Za-z]/.test(arg)) return false;
+  for (const letter of arg.slice(1)) {
+    if (letter === 'n') return true;
+    if (VALUE_FLAG_LETTERS.has(letter)) return false;
+  }
+  return false;
+}
+
+function skipsHooks(args) {
+  return args.some((arg) => arg === '--no-verify' || clusterSkipsHooks(arg));
+}
+
+function commitVerdict(repository, { args }, gateSettings) {
+  const result = reviewVerdict(repository, gateSettings);
+  if (!skipsHooks(args) || result.decision === 'deny') return result;
+  return verdict('ask', `${result.reason} The commit also skips git hooks with --no-verify. Confirm before Claude runs it.`);
+}
+
+function reviewVerdict(repository, gateSettings) {
+  const delegated = readJson(repository.file('delegation.json'), { scope: 'off' }).scope === 'repo';
+  if (gateSettings.skipOnce) {
+    writeFileSync(repository.file('gate.json'), JSON.stringify({ ...gateSettings, skipOnce: false, updatedAt: now() }, null, 2));
+    logEvent(repository, { event: 'gate-skip' });
+    return delegated
+      ? verdict('allow', 'review-loop: review skipped once at your request.')
+      : verdict('ask', 'review-loop: review skipped once at your request. Commit without a review?');
+  }
+  const state = readSavedState(repository);
+  const reviewFirst = `Run ${REVIEW_COMMAND} before committing, or ask to skip the review once.`;
+  if (!state) return verdict('deny', `review-loop: this change has not been reviewed. ${reviewFirst}`);
+  if (['review', 'fix'].includes(state.awaiting)) {
+    return verdict('deny', `review-loop: a review loop is in progress (round ${state.round}, waiting for ${state.awaiting}). Finish it with ${REVIEW_COMMAND} before committing.`);
+  }
+  if (headTree(repository.root) !== state.baseTree) {
+    return verdict('deny', `review-loop: HEAD moved after the last review started (for example the review was already committed, or you pulled or switched branches), so these changes have not been reviewed. ${reviewFirst}`);
+  }
+  const pending = pendingDecisionIds(state);
+  if (pending.length) return verdict('deny', `review-loop: decide ${pending.join(', ')} before committing. Run ${REVIEW_COMMAND} to continue.`);
+  const currentTree = snapshotTree(repository);
+  if (currentTree !== state.reviewedTree) {
+    const reviewedFiles = new Set(state.reviewedFiles ?? state.files ?? []);
+    const unreviewed = filesBetween(repository, state.reviewedTree, currentTree).filter((file) => !reviewedFiles.has(file));
+    if (unreviewed.length) return verdict('deny', `review-loop: ${unreviewed.join(', ')} changed after the last review and were not reviewed. ${reviewFirst}`);
+    return verdict('ask', 'review-loop: reviewed files changed after the last review, for example fixes chosen in the decision step. Commit them without another review?');
+  }
+  if (delegated) return verdict('allow', 'review-loop: the review passed and commits are delegated in this repository.');
+  return verdict('ask', 'review-loop: the review passed with no open P1 or P2. Commit now?');
+}
+
+const SAFE_GIT_SUBCOMMANDS = new Set(['add', 'commit', 'status', 'diff', 'log', 'show']);
+
+export function gateDecision({ cwd, command }) {
+  const invocations = gitInvocations(command, cwd);
+  const strictest = gateVerdicts(invocations)[0] ?? null;
+  if (strictest?.decision !== 'allow') return strictest;
+  const segments = splitShellSegments(String(command ?? '')).map(shellWords).filter((words) => words.length && words[0] !== 'cd');
+  const onlySafeGit = segments.length === invocations.length
+    && invocations.every((invocation) => SAFE_GIT_SUBCOMMANDS.has(invocation.subcommand))
+    && !/\$\(|`/.test(String(command ?? ''));
+  if (onlySafeGit) return strictest;
+  return verdict('ask', `${strictest.reason} The command also runs other commands, so review-loop does not approve it on its own.`);
+}
+
+function gateVerdicts(invocations) {
+  const verdicts = [];
+  for (const invocation of invocations) {
+    if (!['commit', 'push'].includes(invocation.subcommand)) continue;
+    const repository = findRepository(invocation.directory);
+    if (!repository) continue;
+    const gateSettings = readGate(repository);
+    if (!gateSettings.enabled) continue;
+    verdicts.push(invocation.subcommand === 'push' ? pushVerdict(invocation) : commitVerdict(repository, invocation, gateSettings));
+  }
+  return verdicts.sort((first, second) => VERDICT_RANK[second.decision] - VERDICT_RANK[first.decision]);
+}
+
 function status(cwd) {
   const repository = openRepository(cwd);
   const state = readJson(repository.file('state.json'), null);
   const delegation = readJson(repository.file('delegation.json'), { scope: 'off' });
-  if (!state) return { review: null, delegation };
+  const gateSettings = readGate(repository);
+  if (!state) return { review: null, delegation, gate: gateSettings };
   return {
     review: {
       round: state.round,
@@ -608,10 +823,11 @@ function status(cwd) {
     },
     treeMatchesReview: snapshotTree(repository) === state.reviewedTree,
     delegation,
+    gate: gateSettings,
   };
 }
 
-const COMMANDS = { start, record, next, decide, checks: rerunChecks, delegate, status };
+const COMMANDS = { start, record, next, decide, checks: rerunChecks, delegate, gate, status };
 
 function parseOptions(args) {
   const options = {};

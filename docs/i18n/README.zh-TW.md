@@ -16,7 +16,7 @@
 
 - **一個外掛，一件事。** 只安裝你需要的外掛。根據 `claude plugin details` 的報告，review-loop 為一個工作階段增加約 188 個 token。
 - **先檢查，後意見。** 在任何模型審查之前，先執行你的測試、型別檢查和 lint。
-- **Hook 需要主動啟用。** 如果你不啟用，就沒有任何東西監看你的提示詞或指令。
+- **Hook 需要主動啟用。** 在你為某個儲存庫啟用 hook 之前，hook 不做任何事。
 - **安裝前先詢問。** 外掛需要的任何東西都會先得到說明：它是什麼、它改善什麼、它存放在哪裡、如何移除它。
 - **公開數字。** 每個外掛都附帶兩項說明：測量了什麼，以及該測量不涵蓋什麼。
 
@@ -54,7 +54,22 @@
 4. **再次審查。** 一個新的審查者只檢查本輪的修正和仍未解決的發現項目。最多 3 輪。
 5. **停止。** 由腳本而不是模型決定何時停止。停止條件：沒有剩餘的 P1 或 P2、達到輪數上限、某個發現項目經過兩次修正後仍然存在、某個已解決的發現項目再次出現、P1 + P2 的數量不再減少，或者某個修正削弱了測試或檢查。
 6. **決定。** 其餘發現項目由你一次決定：所有 P3 到 P5，以及仍未解決或無法驗證的 P1 和 P2。對每一個項目，你可以選擇：維持原樣、僅本次修正，或者設為規則。
-7. **提交。** 如果你沒有選擇「在此儲存庫中不再詢問」，Claude 會在提交前詢問你。review-loop 從不執行 push。
+7. **提交。** 如果你沒有選擇「在此儲存庫中不再詢問」，Claude 會在提交前詢問你。review-loop 從不執行 push。 如果你啟用提交關卡，一個 hook 會把這一點變成強制規則。在審查通過之前，Claude 的提交會被阻擋。
+
+### 提交關卡
+
+提交關卡是一個 hook。在你為某個儲存庫啟用它之前，它處於關閉狀態。在審查結束時，Claude 會詢問一次是否啟用它。啟用關卡後，Claude 執行的每個 `git commit` 都會先由關卡檢查：
+
+| 情況 | 關卡的行為 |
+|---|---|
+| 沒有審查，或者有審查未涵蓋的檔案發生了變更 | 阻擋提交，並要求 Claude 執行審查 |
+| 審查迴圈正在進行，或者還有待定的決定 | 阻擋提交 |
+| 審查已通過 | 提交前詢問你。如果你在此儲存庫中委派了提交，則允許提交 |
+| 審查後只有已審查的檔案發生了變更 | 詢問你 |
+| `git push` 或強制推送（force push） | 即使你已委派提交，也一定詢問你 |
+| 帶有 `--no-verify` 的提交 | 即使你已委派提交，也詢問你。未通過審查的提交仍會被阻擋 |
+
+如果要不經審查提交一次，請要求 Claude 這次跳過審查。
 
 每一輪都以一份報告結束：
 
@@ -84,7 +99,7 @@ Left for you: P3 1, P4 0, P5 0
 
 ### 測量結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 35 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 32 個行為，包括在真實的暫存 git 儲存庫上執行的測試。其餘 3 個行為需要實際執行模型，預計使用 `claude plugin eval` 測試：對 P3 到 P5 只詢問一次、提交前先詢問、在任何提問之前先顯示報告。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 49 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 47 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 2 個行為需要實際執行模型，預計使用 `claude plugin eval` 測試：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告。
 
 review-loop 審查 LIM 自己的 pull request。[#8](https://github.com/lee-eojin/lim/pull/8) 展示了 review-loop 第一個版本上執行的兩次迴圈。其中一次停止是由 review-loop 自己的測試削弱檢查中的誤判造成的，這個誤判之後已經修正。
 
@@ -98,19 +113,20 @@ review-loop 本身不會發出任何網路請求。Claude 和審查者讀取 dif
 
 - review-loop 只從 `package.json` 的 scripts 中偵測檢查。
 - 每個檢查最多執行 5 分鐘，所有檢查合計最多執行 9 分鐘。如果要修改單一檢查的時間限制，請設定 `LIM_CHECK_TIMEOUT_MS`。
-- 提交前詢問是給 Claude 的指示，而不是 hook。一個需要主動啟用的提交關卡 hook 已在規劃中（[#5](https://github.com/lee-eojin/lim/issues/5)）。
+- 如果沒有啟用提交關卡，提交前詢問只是給 Claude 的指示，而不是保證。
+- 提交關卡只檢查 Claude 透過它的 Bash 工具執行的指令。你在自己的終端機中輸入的提交不會被檢查。`git ci` 這類 git 別名也不會被辨識。
 - review-loop 審查 `git add -A` 會包含的所有內容，而不是你手動挑選的一組已暫存變更。
 
 ## 常見問題
 
 **review-loop 會自動啟動嗎？**
-不一定。只有當 Claude 判斷某個 skill 的描述符合目前的對話時，Claude 才會啟動該 skill。如果你請 Claude 審查或提交，Claude 可以啟動 review-loop，但這一點沒有保證。指令 `/review-loop:review-loop` 一定會啟動 review-loop。規劃中的提交關卡 hook（[#5](https://github.com/lee-eojin/lim/issues/5)）在你啟用後，會讓 review-loop 在每次提交前執行。
+不一定。只有當 Claude 判斷某個 skill 的描述符合目前的對話時，Claude 才會啟動該 skill。如果你請 Claude 審查或提交，Claude 可以啟動 review-loop，但這一點沒有保證。指令 `/review-loop:review-loop` 一定會啟動 review-loop。如果你啟用提交關卡，沒有經過審查的提交會被阻擋。此時 Claude 會收到先執行 review-loop 的提示。
 
 **它會執行 push 或 merge 嗎？**
 不會。如果你沒有選擇「在此儲存庫中不再詢問」，review-loop 會在每次提交前詢問你。如果要撤銷這個選擇，請要求 Claude 關閉 review-loop 的提交委派。
 
 **它會與我的其他外掛衝突嗎？**
-review-loop 新增一個 skill 和一個 agent，不新增 hook。它的名稱都以 `review-loop:` 開頭，因此不會與其他外掛的名稱衝突。如果你用一般的自然語言提出要求，Claude 可以改為選擇另一個審查 skill。該指令一定會啟動 review-loop。
+review-loop 新增一個 skill、一個 agent 和一個 hook。這個 hook 讀取 Bash 指令，只對 `git commit` 和 `git push` 起作用。如果你沒有在該儲存庫中啟用提交關卡，這個 hook 不做任何事。它的名稱都以 `review-loop:` 開頭，因此不會與其他外掛的名稱衝突。如果你用一般的自然語言提出要求，Claude 可以改為選擇另一個審查 skill。該指令一定會啟動 review-loop。
 
 **如果工作階段在迴圈中途結束，會發生什麼事？**
 再次執行該指令。指令會提供兩個選項：從停止時的輪次和步驟繼續，或者重新開始。
@@ -132,7 +148,7 @@ claude plugin marketplace remove lim
 
 ## 路線圖
 
-- review-loop：需要主動啟用的提交關卡 hook（[#5](https://github.com/lee-eojin/lim/issues/5)）、在修正前逐一確認 P2 的選項（[#4](https://github.com/lee-eojin/lim/issues/4)）、更強的測試削弱檢查（[#6](https://github.com/lee-eojin/lim/issues/6)）、在大型儲存庫上更快的快照（[#7](https://github.com/lee-eojin/lim/issues/7)）
+- review-loop：在修正前逐一確認 P2 的選項（[#4](https://github.com/lee-eojin/lim/issues/4)）、更強的測試削弱檢查（[#6](https://github.com/lee-eojin/lim/issues/6)）、在大型儲存庫上更快的快照（[#7](https://github.com/lee-eojin/lim/issues/7)）
 - forge：為從 pull request 留言中萃取出的審查者 skill 提供忠實度報告
 - 使用 `claude plugin eval` 進行模型層級的 eval，涵蓋單元測試無法涵蓋的行為
 

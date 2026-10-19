@@ -4,7 +4,7 @@ B02,do,P1 and P2 findings with evidence go to the fix list,test: classify routes
 B03,ask,A P1 or P2 that needs a design choice asks how to fix before fixing,test: classify routes flagged P1 to ask,yes
 B04,ask,A finding still open after one fix moves to ask and stops the loop after a second,test: still open finding moves to ask then stops as stuck,yes
 B05,ask,P3 to P5 are asked once at the end with keep / once / rule,eval: planned for claude plugin eval,no
-B06,ask,The user is asked before a commit unless the repo delegated commits,eval: planned for claude plugin eval,no
+B06,ask,With the commit gate on the user is asked before a commit unless the repo delegated commits,test: gate asks after a clean review and allows with delegation,yes
 B07,tell,Every round prints a report with checks and trend and the decision,test: report shows checks trend and stop reason,yes
 B08,tell,Stopping with open P1 or P2 lists them under Still open,test: max rounds report lists still open,yes
 B09,silence,An empty findings list ends the loop as clean,test: empty review stops clean,yes
@@ -34,3 +34,17 @@ B32,do,An unreadable state file does not block start or start --fresh,test: star
 B33,ask,A finding saved by an older version without a route is asked about when it needs a design choice,test: resume asks about findings saved without a route,yes
 B34,do,Resuming while waiting for review reports unfinished checks and a stale diff,test: start resumes while waiting for review and flags a stale diff,yes
 B35,tell,Resuming after an integrity stop shows the saved report first and the open findings,test: start resumes after an integrity stop with the report first,yes
+B36,stop,With the commit gate on a commit without a review is blocked and Claude is told to run the review,test: gate blocks an unreviewed commit,yes
+B37,stop,With the commit gate on a commit is blocked while a loop is in progress or decisions are pending,test: gate blocks while a loop is in progress or decisions are pending,yes
+B38,ask,Later edits to reviewed files ask and edits to unreviewed files block,test: gate asks for later edits to reviewed files and blocks unreviewed files,yes
+B39,stop,A review that is already committed cannot pass a new commit,test: gate blocks reusing a review that is already committed,yes
+B40,ask,Skipping the review once lets exactly one commit through after asking,test: skip once allows one commit without a review,yes
+B41,ask,Push and force push and --no-verify always ask even with delegation,test: push and --no-verify always ask even with delegation,yes
+B42,do,The gate finds commits in chained commands and with git -C or cd or quoted text,test: finds commit and push in common command shapes,yes
+B43,silence,With the gate off commits are left alone,test: gate off leaves commits alone,yes
+B44,silence,The hook prints nothing for other commands and for bad input,test: hook stays silent on other commands and bad input,yes
+B45,ask,A delegated commit chained with other commands is asked about instead of allowed,test: allow is lowered to ask when other commands run with the commit,yes
+B46,stop,Skipping git hooks does not turn a blocked unreviewed commit into a question,test: an unreviewed commit that skips hooks is still blocked,yes
+B47,stop,A review stops covering new commits once HEAD moves past where the review started,test: a review is used up once HEAD moves,yes
+B48,ask,A delegated commit whose command contains command substitution is asked about,test: command substitution in a delegated commit is asked about,yes
+B49,ask,A short flag cluster such as -nm is read as skipping hooks and is asked about,test: a short flag cluster that starts with n is read as skipping hooks,yes

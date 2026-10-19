@@ -83,10 +83,12 @@ Apply the "fix this time" and "make it a rule" fixes, then run `loop checks`. If
 
 Run `loop status`.
 - If `pendingDecisions` is not empty, go back to step 5 for those ids.
+- If `gate.configured` is false, ask once whether to turn on the commit gate in this repository: "Turn on" or "Not in this repo". Run `loop gate --on` or `loop gate --off`. With the gate on, a hook blocks Claude's commits until a review passes and asks before each commit unless commits are delegated.
 - If `notVerifiedChecks` is not empty, say which checks timed out and were not verified, and ask whether the user wants to run them before committing.
 - If `treeMatchesReview` is false, first list what changed after the last review, such as the fixes from step 5 or a fix that stopped the loop for weakening a test.
 - Never commit while a P1 or P2 is open unless the user chose "Keep as is" for it.
 - If `delegation.scope` is `repo` and nothing above needs the user, commit and say so in one line.
+- If `gate.enabled` is true and commits are not delegated, do not ask with AskUserQuestion. Run the commit; the gate shows the user one confirmation prompt.
 - Otherwise ask once with AskUserQuestion: "Commit now", "Commit, and stop asking in this repo", or "Not now". For the second option, run `loop delegate --scope repo` before committing.
 
 The review covered everything `git add -A` includes, so stage with `git add -A` before committing. If the user wants to commit only part of it, say that the review covered the whole set and ask how to proceed.
@@ -94,6 +96,8 @@ The review covered everything `git add -A` includes, so stage with `git add -A` 
 Use the repository's commit message convention. If it has none, use `<type>: <summary>`. Never push.
 
 The user can turn delegation off with `loop delegate --scope off`.
+
+If the user asks to commit without a review just this once, run `loop gate --skip-once` before the commit. If the gate blocks a commit, follow the reason it gives; it names the step to take.
 
 ## Files
 
