@@ -24,7 +24,7 @@ Große Agent-Harnesses laden viele Anweisungen in jede Session und führen bei v
 
 | Plugin | Status | Eine Aufgabe |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.1.1 | Prüft deine Änderungen vor dem Commit, behebt P1- und P2-Findings, prüft erneut und übergibt den Rest an dich. |
+| [review-loop](../../plugins/review-loop) | 0.2.0 | Prüft deine Änderungen vor dem Commit, behebt P1- und P2-Findings, prüft erneut und übergibt den Rest an dich. |
 | forge | geplant | Macht aus den Pull-Request-Kommentaren eines Reviewers einen Reviewer-Skill und liefert einen Bericht, wie getreu dieser Skill ist. |
 
 ## Schnellstart
