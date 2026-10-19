@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -173,10 +173,21 @@ describe('gitInvocations', () => {
       gitInvocations('git add -A && git commit -m "fix: a && b"', '/repo').map((invocation) => invocation.subcommand),
       ['add', 'commit'],
     );
-    assert.deepEqual(gitInvocations('git -C ../other commit -m x', '/repo/app')[0].directory, '/repo/other');
+    assert.deepEqual(gitInvocations('git -C ../other commit -m x', '/repo/app')[0].directories, ['/repo/other']);
     assert.equal(gitInvocations('git -c user.name=x commit -m y', '/repo')[0].subcommand, 'commit');
-    assert.equal(gitInvocations('cd packages/web && git commit -m x', '/repo')[0].directory, '/repo/packages/web');
+    assert.deepEqual(gitInvocations('cd packages/web && git commit -m x', '/repo')[0].directories, ['/repo/packages/web']);
     assert.equal(gitInvocations('GIT_EDITOR=true git commit', '/repo')[0].subcommand, 'commit');
+  });
+
+  test('expands home paths and gives up on paths it cannot read', () => {
+    assert.deepEqual(gitInvocations('cd ~/work && git commit -m x', '/repo')[0].directories, [path.join(homedir(), 'work')]);
+    assert.deepEqual(gitInvocations('git -C $HOME/work commit -m x', '/repo')[0].directories, [path.join(homedir(), 'work')]);
+    assert.deepEqual(gitInvocations('git -C "${HOME}" commit -m x', '/repo')[0].directories, [homedir()]);
+    assert.deepEqual(gitInvocations('cd && git commit -m x', '/repo')[0].directories, [homedir()]);
+    assert.deepEqual(gitInvocations('cd "$(git rev-parse --show-toplevel)" && git commit -m x', '/repo')[0].directories, [null]);
+    assert.deepEqual(gitInvocations('cd $WORK && git -C app commit -m x', '/repo')[0].directories, [null]);
+    assert.deepEqual(gitInvocations('cd - && git commit -m x', '/repo')[0].directories, [null]);
+    assert.deepEqual(gitInvocations('git -C ../other \\\n  commit -m x', '/repo/app')[0].directories, ['/repo/other']);
   });
 
   test('ignores git words inside other commands', () => {
@@ -656,6 +667,147 @@ describe('commit gate', () => {
     assert.equal(commit(root, 'git commit -am -n').decision, 'allow');
     assert.equal(commit(root, 'git commit -m x -- -n').decision, 'allow');
     assert.equal(commit(root, 'git commit -m x -n').decision, 'ask');
+  });
+
+  test('gate finds the repository through a home path', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const elsewhere = mkdtempSync(path.join(tmpdir(), 'review-loop-elsewhere-'));
+    const savedHome = process.env.HOME;
+    process.env.HOME = path.dirname(root);
+    try {
+      assert.equal(commit(elsewhere, `cd ~/${path.basename(root)} && git commit -m x`).decision, 'deny');
+    } finally {
+      process.env.HOME = savedHome;
+    }
+  });
+
+  test('gate asks when it cannot tell which repository a commit runs in', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root, 'cd "$(git rev-parse --show-toplevel)" && git commit -m x').decision, 'ask');
+    assert.equal(commit(root, 'git -C missing commit -m x').decision, 'ask');
+    const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
+    assert.equal(commit(root, `git -C ${plainDirectory} commit -m x`), null);
+    const gateOff = createRepository({ 'src/cart.js': correctCart });
+    assert.equal(commit(gateOff, 'cd $WORK && git commit -m x'), null);
+  });
+
+  test('a linked worktree shares the gate and delegation but keeps its own review', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    const worktree = `${root}-worktree`;
+    execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
+    assert.equal(loop(worktree, ['status']).gate.enabled, true);
+    writeFiles(worktree, { 'src/cart.js': brokenCart });
+    assert.equal(commit(worktree).decision, 'deny');
+    loop(worktree, ['start']);
+    loop(worktree, ['record'], { findings: [] });
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(worktree).decision, 'allow');
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    assert.equal(commit(root).decision, 'deny');
+  });
+
+  test('a gate turned on inside a worktree by 0.2.0 still applies', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    const worktree = `${root}-worktree`;
+    execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
+    const worktreeGitDir = execFileSync('git', ['rev-parse', '--absolute-git-dir'], { cwd: worktree, encoding: 'utf8' }).trim();
+    writeFiles(worktreeGitDir, { 'lim/review-loop/gate.json': JSON.stringify({ enabled: true, configured: true }) });
+    writeFiles(worktree, { 'src/cart.js': brokenCart });
+    assert.equal(commit(worktree).decision, 'deny');
+  });
+
+  test('skip once applies only to the worktree that asked for it', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    loop(root, ['delegate', '--scope', 'repo']);
+    const worktree = `${root}-worktree`;
+    execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
+    loop(worktree, ['gate', '--skip-once']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    writeFiles(worktree, { 'src/cart.js': brokenCart });
+    assert.equal(commit(root).decision, 'deny');
+    assert.equal(commit(worktree).decision, 'allow');
+  });
+
+  test('gate asks when git is pointed at another repository', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    assert.equal(commit(root, `git --git-dir=${root}/.git --work-tree=${root} commit -m x`).decision, 'ask');
+    assert.equal(commit(root, 'git --git-dir .git commit -m x').decision, 'ask');
+    assert.equal(commit(root, `GIT_DIR=${root}/.git git commit -m x`).decision, 'ask');
+  });
+
+  test('a cd in a command with parentheses is checked in every folder it may run in', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
+    assert.equal(commit(root, `(cd ${plainDirectory}) && git commit -m x`).decision, 'deny');
+    assert.equal(commit(plainDirectory, `(cd ${root} && git commit -m x)`).decision, 'deny');
+    assert.equal(commit(plainDirectory, `cd ${root} && git commit -m x || (echo failed)`).decision, 'deny');
+    assert.equal(commit(plainDirectory, `cd ${root} && git commit -m x && echo $(git rev-parse HEAD)`).decision, 'deny');
+  });
+
+  test('many cds in parentheses stay bounded and still block', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const steps = Array.from({ length: 24 }, (_, index) => `(cd pkg${index} && npm test)`);
+    const invocation = gitInvocations(`${steps.join(' && ')} && git commit -m x`, root)[0];
+    assert.ok(invocation.directories.length <= 16);
+    assert.ok(invocation.directories.includes(null));
+    assert.equal(commit(root, `${steps.join(' && ')} && git commit -m x`).decision, 'deny');
+  });
+
+  test('a commit that may run in more than one folder is not approved on its own', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    const other = createRepository({ 'src/cart.js': correctCart });
+    assert.equal(commit(root, `(cd ${other} && git commit -m x)`).decision, 'ask');
+    const skipping = createRepository({ 'src/cart.js': correctCart });
+    loop(skipping, ['gate', '--on']);
+    loop(skipping, ['delegate', '--scope', 'repo']);
+    loop(skipping, ['gate', '--skip-once']);
+    const unusedSkip = commit(skipping, `(cd ${other} && git commit -m x)`);
+    assert.equal(unusedSkip.decision, 'deny');
+    assert.match(unusedSkip.reason, /one-time skip does not apply/);
+    assert.equal(loop(skipping, ['status']).gate.skipOnce, true);
+  });
+
+  test('gate also checks the folder where Claude Code started', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const elsewhere = mkdtempSync(path.join(tmpdir(), 'review-loop-elsewhere-'));
+    const command = 'cd "$(git -C ../repo rev-parse --show-toplevel)" && git commit -m x';
+    assert.equal(gateDecision({ cwd: elsewhere, command }), null);
+    assert.equal(gateDecision({ cwd: elsewhere, command, projectDir: root }).decision, 'ask');
+  });
+
+  test('a one-time skip is used once when every folder is in the same repository', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    loop(root, ['delegate', '--scope', 'repo']);
+    loop(root, ['gate', '--skip-once']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    assert.equal(commit(root, '(cd src && ls) && git commit -am one').decision, 'ask');
+    assert.equal(commit(root, 'git commit -am two').decision, 'deny');
+  });
+
+  test('turning the gate off and on cancels a pending skip in every worktree', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    const worktree = `${root}-worktree`;
+    execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
+    loop(worktree, ['gate', '--skip-once']);
+    loop(root, ['gate', '--off']);
+    loop(root, ['gate', '--on']);
+    writeFiles(worktree, { 'src/cart.js': brokenCart });
+    assert.equal(commit(worktree).decision, 'deny');
   });
 
   test('a short flag cluster that starts with n is read as skipping hooks', () => {

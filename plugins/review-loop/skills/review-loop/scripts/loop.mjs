@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -303,8 +304,20 @@ function openRepository(cwd, { create = true } = {}) {
   const root = git(['rev-parse', '--show-toplevel'], { cwd }).trim();
   const gitDir = git(['rev-parse', '--absolute-git-dir'], { cwd }).trim();
   const stateDir = path.join(gitDir, 'lim', 'review-loop');
-  if (create) mkdirSync(stateDir, { recursive: true });
-  return { root, file: (name) => path.join(stateDir, name) };
+  const sharedDir = path.join(commonGitDir(gitDir), 'lim', 'review-loop');
+  if (create) {
+    mkdirSync(stateDir, { recursive: true });
+    mkdirSync(sharedDir, { recursive: true });
+  }
+  return { root, file: (name) => path.join(stateDir, name), shared: (name) => path.join(sharedDir, name) };
+}
+
+function commonGitDir(gitDir) {
+  try {
+    return path.resolve(gitDir, readFileSync(path.join(gitDir, 'commondir'), 'utf8').trim());
+  } catch {
+    return gitDir;
+  }
 }
 
 function findRepository(directory) {
@@ -595,33 +608,37 @@ function delegate(cwd, options) {
   const repository = openRepository(cwd);
   if (!['repo', 'off'].includes(options.scope)) throw new Error('scope must be repo or off');
   const delegation = options.scope === 'repo' ? { scope: 'repo', grantedAt: now() } : { scope: 'off', revokedAt: now() };
-  writeFileSync(repository.file('delegation.json'), JSON.stringify(delegation, null, 2));
+  writeFileSync(repository.shared('delegation.json'), JSON.stringify(delegation, null, 2));
   logEvent(repository, { event: 'delegation', ...delegation });
   return delegation;
 }
 
+function readSetting(repository, name, fallback) {
+  const shared = repository.shared(name);
+  return readJson(existsSync(shared) ? shared : repository.file(name), fallback);
+}
+
 function readGate(repository) {
-  return readJson(repository.file('gate.json'), { enabled: false, configured: false, skipOnce: false });
+  const { enabled = false, configured = false, updatedAt = '' } = readSetting(repository, 'gate.json', {});
+  const skip = readJson(repository.file('skip-once.json'), null);
+  return { enabled, configured, skipOnce: Boolean(enabled && skip?.requestedAt >= updatedAt) };
 }
 
 function gate(cwd, options) {
   const repository = openRepository(cwd);
   const current = readGate(repository);
-  let next;
-  if (options.on) {
-    next = { ...current, enabled: true, configured: true };
-  } else if (options.off) {
-    next = { ...current, enabled: false, configured: true, skipOnce: false };
-  } else if (options['skip-once']) {
+  if (options['skip-once']) {
     if (!current.enabled) throw new Error('the commit gate is off in this repository');
-    next = { ...current, skipOnce: true };
-  } else {
-    return current;
+    writeFileSync(repository.file('skip-once.json'), JSON.stringify({ requestedAt: now() }, null, 2));
+    logEvent(repository, { event: 'gate', enabled: true, skipOnce: true });
+    return { ...current, skipOnce: true };
   }
-  next.updatedAt = now();
-  writeFileSync(repository.file('gate.json'), JSON.stringify(next, null, 2));
-  logEvent(repository, { event: 'gate', enabled: next.enabled, skipOnce: next.skipOnce });
-  return next;
+  if (!options.on && !options.off) return current;
+  const settings = { enabled: Boolean(options.on), configured: true, updatedAt: now() };
+  writeFileSync(repository.shared('gate.json'), JSON.stringify(settings, null, 2));
+  if (options.off) rmSync(repository.file('skip-once.json'), { force: true });
+  logEvent(repository, { event: 'gate', enabled: settings.enabled, skipOnce: false });
+  return readGate(repository);
 }
 
 const QUOTED_HEREDOC_TO_CAT = /\$\(\s*cat\s+<<(-?)[ \t]*(['"])([A-Za-z_][A-Za-z0-9_]*)\2[ \t]*\n([\s\S]*?)\n(\t*)\3\n\s*\)/y;
@@ -648,6 +665,7 @@ function scanShell(command) {
   let started = false;
   let quote = null;
   let substitution = false;
+  let grouped = false;
   const endWord = () => {
     if (started) words.push(word);
     word = '';
@@ -701,6 +719,7 @@ function scanShell(command) {
       }
       index += 1;
     } else if (';&|\n()'.includes(char)) {
+      if ('()'.includes(char)) grouped = true;
       endSegment();
     } else if (/\s/.test(char)) {
       endWord();
@@ -711,34 +730,62 @@ function scanShell(command) {
     }
   }
   endSegment();
-  return { segments, substitution };
+  return { segments, substitution, grouped };
+}
+
+const MAX_LOCATIONS = 16;
+
+function limitLocations(locations) {
+  const unique = [...new Set(locations)];
+  return unique.length > MAX_LOCATIONS ? [...unique.slice(0, MAX_LOCATIONS - 1), null] : unique;
+}
+
+function resolveDirectory(base, target) {
+  if (target === '-') return null;
+  const expanded = target.replace(/^(?:~|\$HOME|\$\{HOME\})(?=\/|$)/, homedir());
+  if (/[$`*?]/.test(expanded)) return null;
+  if (path.isAbsolute(expanded)) return path.resolve(expanded);
+  return base === null ? null : path.resolve(base, expanded);
 }
 
 export function gitInvocations(command, cwd = process.cwd()) {
   const invocations = [];
-  let location = cwd;
-  for (const words of scanShell(String(command ?? '')).segments) {
-    if (words[0] === 'cd' && words[1]) {
-      location = path.resolve(location, words[1]);
+  let locations = [cwd];
+  const { segments, grouped } = scanShell(String(command ?? ''));
+  for (const words of segments) {
+    if (words[0] === 'cd') {
+      const targets = locations.map((base) => resolveDirectory(base, words[1] ?? '~'));
+      locations = limitLocations(grouped ? [...locations, ...targets] : targets);
       continue;
     }
     let index = 0;
-    while (index < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index])) index += 1;
+    let directories = locations;
+    let pointedElsewhere = false;
+    while (index < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index])) {
+      if (/^GIT_(?:DIR|WORK_TREE)=/.test(words[index])) pointedElsewhere = true;
+      index += 1;
+    }
     if (path.basename(words[index] ?? '') !== 'git') continue;
     index += 1;
-    let directory = location;
     while (index < words.length && words[index].startsWith('-')) {
       const option = words[index];
       if (option === '-C') {
-        directory = path.resolve(directory, words[index + 1] ?? '.');
+        directories = limitLocations(directories.map((base) => resolveDirectory(base, words[index + 1] ?? '.')));
         index += 2;
-      } else if (['-c', '--git-dir', '--work-tree', '--namespace'].includes(option)) {
+      } else if (['--git-dir', '--work-tree'].includes(option)) {
+        pointedElsewhere = true;
+        index += 2;
+      } else if (/^--(?:git-dir|work-tree)=/.test(option)) {
+        pointedElsewhere = true;
+        index += 1;
+      } else if (['-c', '--namespace'].includes(option)) {
         index += 2;
       } else {
         index += 1;
       }
     }
-    if (words[index]) invocations.push({ subcommand: words[index], args: words.slice(index + 1), directory });
+    if (pointedElsewhere) directories = [null];
+    if (words[index]) invocations.push({ subcommand: words[index], args: words.slice(index + 1), directories });
   }
   return invocations;
 }
@@ -789,9 +836,9 @@ function commitVerdict(repository, { args }, gateSettings) {
 }
 
 function reviewVerdict(repository, gateSettings) {
-  const delegated = readJson(repository.file('delegation.json'), { scope: 'off' }).scope === 'repo';
+  const delegated = readSetting(repository, 'delegation.json', { scope: 'off' }).scope === 'repo';
   if (gateSettings.skipOnce) {
-    writeFileSync(repository.file('gate.json'), JSON.stringify({ ...gateSettings, skipOnce: false, updatedAt: now() }, null, 2));
+    rmSync(repository.file('skip-once.json'), { force: true });
     logEvent(repository, { event: 'gate-skip' });
     return delegated
       ? verdict('allow', 'review-loop: review skipped once at your request.')
@@ -821,9 +868,10 @@ function reviewVerdict(repository, gateSettings) {
 
 const SAFE_GIT_SUBCOMMANDS = new Set(['add', 'commit', 'status', 'diff', 'log', 'show']);
 
-export function gateDecision({ cwd, command }) {
+export function gateDecision({ cwd, command, projectDir }) {
   const invocations = gitInvocations(command, cwd);
-  const strictest = gateVerdicts(invocations)[0] ?? null;
+  const sessionFolders = [...new Set([cwd, projectDir].filter(Boolean))];
+  const strictest = gateVerdicts(invocations, sessionFolders)[0] ?? null;
   if (strictest?.decision !== 'allow') return strictest;
   const scan = scanShell(String(command ?? ''));
   const segments = scan.segments.filter((words) => words[0] !== 'cd');
@@ -834,15 +882,52 @@ export function gateDecision({ cwd, command }) {
   return verdict('ask', `${strictest.reason} The command also runs other commands, so review-loop does not approve it on its own.`);
 }
 
-function gateVerdicts(invocations) {
+function ambiguousVerdict(result, ambiguous, skipPending) {
+  if (!ambiguous) return result;
+  if (result.decision === 'allow') {
+    return verdict('ask', `${result.reason} The commit may run in more than one place, so review-loop does not approve it on its own.`);
+  }
+  if (result.decision === 'deny' && skipPending) {
+    return verdict('deny', `review-loop: the one-time skip does not apply to a commit that may run in more than one place. Commit from the repository itself, without a cd in parentheses, or run ${REVIEW_COMMAND}.`);
+  }
+  return result;
+}
+
+function locateTargets(directories) {
+  return directories.map((directory) => {
+    const repository = directory === null ? null : findRepository(directory);
+    const unknown = !repository && (directory === null || !existsSync(directory));
+    return { directory, repository, place: repository?.root ?? (unknown ? 'unknown' : `folder:${directory}`) };
+  });
+}
+
+function gateVerdicts(invocations, sessionFolders) {
   const verdicts = [];
   for (const invocation of invocations) {
     if (!['commit', 'push'].includes(invocation.subcommand)) continue;
-    const repository = findRepository(invocation.directory);
-    if (!repository) continue;
-    const gateSettings = readGate(repository);
-    if (!gateSettings.enabled) continue;
-    verdicts.push(invocation.subcommand === 'push' ? pushVerdict(invocation) : commitVerdict(repository, invocation, gateSettings));
+    const targets = locateTargets(invocation.directories);
+    const ambiguous = new Set(targets.map((target) => target.place)).size > 1;
+    const checkedRepositories = new Set();
+    for (const { repository, place } of targets) {
+      if (!repository) {
+        const sessionGated = place === 'unknown' && sessionFolders.some((folder) => {
+          const sessionRepository = findRepository(folder);
+          return sessionRepository && readGate(sessionRepository).enabled;
+        });
+        if (sessionGated) {
+          verdicts.push(verdict('ask', `review-loop: could not tell which repository this git ${invocation.subcommand} runs in, so the commit gate cannot check it. Confirm before Claude runs it.`));
+        }
+        continue;
+      }
+      if (checkedRepositories.has(repository.root)) continue;
+      checkedRepositories.add(repository.root);
+      const gateSettings = readGate(repository);
+      if (!gateSettings.enabled) continue;
+      const result = invocation.subcommand === 'push'
+        ? pushVerdict(invocation)
+        : commitVerdict(repository, invocation, ambiguous ? { ...gateSettings, skipOnce: false } : gateSettings);
+      verdicts.push(ambiguousVerdict(result, ambiguous, gateSettings.skipOnce));
+    }
   }
   return verdicts.sort((first, second) => VERDICT_RANK[second.decision] - VERDICT_RANK[first.decision]);
 }
@@ -850,7 +935,7 @@ function gateVerdicts(invocations) {
 function status(cwd) {
   const repository = openRepository(cwd);
   const state = readJson(repository.file('state.json'), null);
-  const delegation = readJson(repository.file('delegation.json'), { scope: 'off' });
+  const delegation = readSetting(repository, 'delegation.json', { scope: 'off' });
   const gateSettings = readGate(repository);
   if (!state) return { review: null, delegation, gate: gateSettings };
   return {

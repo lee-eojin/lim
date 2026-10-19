@@ -66,8 +66,9 @@ The commit gate is a hook that is off until you turn it on in a repository. At t
 | Only reviewed files changed after the review | Asks you |
 | `git push` or a force push | Always asks, even with delegation |
 | A commit with `--no-verify` | Asks, even with delegation, and still blocks a commit without a passing review |
+| A commit in a folder the gate cannot read, such as `cd "$(...)"` or a path that does not exist | Asks you, even with delegation, if the gate is on in the repository where you started Claude Code |
 
-To commit once without a review, ask Claude to skip the review this time.
+To commit once without a review, ask Claude to skip the review this time. The gate setting and commit delegation apply to the whole repository, including its linked worktrees. Each worktree keeps its own review.
 
 Every round ends with a report:
 
@@ -97,7 +98,7 @@ Based on Banksalad's public Pn rule.
 
 ### Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 55 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 53 of them, including runs against real temporary git repositories and the commit gate hook. The other 2 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, and showing the report before any question.
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 68 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 66 of them, including runs against real temporary git repositories and the commit gate hook. The other 2 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, and showing the report before any question.
 
 review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed.
 
@@ -113,6 +114,7 @@ review-loop makes no network calls of its own. Claude and the reviewer read the 
 - Each check gets up to 5 minutes, and all checks together up to 9 minutes. Set `LIM_CHECK_TIMEOUT_MS` to change the per-check limit.
 - Without the commit gate, asking before a commit is an instruction to Claude, not a guarantee.
 - The commit gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked, and git aliases such as `git ci` are not recognized.
+- If you start Claude Code in a folder that is not a repository, the gate cannot check a commit whose repository it cannot tell, for example after `cd "$(...)"`.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
 
 ## FAQ

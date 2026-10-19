@@ -53,8 +53,9 @@ The commit gate is a hook that is off until you turn it on in a repository. At t
 | Only reviewed files changed after the review (for example fixes from the decision step) | Asks you |
 | `git push` or a force push | Always asks, even with delegation |
 | A commit with `--no-verify` | Asks, even with delegation, and still blocks a commit without a passing review |
+| A commit in a folder the gate cannot read, such as `cd "$(...)"` or a path that does not exist | Asks you, even with delegation, if the gate is on in the repository where you started Claude Code |
 
-To commit once without a review, ask Claude to skip the review this time. The gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked.
+To commit once without a review, ask Claude to skip the review this time. The gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked. The gate setting and commit delegation apply to the whole repository, including its linked worktrees. Each worktree keeps its own review.
 
 ## Severity
 
@@ -62,7 +63,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 55 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 53 of them. The other 2 (asking about P3 to P5 once, and showing the report before any question) need a model run and are planned for `claude plugin eval`.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 68 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 66 of them. The other 2 (asking about P3 to P5 once, and showing the report before any question) need a model run and are planned for `claude plugin eval`.
 
 ## Data
 
@@ -74,5 +75,6 @@ State, diffs, check logs, and a decision ledger are stored in `.git/lim/review-l
 - Each check gets up to 5 minutes, and all checks together up to 9 minutes. A check past its limit is reported as "timed out (not verified)" instead of failing, and Claude tells you before committing. Set `LIM_CHECK_TIMEOUT_MS` to change the per-check limit.
 - Without the commit gate, asking before a commit is an instruction to Claude, not a guarantee. Turn the gate on to make it a hook.
 - The commit gate does not resolve git aliases. A commit made through an alias such as `git ci` is not checked.
+- If you start Claude Code in a folder that is not a repository, the gate cannot check a commit whose repository it cannot tell, for example after `cd "$(...)"`.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
 - "Make it a rule" is recorded but does not create a lint rule yet.

@@ -5,7 +5,11 @@ import { gateDecision } from '../skills/review-loop/scripts/loop.mjs';
 try {
   const payload = JSON.parse(readFileSync(0, 'utf8'));
   if (payload.tool_name === 'Bash') {
-    const result = gateDecision({ cwd: payload.cwd ?? process.cwd(), command: payload.tool_input?.command ?? '' });
+    const result = gateDecision({
+      cwd: payload.cwd ?? process.cwd(),
+      command: payload.tool_input?.command ?? '',
+      projectDir: process.env.CLAUDE_PROJECT_DIR,
+    });
     if (result) {
       process.stdout.write(JSON.stringify({
         hookSpecificOutput: {
