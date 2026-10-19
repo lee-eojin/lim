@@ -624,69 +624,100 @@ function gate(cwd, options) {
   return next;
 }
 
-function splitShellSegments(command) {
-  const segments = [];
-  let current = '';
-  let quote = null;
-  for (let index = 0; index < command.length; index += 1) {
-    const char = command[index];
-    if (quote) {
-      current += char;
-      if (char === quote) quote = null;
-      continue;
-    }
-    if (char === "'" || char === '"') {
-      quote = char;
-      current += char;
-    } else if (char === '\\') {
-      current += char + (command[index + 1] ?? '');
-      index += 1;
-    } else if (';&|\n()'.includes(char)) {
-      segments.push(current);
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  segments.push(current);
-  return segments.map((segment) => segment.trim()).filter(Boolean);
+const QUOTED_HEREDOC_TO_CAT = /\$\(\s*cat\s+<<(-?)[ \t]*(['"])([A-Za-z_][A-Za-z0-9_]*)\2[ \t]*\n([\s\S]*?)\n(\t*)\3\n\s*\)/y;
+const DOUBLE_QUOTE_ESCAPES = '$`"\\';
+
+function readQuotedHeredoc(command, index) {
+  QUOTED_HEREDOC_TO_CAT.lastIndex = index;
+  const match = QUOTED_HEREDOC_TO_CAT.exec(command);
+  if (!match) return null;
+  const [text, stripsTabs, , delimiter, body, tabs] = match;
+  const lines = body.split('\n').map((line) => (stripsTabs ? line.replace(/^\t+/, '') : line));
+  if ((tabs && !stripsTabs) || lines.includes(delimiter) || body.includes(')')) return null;
+  return { length: text.length, output: lines.join('\n').replace(/\n+$/, '') };
 }
 
-function shellWords(segment) {
-  const words = [];
-  let current = '';
-  let quote = null;
+function startsSubstitution(char, next) {
+  return char === '`' || (char === '$' && next === '(');
+}
+
+function scanShell(command) {
+  const segments = [];
+  let words = [];
+  let word = '';
   let started = false;
-  for (let index = 0; index < segment.length; index += 1) {
-    const char = segment[index];
-    if (quote) {
-      if (char === quote) quote = null;
-      else current += char;
+  let quote = null;
+  let substitution = false;
+  const endWord = () => {
+    if (started) words.push(word);
+    word = '';
+    started = false;
+  };
+  const endSegment = () => {
+    endWord();
+    if (words.length) segments.push(words);
+    words = [];
+  };
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    const next = command[index + 1] ?? '';
+    if (quote === "'") {
+      if (char === "'") quote = null;
+      else word += char;
+    } else if (quote === "$'") {
+      if (char === "'") {
+        quote = null;
+      } else if (char === '\\') {
+        word += next;
+        index += 1;
+      } else {
+        word += char;
+      }
+    } else if (quote === '"') {
+      const heredoc = char === '$' ? readQuotedHeredoc(command, index) : null;
+      if (char === '"') {
+        quote = null;
+      } else if (char === '\\') {
+        if (next !== '\n') word += DOUBLE_QUOTE_ESCAPES.includes(next) ? next : char + next;
+        index += 1;
+      } else if (heredoc) {
+        word += heredoc.output;
+        index += heredoc.length - 1;
+      } else {
+        if (startsSubstitution(char, next)) substitution = true;
+        word += char;
+      }
     } else if (char === "'" || char === '"') {
       quote = char;
       started = true;
-    } else if (char === '\\') {
-      current += segment[index + 1] ?? '';
-      index += 1;
+    } else if (char === '$' && next === "'") {
+      quote = "$'";
       started = true;
+      index += 1;
+    } else if (char === '\\') {
+      if (next !== '\n') {
+        word += next;
+        started = true;
+      }
+      index += 1;
+    } else if (';&|\n()'.includes(char)) {
+      endSegment();
     } else if (/\s/.test(char)) {
-      if (started) words.push(current);
-      current = '';
-      started = false;
+      endWord();
     } else {
-      current += char;
+      if (startsSubstitution(char, next)) substitution = true;
+      word += char;
       started = true;
     }
   }
-  if (started) words.push(current);
-  return words;
+  endSegment();
+  return { segments, substitution };
 }
 
 export function gitInvocations(command, cwd = process.cwd()) {
   const invocations = [];
   let location = cwd;
-  for (const segment of splitShellSegments(String(command ?? ''))) {
-    const words = shellWords(segment);
+  for (const words of scanShell(String(command ?? '')).segments) {
     if (words[0] === 'cd' && words[1]) {
       location = path.resolve(location, words[1]);
       continue;
@@ -725,19 +756,30 @@ function pushVerdict({ args }) {
   return verdict('ask', 'review-loop: pushing publishes commits. review-loop asks before every push.');
 }
 
-const VALUE_FLAG_LETTERS = new Set(['m', 'F', 'C', 'c', 't']);
+const REQUIRED_VALUE_LETTERS = new Set(['m', 'F', 'C', 'c', 't']);
+const ATTACHED_VALUE_LETTERS = new Set(['u', 'S']);
 
-function clusterSkipsHooks(arg) {
-  if (!/^-[A-Za-z]/.test(arg)) return false;
-  for (const letter of arg.slice(1)) {
-    if (letter === 'n') return true;
-    if (VALUE_FLAG_LETTERS.has(letter)) return false;
+function readCluster(arg) {
+  const letters = [...arg.slice(1)];
+  for (const [position, letter] of letters.entries()) {
+    if (letter === 'n') return { skipsHooks: true, takesNextWord: false };
+    if (REQUIRED_VALUE_LETTERS.has(letter)) return { skipsHooks: false, takesNextWord: position === letters.length - 1 };
+    if (ATTACHED_VALUE_LETTERS.has(letter)) break;
   }
-  return false;
+  return { skipsHooks: false, takesNextWord: false };
 }
 
 function skipsHooks(args) {
-  return args.some((arg) => arg === '--no-verify' || clusterSkipsHooks(arg));
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === '--') return false;
+    if (arg === '--no-verify') return true;
+    if (!/^-[A-Za-z]/.test(arg)) continue;
+    const cluster = readCluster(arg);
+    if (cluster.skipsHooks) return true;
+    if (cluster.takesNextWord) index += 1;
+  }
+  return false;
 }
 
 function commitVerdict(repository, { args }, gateSettings) {
@@ -783,10 +825,11 @@ export function gateDecision({ cwd, command }) {
   const invocations = gitInvocations(command, cwd);
   const strictest = gateVerdicts(invocations)[0] ?? null;
   if (strictest?.decision !== 'allow') return strictest;
-  const segments = splitShellSegments(String(command ?? '')).map(shellWords).filter((words) => words.length && words[0] !== 'cd');
+  const scan = scanShell(String(command ?? ''));
+  const segments = scan.segments.filter((words) => words[0] !== 'cd');
   const onlySafeGit = segments.length === invocations.length
     && invocations.every((invocation) => SAFE_GIT_SUBCOMMANDS.has(invocation.subcommand))
-    && !/\$\(|`/.test(String(command ?? ''));
+    && !scan.substitution;
   if (onlySafeGit) return strictest;
   return verdict('ask', `${strictest.reason} The command also runs other commands, so review-loop does not approve it on its own.`);
 }

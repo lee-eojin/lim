@@ -99,7 +99,7 @@ Banksaladが公開しているPnルールに基づきます。
 
 ### 測定結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる49個の動作が記載されています。CIの単体テストが、そのうち47個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行と、コミットゲートhookのテストも含まれます。残りの2個はモデルの実行が必要なため、`claude plugin eval`で測定する予定です。その2個は、P3からP5について1回だけ確認すること、質問より先にレポートを表示することです。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる55個の動作が記載されています。CIの単体テストが、そのうち53個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行と、コミットゲートhookのテストも含まれます。残りの2個はモデルの実行が必要なため、`claude plugin eval`で測定する予定です。その2個は、P3からP5について1回だけ確認すること、質問より先にレポートを表示することです。
 
 review-loopは、LIM自身のpull requestをレビューしています。[#8](https://github.com/lee-eojin/lim/pull/8)は、review-loopの初版で実行した2回のループを示しています。そのうち1回は、review-loop自身のテスト弱体化チェックの誤検知が原因で停止しました。この誤検知は、その後修正されました。
 

@@ -99,7 +99,7 @@ Left for you: P3 1, P4 0, P5 0
 
 ### 측정 결과
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 49개 동작이 있습니다. CI의 단위 테스트가 그중 47개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 2개는 모델 실행이 필요하므로, `claude plugin eval`로 측정할 계획입니다. 그 2개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기입니다.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 55개 동작이 있습니다. CI의 단위 테스트가 그중 53개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 2개는 모델 실행이 필요하므로, `claude plugin eval`로 측정할 계획입니다. 그 2개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기입니다.
 
 review-loop는 LIM 자체의 pull request를 리뷰합니다. [#8](https://github.com/lee-eojin/lim/pull/8)은 review-loop 첫 버전에서 실행한 루프 두 번을 보여 줍니다. 그중 한 번은 review-loop 자체의 테스트 약화 검사가 낸 오탐 때문에 멈췄고, 그 오탐은 이후에 수정되었습니다.
 

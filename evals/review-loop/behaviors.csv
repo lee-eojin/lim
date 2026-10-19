@@ -48,3 +48,9 @@ B46,stop,Skipping git hooks does not turn a blocked unreviewed commit into a que
 B47,stop,A review stops covering new commits once HEAD moves past where the review started,test: a review is used up once HEAD moves,yes
 B48,ask,A delegated commit whose command contains command substitution is asked about,test: command substitution in a delegated commit is asked about,yes
 B49,ask,A short flag cluster such as -nm is read as skipping hooks and is asked about,test: a short flag cluster that starts with n is read as skipping hooks,yes
+B50,silence,A delegated commit whose message comes from a quoted heredoc is allowed without asking,test: a commit message from a quoted heredoc is allowed with delegation,yes
+B51,ask,A heredoc that can run commands or sits outside double quotes or has ) in its body is still asked about,test: a heredoc that can run commands is still asked about,yes
+B52,silence,Backticks and $( inside single quotes are not read as command substitution,test: backticks inside single quotes are not command substitution,yes
+B53,silence,Option values such as -unormal or the word after -m are not read as skipping hooks,test: option values are not read as skipping hooks,yes
+B54,ask,A command substitution after an ANSI-C quoted string such as $'a\'' is still asked about,test: ANSI-C quoted strings do not hide command substitution,yes
+B55,ask,A heredoc passed as its own argument is checked as that argument so skipping hooks still asks,test: a heredoc passed as its own argument is read as that argument,yes
