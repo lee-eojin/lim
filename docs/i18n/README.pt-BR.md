@@ -24,7 +24,7 @@ Harnesses de agentes grandes carregam muitas instruções em cada sessão e exec
 
 | Plugin | Status | Um trabalho |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.0 | Revisa suas alterações antes do commit, corrige os achados P1 e P2, revisa de novo e entrega o restante para você. |
+| [review-loop](../../plugins/review-loop) | 0.2.1 | Revisa suas alterações antes do commit, corrige os achados P1 e P2, revisa de novo e entrega o restante para você. |
 | forge | planejado | Transforma os comentários de pull request de um revisor em uma skill de revisor, com um relatório sobre a fidelidade dessa skill. |
 
 ## Início rápido

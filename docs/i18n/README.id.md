@@ -24,7 +24,7 @@ Agent harness yang besar memuat banyak instruksi ke setiap sesi dan menjalankan 
 
 | Plugin | Status | Satu tugas |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.0 | Me-review perubahanmu sebelum kamu commit, memperbaiki temuan P1 dan P2, me-review ulang, dan menyerahkan sisanya kepadamu. |
+| [review-loop](../../plugins/review-loop) | 0.2.1 | Me-review perubahanmu sebelum kamu commit, memperbaiki temuan P1 dan P2, me-review ulang, dan menyerahkan sisanya kepadamu. |
 | forge | direncanakan | Mengubah komentar pull request dari seorang reviewer menjadi reviewer skill, dengan laporan tentang seberapa setia skill itu. |
 
 ## Mulai cepat
