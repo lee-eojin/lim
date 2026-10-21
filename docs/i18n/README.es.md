@@ -53,7 +53,7 @@ Antes de tu commit, review-loop ejecuta un ciclo corto y se detiene sin tu inter
 3. **Corrección.** Claude dice qué va a corregir y después corrige P1 y P2. Si una corrección necesita una decisión de diseño (más de una forma de corregir, un cambio de comportamiento visible, eliminar una funcionalidad, cambiar tests), tú eliges primero.
 4. **Nueva revisión.** Un revisor nuevo comprueba solo las correcciones y los hallazgos que siguen abiertos. El ciclo tiene un máximo de 3 rondas.
 5. **Detención.** Un script, no el modelo, decide cuándo detener el ciclo. El ciclo se detiene en estos casos: no quedan P1 ni P2, se alcanza el límite de rondas, un hallazgo sigue abierto después de dos correcciones, un hallazgo resuelto vuelve a aparecer, P1 + P2 deja de disminuir, o una corrección debilita los tests o las comprobaciones.
-6. **Decisión.** Tú decides el resto una sola vez: todos los P3 a P5, y cada P1 o P2 que sigue abierto o no está verificado. Para cada hallazgo eliges: dejarlo como está, corregirlo solo esta vez o convertirlo en una regla.
+6. **Decisión.** Tú decides el resto una sola vez: todos los P3 a P5, y cada P1 o P2 que sigue abierto, no está verificado o trata de un archivo fuera del diff revisado. Para cada hallazgo eliges: dejarlo como está, corregirlo solo esta vez o convertirlo en una regla.
 7. **Commit.** Claude pregunta antes del commit, a menos que hayas elegido "dejar de preguntar en este repositorio". Claude nunca hace push. Si activas el commit gate, un hook convierte esto en una regla: los commits de Claude quedan bloqueados hasta que se aprueba una revisión.
 
 ### Commit gate
@@ -97,6 +97,8 @@ La escala se basa en la regla Pn pública de Banksalad.
 | P3 | Corrección útil: mantenibilidad, un nombre que confunde, un test que falta en un camino secundario | Tú decides |
 | P4 | Opcional: una preferencia de estructura en la que las personas no están de acuerdo | Tú decides |
 | P5 | Trivial: una errata o el formato | Tú decides |
+
+Un P1 o P2 sobre un archivo que no está en el diff que revisó la ronda no se corrige en el ciclo. Llega a ti al final, marcado como fuera del diff revisado, y conserva su severidad.
 
 ### Mediciones
 

@@ -51,7 +51,7 @@ Before you commit, review-loop runs a short loop and stops on its own.
 3. **Fix.** Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one way to fix it, a visible behavior change, removing a feature, changing tests), you choose first.
 4. **Re-review.** A new reviewer checks only the fixes and the findings still open. Up to 3 rounds.
 5. **Stop.** A script, not the model, decides when to stop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
-6. **Decide.** You decide the rest once: every P3 to P5, plus any P1 or P2 that is still open or could not be verified. For each one you choose: keep as is, fix this time only, or make it a rule.
+6. **Decide.** You decide the rest once: every P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff. For each one you choose: keep as is, fix this time only, or make it a rule.
 7. **Commit.** Claude asks before committing unless you chose "stop asking in this repo". It never pushes. If you turn on the commit gate, a hook makes this a rule: Claude's commits are blocked until a review passes.
 
 ### Commit gate
@@ -95,6 +95,8 @@ Based on Banksalad's public Pn rule.
 | P3 | Worth fixing: maintainability, a misleading name, a missing test on a minor path | You decide |
 | P4 | Optional: a structural preference people disagree on | You decide |
 | P5 | Trivial: a typo or formatting | You decide |
+
+A P1 or P2 about a file that is not in the diff the round reviewed is not fixed in the loop. It comes to you at the end, marked as outside the reviewed diff, and keeps its severity.
 
 ### Measured
 

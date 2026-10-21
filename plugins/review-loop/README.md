@@ -24,7 +24,7 @@ If a session ends in the middle of a loop, running it again offers to continue w
 3. Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one fix, a visible behavior change, removing a feature, changing tests), you choose first.
 4. A new reviewer checks only the fixes and the open findings. Up to 3 rounds.
 5. A script, not the model, stops the loop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
-6. You decide the rest once: keep as is, fix this time only, or make it a rule.
+6. You decide the rest once (P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff): keep as is, fix this time only, or make it a rule.
 7. Claude asks before committing unless you chose "stop asking in this repo". It never pushes.
 
 Every round ends with a report like this:
@@ -59,7 +59,7 @@ To commit once without a review, ask Claude to skip the review this time. The ga
 
 ## Severity
 
-Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing, P4 optional, P5 trivial.
+Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing, P4 optional, P5 trivial. A P1 or P2 about a file that is not in the diff the round reviewed is not fixed in the loop. It comes to you at the end, marked as outside the reviewed diff, and keeps its severity.
 
 ## Measured behavior
 
