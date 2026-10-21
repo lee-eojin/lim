@@ -53,7 +53,7 @@ Vor deinem Commit führt review-loop eine kurze Schleife aus und stoppt selbstst
 3. **Beheben.** Claude sagt, was es beheben wird, und behebt dann P1 und P2. Wenn ein Fix eine Designentscheidung braucht (mehr als ein möglicher Weg, eine sichtbare Verhaltensänderung, das Entfernen eines Features, Änderungen an Tests), entscheidest du zuerst.
 4. **Erneutes Review.** Ein neuer Reviewer prüft nur die Fixes und die noch offenen Findings. Es gibt maximal 3 Runden.
 5. **Stoppen.** Ein Skript entscheidet über den Stopp, nicht das Modell. Das Skript stoppt in diesen Fällen: Es gibt kein P1 oder P2 mehr, das Rundenlimit ist erreicht, ein Finding übersteht zwei Fixes, ein gelöstes Finding kommt zurück, P1 + P2 sinkt nicht mehr, oder ein Fix schwächt Tests oder Checks.
-6. **Entscheiden.** Du entscheidest einmal über den Rest: alle P3 bis P5 und jedes P1- oder P2-Finding, das noch offen oder nicht verifiziert ist. Für jedes Finding wählst du: so lassen, nur dieses Mal beheben oder eine Regel daraus machen.
+6. **Entscheiden.** Du entscheidest einmal über den Rest: alle P3 bis P5 und jedes P1- oder P2-Finding, das noch offen, nicht verifiziert oder eine Datei außerhalb des geprüften Diffs betrifft. Für jedes Finding wählst du: so lassen, nur dieses Mal beheben oder eine Regel daraus machen.
 7. **Commit.** Claude fragt vor dem Commit, außer du hast "in diesem Repo nicht mehr fragen" gewählt. Claude pusht nie. Wenn du das Commit-Gate einschaltest, macht ein Hook daraus eine Regel: Claudes Commits sind blockiert, bis ein Review bestanden ist.
 
 ### Commit-Gate
@@ -97,6 +97,8 @@ Die Stufen basieren auf der öffentlichen Pn-Regel von Banksalad.
 | P3 | Lohnt sich zu beheben: Wartbarkeit, ein irreführender Name, ein fehlender Test für einen Nebenpfad | Du entscheidest |
 | P4 | Optional: eine strukturelle Vorliebe, bei der Menschen unterschiedlicher Meinung sind | Du entscheidest |
 | P5 | Trivial: ein Tippfehler oder Formatierung | Du entscheidest |
+
+Ein P1 oder P2 zu einer Datei, die nicht im Diff der Runde liegt, wird in der Schleife nicht behoben. Es kommt am Ende zu dir, als außerhalb des geprüften Diffs markiert, und behält seinen Schweregrad.
 
 ### Gemessen
 

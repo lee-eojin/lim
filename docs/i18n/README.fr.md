@@ -53,7 +53,7 @@ Avant votre commit, review-loop exécute une boucle courte et s'arrête sans vot
 3. **Correction.** Claude indique ce qu'il va corriger, puis corrige P1 et P2. Si une correction exige un choix de conception (plus d'une façon de corriger, un changement de comportement visible, la suppression d'une fonctionnalité, la modification de tests), vous choisissez d'abord.
 4. **Revue des corrections.** Un nouveau réviseur vérifie uniquement les corrections et les constats encore ouverts. La boucle compte au maximum 3 tours.
 5. **Arrêt.** Un script, et non le modèle, décide quand la boucle s'arrête. La boucle s'arrête dans ces cas : il ne reste ni P1 ni P2, la limite de tours est atteinte, un constat reste ouvert après deux corrections, un constat résolu réapparaît, P1 + P2 cesse de diminuer, ou une correction affaiblit les tests ou les vérifications.
-6. **Décision.** Vous décidez une seule fois pour le reste : tous les P3 à P5, et chaque P1 ou P2 encore ouvert ou non vérifié. Pour chaque constat, vous choisissez : garder tel quel, corriger cette fois uniquement ou en faire une règle.
+6. **Décision.** Vous décidez une seule fois pour le reste : tous les P3 à P5, et chaque P1 ou P2 encore ouvert, non vérifié ou qui porte sur un fichier hors du diff revu. Pour chaque constat, vous choisissez : garder tel quel, corriger cette fois uniquement ou en faire une règle.
 7. **Commit.** Claude demande avant le commit, sauf si vous avez choisi "ne plus demander dans ce dépôt". Claude ne fait jamais de push. Si vous activez le commit gate, un hook en fait une règle : les commits de Claude sont bloqués tant qu'une revue n'est pas validée.
 
 ### Commit gate
@@ -97,6 +97,8 @@ L'échelle s'appuie sur la règle Pn publique de Banksalad.
 | P3 | Correction utile : la maintenabilité, un nom trompeur, un test manquant sur un chemin secondaire | Vous décidez |
 | P4 | Optionnel : une préférence de structure sur laquelle les avis divergent | Vous décidez |
 | P5 | Mineur : une faute de frappe ou la mise en forme | Vous décidez |
+
+Un P1 ou P2 qui porte sur un fichier absent du diff revu par le tour n'est pas corrigé dans la boucle. Il vous arrive à la fin, marqué comme hors du diff revu, et garde sa gravité.
 
 ### Mesures
 

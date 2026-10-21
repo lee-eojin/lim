@@ -53,7 +53,7 @@ Sebelum kamu commit, review-loop menjalankan satu loop pendek dan berhenti sendi
 3. **Perbaikan.** Claude menyebutkan apa yang akan diperbaikinya, lalu memperbaiki P1 dan P2. Jika sebuah perbaikan membutuhkan pilihan desain (ada lebih dari satu cara memperbaikinya, perubahan perilaku yang terlihat, penghapusan fitur, perubahan test), kamu memilih lebih dulu.
 4. **Review ulang.** Reviewer baru hanya memeriksa perbaikan dan temuan yang masih terbuka. Maksimal 3 putaran.
 5. **Berhenti.** Sebuah script yang memutuskan kapan berhenti, bukan model. Script menghentikan loop dalam kasus berikut: tidak ada P1 atau P2 yang tersisa, batas putaran tercapai, sebuah temuan tetap ada setelah dua perbaikan, temuan yang sudah selesai muncul lagi, P1 + P2 berhenti berkurang, atau sebuah perbaikan melemahkan test atau pemeriksaan.
-6. **Putuskan.** Kamu memutuskan sisanya satu kali: semua P3 sampai P5, ditambah setiap P1 atau P2 yang masih terbuka atau tidak dapat diverifikasi. Untuk setiap temuan, kamu memilih: biarkan apa adanya, perbaiki untuk kali ini saja, atau jadikan aturan.
+6. **Putuskan.** Kamu memutuskan sisanya satu kali: semua P3 sampai P5, ditambah setiap P1 atau P2 yang masih terbuka, tidak dapat diverifikasi, atau menyangkut file di luar diff yang di-review. Untuk setiap temuan, kamu memilih: biarkan apa adanya, perbaiki untuk kali ini saja, atau jadikan aturan.
 7. **Commit.** Claude bertanya sebelum commit, kecuali kamu memilih "berhenti bertanya di repo ini". Claude tidak pernah melakukan push. Jika kamu menyalakan commit gate, sebuah hook menjadikan ini aturan: commit Claude diblokir sampai sebuah review lolos.
 
 ### Commit gate
@@ -97,6 +97,8 @@ Tingkat ini berdasarkan aturan Pn publik dari Banksalad.
 | P3 | Layak diperbaiki: kemudahan pemeliharaan, nama yang menyesatkan, test yang hilang pada jalur minor | Kamu yang memutuskan |
 | P4 | Opsional: preferensi struktur yang tidak disepakati semua orang | Kamu yang memutuskan |
 | P5 | Sepele: salah ketik atau format | Kamu yang memutuskan |
+
+P1 atau P2 tentang file yang tidak ada di diff yang di-review pada ronde itu tidak diperbaiki di dalam loop. Temuan itu sampai kepadamu di akhir, ditandai sebagai di luar diff yang di-review, dengan tingkat keparahan yang tetap.
 
 ### Terukur
 

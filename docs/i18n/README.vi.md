@@ -53,7 +53,7 @@ Trước khi bạn commit, review-loop chạy một vòng lặp ngắn và tự 
 3. **Sửa.** Claude nói nó sẽ sửa gì, sau đó sửa P1 và P2. Nếu một bản sửa cần một lựa chọn thiết kế (có nhiều cách sửa, hành vi nhìn thấy được bị thay đổi, xóa một tính năng, thay đổi test), bạn chọn trước.
 4. **Review lại.** Một reviewer mới chỉ kiểm tra các bản sửa và các phát hiện còn mở. Tối đa 3 vòng.
 5. **Dừng.** Một script quyết định khi nào dừng, không phải mô hình. Script dừng vòng lặp trong các trường hợp sau: không còn P1 hoặc P2, đạt giới hạn số vòng, một phát hiện vẫn còn sau hai lần sửa, một phát hiện đã giải quyết quay lại, P1 + P2 không giảm nữa, hoặc một bản sửa làm yếu test hay check.
-6. **Quyết định.** Bạn quyết định phần còn lại một lần: mọi P3 đến P5, cùng với mọi P1 hoặc P2 vẫn còn mở hoặc chưa xác minh được. Với mỗi phát hiện, bạn chọn: giữ nguyên, chỉ sửa lần này, hoặc biến nó thành một quy tắc.
+6. **Quyết định.** Bạn quyết định phần còn lại một lần: mọi P3 đến P5, cùng với mọi P1 hoặc P2 vẫn còn mở, chưa xác minh được, hoặc nói về một file nằm ngoài diff đã review. Với mỗi phát hiện, bạn chọn: giữ nguyên, chỉ sửa lần này, hoặc biến nó thành một quy tắc.
 7. **Commit.** Claude hỏi trước khi commit, trừ khi bạn đã chọn "không hỏi nữa trong repo này". Claude không bao giờ push. Nếu bạn bật commit gate, một hook biến điều này thành quy tắc: commit của Claude bị chặn cho đến khi một lần review đạt.
 
 ### Commit gate
@@ -97,6 +97,8 @@ Các mức này dựa trên quy tắc Pn công khai của Banksalad.
 | P3 | Đáng sửa: khả năng bảo trì, một tên gây hiểu nhầm, thiếu test cho một nhánh phụ | Bạn quyết định |
 | P4 | Tùy chọn: một sở thích về cấu trúc mà mọi người không đồng ý với nhau | Bạn quyết định |
 | P5 | Nhỏ: lỗi chính tả hoặc định dạng | Bạn quyết định |
+
+P1 hoặc P2 về một file không có trong diff mà vòng đó đã review sẽ không được sửa trong vòng lặp. Nó đến với bạn ở cuối, được đánh dấu là nằm ngoài diff đã review, và giữ nguyên mức độ nghiêm trọng.
 
 ### Số đo
 
