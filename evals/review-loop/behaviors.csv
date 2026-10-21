@@ -67,3 +67,5 @@ B65,ask,A commit that may run in more than one repository is never approved on i
 B66,stop,Turning the gate off and on cancels a pending one-time skip in every worktree,test: turning the gate off and on cancels a pending skip in every worktree,yes
 B67,stop,A one-time skip is used up once when every folder a commit may run in is in the same repository,test: a one-time skip is used once when every folder is in the same repository,yes
 B68,ask,A commit whose repository the gate cannot tell is asked about when the gate is on where Claude Code started,test: gate also checks the folder where Claude Code started,yes
+B69,ask,With the confirm setting on an evidenced finding at that severity is asked about instead of fixed,test: classify asks about evidenced findings at a confirmed severity,yes
+B70,ask,The confirm setting covers P2 or every P1 and P2 and moves pending fixes in the current round to ask and can be turned off,test: the confirm setting asks before fixing P2 or every P1 and P2,yes

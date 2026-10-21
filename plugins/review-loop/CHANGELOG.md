@@ -4,6 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
+- Added: You can ask Claude to confirm every P2, or every P1 and P2, before anything is fixed. The setting is per repository (`loop confirm --severity P2|all`, `--off` to turn it off). (#4)
 - Fixed: The README now says that a P1 or P2 about a file outside the reviewed diff is not fixed in the loop. It comes to you at the end, marked as outside the reviewed diff, with its severity kept. (#15)
 
 ## 0.2.1 (2026-10-19)

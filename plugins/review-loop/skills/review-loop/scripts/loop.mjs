@@ -15,6 +15,7 @@ const SEVERITIES = ['P1', 'P2', 'P3', 'P4', 'P5'];
 const BLOCKING = new Set(['P1', 'P2']);
 const EVIDENCE_FIELDS = ['quote', 'scenario', 'whyNotPrevented'];
 const ASK_FLAGS = ['multipleFixes', 'behaviorChange', 'removesFeature', 'touchesTests'];
+const CONFIRM_LEVELS = { off: [], P2: ['P2'], all: ['P1', 'P2'] };
 const REVIEWER_FIELDS = ['severity', 'file', 'line', 'category', 'title', ...EVIDENCE_FIELDS, ...ASK_FLAGS];
 const DECISION_CHOICES = ['keep', 'once', 'rule'];
 const DIFF_COMMAND = ['-c', 'core.quotePath=false', 'diff', '--no-color', '--no-ext-diff', '--src-prefix=a/', '--dst-prefix=b/'];
@@ -67,7 +68,7 @@ export function hasEvidence(finding, sources) {
   return sources.some((source) => normalize(source).includes(quote));
 }
 
-export function classify(findings, sourcesFor = () => []) {
+export function classify(findings, sourcesFor = () => [], confirmSeverities = []) {
   const fix = [];
   const ask = [];
   const cards = [];
@@ -78,7 +79,7 @@ export function classify(findings, sourcesFor = () => []) {
       cards.push(item);
     } else if (!item.fromChecks && !hasEvidence(item, sourcesFor(item))) {
       cards.push({ ...item, unproven: true });
-    } else if (ASK_FLAGS.some((flag) => item[flag] === true)) {
+    } else if (ASK_FLAGS.some((flag) => item[flag] === true) || confirmSeverities.includes(severity)) {
       ask.push(item);
     } else {
       fix.push(item);
@@ -486,7 +487,7 @@ function record(cwd, options, input) {
     reported.push(finding);
   }
   const newChecks = failingChecks.filter((finding) => !state.open.some((item) => item.fingerprint === fingerprint(finding)));
-  const classified = classify([...newChecks, ...reported.filter((finding) => filesInRound.has(finding.file))], sourcesFor);
+  const classified = classify([...newChecks, ...reported.filter((finding) => filesInRound.has(finding.file))], sourcesFor, readConfirm(repository).severities);
   const outside = classify(reported.filter((finding) => !filesInRound.has(finding.file)), sourcesFor);
   const outsideCards = [...outside.fix, ...outside.ask, ...outside.cards].map((item) => ({ ...item, outOfScope: true }));
 
@@ -602,6 +603,32 @@ function rerunChecks(cwd) {
     passed: checks.every((check) => check.exitCode === 0),
     notVerified: checks.filter((check) => check.timedOut).map((check) => check.name),
   };
+}
+
+function readConfirm(repository) {
+  const { severity = 'off' } = readSetting(repository, 'confirm.json', {});
+  const known = Object.hasOwn(CONFIRM_LEVELS, severity) ? severity : 'off';
+  return { severity: known, severities: CONFIRM_LEVELS[known] };
+}
+
+function confirm(cwd, options) {
+  const repository = openRepository(cwd);
+  const severity = options.off ? 'off' : options.severity;
+  if (severity === undefined) return readConfirm(repository);
+  if (!Object.hasOwn(CONFIRM_LEVELS, severity)) throw new Error('severity must be P2, all, or off');
+  writeFileSync(repository.shared('confirm.json'), JSON.stringify({ severity, updatedAt: now() }, null, 2));
+  logEvent(repository, { event: 'confirm', severity });
+  const rerouted = [];
+  const state = readSavedState(repository);
+  if (state?.awaiting === 'fix') {
+    state.open = state.open.map((item) => {
+      if (routeOf(item) !== 'fix' || !CONFIRM_LEVELS[severity].includes(item.severity)) return item;
+      rerouted.push(item.id);
+      return { ...item, route: 'ask' };
+    });
+    if (rerouted.length) saveState(repository, state);
+  }
+  return { ...readConfirm(repository), rerouted };
 }
 
 function delegate(cwd, options) {
@@ -937,7 +964,8 @@ function status(cwd) {
   const state = readJson(repository.file('state.json'), null);
   const delegation = readSetting(repository, 'delegation.json', { scope: 'off' });
   const gateSettings = readGate(repository);
-  if (!state) return { review: null, delegation, gate: gateSettings };
+  const confirmSettings = readConfirm(repository);
+  if (!state) return { review: null, delegation, gate: gateSettings, confirm: confirmSettings };
   return {
     review: {
       round: state.round,
@@ -952,10 +980,11 @@ function status(cwd) {
     treeMatchesReview: snapshotTree(repository) === state.reviewedTree,
     delegation,
     gate: gateSettings,
+    confirm: confirmSettings,
   };
 }
 
-const COMMANDS = { start, record, next, decide, checks: rerunChecks, delegate, gate, status };
+const COMMANDS = { start, record, next, decide, checks: rerunChecks, delegate, gate, confirm, status };
 
 function parseOptions(args) {
   const options = {};
