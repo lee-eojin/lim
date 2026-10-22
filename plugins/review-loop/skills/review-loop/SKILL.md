@@ -1,6 +1,6 @@
 ---
 name: review-loop
-description: Reviews uncommitted changes before a commit by running the project's checks, having a fresh reviewer label findings P1 to P5, fixing P1 and P2 with re-review for up to 3 rounds, and asking the user about the rest and before committing. Use when the user wants to commit, wrap up, or review their current changes.
+description: Reviews uncommitted changes before a commit by running the project's checks, having a fresh reviewer label findings P1 to P5, fixing P1 and P2 with re-review for up to 3 rounds, and asking the user about the rest and before committing. Use when the user wants to commit, wrap up, or review their current changes, or wants review-loop to ask before fixing P2 or P1 findings.
 ---
 
 # review-loop
@@ -58,7 +58,7 @@ Show `report` first, as the Rules say.
 
 When `decision` is `continue`:
 1. Say in one line what you will fix, for example "Fixing F-1 and F-3, then re-reviewing."
-2. If `ask` is not empty, ask once with AskUserQuestion before fixing: one question per finding, options are concrete fixes, your recommendation first. These are findings where the fix needs a design choice or a first fix did not work.
+2. If `ask` is not empty, ask once with AskUserQuestion before fixing: one question per finding, options are concrete fixes, your recommendation first. These are findings where the fix needs a design choice, a first fix did not work, or the user asked to confirm that severity before any fix.
 3. Fix the `fix` and `ask` findings.
 4. Run `loop next`. If `status` is `stopped`, show `report` and go to step 5. Otherwise go back to step 2.
 
@@ -98,6 +98,10 @@ Use the repository's commit message convention. If it has none, use `<type>: <su
 The user can turn delegation off with `loop delegate --scope off`.
 
 If the user asks to commit without a review just this once, run `loop gate --skip-once` before the commit. If the gate blocks a commit, follow the reason it gives; it names the step to take.
+
+## Settings
+
+If the user asks to see every P2 (or every P1 and P2) before anything is fixed, run `loop confirm --severity P2` (or `--severity all`). `loop confirm --off` turns it off. The setting applies to the whole repository. If a round is waiting for fixes, the command also moves findings at that severity from the fix list to the ask list and returns their ids in `rerouted`; ask about those before fixing anything.
 
 ## Files
 

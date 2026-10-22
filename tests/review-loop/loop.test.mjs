@@ -70,6 +70,13 @@ function loop(root, args, review, env = {}) {
 }
 
 describe('classify', () => {
+  test('classify asks about evidenced findings at a confirmed severity', () => {
+    assert.equal(classify([doubledPrice], brokenCartSource, ['P2']).ask.length, 1);
+    assert.equal(classify([doubledPrice], brokenCartSource, ['P2']).fix.length, 0);
+    assert.equal(classify([{ ...doubledPrice, severity: 'P1' }], brokenCartSource, ['P2']).fix.length, 1);
+    assert.equal(classify([{ ...doubledPrice, quote: 'not in the file' }], brokenCartSource, ['P2']).cards[0].unproven, true);
+  });
+
   test('classify routes evidenced P2 to fix', () => {
     const { fix, ask, cards } = classify([doubledPrice], brokenCartSource);
     assert.equal(fix.length, 1);
@@ -333,6 +340,39 @@ describe('loop.mjs in a git repository', () => {
     writeFiles(root, { 'src/cart.test.js': "it.skip('totals', () => {});\n" });
     loop(root, ['next']);
     assert.equal(loop(root, ['status']).treeMatchesReview, false);
+  });
+
+  test('the confirm setting asks before fixing P2 or every P1 and P2', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    assert.equal(loop(root, ['confirm']).severity, 'off');
+    loop(root, ['confirm', '--severity', 'P2']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const confirmed = loop(root, ['record'], { findings: [doubledPrice] });
+    assert.equal(confirmed.fix.length, 0);
+    assert.equal(confirmed.ask[0].title, 'Price is doubled');
+
+    const manifest = JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } });
+    const failing = createRepository({ 'package.json': manifest, 'src/cart.js': correctCart });
+    loop(failing, ['confirm', '--severity', 'all']);
+    writeFiles(failing, { 'src/cart.js': brokenCart });
+    loop(failing, ['start']);
+    const all = loop(failing, ['record'], { findings: [] });
+    assert.equal(all.fix.length, 0);
+    assert.equal(all.ask[0].fromChecks, true);
+
+    const midRound = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(midRound, { 'src/cart.js': brokenCart });
+    loop(midRound, ['start']);
+    assert.equal(loop(midRound, ['record'], { findings: [doubledPrice] }).fix[0].id, 'F-1');
+    assert.deepEqual(loop(midRound, ['confirm', '--severity', 'P2']).rerouted, ['F-1']);
+    const resumed = loop(midRound, ['start']);
+    assert.equal(resumed.fix.length, 0);
+    assert.equal(resumed.ask[0].id, 'F-1');
+
+    assert.equal(loop(failing, ['confirm', '--off']).severity, 'off');
+    assert.equal(loop(failing, ['status']).confirm.severity, 'off');
+    assert.throws(() => loop(failing, ['confirm', '--severity', 'P3']));
   });
 
   test('failing checks become P1 findings', () => {

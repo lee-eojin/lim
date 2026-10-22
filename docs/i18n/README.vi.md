@@ -50,7 +50,7 @@ Trước khi bạn commit, review-loop chạy một vòng lặp ngắn và tự 
 
 1. **Check.** review-loop chạy các script `typecheck`, `lint` và `test` từ `package.json` của bạn. Một check thất bại trở thành một phát hiện P1. Một `package.json` không phải JSON hợp lệ cũng trở thành một phát hiện P1. Nếu một check chạy quá giới hạn thời gian, review-loop báo cáo check đó là "chưa xác minh" thay vì thất bại.
 2. **Review mới.** Một reviewer agent riêng nhận diff và một bản tóm tắt một dòng về mục tiêu của bạn. Agent này không nhận lập luận của Claude về thay đổi đó. Agent này có thể đọc code xung quanh để hiểu ngữ cảnh. Agent này gắn nhãn các phát hiện từ P1 đến P5. P1 và P2 cần bằng chứng: dòng chính xác, một kịch bản lỗi và lý do vì sao chưa có gì ngăn lỗi đó. review-loop hiển thị các khẳng định không có bằng chứng cho bạn dưới dạng chưa xác minh.
-3. **Sửa.** Claude nói nó sẽ sửa gì, sau đó sửa P1 và P2. Nếu một bản sửa cần một lựa chọn thiết kế (có nhiều cách sửa, hành vi nhìn thấy được bị thay đổi, xóa một tính năng, thay đổi test), bạn chọn trước.
+3. **Sửa.** Claude nói nó sẽ sửa gì, sau đó sửa P1 và P2. Nếu một bản sửa cần một lựa chọn thiết kế (có nhiều cách sửa, hành vi nhìn thấy được bị thay đổi, xóa một tính năng, thay đổi test), bạn chọn trước. Để xem mọi P2 (hoặc mọi P1 và P2) trước khi có bất kỳ thay đổi nào, hãy yêu cầu Claude xác nhận với bạn trước.
 4. **Review lại.** Một reviewer mới chỉ kiểm tra các bản sửa và các phát hiện còn mở. Tối đa 3 vòng.
 5. **Dừng.** Một script quyết định khi nào dừng, không phải mô hình. Script dừng vòng lặp trong các trường hợp sau: không còn P1 hoặc P2, đạt giới hạn số vòng, một phát hiện vẫn còn sau hai lần sửa, một phát hiện đã giải quyết quay lại, P1 + P2 không giảm nữa, hoặc một bản sửa làm yếu test hay check.
 6. **Quyết định.** Bạn quyết định phần còn lại một lần: mọi P3 đến P5, cùng với mọi P1 hoặc P2 vẫn còn mở, chưa xác minh được, hoặc nói về một file nằm ngoài diff đã review. Với mỗi phát hiện, bạn chọn: giữ nguyên, chỉ sửa lần này, hoặc biến nó thành một quy tắc.
@@ -102,7 +102,7 @@ P1 hoặc P2 về một file không có trong diff mà vòng đó đã review s�
 
 ### Số đo
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 68 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 66 hành vi trong số đó. Các unit test này bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 2 hành vi còn lại cần một lần chạy với mô hình và được dự kiến cho `claude plugin eval`: hỏi về P3 đến P5 một lần và hiển thị báo cáo trước mọi câu hỏi.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 70 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 68 hành vi trong số đó. Các unit test này bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 2 hành vi còn lại cần một lần chạy với mô hình và được dự kiến cho `claude plugin eval`: hỏi về P3 đến P5 một lần và hiển thị báo cáo trước mọi câu hỏi.
 
 review-loop review chính các pull request của LIM. [#8](https://github.com/lee-eojin/lim/pull/8) cho thấy hai vòng lặp trên phiên bản đầu tiên của review-loop. Một vòng trong đó dừng vì một false positive trong check phát hiện test bị làm yếu của chính nó. Lỗi này sau đó đã được sửa.
 
