@@ -102,7 +102,7 @@ Left for you: P3 1, P4 0, P5 0
 
 ### 测量结果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 70 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 68 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 2 个行为需要实际运行模型，计划使用 `claude plugin eval` 测试：对 P3 到 P5 只询问一次、在任何提问之前先展示报告。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 75 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 73 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 2 个行为需要实际运行模型，计划使用 `claude plugin eval` 测试：对 P3 到 P5 只询问一次、在任何提问之前先展示报告。
 
 review-loop 审查 LIM 自己的 pull request。[#8](https://github.com/lee-eojin/lim/pull/8) 展示了 review-loop 第一个版本上运行的两次循环。其中一次停止是由 review-loop 自己的测试削弱检查中的误报引起的，这个误报随后已被修复。
 

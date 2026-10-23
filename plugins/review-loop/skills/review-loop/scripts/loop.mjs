@@ -31,7 +31,8 @@ const LOCKFILE_RUNNERS = [
   ['bun.lockb', 'bun'],
 ];
 const WEAKENING_LINES = [
-  [/^\+\s*(?:it|test|describe)\.(?:skip|only)\(/, 'test skipped or focused'],
+  [/^\+\s*(?:it|test|describe)(?:\.\w+)*\.(?:skip|only|skipIf|runIf)\b/, 'test skipped or focused'],
+  [/^\+\s*(?:it|test)(?:\.\w+)*\.(?:todo|fails)\b/, 'test turned into a todo or an expected failure'],
   [/^\+\s*x(?:it|test|describe)\(/, 'test skipped'],
   [/^\+\s*(?:\/\/|\/\*)\s*eslint-disable/, 'lint rule disabled'],
   [/^\+\s*(?:\/\/|\/\*)\s*@ts-(?:ignore|expect-error|nocheck)/, 'type check suppressed'],
@@ -41,6 +42,10 @@ const WEAKENING_PATHS = [
   [/^\.github\/workflows\//, 'CI config changed'],
 ];
 const TEST_FILE = /(^|\/)__tests__\/|\.(?:test|spec)\.[cm]?[jt]sx?$/;
+const RUNNING_TEST_CASE = /^\s*(?:it|test)(?:\.(?:only|each|concurrent|sequential))*\(/;
+const ANY_TEST_CASE = /^\s*x?(?:it|test)(?:\.\w+)*\(/;
+const INLINE_LINT_DISABLE = /(?:\/\/|\/\*)\s*eslint-disable/g;
+const JS_SOURCE = /\.[cm]?[jt]sx?$/;
 const STOP_REASONS = {
   clean: 'no P1 or P2 left in this change',
   'max-rounds': 'round limit reached with P1 or P2 still open',
@@ -103,17 +108,57 @@ export function decideNext({ round, maxRounds, counts, open, stuck = [], regress
   return { decision: 'continue', reason: 'fix' };
 }
 
+function outsideString(code) {
+  let quote = null;
+  for (let index = 0; index < code.length; index += 1) {
+    const char = code[index];
+    if (char === '\\') index += 1;
+    else if (quote) { if (char === quote) quote = null; }
+    else if (`'"\``.includes(char)) quote = char;
+  }
+  return quote === null;
+}
+
+function disablesLintAtLineEnd(code) {
+  for (const match of code.matchAll(INLINE_LINT_DISABLE)) {
+    const before = code.slice(0, match.index);
+    if (before.trim() && outsideString(before)) return true;
+  }
+  return false;
+}
+
+function diffHeaderPath(header) {
+  let name = header.slice(4).replace(/\t.*$/, '');
+  if (name.length > 1 && name.startsWith('"') && name.endsWith('"')) name = name.slice(1, -1).replace(/\\(.)/g, '$1');
+  return name.replace(/^b\//, '');
+}
+
 export function findWeakening(diffText, nameStatusText = '') {
   const issues = [];
+  const testCases = new Map();
   let file = '';
   for (const line of diffText.split('\n')) {
     if (line.startsWith('+++ ')) {
-      file = line.slice(4).replace(/^b\//, '');
+      file = diffHeaderPath(line);
       continue;
     }
+    if (line.startsWith('--- ')) continue;
     for (const [pattern, reason] of WEAKENING_LINES) {
-      if (pattern.test(line)) issues.push({ file, reason, line: line.slice(1).trim() });
+      if (JS_SOURCE.test(file) && pattern.test(line)) issues.push({ file, reason, line: line.slice(1).trim() });
     }
+    if (line.startsWith('+') && JS_SOURCE.test(file) && disablesLintAtLineEnd(line.slice(1))) {
+      issues.push({ file, reason: 'lint rule disabled', line: line.slice(1).trim() });
+    }
+    const added = line.startsWith('+') && ANY_TEST_CASE.test(line.slice(1));
+    const removed = line.startsWith('-') && RUNNING_TEST_CASE.test(line.slice(1));
+    if (TEST_FILE.test(file) && (added || removed)) {
+      const counts = testCases.get(file) ?? { added: 0, removed: 0 };
+      counts[added ? 'added' : 'removed'] += 1;
+      testCases.set(file, counts);
+    }
+  }
+  for (const [testFile, { added, removed }] of testCases) {
+    if (removed > added) issues.push({ file: testFile, reason: 'test case removed' });
   }
   for (const entry of nameStatusText.split('\n').filter(Boolean)) {
     const [status, ...paths] = entry.split('\t');

@@ -163,6 +163,75 @@ describe('findWeakening', () => {
     assert.equal(findWeakening(diff).length, 0);
   });
 
+  test('flags conditional todo and expected-failure test forms', () => {
+    const diff = [
+      '--- a/src/cart.test.js',
+      '+++ b/src/cart.test.js',
+      "+it.skipIf(process.env.CI)('totals', () => {});",
+      "+  test.runIf(fast)('rounds', () => {});",
+      "+it.todo('applies coupons');",
+      "+test.fails('rejects negatives', () => {});",
+    ].join('\n');
+    assert.equal(findWeakening(diff).length, 4);
+  });
+
+  test('flags a lint disable at the end of a code line but not inside a string', () => {
+    const diff = [
+      '--- a/src/cart.js',
+      '+++ b/src/cart.js',
+      '+console.log(total); // eslint-disable-line no-console',
+      "+report('a'); /* eslint-disable-line */",
+      '+const note = "keep // eslint-disable-line out of code";',
+      "+const hint = 'use /* eslint-disable-line */ sparingly';",
+    ].join('\n');
+    const issues = findWeakening(diff);
+    assert.equal(issues.length, 2);
+    assert.ok(issues.every((issue) => issue.reason === 'lint rule disabled'));
+    const prose = [
+      '--- a/docs/lint.md',
+      '+++ b/docs/lint.md',
+      '+Add // eslint-disable-line to silence one line.',
+      '+it.skip and test.only now stop the loop.',
+      '+// eslint-disable at the start of a line in a document',
+    ].join('\n');
+    assert.equal(findWeakening(prose).length, 0);
+  });
+
+  test('reads file names with spaces or quotes from diff headers', () => {
+    const spaced = "--- a/src/my cart.test.ts\t\n+++ b/src/my cart.test.ts\t\n-it('totals', () => {});";
+    assert.deepEqual(findWeakening(spaced).map((issue) => [issue.file, issue.reason]), [['src/my cart.test.ts', 'test case removed']]);
+    const quoted = '--- "a/src/say \\"hi\\".ts"\n+++ "b/src/say \\"hi\\".ts"\n+run(); // eslint-disable-line';
+    assert.deepEqual(findWeakening(quoted).map((issue) => issue.file), ['src/say "hi".ts']);
+  });
+
+  test('flags skip anywhere in a chained test call', () => {
+    const diff = [
+      '--- a/src/cart.test.js',
+      '+++ b/src/cart.test.js',
+      "-it.concurrent('totals', () => {});",
+      "+it.concurrent.skip('totals', () => {});",
+      "-it.each([1])('rounds %i', () => {});",
+      "+it.skip.each([1])('rounds %i', () => {});",
+      "+describe.concurrent.only('cart', () => {});",
+    ].join('\n');
+    assert.equal(findWeakening(diff).filter((issue) => issue.reason === 'test skipped or focused').length, 3);
+  });
+
+  test('flags a test file that loses test cases', () => {
+    const removed = [
+      '--- a/src/cart.test.js',
+      '+++ b/src/cart.test.js',
+      "-it('totals', () => {});",
+      "-  test('rounds', () => {});",
+      "+it('totals all items', () => {});",
+    ].join('\n');
+    assert.deepEqual(findWeakening(removed).map((issue) => issue.reason), ['test case removed']);
+    const renamed = "--- a/src/cart.test.js\n+++ b/src/cart.test.js\n-it('totals', () => {});\n+it('totals all items', () => {});";
+    assert.equal(findWeakening(renamed).length, 0);
+    const notTest = "--- a/src/cart.js\n+++ b/src/cart.js\n-it('totals', () => {});";
+    assert.equal(findWeakening(notTest).length, 0);
+  });
+
   test('ignores removed lines', () => {
     assert.equal(findWeakening("--- a/x.test.js\n+++ b/x.test.js\n-it.skip('old', () => {});").length, 0);
   });
