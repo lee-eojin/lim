@@ -6,6 +6,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 - Added: "Make it a rule" now drafts a lint rule or a test next to the fix. `loop rule` runs your checks on the code from before the fix, with and without the draft, and reports `caught`, `missed`, or `unproven`. The reviewer can mark findings as rule candidates. Without a typecheck, lint, or test script, the choice is recorded as "fix this time only". (#28)
 - Added: The reviewer reports code that agents add when they do not know the cause: guards for states nothing shows can happen, comments about history or instructions to agents, TODO or "for now" comments without an issue link, and a second way to do a job the codebase already does. It judges whether the change achieves your stated intent, not whether the intent is right. (#36)
+- Added: Claude puts every review-loop step in its todo list when a loop starts, and a step that does not apply stays in the list as `skip: <reason>` instead of being dropped quietly. `loop status` returns `doneSteps`, the steps the script saw done, so Claude can compare the list before committing. (#35)
 
 ## 0.3.0 (2026-10-23)
 

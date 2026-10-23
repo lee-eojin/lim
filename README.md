@@ -99,7 +99,7 @@ A P1 or P2 about a file that is not in the diff the round reviewed is not fixed 
 
 ### Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 90 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 87 of them, including runs against real temporary git repositories and the commit gate hook. The other 3 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 93 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 89 of them, including runs against real temporary git repositories and the commit gate hook. The other 4 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
 
 review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed.
 
