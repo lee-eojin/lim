@@ -89,3 +89,6 @@ B87,stop,A rule draft edited after loop rule checked it is blocked by the commit
 B88,evidence,A rule draft that adds a new check script is caught when that check fails on the code before the fix,test: a rule draft that adds a new check script is caught when that check fails,yes
 B89,stop,A rule draft cannot be a file git ignores such as one under node_modules so loop rule never writes through the linked folder,test: a rule draft cannot be a file git ignores,yes
 B90,do,The reviewer reports four kinds of code added without a known cause under a fixed category,eval: fixture reviewer-rubric run by hand until claude plugin eval,no
+B91,tell,Claude puts every review-loop step in its todo list at start and marks a step that does not apply as skip with a reason instead of dropping it,eval: planned for claude plugin eval,no
+B92,tell,Status lists the steps the script saw done (start/review/record/fix/re-review/decide/rules/checks) so Claude can compare them with its todo list before committing,test: status lists the steps the script saw done,yes
+B93,evidence,Status leaves out decide while a decision is pending and checks that ran on code other than the current working tree and steps from an earlier run,test: status leaves out unfinished decisions and stale checks and earlier runs,yes

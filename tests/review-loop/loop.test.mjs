@@ -815,6 +815,48 @@ describe('rule drafts', () => {
   });
 });
 
+describe('loop status steps', () => {
+  const namingCard = { severity: 'P3', file: 'src/cart.js', title: 'Name total as sumPrices' };
+  const doneSteps = (root) => loop(root, ['status']).review.doneSteps;
+
+  test('status lists the steps the script saw done', () => {
+    const root = createRepository({
+      'package.json': JSON.stringify({ scripts: { test: 'node -e "process.exit(0)"' } }),
+      'src/cart.js': correctCart,
+    });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    assert.deepEqual(doneSteps(root), ['start']);
+    loop(root, ['record'], { findings: [doubledPrice, namingCard] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    loop(root, ['record'], { resolved: ['F-1'], findings: [] });
+    loop(root, ['decide', '--id', 'F-2', '--choice', 'rule']);
+    writeFiles(root, { 'checks/cart.cjs': '' });
+    loop(root, ['rule', '--id', 'F-2', '--draft', 'checks/cart.cjs']);
+    loop(root, ['checks']);
+    assert.deepEqual(doneSteps(root), ['start', 'review', 'record', 'fix', 're-review', 'decide', 'rules', 'checks']);
+  });
+
+  test('status leaves out unfinished decisions and stale checks and earlier runs', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [namingCard] });
+    assert.deepEqual(doneSteps(root), ['start', 'review', 'record']);
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'once']);
+    assert.deepEqual(doneSteps(root), ['start', 'review', 'record', 'decide']);
+    loop(root, ['checks']);
+    assert.deepEqual(doneSteps(root), ['start', 'review', 'record', 'decide', 'checks']);
+    writeFiles(root, { 'src/cart.js': brokenCart.replace('total', 'sumPrices') });
+    assert.deepEqual(doneSteps(root), ['start', 'review', 'record', 'decide']);
+    loop(root, ['checks']);
+    assert.deepEqual(doneSteps(root), ['start', 'review', 'record', 'decide', 'checks']);
+    loop(root, ['start', '--fresh']);
+    assert.deepEqual(doneSteps(root), ['start']);
+  });
+});
+
 describe('commit gate', () => {
   const commit = (root, command = 'git commit -m "feat: coupon"') => gateDecision({ cwd: root, command });
 

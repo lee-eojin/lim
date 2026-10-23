@@ -63,7 +63,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 90 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 87 of them. The other 3 (asking about P3 to P5 once, showing the report before any question, and reporting code added without a known cause) need a model run and are planned for `claude plugin eval`.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 93 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 89 of them. The other 4 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, and reporting code added without a known cause) need a model run and are planned for `claude plugin eval`.
 
 ## Data
 

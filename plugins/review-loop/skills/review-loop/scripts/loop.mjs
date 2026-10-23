@@ -771,6 +771,7 @@ function rule(cwd, options) {
 function rerunChecks(cwd) {
   const repository = openRepository(cwd);
   const state = readJson(repository.file('state.json'), null);
+  const tree = snapshotTree(repository);
   let checks;
   if (state?.awaiting === 'review') {
     checks = runRoundChecks(repository, state);
@@ -778,7 +779,7 @@ function rerunChecks(cwd) {
     checks = runChecks(repository.root, repository.file('final.checks.log'));
     if (state) saveState(repository, { ...state, latestChecks: checks });
   }
-  logEvent(repository, { event: 'checks', checks: checks.map(({ name, exitCode }) => ({ name, exitCode })) });
+  logEvent(repository, { event: 'checks', tree, checks: checks.map(({ name, exitCode }) => ({ name, exitCode })) });
   return {
     checks,
     passed: checks.every((check) => check.exitCode === 0),
@@ -1140,6 +1141,31 @@ function gateVerdicts(invocations, sessionFolders) {
   return verdicts.sort((first, second) => VERDICT_RANK[second.decision] - VERDICT_RANK[first.decision]);
 }
 
+function eventsSinceStart(repository) {
+  const ledgerPath = repository.file('ledger.jsonl');
+  if (!existsSync(ledgerPath)) return [];
+  const events = readFileSync(ledgerPath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  return events.slice(Math.max(events.findLastIndex((entry) => entry.event === 'start'), 0));
+}
+
+function doneSteps(repository, state, currentTree) {
+  const lastChecks = eventsSinceStart(repository).findLast((entry) => entry.event === 'checks');
+  const items = [...state.cards, ...state.open];
+  const rules = items.filter((item) => item.decision === 'rule');
+  const reviews = state.counts.length;
+  const steps = {
+    start: true,
+    review: reviews > 0,
+    record: reviews > 0,
+    fix: state.round > 1,
+    're-review': reviews > 1,
+    decide: items.some((item) => item.decision) && pendingDecisionIds(state).length === 0,
+    rules: rules.length > 0 && rules.every((item) => item.rule?.proof),
+    checks: reviews > 0 && lastChecks?.tree === currentTree,
+  };
+  return Object.keys(steps).filter((step) => steps[step]);
+}
+
 function status(cwd) {
   const repository = openRepository(cwd);
   const state = readJson(repository.file('state.json'), null);
@@ -1147,6 +1173,7 @@ function status(cwd) {
   const gateSettings = readGate(repository);
   const confirmSettings = readConfirm(repository);
   if (!state) return { review: null, delegation, gate: gateSettings, confirm: confirmSettings };
+  const currentTree = snapshotTree(repository);
   return {
     review: {
       round: state.round,
@@ -1160,8 +1187,9 @@ function status(cwd) {
         .filter((item) => item.decision === 'rule')
         .map((item) => ({ id: item.id, drafts: item.rule?.drafts ?? [], proof: item.rule?.proof ?? null })),
       notVerifiedChecks: (state.latestChecks ?? state.checks ?? []).filter((check) => check.timedOut).map((check) => check.name),
+      doneSteps: doneSteps(repository, state, currentTree),
     },
-    treeMatchesReview: snapshotTree(repository) === state.reviewedTree,
+    treeMatchesReview: currentTree === state.reviewedTree,
     delegation,
     gate: gateSettings,
     confirm: confirmSettings,
