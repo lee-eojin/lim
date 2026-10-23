@@ -69,3 +69,8 @@ B67,stop,A one-time skip is used up once when every folder a commit may run in i
 B68,ask,A commit whose repository the gate cannot tell is asked about when the gate is on where Claude Code started,test: gate also checks the folder where Claude Code started,yes
 B69,ask,With the confirm setting on an evidenced finding at that severity is asked about instead of fixed,test: classify asks about evidenced findings at a confirmed severity,yes
 B70,ask,The confirm setting covers P2 or every P1 and P2 and moves pending fixes in the current round to ask and can be turned off,test: the confirm setting asks before fixing P2 or every P1 and P2,yes
+B71,stop,A fix that adds skipIf or runIf or todo or fails to a test stops the loop,test: flags conditional todo and expected-failure test forms,yes
+B72,stop,A lint disable at the end of a JS or TS code line stops the loop but the same text inside a string or a document does not,test: flags a lint disable at the end of a code line but not inside a string,yes
+B73,stop,A fix that leaves a test file with fewer running test cases stops the loop but renaming a test does not,test: flags a test file that loses test cases,yes
+B74,stop,A skip or only anywhere in a chained test call such as it.concurrent.skip stops the loop,test: flags skip anywhere in a chained test call,yes
+B75,stop,The test-weakening check reads file names with spaces or quotes from diff headers,test: reads file names with spaces or quotes from diff headers,yes

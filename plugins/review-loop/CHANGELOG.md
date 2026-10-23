@@ -4,6 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
+- Added: The test-weakening check also stops the loop when a fix removes running test cases from a test file, adds `skip`, `only`, `skipIf`, `runIf`, `todo`, or `fails` anywhere in a test call chain, or disables a lint rule at the end of a code line. Line checks now apply only to JavaScript and TypeScript files, and strings such as test fixtures still do not trigger them. (#6)
 - Added: You can ask Claude to confirm every P2, or every P1 and P2, before anything is fixed. The setting is per repository (`loop confirm --severity P2|all`, `--off` to turn it off). (#4)
 - Fixed: The README now says that a P1 or P2 about a file outside the reviewed diff is not fixed in the loop. It comes to you at the end, marked as outside the reviewed diff, with its severity kept. (#15)
 
