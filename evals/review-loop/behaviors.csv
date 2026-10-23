@@ -74,3 +74,6 @@ B72,stop,A lint disable at the end of a JS or TS code line stops the loop but th
 B73,stop,A fix that leaves a test file with fewer running test cases stops the loop but renaming a test does not,test: flags a test file that loses test cases,yes
 B74,stop,A skip or only anywhere in a chained test call such as it.concurrent.skip stops the loop,test: flags skip anywhere in a chained test call,yes
 B75,stop,The test-weakening check reads file names with spaces or quotes from diff headers,test: reads file names with spaces or quotes from diff headers,yes
+B76,do,The snapshot starts from a copy of the real index and still matches what git add -A would commit,test: snapshot matches what git add -A would commit when the index has staged changes,yes
+B77,do,A same-size edit made right after git add is still in the snapshot because the copied index keeps its time,test: snapshot keeps a same-size edit made right after git add,yes
+B78,do,The snapshot uses the real index so files marked assume-unchanged stay out as with git add -A and a repository without an index still works,test: snapshot starts from the real index and falls back when there is none,yes

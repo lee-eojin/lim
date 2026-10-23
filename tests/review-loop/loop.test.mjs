@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, test } from 'node:test';
@@ -364,6 +364,54 @@ describe('loop.mjs in a git repository', () => {
     assert.match(result.report, /Left for you: P3 0, P4 0, P5 0, outside the round's diff 1 \(P1\/P2 1\)/);
     assert.deepEqual([result.cards[0].id, result.cards[0].outOfScope], ['F-1', true]);
     assert.deepEqual(loop(root, ['status']).review.pendingDecisions, ['F-1']);
+  });
+
+  test('snapshot matches what git add -A would commit when the index has staged changes', () => {
+    const root = createRepository({ 'src/cart.js': correctCart, 'src/old.js': 'old\n', 'src/twice.js': 'one\n' });
+    const runGit = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+    writeFiles(root, { 'src/cart.js': brokenCart, 'src/twice.js': 'two\n', 'src/staged.js': 'staged\n' });
+    runGit('add', 'src/twice.js', 'src/staged.js');
+    writeFiles(root, { 'src/twice.js': 'three\n', 'src/untracked.js': 'new\n' });
+    rmSync(path.join(root, 'src/old.js'));
+    loop(root, ['start']);
+    const state = JSON.parse(readFileSync(path.join(root, '.git/lim/review-loop/state.json'), 'utf8'));
+    const expectedIndex = path.join(root, '.git/expected.index');
+    const env = { ...process.env, GIT_INDEX_FILE: expectedIndex };
+    execFileSync('git', ['read-tree', 'HEAD'], { cwd: root, env });
+    execFileSync('git', ['add', '-A'], { cwd: root, env });
+    const expected = execFileSync('git', ['write-tree'], { cwd: root, env, encoding: 'utf8' }).trim();
+    assert.equal(state.reviewedTree, expected);
+    assert.equal(runGit('diff', '--cached', '--name-only').trim().split('\n').sort().join(','), 'src/staged.js,src/twice.js');
+  });
+
+  test('snapshot starts from the real index and falls back when there is none', () => {
+    const root = createRepository({ 'src/cart.js': correctCart, 'src/config.js': 'local = false\n' });
+    execFileSync('git', ['update-index', '--assume-unchanged', 'src/config.js'], { cwd: root });
+    writeFiles(root, { 'src/cart.js': brokenCart, 'src/config.js': 'local = true\n' });
+    loop(root, ['start']);
+    const state = JSON.parse(readFileSync(path.join(root, '.git/lim/review-loop/state.json'), 'utf8'));
+    const config = execFileSync('git', ['cat-file', 'blob', `${state.reviewedTree}:src/config.js`], { cwd: root, encoding: 'utf8' });
+    assert.equal(config, 'local = false\n');
+
+    const fresh = mkdtempSync(path.join(tmpdir(), 'review-loop-'));
+    execFileSync('git', ['init', '-q'], { cwd: fresh });
+    writeFiles(fresh, { 'src/cart.js': correctCart });
+    assert.equal(loop(fresh, ['start']).status, 'review');
+    const freshState = JSON.parse(readFileSync(path.join(fresh, '.git/lim/review-loop/state.json'), 'utf8'));
+    const cart = execFileSync('git', ['cat-file', 'blob', `${freshState.reviewedTree}:src/cart.js`], { cwd: fresh, encoding: 'utf8' });
+    assert.equal(cart, correctCart);
+  });
+
+  test('snapshot keeps a same-size edit made right after git add', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/flag.js': 'aaaa' });
+    execFileSync('git', ['add', 'src/flag.js'], { cwd: root });
+    writeFiles(root, { 'src/flag.js': 'bbbb' });
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1500);
+    loop(root, ['start']);
+    const state = JSON.parse(readFileSync(path.join(root, '.git/lim/review-loop/state.json'), 'utf8'));
+    const content = execFileSync('git', ['cat-file', 'blob', `${state.reviewedTree}:src/flag.js`], { cwd: root, encoding: 'utf8' });
+    assert.equal(content, 'bbbb');
   });
 
   test('file names with spaces and Korean characters stay in scope', () => {
