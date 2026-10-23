@@ -27,9 +27,10 @@ Every plugin under `plugins/` follows these rules.
 claude plugin validate --strict .
 node --test
 scripts/check.sh
+node scripts/check-i18n.mjs
 ```
 
-All three must pass. CI runs `node --test` and `scripts/check.sh` on every pull request.
+All four must pass. CI runs `node --test`, `scripts/check.sh`, and `node scripts/check-i18n.mjs` on every pull request.
 
 ## Commit messages
 
@@ -63,7 +64,7 @@ While a plugin is below 1.0.0, a breaking change raises the minor number and eve
 
 ## Translations
 
-`README.md` is the source. Translations live in `docs/i18n/README.<language>.md`, and each one has a note near the top with the date of the English README it was translated from. After the English README changes, a translation can lag behind the English README. If the two differ, the English README is correct. Pull requests that update a translation are welcome. Keep commands, file paths, code blocks, and plugin names unchanged.
+`README.md` is the source. Translations live in `docs/i18n/README.<language>.md`, and each one has a note near the top with the date of the English README it was translated from. After the English README changes, a translation can lag behind the English README. `scripts/check-i18n.mjs` keeps the facts in step: the count and levels of headings, the plugin table versions, the numbers in the measured paragraph, and links to files that exist. A pull request that changes one of these in `README.md` updates the translations too. If the two differ, the English README is correct. Pull requests that update a translation are welcome. Keep commands, file paths, code blocks, and plugin names unchanged.
 
 ## Review
 

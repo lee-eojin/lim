@@ -22,3 +22,5 @@ jobs:
         env:
           LIM_DENYLIST: ${{ secrets.LIM_DENYLIST }}
         run: scripts/check.sh
+      - name: Translation checks
+        run: node scripts/check-i18n.mjs
