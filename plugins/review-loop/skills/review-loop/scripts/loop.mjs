@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync,
   symlinkSync, utimesSync, writeFileSync,
@@ -12,6 +12,8 @@ import { fileURLToPath } from 'node:url';
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 const DEFAULT_MAX_ROUNDS = 3;
 const MAX_ROUNDS_LIMIT = 5;
+const REPEAT_AFTER = 3;
+const MOST_REPEATED_LIMIT = 5;
 const CHECK_TIMEOUT_MS = Number(process.env.LIM_CHECK_TIMEOUT_MS) || 5 * 60 * 1000;
 const CHECKS_BUDGET_MS = 9 * 60 * 1000;
 const SEVERITIES = ['P1', 'P2', 'P3', 'P4', 'P5'];
@@ -219,7 +221,7 @@ export function parseReview(input) {
 export function renderReport(view) {
   const {
     round, maxRounds, checks = [], resolved = [], fix = [], ask = [], stillOpen = [], regressions = [],
-    integrity = [], cards = [], kept = [], counts = [], decision, reason,
+    integrity = [], cards = [], kept = [], counts = [], looped = [], decision, reason,
   } = view;
   const lines = [`Review round ${round} of ${maxRounds}`, `Checks: ${describeChecks(checks)}`];
   const section = (title, items, describe) => {
@@ -227,7 +229,9 @@ export function renderReport(view) {
   };
   const outOfScope = cards.filter((card) => card.outOfScope && card.round === round);
   section('Resolved since last round:', resolved, (item) => [
-    `- ${item.id} [${item.severity}] ${item.title} ${fixBasis(item)}`, ...describeRegressionTest(item, checks),
+    `- ${item.id} [${item.severity}] ${item.title} ${fixBasis(item)}`,
+    ...repeatLines(item),
+    ...describeRegressionTest(item, checks),
   ]);
   section('Fixing next:', fix, describeFinding);
   section('Needs your call on how to fix:', ask, describeFinding);
@@ -250,7 +254,7 @@ export function renderReport(view) {
     const stopText = reason === 'clean' && kept.some((item) => BLOCKING.has(item.severity))
       ? 'no P1 or P2 left to fix; the kept ones are listed above'
       : STOP_REASONS[reason] ?? reason;
-    lines.push(`Stopped: ${stopText}`, `Left for you: ${tally(cards)}`);
+    lines.push(`Stopped: ${stopText}`, `Left for you: ${tally(cards, looped)}`);
   }
   return lines.join('\n');
 }
@@ -270,7 +274,11 @@ function describeFinding(item) {
     lines.push(`  basis: ${item.basis}${measuredBy}`);
   }
   if (item.note) lines.push(`  note: ${item.note}`);
-  return lines;
+  return [...lines, ...repeatLines(item)];
+}
+
+function repeatLines(item) {
+  return item.repeat ? [`  repeat: ${item.repeat.category}, seen ${item.repeat.seenBefore} times before`] : [];
 }
 
 function fixBasis(item) {
@@ -288,7 +296,7 @@ function checkOutcome(check) {
   return check.exitCode === 0 ? 'passed' : 'failed';
 }
 
-function tally(cards) {
+function tally(cards, looped) {
   const inside = cards.filter((card) => !card.outOfScope);
   const outside = cards.filter((card) => card.outOfScope);
   const parts = ['P3', 'P4', 'P5'].map(
@@ -298,6 +306,8 @@ function tally(cards) {
   if (unproven) parts.push(`unproven P1/P2 ${unproven}`);
   const ruleCandidates = cards.filter((card) => card.ruleCandidate === true).length;
   if (ruleCandidates) parts.push(`rule candidates ${ruleCandidates}`);
+  const repeats = [...cards, ...looped].filter((item) => item.repeat).length;
+  if (repeats) parts.push(`repeats ${repeats}`);
   if (outside.length) {
     const outsideBlocking = outside.filter((card) => BLOCKING.has(card.severity) && !card.unproven).length;
     parts.push(`outside the round's diff ${outside.length} (P1/P2 ${outsideBlocking})`);
@@ -492,21 +502,64 @@ function logEvent(repository, event) {
   appendFileSync(repository.file('ledger.jsonl'), `${JSON.stringify({ at: now(), ...event })}\n`);
 }
 
-function keptSeverities(repository) {
-  const ledgerPath = repository.file('ledger.jsonl');
-  if (!existsSync(ledgerPath)) return new Map();
-  const choices = new Map();
-  for (const line of readFileSync(ledgerPath, 'utf8').split('\n')) {
-    let entry;
+function readJsonLines(file) {
+  if (!existsSync(file)) return [];
+  return readFileSync(file, 'utf8').split('\n').flatMap((line) => {
     try {
-      entry = JSON.parse(line);
+      const entry = JSON.parse(line);
+      return entry && typeof entry === 'object' ? [entry] : [];
     } catch {
-      continue;
+      return [];
     }
-    if (entry?.event === 'decision' && entry.fingerprint) choices.set(entry.fingerprint, entry);
+  });
+}
+
+function ledgerEvents(repository) {
+  return readJsonLines(repository.file('ledger.jsonl')).filter((entry) => entry.event);
+}
+
+function keptSeverities(repository) {
+  const choices = new Map();
+  for (const entry of ledgerEvents(repository)) {
+    if (entry.event === 'decision' && entry.fingerprint) choices.set(entry.fingerprint, entry);
   }
   const kept = [...choices].filter(([, entry]) => entry.choice === 'keep');
   return new Map(kept.map(([print, entry]) => [print, severityOf(entry)]));
+}
+
+function kindOf(finding) {
+  return finding.fromChecks ? '' : normalize(finding.category).toLowerCase();
+}
+
+function recordKinds(repository, run, findings) {
+  const kinds = findings.filter(kindOf).map((finding) => ({ category: kindOf(finding), fingerprint: finding.fingerprint }));
+  if (kinds.length) appendFileSync(repository.shared('kinds.jsonl'), `${JSON.stringify({ at: now(), run, kinds })}\n`);
+}
+
+function kindCounts(repository, { except } = {}) {
+  const printsByKind = new Map();
+  for (const review of readJsonLines(repository.shared('kinds.jsonl'))) {
+    if (except && review.run === except) continue;
+    for (const { category, fingerprint: print } of review.kinds ?? []) {
+      if (!printsByKind.has(category)) printsByKind.set(category, new Set());
+      printsByKind.get(category).add(print);
+    }
+  }
+  return new Map([...printsByKind].map(([category, prints]) => [category, prints.size]));
+}
+
+function repeatOf(seenBefore, finding) {
+  const category = kindOf(finding);
+  const count = seenBefore.get(category) ?? 0;
+  return count >= REPEAT_AFTER ? { repeat: { category, seenBefore: count } } : {};
+}
+
+function mostRepeatedKinds(repository) {
+  return [...kindCounts(repository)]
+    .filter(([, count]) => count > 1)
+    .sort(([firstKind, first], [secondKind, second]) => second - first || firstKind.localeCompare(secondKind))
+    .slice(0, MOST_REPEATED_LIMIT)
+    .map(([category, count]) => ({ category, count }));
 }
 
 function isKept(root, keptBefore, finding, print) {
@@ -585,7 +638,7 @@ function start(cwd, options) {
   writeFileSync(repository.file('round-1.diff'), diff);
   const files = filesBetween(repository, baseTree, reviewedTree);
   const state = {
-    version: 1, startedAt: now(), round: 1, maxRounds, baseTree, reviewedTree, nextId: 1,
+    version: 1, runId: randomUUID(), startedAt: now(), round: 1, maxRounds, baseTree, reviewedTree, nextId: 1,
     files, reviewedFiles: files,
     open: [], resolved: [], cards: [], kept: [], counts: [], checks: null, awaiting: 'review', stopped: null,
   };
@@ -623,6 +676,7 @@ function record(cwd, options, input) {
 
   const sourcesFor = (finding) => evidenceSources(repository.root, finding, diffText);
   const keptBefore = keptSeverities(repository);
+  const seenBefore = kindCounts(repository, { except: state.runId });
   const previouslyKept = state.kept ?? [];
   const knownPrints = new Set([...state.open, ...previouslyKept].map((item) => item.fingerprint));
   const reported = [];
@@ -646,9 +700,11 @@ function record(cwd, options, input) {
 
   const assignIds = (items, route) => items.map((item) => ({
     ...item, id: `F-${state.nextId++}`, round: state.round, attempts: 0, ...(route ? { route } : {}),
+    ...repeatOf(seenBefore, item),
   }));
   const fix = assignIds(classified.fix, 'fix');
-  const ask = [...assignIds(classified.ask, 'ask'), ...retried.map((item) => ({ ...item, route: 'ask' }))];
+  const newAsk = assignIds(classified.ask, 'ask');
+  const ask = [...newAsk, ...retried.map((item) => ({ ...item, route: 'ask' }))];
   const cards = assignIds([...classified.cards, ...outsideCards]);
   const resolvedPrints = new Set(state.resolved.map((item) => item.fingerprint));
   const regressions = [...fix, ...ask].filter((item) => resolvedPrints.has(item.fingerprint));
@@ -664,6 +720,7 @@ function record(cwd, options, input) {
     round: state.round, maxRounds: state.maxRounds, checks: state.checks, resolved,
     fix: stopped ? [] : fix, ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
     regressions, cards: allCards, kept: allKept, counts, decision, reason,
+    looped: [...state.resolved, ...resolved, ...open],
   };
   const report = renderReport(view);
   Object.assign(state, {
@@ -681,6 +738,7 @@ function record(cwd, options, input) {
     event: 'record', round: state.round, decision, reason, counts,
     open: open.map(summarize), cards: cards.map(summarize), kept,
   });
+  recordKinds(repository, state.runId, [...fix, ...newAsk, ...cards]);
   return {
     report,
     decision, reason, round: state.round,
@@ -710,6 +768,7 @@ function next(cwd) {
     const report = renderReport({
       round: state.round, maxRounds: state.maxRounds, checks: null, stillOpen: state.open,
       integrity, cards: state.cards, kept: state.kept, counts: state.counts, decision: 'stop', reason: 'integrity',
+      looped: [...state.resolved, ...state.open],
     });
     Object.assign(state, {
       checks: null, awaiting: 'decisions', stopped: { reason: 'integrity', at: now() }, lastReport: report,
@@ -1273,9 +1332,7 @@ function gateVerdicts(invocations, sessionFolders) {
 }
 
 function eventsSinceStart(repository) {
-  const ledgerPath = repository.file('ledger.jsonl');
-  if (!existsSync(ledgerPath)) return [];
-  const events = readFileSync(ledgerPath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  const events = ledgerEvents(repository);
   return events.slice(Math.max(events.findLastIndex((entry) => entry.event === 'start'), 0));
 }
 
@@ -1303,7 +1360,8 @@ function status(cwd) {
   const delegation = readSetting(repository, 'delegation.json', { scope: 'off' });
   const gateSettings = readGate(repository);
   const confirmSettings = readConfirm(repository);
-  if (!state) return { review: null, delegation, gate: gateSettings, confirm: confirmSettings };
+  const repeatedKinds = mostRepeatedKinds(repository);
+  if (!state) return { review: null, delegation, gate: gateSettings, confirm: confirmSettings, repeatedKinds };
   const currentTree = snapshotTree(repository);
   return {
     review: {
@@ -1319,11 +1377,15 @@ function status(cwd) {
         .map((item) => ({ id: item.id, drafts: item.rule?.drafts ?? [], proof: item.rule?.proof ?? null })),
       notVerifiedChecks: (state.latestChecks ?? state.checks ?? []).filter((check) => check.timedOut).map((check) => check.name),
       doneSteps: doneSteps(repository, state, currentTree),
+      resolvedRepeats: state.resolved
+        .filter((item) => item.repeat)
+        .map(({ id, severity, repeat }) => ({ id, severity, category: repeat.category, seenBefore: repeat.seenBefore })),
     },
     treeMatchesReview: currentTree === state.reviewedTree,
     delegation,
     gate: gateSettings,
     confirm: confirmSettings,
+    repeatedKinds,
   };
 }
 

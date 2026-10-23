@@ -302,6 +302,22 @@ describe('renderReport', () => {
     assert.match(report, /Still open \(P1 or P2\):\n- F-2 \[P2\] a\.js:3 Off by one/);
     assert.match(report, /Stopped: round limit reached/);
   });
+
+  test('report marks repeated fix and ask findings and counts the looped ones in the repeat tally', () => {
+    const repeat = { category: 'correctness', seenBefore: 3 };
+    const finding = { severity: 'P2', file: 'a.js', line: 3, title: 'Off by one', quote: 'i <= n', scenario: 'n = 0 reads past the end' };
+    const continuing = renderReport({
+      round: 1, maxRounds: 3, counts: [2], decision: 'continue',
+      fix: [{ ...finding, id: 'F-1', repeat }], ask: [{ ...finding, id: 'F-2', title: 'Wrong bound', repeat }],
+    });
+    assert.match(continuing, /- F-1 \[P2\] a\.js:3 Off by one\n(?: {2}.*\n)*? {2}repeat: correctness, seen 3 times before/);
+    assert.match(continuing, /- F-2 \[P2\] a\.js:3 Wrong bound\n(?: {2}.*\n)*? {2}repeat: correctness, seen 3 times before/);
+    const stopped = renderReport({
+      round: 2, maxRounds: 3, counts: [2, 0], decision: 'stop', reason: 'clean',
+      cards: [{ severity: 'P3', repeat }], looped: [{ ...finding, id: 'F-1', repeat }, { ...finding, id: 'F-2' }],
+    });
+    assert.match(stopped, /Left for you: P3 1, P4 0, P5 0, repeats 2/);
+  });
 });
 
 describe('finding basis', () => {
@@ -1506,5 +1522,92 @@ describe('kept findings', () => {
     keepInFirstReview(root, [], ['--max-rounds', '1']);
     const result = loop(root, ['record'], { findings: [] });
     assert.deepEqual([result.decision, result.fix[0].severity, result.fix[0].fromChecks], ['continue', 'P1', true]);
+  });
+});
+
+describe('repeated kinds', () => {
+  const guard = (name) => ({
+    severity: 'P3', file: 'src/cart.js', line: 1, category: 'speculative-guard', title: `Guard ${name}`, quote: `guard ${name}`,
+  });
+  const historyComment = (name) => ({
+    severity: 'P4', file: 'src/cart.js', line: 1, category: 'history-comment', title: `Comment ${name}`, quote: `comment ${name}`,
+  });
+  const naming = { severity: 'P3', file: 'src/cart.js', line: 1, category: 'naming', title: 'Name total as sumPrices', quote: 'export const total' };
+
+  function review(root, findings) {
+    loop(root, ['start', '--fresh']);
+    return loop(root, ['record'], { findings });
+  }
+
+  function brokenCartRepository(files = {}) {
+    const root = createRepository({ ...files, 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    return root;
+  }
+
+  test('a finding whose kind earlier reviews raised three times is marked as a repeat with the count', () => {
+    const root = brokenCartRepository();
+    review(root, [guard('a')]);
+    review(root, [guard('b')]);
+    const third = review(root, [guard('c')]);
+    assert.equal(third.cards[0].repeat, undefined);
+    assert.doesNotMatch(third.report, /repeats/);
+    const fourth = review(root, [guard('d'), naming]);
+    const byTitle = Object.fromEntries(fourth.cards.map((card) => [card.title, card.repeat]));
+    assert.deepEqual(byTitle, { 'Guard d': { category: 'speculative-guard', seenBefore: 3 }, 'Name total as sumPrices': undefined });
+    assert.match(fourth.report, /Left for you: .*, repeats 1/);
+  });
+
+  test('repeats count different findings from earlier reviews and not the current one', () => {
+    const root = brokenCartRepository();
+    for (let count = 0; count < 3; count += 1) review(root, [guard('a')]);
+    const current = review(root, [guard('b'), guard('c'), guard('d'), guard('e')]);
+    assert.deepEqual(current.cards.map((card) => card.repeat), [undefined, undefined, undefined, undefined]);
+  });
+
+  test('a review counts kinds recorded in another worktree and keeps them after that worktree is removed', () => {
+    const root = brokenCartRepository();
+    const worktree = path.join(mkdtempSync(path.join(tmpdir(), 'review-loop-worktree-')), 'other');
+    execFileSync('git', ['worktree', 'add', '-q', '--detach', worktree], { cwd: root, stdio: 'ignore' });
+    writeFiles(worktree, { 'src/cart.js': brokenCart });
+    loop(root, ['start', '--fresh']);
+    review(worktree, [guard('a'), guard('b'), guard('c')]);
+    const current = loop(root, ['record'], { findings: [guard('d')] });
+    assert.deepEqual(current.cards[0].repeat, { category: 'speculative-guard', seenBefore: 3 });
+
+    execFileSync('git', ['worktree', 'remove', '--force', worktree], { cwd: root, stdio: 'ignore' });
+    const later = review(root, [guard('e')]);
+    assert.deepEqual(later.cards[0].repeat, { category: 'speculative-guard', seenBefore: 4 });
+    assert.deepEqual(loop(root, ['status']).repeatedKinds, [{ category: 'speculative-guard', count: 5 }]);
+  });
+
+  test('a repeated P2 fixed in the loop shows its repeat in the stop report and in status', () => {
+    const root = brokenCartRepository();
+    for (const name of ['a', 'b', 'c']) review(root, [{ ...doubledPrice, severity: 'P3', title: `Earlier ${name}`, quote: `earlier ${name}` }]);
+    const first = review(root, [doubledPrice]);
+    const { id } = first.fix[0];
+    assert.deepEqual(first.fix[0].repeat, { category: 'correctness', seenBefore: 3 });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { resolved: [id], findings: [] });
+    assert.equal(second.decision, 'stop');
+    assert.match(second.report, new RegExp(
+      `Resolved since last round:\\n- ${id} \\[P2\\] .* \\(fixed, inferred: the re-review read the fix\\)\\n {2}repeat: correctness, seen 3 times before\\n {2}(no )?test: `,
+    ));
+    assert.match(second.report, /Left for you: .*, repeats 1/);
+    assert.deepEqual(loop(root, ['status']).review.resolvedRepeats, [{ id, severity: 'P2', category: 'correctness', seenBefore: 3 }]);
+  });
+
+  test('status lists the most repeated kinds and leaves out failing checks', () => {
+    const failing = 'node -e "process.exit(1)"';
+    const root = brokenCartRepository({ 'package.json': JSON.stringify({ scripts: { lint: failing, test: failing } }) });
+    assert.deepEqual(loop(root, ['status']).repeatedKinds, []);
+    review(root, [guard('a'), historyComment('a'), naming]);
+    review(root, [guard('b'), historyComment('b')]);
+    review(root, [guard('c')]);
+    assert.deepEqual(loop(root, ['status']).repeatedKinds, [
+      { category: 'speculative-guard', count: 3 },
+      { category: 'history-comment', count: 2 },
+    ]);
   });
 });
