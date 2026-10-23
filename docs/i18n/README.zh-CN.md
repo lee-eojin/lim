@@ -48,7 +48,7 @@
 在你提交之前，review-loop 运行一个短循环，并自动停止。
 
 1. **检查。** review-loop 运行你的 `package.json` 中的 `typecheck`、`lint` 和 `test` 脚本。如果某个检查失败，或者 `package.json` 不是有效的 JSON，review-loop 会将其记为一个 P1 发现项。如果某个检查的运行时间超过时间限制，review-loop 会将其报告为“未验证”，而不是“失败”。
-2. **全新审查。** 一个独立的审查者 agent 会收到 diff 和一行摘要，该摘要说明你想要实现什么。审查者不会收到 Claude 对这次改动的推理。审查者可以读取周围的代码来了解上下文。审查者把发现项标记为 P1 到 P5。P1 和 P2 需要证据：确切的代码行、一个失败场景，以及为什么现有代码没有阻止该问题。没有证据的结论会以“未验证”的状态展示给你。
+2. **全新审查。** 一个独立的审查者 agent 会收到 diff 和一行摘要，该摘要说明你想要实现什么。审查者不会收到 Claude 对这次改动的推理。审查者可以读取周围的代码来了解上下文。审查者把发现项标记为 P1 到 P5。审查者还会报告 agent 在不了解原因时添加的代码：针对没有证据表明会出现的状态的防御检查、描述历史的注释、没有 issue 链接的 TODO，以及用第二种方式完成代码库已经在做的工作。P1 和 P2 需要证据：确切的代码行、一个失败场景，以及为什么现有代码没有阻止该问题。没有证据的结论会以“未验证”的状态展示给你。
 3. **修复。** Claude 先说明它要修复什么，然后修复 P1 和 P2。如果某个修复需要设计决策（修复方式不止一种、用户可见的行为变化、删除功能、修改测试），由你先做选择。如果想在任何改动之前看到每个 P2（或每个 P1 和 P2），请让 Claude 先向你确认。
 4. **再次审查。** 一个新的审查者只检查本轮的修复和仍未解决的发现项。最多 3 轮。
 5. **停止。** 由脚本而不是模型决定何时停止。停止条件：没有剩余的 P1 或 P2、达到轮数上限、某个发现项经过两次修复后仍然存在、某个已解决的发现项再次出现、P1 + P2 的数量不再减少，或者某个修复削弱了测试或检查。
@@ -101,7 +101,7 @@ Left for you: P3 1, P4 0, P5 0
 
 ### 测量结果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 89 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 87 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 2 个行为需要实际运行模型，计划使用 `claude plugin eval` 测试：对 P3 到 P5 只询问一次、在任何提问之前先展示报告。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 90 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 87 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 3 个行为需要实际运行模型，计划使用 `claude plugin eval` 测试：对 P3 到 P5 只询问一次、在任何提问之前先展示报告、报告在原因不明时添加的代码。最后一个行为在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一个 fixture。
 
 review-loop 审查 LIM 自己的 pull request。[#8](https://github.com/lee-eojin/lim/pull/8) 展示了 review-loop 第一个版本上运行的两次循环。其中一次停止是由 review-loop 自己的测试削弱检查中的误报引起的，这个误报随后已被修复。
 

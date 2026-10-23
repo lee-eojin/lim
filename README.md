@@ -46,7 +46,7 @@ Adding the marketplace only registers the catalog. Each plugin is installed on i
 Before you commit, review-loop runs a short loop and stops on its own.
 
 1. **Checks.** It runs the `typecheck`, `lint`, and `test` scripts from your `package.json`. A failing check, or a `package.json` that is not valid JSON, becomes a P1 finding. A check that runs past its time limit is reported as "not verified" instead of failing.
-2. **Fresh review.** A separate reviewer agent gets the diff and a one-line summary of what you wanted, but not Claude's reasoning about the change. It can read surrounding code for context. It labels findings P1 to P5. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it. Claims without evidence are shown to you as unverified.
+2. **Fresh review.** A separate reviewer agent gets the diff and a one-line summary of what you wanted, but not Claude's reasoning about the change. It can read surrounding code for context. It labels findings P1 to P5. It also reports code that agents add when they do not know the cause: guards for states nothing shows can happen, comments about history, TODOs without an issue link, and a second way to do a job the codebase already does. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it. Claims without evidence are shown to you as unverified.
 3. **Fix.** Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one way to fix it, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first.
 4. **Re-review.** A new reviewer checks only the fixes and the findings still open. Up to 3 rounds.
 5. **Stop.** A script, not the model, decides when to stop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
@@ -99,7 +99,7 @@ A P1 or P2 about a file that is not in the diff the round reviewed is not fixed 
 
 ### Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 89 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 87 of them, including runs against real temporary git repositories and the commit gate hook. The other 2 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, and showing the report before any question.
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 90 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 87 of them, including runs against real temporary git repositories and the commit gate hook. The other 3 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
 
 review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed.
 

@@ -1,0 +1,18 @@
+{
+  "intent": "Add per-item lines to the cart for the checkout page",
+  "root": "repo",
+  "diff": "change.diff",
+  "expect": [
+    { "category": "history-comment", "file": "src/cart.js", "lines": [8, 8], "severity": ["P4"] },
+    { "category": "speculative-guard", "file": "src/cart.js", "lines": [10, 12], "severity": ["P2", "P3"] },
+    { "category": "speculative-guard", "file": "src/cart.js", "lines": [15, 19], "severity": ["P2"] },
+    { "category": "second-way", "file": "src/cart.js", "lines": [33, 35], "severity": ["P3"] },
+    { "category": "history-comment", "file": "src/cart.js", "lines": [37, 37], "severity": ["P4"] },
+    { "category": "shortcut-marker", "file": "src/cart.js", "lines": [39, 39], "severity": ["P3"] },
+    { "file": "src/cart.js", "lines": [28, 31], "severity": ["P2", "P3"] }
+  ],
+  "forbid": [
+    { "category": "speculative-guard", "file": "src/cart.js", "lines": [28, 31] },
+    { "category": "shortcut-marker", "file": "src/cart.js", "lines": [40, 40] }
+  ]
+}
