@@ -22,8 +22,7 @@ Large agent harnesses load many instructions into every session and run hooks on
 
 | Plugin | Status | One job |
 |---|---|---|
-| [review-loop](plugins/review-loop) | 0.2.1 | Reviews your changes before you commit, fixes P1 and P2 findings, re-reviews, and hands the rest to you. |
-| forge | planned | Turns a reviewer's pull request comments into a reviewer skill, with a report on how faithful it is. |
+| [review-loop](plugins/review-loop) | 0.3.0 | Reviews your changes before you commit, fixes P1 and P2 findings, re-reviews, and hands the rest to you. |
 
 ## Quick start
 
@@ -150,8 +149,7 @@ Then delete `.git/lim/review-loop/` in each repository where you ran it.
 
 ## Roadmap
 
-- review-loop: an option to confirm every P2 before fixing ([#4](https://github.com/lee-eojin/lim/issues/4)), a stronger test-weakening check ([#6](https://github.com/lee-eojin/lim/issues/6)), faster snapshots on large repositories ([#7](https://github.com/lee-eojin/lim/issues/7))
-- forge: a faithfulness report for reviewer skills distilled from pull request comments
+- review-loop: turn the findings you marked "make it a rule" into draft lint rules and tests
 - Model-level evals with `claude plugin eval` for the behaviors unit tests cannot cover
 
 ## Contributing

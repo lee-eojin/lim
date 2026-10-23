@@ -24,8 +24,7 @@ Agent harness yang besar memuat banyak instruksi ke setiap sesi dan menjalankan 
 
 | Plugin | Status | Satu tugas |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.1 | Me-review perubahanmu sebelum kamu commit, memperbaiki temuan P1 dan P2, me-review ulang, dan menyerahkan sisanya kepadamu. |
-| forge | direncanakan | Mengubah komentar pull request dari seorang reviewer menjadi reviewer skill, dengan laporan tentang seberapa setia skill itu. |
+| [review-loop](../../plugins/review-loop) | 0.3.0 | Me-review perubahanmu sebelum kamu commit, memperbaiki temuan P1 dan P2, me-review ulang, dan menyerahkan sisanya kepadamu. |
 
 ## Mulai cepat
 
@@ -152,8 +151,7 @@ Lalu hapus `.git/lim/review-loop/` di setiap repository tempat kamu menjalankan 
 
 ## Roadmap
 
-- review-loop: opsi untuk mengonfirmasi setiap P2 sebelum memperbaikinya ([#4](https://github.com/lee-eojin/lim/issues/4)), pemeriksaan test yang dilemahkan yang lebih kuat ([#6](https://github.com/lee-eojin/lim/issues/6)), snapshot yang lebih cepat pada repository besar ([#7](https://github.com/lee-eojin/lim/issues/7))
-- forge: laporan kesetiaan untuk reviewer skill yang disaring dari komentar pull request
+- review-loop: mengubah temuan yang kamu tandai "jadikan aturan" menjadi draf aturan lint dan test
 - Eval tingkat model dengan `claude plugin eval` untuk perilaku yang tidak dapat dicakup oleh unit test
 
 ## Berkontribusi

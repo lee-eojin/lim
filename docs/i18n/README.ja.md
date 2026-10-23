@@ -24,8 +24,7 @@
 
 | プラグイン | 状態 | 担当する仕事 |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.1 | コミット前に変更をレビューし、P1とP2の指摘を修正し、再レビューしてから、残りをユーザーに渡します。 |
-| forge | 計画中 | レビュアーのpull requestコメントをレビュアースキルに変換し、そのスキルの忠実度レポートを提供します。 |
+| [review-loop](../../plugins/review-loop) | 0.3.0 | コミット前に変更をレビューし、P1とP2の指摘を修正し、再レビューしてから、残りをユーザーに渡します。 |
 
 ## クイックスタート
 
@@ -152,8 +151,7 @@ claude plugin marketplace remove lim
 
 ## ロードマップ
 
-- review-loop：修正前にすべてのP2を確認するオプション([#4](https://github.com/lee-eojin/lim/issues/4))、より強いテスト弱体化チェック([#6](https://github.com/lee-eojin/lim/issues/6))、大規模リポジトリでのスナップショットの高速化([#7](https://github.com/lee-eojin/lim/issues/7))
-- forge：pull requestコメントから抽出したレビュアースキルの忠実度レポート
+- review-loop：「ルールにする」を選んだ指摘を、lintルールとテストの草案に変える
 - 単体テストではカバーできない動作のための、`claude plugin eval`によるモデルレベルの評価
 
 ## コントリビュート

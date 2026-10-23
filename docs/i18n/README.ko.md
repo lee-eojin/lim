@@ -24,8 +24,7 @@
 
 | 플러그인 | 상태 | 하는 일 |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.1 | 커밋 전에 변경 사항을 리뷰하고, P1과 P2 지적 사항을 수정하고, 다시 리뷰한 뒤, 나머지를 사용자에게 넘깁니다. |
-| forge | 계획됨 | 리뷰어의 pull request 코멘트를 리뷰어 스킬로 바꾸고, 그 스킬의 충실도 보고서를 함께 제공합니다. |
+| [review-loop](../../plugins/review-loop) | 0.3.0 | 커밋 전에 변경 사항을 리뷰하고, P1과 P2 지적 사항을 수정하고, 다시 리뷰한 뒤, 나머지를 사용자에게 넘깁니다. |
 
 ## 빠른 시작
 
@@ -152,8 +151,7 @@ claude plugin marketplace remove lim
 
 ## 로드맵
 
-- review-loop: 수정 전에 모든 P2를 확인하는 옵션([#4](https://github.com/lee-eojin/lim/issues/4)), 더 강한 테스트 약화 검사([#6](https://github.com/lee-eojin/lim/issues/6)), 큰 저장소에서 더 빠른 스냅샷([#7](https://github.com/lee-eojin/lim/issues/7))
-- forge: pull request 코멘트에서 추출한 리뷰어 스킬의 충실도 보고서
+- review-loop: '규칙으로 만들기'를 고른 지적 사항을 lint 규칙과 테스트 초안으로 바꾸기
 - 단위 테스트로 다룰 수 없는 동작을 위한, `claude plugin eval` 기반 모델 수준 eval
 
 ## 기여하기

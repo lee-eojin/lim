@@ -24,8 +24,7 @@ Les grands harnesses d'agents chargent de nombreuses instructions dans chaque se
 
 | Plugin | Statut | Un travail |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.1 | Fait la revue de vos modifications avant le commit, corrige les constats P1 et P2, refait la revue et vous laisse le reste. |
-| forge | prévu | Transforme les commentaires de pull request d'un réviseur en une skill de réviseur, avec un rapport sur la fidélité de cette skill. |
+| [review-loop](../../plugins/review-loop) | 0.3.0 | Fait la revue de vos modifications avant le commit, corrige les constats P1 et P2, refait la revue et vous laisse le reste. |
 
 ## Démarrage rapide
 
@@ -152,8 +151,7 @@ Ensuite, supprimez `.git/lim/review-loop/` dans chaque dépôt où vous avez ex�
 
 ## Feuille de route
 
-- review-loop : une option pour confirmer chaque P2 avant correction ([#4](https://github.com/lee-eojin/lim/issues/4)), une vérification plus stricte de l'affaiblissement des tests ([#6](https://github.com/lee-eojin/lim/issues/6)), des snapshots plus rapides sur les grands dépôts ([#7](https://github.com/lee-eojin/lim/issues/7))
-- forge : un rapport de fidélité pour les skills de réviseur tirées de commentaires de pull request
+- review-loop : transformer les constats pour lesquels vous avez choisi « en faire une règle » en brouillons de règles de lint et de tests
 - Des evals au niveau du modèle avec `claude plugin eval` pour les comportements que les tests unitaires ne peuvent pas couvrir
 
 ## Contribuer

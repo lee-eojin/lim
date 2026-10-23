@@ -24,8 +24,7 @@ Harnesses de agentes grandes carregam muitas instruções em cada sessão e exec
 
 | Plugin | Status | Um trabalho |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.1 | Revisa suas alterações antes do commit, corrige os achados P1 e P2, revisa de novo e entrega o restante para você. |
-| forge | planejado | Transforma os comentários de pull request de um revisor em uma skill de revisor, com um relatório sobre a fidelidade dessa skill. |
+| [review-loop](../../plugins/review-loop) | 0.3.0 | Revisa suas alterações antes do commit, corrige os achados P1 e P2, revisa de novo e entrega o restante para você. |
 
 ## Início rápido
 
@@ -152,8 +151,7 @@ Depois, apague `.git/lim/review-loop/` em cada repositório onde você executou 
 
 ## Roadmap
 
-- review-loop: uma opção para confirmar cada P2 antes de corrigir ([#4](https://github.com/lee-eojin/lim/issues/4)), uma verificação mais forte de enfraquecimento de testes ([#6](https://github.com/lee-eojin/lim/issues/6)), snapshots mais rápidos em repositórios grandes ([#7](https://github.com/lee-eojin/lim/issues/7))
-- forge: um relatório de fidelidade para skills de revisor extraídas de comentários de pull request
+- review-loop: transformar os achados que você marcou como "transformar em uma regra" em rascunhos de regras de lint e testes
 - Evals no nível do modelo com `claude plugin eval` para os comportamentos que os testes unitários não conseguem cobrir
 
 ## Como contribuir
