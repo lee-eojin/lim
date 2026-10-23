@@ -679,6 +679,142 @@ describe('loop.mjs in a git repository', () => {
   });
 });
 
+describe('rule drafts', () => {
+  const runEveryCheck = 'node -e "for (const file of require(\'fs\').readdirSync(\'checks\')) require(\'./checks/\' + file)"';
+  const doubledPriceCheck = [
+    "const source = require('fs').readFileSync('src/cart.js', 'utf8');",
+    "if (source.includes('* 2')) { console.error('cart: do not scale item.price'); process.exit(1); }",
+    '',
+  ].join('\n');
+  const doubledPriceCard = { ...doubledPrice, severity: 'P3', ruleCandidate: true };
+  const stateFile = (root) => JSON.parse(readFileSync(path.join(root, '.git/lim/review-loop/state.json'), 'utf8'));
+  const ledger = (root) => readFileSync(path.join(root, '.git/lim/review-loop/ledger.jsonl'), 'utf8')
+    .trim().split('\n').map((line) => JSON.parse(line));
+
+  function decidedRule(files = {}) {
+    const root = createRepository({
+      'package.json': JSON.stringify({ scripts: { test: runEveryCheck } }),
+      'checks/existing.cjs': '',
+      'src/cart.js': correctCart,
+      ...files,
+    });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPriceCard] });
+    const { id } = stateFile(root).cards[0];
+    const decision = loop(root, ['decide', '--id', id, '--choice', 'rule']);
+    writeFiles(root, { 'src/cart.js': correctCart });
+    return { root, id, decision };
+  }
+
+  test('a rule draft that fails on the code before the fix is caught', () => {
+    const { root, id, decision } = decidedRule();
+    assert.equal(decision.choice, 'rule');
+    writeFiles(root, { 'checks/cart.cjs': doubledPriceCheck, 'checks/notes.cjs': '' });
+    const result = loop(root, ['rule', '--id', id, '--draft', 'checks/cart.cjs', '--draft', 'checks/notes.cjs']);
+    assert.deepEqual([result.proof, result.caughtBy], ['caught', ['test']]);
+    assert.match(result.withDrafts[0].tail, /do not scale item.price/);
+    assert.deepEqual(loop(root, ['status']).review.rules, [{ id, drafts: ['checks/cart.cjs', 'checks/notes.cjs'], proof: 'caught' }]);
+    const entry = ledger(root).find((line) => line.event === 'rule');
+    assert.deepEqual([entry.quote, entry.scenario, entry.category, entry.proof], [doubledPrice.quote, doubledPrice.scenario, 'correctness', 'caught']);
+  });
+
+  test('a rule draft that passes on the code before the fix is missed', () => {
+    const { root, id } = decidedRule();
+    writeFiles(root, { 'checks/cart.cjs': "require('fs').readFileSync('src/cart.js', 'utf8');\n" });
+    assert.equal(loop(root, ['rule', '--id', id, '--draft', 'checks/cart.cjs']).proof, 'missed');
+  });
+
+  test('a rule draft is unproven when the same check already failed without it', () => {
+    const { root, id } = decidedRule({ 'checks/existing.cjs': doubledPriceCheck });
+    writeFiles(root, { 'checks/cart.cjs': doubledPriceCheck });
+    const result = loop(root, ['rule', '--id', id, '--draft', 'checks/cart.cjs']);
+    assert.deepEqual([result.proof, result.caughtBy], ['unproven', []]);
+  });
+
+  test('checking a rule links node_modules and leaves the original in place', () => {
+    const moduleCheck = "require(require('path').resolve('node_modules/marker/index.cjs'));\n";
+    const { root, id } = decidedRule();
+    writeFiles(root, {
+      '.gitignore': 'node_modules\n',
+      'node_modules/marker/index.cjs': '',
+      'checks/cart.cjs': moduleCheck + doubledPriceCheck,
+    });
+    assert.equal(loop(root, ['rule', '--id', id, '--draft', 'checks/cart.cjs']).proof, 'caught');
+    assert.equal(readFileSync(path.join(root, 'node_modules/marker/index.cjs'), 'utf8'), '');
+  });
+
+  test('the commit gate asks for checked rule drafts and still blocks other new files', () => {
+    const { root, id } = decidedRule();
+    const commit = () => gateDecision({ cwd: root, command: 'git commit -m "fix: cart"' });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'checks/cart.cjs': doubledPriceCheck });
+    assert.match(commit().reason, /checks\/cart\.cjs changed after the last review/);
+    loop(root, ['rule', '--id', id, '--draft', 'checks/cart.cjs']);
+    assert.equal(commit().decision, 'ask');
+    writeFiles(root, { 'src/other.js': 'export const flag = true;\n' });
+    assert.match(commit().reason, /src\/other\.js changed after the last review/);
+  });
+
+  test('the commit gate blocks a rule draft edited after loop rule checked it', () => {
+    const { root, id } = decidedRule();
+    const commit = () => gateDecision({ cwd: root, command: 'git commit -m "fix: cart"' });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'checks/cart.cjs': doubledPriceCheck });
+    loop(root, ['rule', '--id', id, '--draft', 'checks/cart.cjs']);
+    writeFiles(root, { 'checks/cart.cjs': `${doubledPriceCheck}// edited after the check\n` });
+    assert.match(commit().reason, /checks\/cart\.cjs changed after the last review/);
+    loop(root, ['rule', '--id', id, '--draft', 'checks/cart.cjs']);
+    assert.equal(commit().decision, 'ask');
+  });
+
+  test('a rule draft that adds a new check script is caught when that check fails', () => {
+    const { root, id } = decidedRule();
+    const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+    writeFiles(root, {
+      'package.json': JSON.stringify({ scripts: { ...manifest.scripts, lint: 'node lint/cart.cjs' } }),
+      'lint/cart.cjs': doubledPriceCheck,
+    });
+    const result = loop(root, ['rule', '--id', id, '--draft', 'package.json', '--draft', 'lint/cart.cjs']);
+    assert.deepEqual([result.proof, result.caughtBy, result.withoutDrafts], ['caught', ['lint'], []]);
+  });
+
+  test('a rule draft cannot be a file git ignores', () => {
+    const { root, id } = decidedRule();
+    writeFiles(root, { '.gitignore': 'node_modules\nlocal/\n', 'node_modules/plugin/index.cjs': '', 'local/rule.cjs': '' });
+    assert.throws(() => loop(root, ['rule', '--id', id, '--draft', 'node_modules/plugin/index.cjs']), /ignored by git/);
+    assert.throws(() => loop(root, ['rule', '--id', id, '--draft', 'local/rule.cjs']), /ignored by git/);
+    assert.equal(readFileSync(path.join(root, 'node_modules/plugin/index.cjs'), 'utf8'), '');
+  });
+
+  test('a rule draft must be a separate file that exists', () => {
+    const { root, id } = decidedRule();
+    assert.throws(() => loop(root, ['rule', '--id', id, '--draft', 'src/cart.js']), /the file the finding is in/);
+    assert.throws(() => loop(root, ['rule', '--id', id, '--draft', 'checks/missing.cjs']), /does not exist/);
+    assert.throws(() => loop(root, ['rule', '--id', id]), /--draft/);
+  });
+
+  test('make it a rule falls back to fix once when no check script would run it', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPriceCard] });
+    const decision = loop(root, ['decide', '--id', 'F-1', '--choice', 'rule']);
+    assert.equal(decision.choice, 'once');
+    assert.match(decision.ruleSkipped, /no typecheck, lint, or test script/);
+    assert.throws(() => loop(root, ['rule', '--id', 'F-1', '--draft', 'src/cart.js']), /not marked as a rule/);
+  });
+
+  test('rule candidates are kept from the reviewer and counted in the report', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const result = loop(root, ['record'], { findings: [doubledPriceCard] });
+    assert.equal(result.cards[0].ruleCandidate, true);
+    assert.match(result.report, /rule candidates 1/);
+  });
+});
+
 describe('commit gate', () => {
   const commit = (root, command = 'git commit -m "feat: coupon"') => gateDecision({ cwd: root, command });
 

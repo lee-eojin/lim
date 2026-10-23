@@ -50,7 +50,7 @@ Before you commit, review-loop runs a short loop and stops on its own.
 3. **Fix.** Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one way to fix it, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first.
 4. **Re-review.** A new reviewer checks only the fixes and the findings still open. Up to 3 rounds.
 5. **Stop.** A script, not the model, decides when to stop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
-6. **Decide.** You decide the rest once: every P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff. For each one you choose: keep as is, fix this time only, or make it a rule.
+6. **Decide.** You decide the rest once: every P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff. For each one you choose: keep as is, fix this time only, or make it a rule. A rule is a lint rule or a test that Claude writes next to the fix. review-loop runs your checks on the code from before the fix to show that the rule catches it.
 7. **Commit.** Claude asks before committing unless you chose "stop asking in this repo". It never pushes. If you turn on the commit gate, a hook makes this a rule: Claude's commits are blocked until a review passes.
 
 ### Commit gate
@@ -62,7 +62,7 @@ The commit gate is a hook that is off until you turn it on in a repository. At t
 | No review, or files changed that the review did not cover | Blocks the commit and tells Claude to run the review |
 | A review loop is in progress, or decisions are still pending | Blocks the commit |
 | The review passed | Asks you before committing, or allows it if you delegated commits in this repository |
-| Only reviewed files changed after the review | Asks you |
+| Only reviewed files, or rule drafts that `loop rule` checked, changed after the review | Asks you |
 | `git push` or a force push | Always asks, even with delegation |
 | A commit with `--no-verify` | Asks, even with delegation, and still blocks a commit without a passing review |
 | A commit in a folder the gate cannot read, such as `cd "$(...)"` or a path that does not exist | Asks you, even with delegation, if the gate is on in the repository where you started Claude Code |
@@ -99,13 +99,13 @@ A P1 or P2 about a file that is not in the diff the round reviewed is not fixed 
 
 ### Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 78 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 76 of them, including runs against real temporary git repositories and the commit gate hook. The other 2 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, and showing the report before any question.
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 89 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 87 of them, including runs against real temporary git repositories and the commit gate hook. The other 2 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, and showing the report before any question.
 
 review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed.
 
 ### Data
 
-State, diffs, check logs, and a decision ledger live in `.git/lim/review-loop/` inside your repository. Nothing is written to your working tree. Delete that folder to reset.
+State, diffs, check logs, and a decision ledger live in `.git/lim/review-loop/` inside your repository. Nothing is written to your working tree. To check a rule, review-loop writes the code from before the fix to a temporary folder outside your repository and deletes it afterwards. Delete `.git/lim/review-loop/` to reset.
 
 review-loop makes no network calls of its own. Claude and the reviewer read the diff, the findings, and the check output like any other file in your session, so that content goes to the model provider in the same way as the rest of your Claude Code session.
 
@@ -117,6 +117,7 @@ review-loop makes no network calls of its own. Claude and the reviewer read the 
 - The commit gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked, and git aliases such as `git ci` are not recognized.
 - If you start Claude Code in a folder that is not a repository, the gate cannot check a commit whose repository it cannot tell, for example after `cd "$(...)"`.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
+- A rule is checked in a temporary copy that has your tracked files and a link to the root `node_modules`. Other ignored files, such as `.env` or a nested `node_modules`, are not there, so a check that needs them reports the rule as unproven or caught for the wrong reason. Claude reads the failure to tell which.
 
 ## FAQ
 
@@ -149,7 +150,7 @@ Then delete `.git/lim/review-loop/` in each repository where you ran it.
 
 ## Roadmap
 
-- review-loop: turn the findings you marked "make it a rule" into draft lint rules and tests
+- review-loop: draft rules from findings you marked "make it a rule" in earlier reviews
 - Model-level evals with `claude plugin eval` for the behaviors unit tests cannot cover
 
 ## Contributing

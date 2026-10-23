@@ -77,3 +77,14 @@ B75,stop,The test-weakening check reads file names with spaces or quotes from di
 B76,do,The snapshot starts from a copy of the real index and still matches what git add -A would commit,test: snapshot matches what git add -A would commit when the index has staged changes,yes
 B77,do,A same-size edit made right after git add is still in the snapshot because the copied index keeps its time,test: snapshot keeps a same-size edit made right after git add,yes
 B78,do,The snapshot uses the real index so files marked assume-unchanged stay out as with git add -A and a repository without an index still works,test: snapshot starts from the real index and falls back when there is none,yes
+B79,do,A rule draft that makes a check fail on the code before the fix and not without it is reported as caught,test: a rule draft that fails on the code before the fix is caught,yes
+B80,tell,A rule draft that passes on the code before the fix is reported as missed,test: a rule draft that passes on the code before the fix is missed,yes
+B81,evidence,A rule draft is unproven when the same check already fails on the code before the fix without it,test: a rule draft is unproven when the same check already failed without it,yes
+B82,silence,Checking a rule leaves the repository's node_modules in place,test: checking a rule links node_modules and leaves the original in place,yes
+B83,stop,A rule draft cannot be the file the finding is in or a file that does not exist,test: a rule draft must be a separate file that exists,yes
+B84,tell,Make it a rule is recorded as fix once and the user is told why when no check script would run a rule,test: make it a rule falls back to fix once when no check script would run it,yes
+B85,tell,The reviewer can mark rule candidates and the report counts them,test: rule candidates are kept from the reviewer and counted in the report,yes
+B86,stop,With the commit gate on rule drafts checked by loop rule make the gate ask instead of block while other new files are still blocked,test: the commit gate asks for checked rule drafts and still blocks other new files,yes
+B87,stop,A rule draft edited after loop rule checked it is blocked by the commit gate until loop rule checks it again,test: the commit gate blocks a rule draft edited after loop rule checked it,yes
+B88,evidence,A rule draft that adds a new check script is caught when that check fails on the code before the fix,test: a rule draft that adds a new check script is caught when that check fails,yes
+B89,stop,A rule draft cannot be a file git ignores such as one under node_modules so loop rule never writes through the linked folder,test: a rule draft cannot be a file git ignores,yes

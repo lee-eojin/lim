@@ -52,7 +52,7 @@ Antes do seu commit, o review-loop executa um ciclo curto e para sem a sua inter
 3. **Correção.** O Claude diz o que vai corrigir e depois corrige P1 e P2. Se uma correção precisar de uma decisão de design (mais de uma forma de corrigir, uma mudança de comportamento visível, remover uma funcionalidade, alterar testes), você escolhe primeiro. Para ver cada P2 (ou cada P1 e P2) antes de qualquer mudança, peça ao Claude para confirmá-los com você primeiro.
 4. **Nova revisão.** Um revisor novo verifica apenas as correções e os achados que continuam abertos. O ciclo tem no máximo 3 rodadas.
 5. **Parada.** Um script, e não o modelo, decide quando o ciclo para. O ciclo para nestes casos: não restam P1 nem P2, o limite de rodadas é atingido, um achado continua aberto depois de duas correções, um achado resolvido volta a aparecer, P1 + P2 para de diminuir, ou uma correção enfraquece os testes ou as verificações.
-6. **Decisão.** Você decide o restante uma única vez: todos os P3 a P5, mais qualquer P1 ou P2 que continua aberto, não verificado ou sobre um arquivo fora do diff revisado. Para cada achado, você escolhe: manter como está, corrigir só desta vez ou transformar em uma regra.
+6. **Decisão.** Você decide o restante uma única vez: todos os P3 a P5, mais qualquer P1 ou P2 que continua aberto, não verificado ou sobre um arquivo fora do diff revisado. Para cada achado, você escolhe: manter como está, corrigir só desta vez ou transformar em uma regra. Uma regra é uma regra de lint ou um teste que o Claude escreve junto com a correção. O review-loop executa as suas verificações no código de antes da correção para mostrar que a regra detecta o problema.
 7. **Commit.** O Claude pergunta antes do commit, a menos que você tenha escolhido "parar de perguntar neste repositório". O Claude nunca faz push. Se você ativar o commit gate, um hook transforma isso em uma regra: os commits do Claude ficam bloqueados até que uma revisão seja aprovada.
 
 ### Commit gate
@@ -64,7 +64,7 @@ O commit gate é um hook. Esse hook fica desativado até que você o ative em um
 | Não há revisão, ou mudaram arquivos que a revisão não cobriu | Bloqueia o commit e diz ao Claude para executar a revisão |
 | Um ciclo de revisão está em andamento, ou ainda há decisões pendentes | Bloqueia o commit |
 | A revisão foi aprovada | Pergunta a você antes do commit, ou permite o commit se você delegou os commits neste repositório |
-| Depois da revisão, só mudaram arquivos revisados | Pergunta a você |
+| Depois da revisão, só mudaram arquivos revisados ou rascunhos de regras que o `loop rule` verificou | Pergunta a você |
 | `git push` ou um force push | Sempre pergunta, mesmo com delegação |
 | Um commit com `--no-verify` | Pergunta, mesmo com delegação, e continua bloqueando um commit sem uma revisão aprovada |
 | Um commit em uma pasta que o gate não consegue ler, como `cd "$(...)"` ou um caminho que não existe | Pergunta, mesmo com delegação, se o gate estiver ativado no repositório onde você iniciou o Claude Code |
@@ -101,13 +101,13 @@ Um P1 ou P2 sobre um arquivo que não está no diff que a rodada revisou não é
 
 ### Medições
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lista 78 comportamentos em seis eixos: `do`, `tell`, `ask`, `silence`, `stop` e `evidence`. Os testes unitários no CI cobrem 76 desses comportamentos, incluindo execuções em repositórios git temporários reais e o hook de commit gate. Os outros 2 precisam de uma execução do modelo e estão planejados para `claude plugin eval`: perguntar uma única vez sobre P3 a P5 e mostrar o relatório antes de qualquer pergunta.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lista 89 comportamentos em seis eixos: `do`, `tell`, `ask`, `silence`, `stop` e `evidence`. Os testes unitários no CI cobrem 87 desses comportamentos, incluindo execuções em repositórios git temporários reais e o hook de commit gate. Os outros 2 precisam de uma execução do modelo e estão planejados para `claude plugin eval`: perguntar uma única vez sobre P3 a P5 e mostrar o relatório antes de qualquer pergunta.
 
 O review-loop revisa os pull requests do próprio LIM. O [#8](https://github.com/lee-eojin/lim/pull/8) mostra dois ciclos na primeira versão do review-loop. Um desses ciclos parou por causa de um falso positivo na verificação de enfraquecimento de testes do próprio review-loop. Depois, esse falso positivo foi corrigido.
 
 ### Dados
 
-O estado, os diffs, os logs das verificações e um registro de decisões ficam em `.git/lim/review-loop/` dentro do seu repositório. O review-loop não grava nada na sua working tree. Para reiniciar, apague essa pasta.
+O estado, os diffs, os logs das verificações e um registro de decisões ficam em `.git/lim/review-loop/` dentro do seu repositório. O review-loop não grava nada na sua working tree. Para verificar uma regra, o review-loop grava o código de antes da correção em uma pasta temporária fora do seu repositório e depois a apaga. Para reiniciar, apague `.git/lim/review-loop/`.
 
 O review-loop não faz chamadas de rede próprias. O Claude e o revisor leem o diff, os achados e a saída das verificações como qualquer outro arquivo da sua sessão. Por isso, esse conteúdo vai para o provedor do modelo da mesma forma que o restante da sua sessão do Claude Code.
 
@@ -119,6 +119,7 @@ O review-loop não faz chamadas de rede próprias. O Claude e o revisor leem o d
 - O commit gate verifica apenas os comandos que o Claude executa pela ferramenta Bash dele. Os commits que você digita no seu próprio terminal não são verificados. Aliases do git como `git ci` não são reconhecidos.
 - Se você iniciar o Claude Code em uma pasta que não é um repositório, o gate não consegue verificar um commit cujo repositório ele não consegue identificar, por exemplo depois de `cd "$(...)"`.
 - O review-loop revisa tudo o que `git add -A` incluiria, e não um conjunto de alterações em stage que você escolhe manualmente.
+- Uma regra é verificada em uma cópia temporária que tem os seus arquivos rastreados pelo git e um link para o `node_modules` da raiz. Outros arquivos ignorados, como `.env` ou um `node_modules` aninhado, não estão lá. Por isso, uma verificação que precisa deles informa a regra como não comprovada ou como detectada pelo motivo errado. O Claude lê a falha para saber qual é o caso.
 
 ## Perguntas frequentes
 
@@ -151,7 +152,7 @@ Depois, apague `.git/lim/review-loop/` em cada repositório onde você executou 
 
 ## Roadmap
 
-- review-loop: transformar os achados que você marcou como "transformar em uma regra" em rascunhos de regras de lint e testes
+- review-loop: criar rascunhos de regras a partir dos achados que você marcou como "transformar em uma regra" em revisões anteriores
 - Evals no nível do modelo com `claude plugin eval` para os comportamentos que os testes unitários não conseguem cobrir
 
 ## Como contribuir

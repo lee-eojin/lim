@@ -24,7 +24,7 @@ If a session ends in the middle of a loop, running it again offers to continue w
 3. Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one fix, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first.
 4. A new reviewer checks only the fixes and the open findings. Up to 3 rounds.
 5. A script, not the model, stops the loop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
-6. You decide the rest once (P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff): keep as is, fix this time only, or make it a rule.
+6. You decide the rest once (P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff): keep as is, fix this time only, or make it a rule. A rule is a lint rule or a test that Claude writes next to the fix, and `loop rule` runs your checks on the code from before the fix to show that the rule catches it.
 7. Claude asks before committing unless you chose "stop asking in this repo". It never pushes.
 
 Every round ends with a report like this:
@@ -50,7 +50,7 @@ The commit gate is a hook that is off until you turn it on in a repository. At t
 | No review, or files changed that the review did not cover | Blocks the commit and tells Claude to run the review |
 | A review loop is in progress, or decisions are still pending | Blocks the commit |
 | The review passed | Asks you before committing, or allows it if you delegated commits in this repository |
-| Only reviewed files changed after the review (for example fixes from the decision step) | Asks you |
+| Only reviewed files, or rule drafts that `loop rule` checked, changed after the review (for example fixes and rules from the decision step) | Asks you |
 | `git push` or a force push | Always asks, even with delegation |
 | A commit with `--no-verify` | Asks, even with delegation, and still blocks a commit without a passing review |
 | A commit in a folder the gate cannot read, such as `cd "$(...)"` or a path that does not exist | Asks you, even with delegation, if the gate is on in the repository where you started Claude Code |
@@ -63,11 +63,11 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 78 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 76 of them. The other 2 (asking about P3 to P5 once, and showing the report before any question) need a model run and are planned for `claude plugin eval`.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 89 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 87 of them. The other 2 (asking about P3 to P5 once, and showing the report before any question) need a model run and are planned for `claude plugin eval`.
 
 ## Data
 
-State, diffs, check logs, and a decision ledger are stored in `.git/lim/review-loop/` inside your repository. Delete that folder to reset. review-loop makes no network calls of its own; Claude and the reviewer read the diff, findings, and check output like any other file, so that content goes to the model provider like the rest of your session. Snapshots add blob objects to git's object store; `git gc` removes the unreferenced ones.
+State, diffs, check logs, and a decision ledger are stored in `.git/lim/review-loop/` inside your repository. Delete that folder to reset. To check a rule, review-loop writes the code from before the fix to a temporary folder outside your repository, links the root `node_modules` there, and deletes the folder afterwards. review-loop makes no network calls of its own; Claude and the reviewer read the diff, findings, and check output like any other file, so that content goes to the model provider like the rest of your session. Snapshots add blob objects to git's object store; `git gc` removes the unreferenced ones.
 
 ## Limits in v0.1
 
@@ -77,4 +77,4 @@ State, diffs, check logs, and a decision ledger are stored in `.git/lim/review-l
 - The commit gate does not resolve git aliases. A commit made through an alias such as `git ci` is not checked.
 - If you start Claude Code in a folder that is not a repository, the gate cannot check a commit whose repository it cannot tell, for example after `cd "$(...)"`.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
-- "Make it a rule" is recorded but does not create a lint rule yet.
+- A rule is checked in a temporary copy with your tracked files and the root `node_modules` only. A check that needs other ignored files, such as `.env`, can report the rule as unproven or as caught for the wrong reason. Claude reads the failure to tell which.
