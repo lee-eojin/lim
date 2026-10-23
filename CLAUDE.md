@@ -6,7 +6,7 @@ Guidance for AI agents working in this repository. Humans are welcome to read it
 
 1. Every change starts from an issue.
 2. Work on a branch named `<type>/<issue>-<slug>`, for example `feat/2-review-loop`.
-3. Before opening a pull request, run `claude plugin validate --strict .`, `node --test`, and `scripts/check.sh`.
+3. Before opening a pull request, run `claude plugin validate --strict .`, `node --test`, `scripts/check.sh`, and `node scripts/check-i18n.mjs`.
 4. Open the pull request with `Closes #<issue>` in the description. Start the description by restating the issue's intent in one to three lines, and say what is out of scope.
 5. A maintainer squash-merges. The pull request title becomes the commit message on `main`.
 6. Do not change version numbers in feature pull requests. If users will notice the change, add one line under `## Unreleased` in the plugin's `CHANGELOG.md`. Releases follow "Releases" in CONTRIBUTING.md.
