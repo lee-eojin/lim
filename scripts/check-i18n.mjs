@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Checks that each translation in docs/i18n/ matches README.md in headings, plugin versions,
 // the numbers in the measured paragraph, and links to files that exist.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,7 +13,7 @@ const problems = [];
 const relative = (file) => path.relative(root, file);
 const report = (file, line, message) => problems.push(`${relative(file)}:${line}: ${message}`);
 
-function proseLines(file) {
+export function proseLines(file) {
   const lines = [];
   let inFence = false;
   readFileSync(file, 'utf8').split('\n').forEach((text, index) => {
@@ -37,7 +37,7 @@ function pluginVersions(lines) {
   }));
 }
 
-function measuredParagraph(lines) {
+export function measuredParagraph(lines) {
   const index = lines.findIndex(({ text }) => text.includes('behaviors.csv)'));
   if (index === -1) return undefined;
   let first = index;
@@ -45,7 +45,7 @@ function measuredParagraph(lines) {
   while (lines[first - 1]?.text.trim() && lines[first - 1].number === lines[first].number - 1) first -= 1;
   while (lines[last + 1]?.text.trim() && lines[last + 1].number === lines[last].number + 1) last += 1;
   const text = lines.slice(first, last + 1).map((line) => line.text).join(' ').replace(/\]\([^)]*\)/g, ']');
-  return { number: lines[first].number, values: new Set(text.match(/(?<![A-Za-z\d.])\d+(?:\.\d+)*/g)) };
+  return { number: lines[first].number, numbers: text.match(/(?<![A-Za-z\d.])\d+(?:\.\d+)*/g) ?? [] };
 }
 
 function checkLinks(file, lines) {
@@ -78,51 +78,64 @@ function sectionLine(sourceHeadings, translationHeadings, sourceLine) {
   return translationHeadings[index]?.number ?? 1;
 }
 
-const sourceLines = proseLines(sourceFile);
-const sourceHeadings = headings(sourceLines);
-const sourceVersions = pluginVersions(sourceLines);
-const sourceMeasured = measuredParagraph(sourceLines);
-checkLinks(sourceFile, sourceLines);
+function main() {
+  const sourceLines = proseLines(sourceFile);
+  const sourceHeadings = headings(sourceLines);
+  const sourceVersions = pluginVersions(sourceLines);
+  const sourceMeasured = measuredParagraph(sourceLines);
+  checkLinks(sourceFile, sourceLines);
 
-const translationFiles = existsSync(translationDir)
-  ? readdirSync(translationDir).filter((name) => /^README\..+\.md$/.test(name)).sort()
-  : [];
+  const translationFiles = existsSync(translationDir)
+    ? readdirSync(translationDir).filter((name) => /^README\..+\.md$/.test(name)).sort()
+    : [];
 
-for (const name of translationFiles) {
-  const file = path.join(translationDir, name);
-  const lines = proseLines(file);
-  const translationHeadings = headings(lines);
-  checkLinks(file, lines);
-  checkHeadings(file, sourceHeadings, translationHeadings);
+  for (const name of translationFiles) {
+    const file = path.join(translationDir, name);
+    const lines = proseLines(file);
+    const translationHeadings = headings(lines);
+    checkLinks(file, lines);
+    checkHeadings(file, sourceHeadings, translationHeadings);
 
-  const versions = pluginVersions(lines);
-  for (const [plugin, expected] of sourceVersions) {
-    const actual = versions.get(plugin);
-    if (!actual) {
-      report(file, sectionLine(sourceHeadings, translationHeadings, expected.number),
-        `plugin table has no ${plugin} row, README.md:${expected.number} has ${expected.version}`);
-    } else if (actual.version !== expected.version) {
-      report(file, actual.number, `${plugin} is ${actual.version}, README.md:${expected.number} has ${expected.version}`);
+    const versions = pluginVersions(lines);
+    for (const [plugin, expected] of sourceVersions) {
+      const actual = versions.get(plugin);
+      if (!actual) {
+        report(file, sectionLine(sourceHeadings, translationHeadings, expected.number),
+          `plugin table has no ${plugin} row, README.md:${expected.number} has ${expected.version}`);
+      } else if (actual.version !== expected.version) {
+        report(file, actual.number, `${plugin} is ${actual.version}, README.md:${expected.number} has ${expected.version}`);
+      }
     }
-  }
-  for (const [plugin, actual] of versions) {
-    if (!sourceVersions.has(plugin)) report(file, actual.number, `${plugin} is not in the plugin table of README.md`);
-  }
+    for (const [plugin, actual] of versions) {
+      if (!sourceVersions.has(plugin)) report(file, actual.number, `${plugin} is not in the plugin table of README.md`);
+    }
 
-  if (sourceMeasured) {
-    const measured = measuredParagraph(lines);
-    if (!measured) {
-      report(file, sectionLine(sourceHeadings, translationHeadings, sourceMeasured.number),
-        `no paragraph links behaviors.csv, README.md:${sourceMeasured.number} has one`);
-    } else {
-      const missing = [...sourceMeasured.values].filter((value) => !measured.values.has(value));
-      if (missing.length > 0) {
-        report(file, measured.number,
-          `measured paragraph lacks ${missing.join(', ')} from README.md:${sourceMeasured.number}`);
+    if (sourceMeasured) {
+      const measured = measuredParagraph(lines);
+      if (!measured) {
+        report(file, sectionLine(sourceHeadings, translationHeadings, sourceMeasured.number),
+          `no paragraph links behaviors.csv, README.md:${sourceMeasured.number} has one`);
+      } else {
+        const missing = [...new Set(sourceMeasured.numbers)].filter((value) => !measured.numbers.includes(value));
+        if (missing.length > 0) {
+          report(file, measured.number,
+            `measured paragraph lacks ${missing.join(', ')} from README.md:${sourceMeasured.number}`);
+        }
       }
     }
   }
+
+  for (const problem of problems) console.log(problem);
+  process.exit(problems.length > 0 ? 1 : 0);
 }
 
-for (const problem of problems) console.log(problem);
-process.exit(problems.length > 0 ? 1 : 0);
+function isEntryPoint() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isEntryPoint()) main();

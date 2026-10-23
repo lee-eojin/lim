@@ -83,6 +83,8 @@ Ask once with AskUserQuestion. It takes at most 4 questions. With more items, as
 
 Mark the option you recommend and give one reason and the cost of undoing it in its description. Recommend "Make it a rule" for findings with `ruleCandidate: true`, but only if the last `checks` list is not empty. With no checks, nothing would run a rule: do not recommend it, and say so in that option's description.
 
+Items with `repeat` are a kind of finding (`repeat.category`) that earlier reviews in this repository raised `repeat.seenBefore` times. Say so in the question, for example "speculative-guard, seen 3 times before". Recommend "Make it a rule" for them under the same condition, and name in its description the strongest layer that fits: a type or architecture change that makes the mistake impossible to write, then a lint rule, then a test. Never offer a line in CLAUDE.md or another rules file as the rule. For a P1 or P2 with `repeat` that you fixed this run (`resolvedRepeats` in `loop status`), tell the user in one line that this kind keeps coming back and name the strongest layer that fits; the rule flow runs when a finding of that kind reaches a card.
+
 Record every answer with `loop decide --id <id> --choice keep|once|rule`. If the result has `ruleSkipped`, the choice was recorded as `once`: tell the user why in one line and do not draft a rule.
 
 Apply the "fix this time" and "make it a rule" fixes. Prove each P1 or P2 fixed this time only with a regression test, as in the regression test sub-step of section 4.
@@ -125,4 +127,4 @@ If the user asks to see every P2 (or every P1 and P2) before anything is fixed, 
 
 ## Files
 
-State, diffs, check logs, and a decision ledger are kept in `.git/lim/review-loop/`. Nothing is written to the working tree. `loop rule` writes the code from before the fix to a temporary folder outside the repository, links the root `node_modules` there, and deletes the folder when it is done. Deleting `.git/lim/review-loop/` resets everything.
+State, diffs, check logs, and a decision ledger are kept in `.git/lim/review-loop/`. The kinds of findings each review saw go to `kinds.jsonl` in the main checkout's `.git/lim/review-loop/`, shared by every worktree. Nothing is written to the working tree. `loop rule` writes the code from before the fix to a temporary folder outside the repository, links the root `node_modules` there, and deletes the folder when it is done. Deleting `.git/lim/review-loop/` resets everything.
