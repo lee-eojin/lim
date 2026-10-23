@@ -1208,3 +1208,97 @@ describe('loop.mjs decisions', () => {
     assert.throws(() => loop(root, ['decide', '--id', 'F-1', '--choice', 'ignore']), /choice must be one of/);
   });
 });
+
+describe('kept findings', () => {
+  const longName = { severity: 'P3', file: 'src/cart.js', line: 1, category: 'naming', title: 'Name total as sumPrices', quote: 'export const total' };
+  const scaledPrice = { severity: 'P3', file: 'src/cart.js', line: 1, category: 'readability', title: 'Explain the factor', quote: 'item.price * 2' };
+  const stateFile = (root) => JSON.parse(readFileSync(path.join(root, '.git/lim/review-loop/state.json'), 'utf8'));
+
+  function keepInFirstReview(root, findings, startArgs = []) {
+    loop(root, ['start', ...startArgs]);
+    loop(root, ['record'], { findings });
+    for (const id of loop(root, ['status']).review.pendingDecisions) loop(root, ['decide', '--id', id, '--choice', 'keep']);
+    assert.equal(loop(root, ['start']).status, 'review');
+  }
+
+  test('a finding kept in an earlier review is not a card in the next review', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [longName]);
+    const result = loop(root, ['record'], { findings: [longName, scaledPrice] });
+    assert.deepEqual(result.cards.map((card) => card.title), ['Explain the factor']);
+    assert.deepEqual(loop(root, ['status']).review.pendingDecisions, [result.cards[0].id]);
+    assert.deepEqual(stateFile(root).kept.map((item) => item.title), ['Name total as sumPrices']);
+  });
+
+  test('the report counts findings kept before that were raised again', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [longName, scaledPrice]);
+    const result = loop(root, ['record'], { findings: [longName, scaledPrice] });
+    assert.match(result.report, /\n2 findings you kept before were raised again\n/);
+    assert.match(result.report, /Left for you: P3 0, P4 0, P5 0/);
+    assert.deepEqual(result.cards, []);
+  });
+
+  test('a kept P1 or P2 raised again is listed with its severity and not fixed', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [doubledPrice], ['--max-rounds', '1']);
+    const result = loop(root, ['record'], { findings: [doubledPrice] });
+    assert.deepEqual([result.decision, result.reason, result.fix.length], ['stop', 'clean', 0]);
+    assert.match(result.report, /1 finding you kept before was raised again, including:\n- \[P2\] src\/cart\.js:1 Price is doubled/);
+    assert.match(result.report, /\nStopped: no P1 or P2 left to fix; the kept ones are listed above\n/);
+  });
+
+  test('a kept finding raised again at a higher severity is a card again', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [{ ...scaledPrice, severity: 'P4' }]);
+    const result = loop(root, ['record'], { findings: [scaledPrice] });
+    assert.deepEqual(result.cards.map((card) => [card.severity, card.title]), [['P3', 'Explain the factor']]);
+    assert.doesNotMatch(result.report, /kept before/);
+  });
+
+  test('a kept finding is a card again when its quoted line appears twice in the file', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [scaledPrice]);
+    writeFiles(root, { 'src/cart.js': `${brokenCart}export const doubled = (items) => items.map((item) => item.price * 2);\n` });
+    loop(root, ['start', '--fresh']);
+    const result = loop(root, ['record'], { findings: [scaledPrice] });
+    assert.deepEqual(result.cards.map((card) => card.title), ['Explain the factor']);
+    assert.doesNotMatch(result.report, /kept before/);
+  });
+
+  test('a kept finding whose quoted line the diff removed stays kept', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [scaledPrice]);
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['start', '--fresh']);
+    const result = loop(root, ['record'], { findings: [scaledPrice] });
+    assert.deepEqual(result.cards, []);
+    assert.match(result.report, /\n1 finding you kept before was raised again\n/);
+  });
+
+  test('a kept finding is asked about again once its quoted line changes', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [scaledPrice]);
+    writeFiles(root, { 'src/cart.js': brokenCart.replace('* 2', '* 3') });
+    loop(root, ['start', '--fresh']);
+    const result = loop(root, ['record'], { findings: [{ ...scaledPrice, quote: 'item.price * 3' }] });
+    assert.deepEqual(result.cards.map((card) => card.title), ['Explain the factor']);
+    assert.doesNotMatch(result.report, /kept before/);
+  });
+
+  test('a failing check is still a P1 finding after the user kept it', () => {
+    const manifest = JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } });
+    const root = createRepository({ 'package.json': manifest, 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [], ['--max-rounds', '1']);
+    const result = loop(root, ['record'], { findings: [] });
+    assert.deepEqual([result.decision, result.fix[0].severity, result.fix[0].fromChecks], ['continue', 'P1', true]);
+  });
+});

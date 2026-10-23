@@ -24,7 +24,7 @@ If a session ends in the middle of a loop, running it again offers to continue w
 3. Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one fix, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first.
 4. A new reviewer checks only the fixes and the open findings. Up to 3 rounds.
 5. A script, not the model, stops the loop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
-6. You decide the rest once (P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff): keep as is, fix this time only, or make it a rule. A rule is a lint rule or a test that Claude writes next to the fix, and `loop rule` runs your checks on the code from before the fix to show that the rule catches it.
+6. You decide the rest once (P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff): keep as is, fix this time only, or make it a rule. A rule is a lint rule or a test that Claude writes next to the fix, and `loop rule` runs your checks on the code from before the fix to show that the rule catches it. A finding you keep as is is not asked about again in a later review until its quoted line changes, and the report counts it instead.
 7. Claude asks before committing unless you chose "stop asking in this repo". It never pushes.
 
 Every round ends with a report like this:
@@ -63,7 +63,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 93 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 89 of them. The other 4 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, and reporting code added without a known cause) need a model run and are planned for `claude plugin eval`.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 101 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 97 of them. The other 4 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, and reporting code added without a known cause) need a model run and are planned for `claude plugin eval`.
 
 ## Data
 

@@ -61,6 +61,7 @@ const STOP_REASONS = {
 const normalize = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
 const now = () => new Date().toISOString();
 const summarize = ({ id, severity, file, line, title }) => ({ id, severity, file, line, title });
+const severityOf = (finding) => (SEVERITIES.includes(finding.severity) ? finding.severity : 'P3');
 
 export function fingerprint(finding) {
   const anchor = normalize(finding.quote) || normalize(finding.title);
@@ -81,7 +82,7 @@ export function classify(findings, sourcesFor = () => [], confirmSeverities = []
   const ask = [];
   const cards = [];
   for (const finding of findings) {
-    const severity = SEVERITIES.includes(finding.severity) ? finding.severity : 'P3';
+    const severity = severityOf(finding);
     const item = { ...finding, severity, fingerprint: finding.fingerprint ?? fingerprint(finding) };
     if (!BLOCKING.has(severity)) {
       cards.push(item);
@@ -201,7 +202,7 @@ export function parseReview(input) {
 export function renderReport(view) {
   const {
     round, maxRounds, checks = [], resolved = [], fix = [], ask = [], stillOpen = [], regressions = [],
-    integrity = [], cards = [], counts = [], decision, reason,
+    integrity = [], cards = [], kept = [], counts = [], decision, reason,
   } = view;
   const lines = [`Review round ${round} of ${maxRounds}`, `Checks: ${describeChecks(checks)}`];
   const section = (title, items, describe) => {
@@ -217,11 +218,20 @@ export function renderReport(view) {
   section("Noticed outside this round's diff (not looped, decided at the end):", outOfScope, (item) => [
     `- ${item.id} [${item.severity}] ${location(item)} ${item.title}`,
   ]);
+  if (kept.length) {
+    const keptBlocking = kept.filter((item) => BLOCKING.has(item.severity));
+    const count = kept.length === 1 ? '1 finding you kept before was' : `${kept.length} findings you kept before were`;
+    lines.push('', `${count} raised again${keptBlocking.length ? ', including:' : ''}`);
+    lines.push(...keptBlocking.map((item) => `- [${item.severity}] ${location(item)} ${item.title}`));
+  }
   lines.push('', `Trend (P1 + P2): ${counts.length ? counts.join(' -> ') : '-'}`);
   if (decision === 'continue') {
     lines.push(`Next: fix, then re-review in round ${round + 1} of ${maxRounds}`);
   } else {
-    lines.push(`Stopped: ${STOP_REASONS[reason] ?? reason}`, `Left for you: ${tally(cards)}`);
+    const stopText = reason === 'clean' && kept.some((item) => BLOCKING.has(item.severity))
+      ? 'no P1 or P2 left to fix; the kept ones are listed above'
+      : STOP_REASONS[reason] ?? reason;
+    lines.push(`Stopped: ${stopText}`, `Left for you: ${tally(cards)}`);
   }
   return lines.join('\n');
 }
@@ -340,11 +350,16 @@ function checkFindings(checks) {
     }));
 }
 
-function evidenceSources(root, finding, diffText) {
-  const target = path.resolve(root, String(finding.file ?? ''));
+function currentContent(root, file) {
+  const target = path.resolve(root, String(file ?? ''));
   const insideRoot = target.startsWith(root + path.sep);
   const readable = insideRoot && existsSync(target) && statSync(target).isFile();
-  return readable ? [readFileSync(target, 'utf8'), diffText] : [diffText];
+  return readable ? readFileSync(target, 'utf8') : null;
+}
+
+function evidenceSources(root, finding, diffText) {
+  const content = currentContent(root, finding.file);
+  return content === null ? [diffText] : [content, diffText];
 }
 
 function git(args, options = {}) {
@@ -436,6 +451,33 @@ function logEvent(repository, event) {
   appendFileSync(repository.file('ledger.jsonl'), `${JSON.stringify({ at: now(), ...event })}\n`);
 }
 
+function keptSeverities(repository) {
+  const ledgerPath = repository.file('ledger.jsonl');
+  if (!existsSync(ledgerPath)) return new Map();
+  const choices = new Map();
+  for (const line of readFileSync(ledgerPath, 'utf8').split('\n')) {
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (entry?.event === 'decision' && entry.fingerprint) choices.set(entry.fingerprint, entry);
+  }
+  const kept = [...choices].filter(([, entry]) => entry.choice === 'keep');
+  return new Map(kept.map(([print, entry]) => [print, severityOf(entry)]));
+}
+
+function isKept(root, keptBefore, finding, print) {
+  const keptSeverity = keptBefore.get(print);
+  if (!keptSeverity) return false;
+  if (SEVERITIES.indexOf(severityOf(finding)) < SEVERITIES.indexOf(keptSeverity)) return false;
+  const quote = normalize(finding.quote);
+  const content = currentContent(root, finding.file);
+  // With a second copy of the quoted text, the keep cannot tell which copy the user saw.
+  return Boolean(quote) && content !== null && normalize(content).split(quote).length <= 2;
+}
+
 function clampRounds(value) {
   const rounds = Number.parseInt(value ?? DEFAULT_MAX_ROUNDS, 10);
   return Number.isNaN(rounds) ? DEFAULT_MAX_ROUNDS : Math.min(Math.max(rounds, 1), MAX_ROUNDS_LIMIT);
@@ -504,7 +546,7 @@ function start(cwd, options) {
   const state = {
     version: 1, startedAt: now(), round: 1, maxRounds, baseTree, reviewedTree, nextId: 1,
     files, reviewedFiles: files,
-    open: [], resolved: [], cards: [], counts: [], checks: null, awaiting: 'review', stopped: null,
+    open: [], resolved: [], cards: [], kept: [], counts: [], checks: null, awaiting: 'review', stopped: null,
   };
   saveState(repository, state);
   const checks = runRoundChecks(repository, state);
@@ -543,14 +585,23 @@ function record(cwd, options, input) {
   const retried = carried.filter((item) => item.attempts < 2);
 
   const sourcesFor = (finding) => evidenceSources(repository.root, finding, diffText);
-  const knownPrints = new Set(state.open.map((item) => item.fingerprint));
+  const keptBefore = keptSeverities(repository);
+  const previouslyKept = state.kept ?? [];
+  const knownPrints = new Set([...state.open, ...previouslyKept].map((item) => item.fingerprint));
   const reported = [];
+  const kept = [];
   for (const finding of review.findings.map((entry) => reviewerFinding(repository.root, entry))) {
     const print = fingerprint(finding);
     if (knownPrints.has(print)) continue;
     knownPrints.add(print);
-    reported.push(finding);
+    if (isKept(repository.root, keptBefore, finding, print)) {
+      const { file, line, title } = finding;
+      kept.push({ severity: severityOf(finding), file, line, title, fingerprint: print });
+    } else {
+      reported.push(finding);
+    }
   }
+  const allKept = [...previouslyKept, ...kept];
   const newChecks = failingChecks.filter((finding) => !state.open.some((item) => item.fingerprint === fingerprint(finding)));
   const classified = classify([...newChecks, ...reported.filter((finding) => filesInRound.has(finding.file))], sourcesFor, readConfirm(repository).severities);
   const outside = classify(reported.filter((finding) => !filesInRound.has(finding.file)), sourcesFor);
@@ -575,13 +626,14 @@ function record(cwd, options, input) {
   const view = {
     round: state.round, maxRounds: state.maxRounds, checks: state.checks, resolved,
     fix: stopped ? [] : fix, ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
-    regressions, cards: allCards, counts, decision, reason,
+    regressions, cards: allCards, kept: allKept, counts, decision, reason,
   };
   const report = renderReport(view);
   Object.assign(state, {
     open,
     resolved: [...state.resolved, ...resolved],
     cards: allCards,
+    kept: allKept,
     counts,
     awaiting: stopped ? 'decisions' : 'fix',
     stopped: stopped ? { reason, at: now() } : null,
@@ -590,7 +642,7 @@ function record(cwd, options, input) {
   saveState(repository, state);
   logEvent(repository, {
     event: 'record', round: state.round, decision, reason, counts,
-    open: open.map(summarize), cards: cards.map(summarize),
+    open: open.map(summarize), cards: cards.map(summarize), kept,
   });
   return {
     report,
@@ -620,7 +672,7 @@ function next(cwd) {
   if (integrity.length) {
     const report = renderReport({
       round: state.round, maxRounds: state.maxRounds, checks: null, stillOpen: state.open,
-      integrity, cards: state.cards, counts: state.counts, decision: 'stop', reason: 'integrity',
+      integrity, cards: state.cards, kept: state.kept, counts: state.counts, decision: 'stop', reason: 'integrity',
     });
     Object.assign(state, {
       checks: null, awaiting: 'decisions', stopped: { reason: 'integrity', at: now() }, lastReport: report,
