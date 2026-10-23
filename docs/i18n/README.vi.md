@@ -24,8 +24,7 @@ Các agent harness lớn nạp nhiều chỉ dẫn vào mỗi session và chạy
 
 | Plugin | Trạng thái | Một việc |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.1 | Review các thay đổi của bạn trước khi commit, sửa các phát hiện P1 và P2, review lại và giao phần còn lại cho bạn. |
-| forge | dự kiến | Biến các bình luận pull request của một reviewer thành một reviewer skill, kèm một báo cáo về mức độ trung thực của skill đó. |
+| [review-loop](../../plugins/review-loop) | 0.3.0 | Review các thay đổi của bạn trước khi commit, sửa các phát hiện P1 và P2, review lại và giao phần còn lại cho bạn. |
 
 ## Bắt đầu nhanh
 
@@ -152,8 +151,7 @@ Sau đó, xóa `.git/lim/review-loop/` trong mỗi repository mà bạn đã ch�
 
 ## Lộ trình
 
-- review-loop: một tùy chọn để xác nhận từng P2 trước khi sửa ([#4](https://github.com/lee-eojin/lim/issues/4)), một check mạnh hơn để phát hiện test bị làm yếu ([#6](https://github.com/lee-eojin/lim/issues/6)), snapshot nhanh hơn trên repository lớn ([#7](https://github.com/lee-eojin/lim/issues/7))
-- forge: một báo cáo về mức độ trung thực cho các reviewer skill được rút ra từ bình luận pull request
+- review-loop: biến các phát hiện bạn đã chọn "biến nó thành một quy tắc" thành bản nháp quy tắc lint và test
 - Eval ở cấp mô hình với `claude plugin eval` cho các hành vi mà unit test không bao phủ được
 
 ## Đóng góp

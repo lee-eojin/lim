@@ -24,8 +24,7 @@
 
 | 插件 | 状态 | 唯一职责 |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.1 | 在你提交之前审查你的改动，修复 P1 和 P2 发现项，再次审查，然后把其余发现项交给你。 |
-| forge | 计划中 | 把审查者在 pull request 中的评论转换为审查者 skill，并附带一份忠实度报告，说明该 skill 与审查者本人的一致程度。 |
+| [review-loop](../../plugins/review-loop) | 0.3.0 | 在你提交之前审查你的改动，修复 P1 和 P2 发现项，再次审查，然后把其余发现项交给你。 |
 
 ## 快速开始
 
@@ -152,8 +151,7 @@ claude plugin marketplace remove lim
 
 ## 路线图
 
-- review-loop：在修复前逐个确认 P2 的选项（[#4](https://github.com/lee-eojin/lim/issues/4)）、更强的测试削弱检查（[#6](https://github.com/lee-eojin/lim/issues/6)）、在大型仓库上更快的快照（[#7](https://github.com/lee-eojin/lim/issues/7)）
-- forge：为从 pull request 评论中提炼出的审查者 skill 提供忠实度报告
+- review-loop：把你选择“设为规则”的发现项转换为 lint 规则和测试的草稿
 - 使用 `claude plugin eval` 进行模型级 eval，覆盖单元测试无法覆盖的行为
 
 ## 参与贡献

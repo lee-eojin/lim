@@ -24,8 +24,7 @@
 
 | 外掛 | 狀態 | 唯一職責 |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.2.1 | 在你提交之前審查你的變更，修正 P1 和 P2 發現項目，再次審查，然後把其餘發現項目交給你。 |
-| forge | 規劃中 | 把審查者在 pull request 中的留言轉換為審查者 skill，並附帶一份忠實度報告，說明該 skill 與審查者本人的一致程度。 |
+| [review-loop](../../plugins/review-loop) | 0.3.0 | 在你提交之前審查你的變更，修正 P1 和 P2 發現項目，再次審查，然後把其餘發現項目交給你。 |
 
 ## 快速開始
 
@@ -152,8 +151,7 @@ claude plugin marketplace remove lim
 
 ## 路線圖
 
-- review-loop：在修正前逐一確認 P2 的選項（[#4](https://github.com/lee-eojin/lim/issues/4)）、更強的測試削弱檢查（[#6](https://github.com/lee-eojin/lim/issues/6)）、在大型儲存庫上更快的快照（[#7](https://github.com/lee-eojin/lim/issues/7)）
-- forge：為從 pull request 留言中萃取出的審查者 skill 提供忠實度報告
+- review-loop：把你選擇「設為規則」的發現項目轉換為 lint 規則和測試的草稿
 - 使用 `claude plugin eval` 進行模型層級的 eval，涵蓋單元測試無法涵蓋的行為
 
 ## 參與貢獻
