@@ -19,7 +19,10 @@ const BLOCKING = new Set(['P1', 'P2']);
 const EVIDENCE_FIELDS = ['quote', 'scenario', 'whyNotPrevented'];
 const ASK_FLAGS = ['multipleFixes', 'behaviorChange', 'removesFeature', 'touchesTests'];
 const CONFIRM_LEVELS = { off: [], P2: ['P2'], all: ['P1', 'P2'] };
-const REVIEWER_FIELDS = ['severity', 'file', 'line', 'category', 'title', ...EVIDENCE_FIELDS, ...ASK_FLAGS, 'ruleCandidate'];
+const BASES = ['measured', 'inferred', 'guessed'];
+const REVIEWER_FIELDS = [
+  'severity', 'file', 'line', 'category', 'title', ...EVIDENCE_FIELDS, 'basis', 'measuredBy', ...ASK_FLAGS, 'ruleCandidate',
+];
 const DECISION_CHOICES = ['keep', 'once', 'rule'];
 const DIFF_COMMAND = ['-c', 'core.quotePath=false', 'diff', '--no-color', '--no-ext-diff', '--src-prefix=a/', '--dst-prefix=b/'];
 const CHECK_SCRIPTS = [
@@ -27,6 +30,7 @@ const CHECK_SCRIPTS = [
   ['lint', ['lint']],
   ['test', ['test']],
 ];
+const MANIFEST_READ = 'read package.json';
 const LOCKFILE_RUNNERS = [
   ['pnpm-lock.yaml', 'pnpm'],
   ['yarn.lock', 'yarn'],
@@ -72,6 +76,7 @@ export function fingerprint(finding) {
 }
 
 export function hasEvidence(finding, sources) {
+  if (finding.basis === 'guessed') return false;
   if (EVIDENCE_FIELDS.some((field) => !normalize(finding[field]))) return false;
   const quote = normalize(finding.quote);
   return sources.some((source) => normalize(source).includes(quote));
@@ -196,6 +201,18 @@ export function parseReview(input) {
   if (!Array.isArray(review?.findings)) {
     throw new Error('reviewer output needs a "findings" array, use [] when there is nothing to report');
   }
+  review.findings.forEach((finding, index) => {
+    const basis = finding?.basis;
+    if (basis === undefined || basis === null) return;
+    if (!BASES.includes(basis)) {
+      throw new Error(`finding ${index + 1} has basis ${JSON.stringify(basis)}, use measured, inferred, or guessed`);
+    }
+    if (basis === 'measured' && !normalize(finding.measuredBy)) {
+      throw new Error(
+        `finding ${index + 1} is measured but has no measuredBy, give the search or check and the output that shows it`,
+      );
+    }
+  });
   return review;
 }
 
@@ -210,7 +227,7 @@ export function renderReport(view) {
   };
   const outOfScope = cards.filter((card) => card.outOfScope && card.round === round);
   section('Resolved since last round:', resolved, (item) => [
-    `- ${item.id} [${item.severity}] ${item.title}`, ...describeRegressionTest(item, checks),
+    `- ${item.id} [${item.severity}] ${item.title} ${fixBasis(item)}`, ...describeRegressionTest(item, checks),
   ]);
   section('Fixing next:', fix, describeFinding);
   section('Needs your call on how to fix:', ask, describeFinding);
@@ -218,7 +235,7 @@ export function renderReport(view) {
   section('Came back after being resolved:', regressions, describeFinding);
   section('Fixes that weakened tests or checks:', integrity, (issue) => [`- ${issue.file}: ${issue.reason}`]);
   section("Noticed outside this round's diff (not looped, decided at the end):", outOfScope, (item) => [
-    `- ${item.id} [${item.severity}] ${location(item)} ${item.title}`,
+    `- ${item.id} [${item.severity}] ${location(item)} ${item.title}${item.basis ? ` (basis: ${item.basis})` : ''}`,
   ]);
   if (kept.length) {
     const keptBlocking = kept.filter((item) => BLOCKING.has(item.severity));
@@ -248,8 +265,16 @@ function describeFinding(item) {
     `  was: ${normalize(item.quote)}`,
     `  why: ${normalize(item.scenario)}`,
   ];
+  if (item.basis) {
+    const measuredBy = item.basis === 'measured' && item.measuredBy ? ` (${normalize(item.measuredBy)})` : '';
+    lines.push(`  basis: ${item.basis}${measuredBy}`);
+  }
   if (item.note) lines.push(`  note: ${item.note}`);
   return lines;
+}
+
+function fixBasis(item) {
+  return item.fromChecks ? `(fixed, measured: ${item.quote} no longer fails)` : '(fixed, inferred: the re-review read the fix)';
 }
 
 function describeChecks(checks) {
@@ -298,7 +323,7 @@ export function detectChecks(root) {
 }
 
 function runCheck(root, { name, command, problem }, timeout) {
-  if (problem) return { name, command: 'read package.json', exitCode: 1, timedOut: false, output: problem };
+  if (problem) return { name, command: MANIFEST_READ, exitCode: 1, timedOut: false, output: problem };
   const label = command.join(' ');
   if (timeout <= 0) return { name, command: label, exitCode: null, timedOut: true, output: 'not run: the time budget for checks was used up' };
   try {
@@ -337,6 +362,19 @@ function checkFingerprint(check) {
   return fingerprint({ file: check.command, category: 'checks', quote: check.command });
 }
 
+function passedCheckPrints(root, checks) {
+  const passed = checks.filter((check) => check.exitCode === 0);
+  const manifestRead = existsSync(path.join(root, 'package.json')) && !checks.some((check) => check.command === MANIFEST_READ);
+  return new Set([...passed, ...(manifestRead ? [{ command: MANIFEST_READ }] : [])].map(checkFingerprint));
+}
+
+function carriedNote(item, checks, unverifiedPrints) {
+  if (!item.fromChecks) return 'the first fix did not resolve it';
+  if (unverifiedPrints.has(item.fingerprint)) return 'its check timed out, so the fix is not verified';
+  if (!checks.some((check) => checkFingerprint(check) === item.fingerprint)) return 'its check did not run, so the fix is not verified';
+  return 'the first fix did not resolve it';
+}
+
 function checkFindings(checks) {
   return checks
     .filter((check) => !check.timedOut && check.exitCode !== 0)
@@ -348,6 +386,7 @@ function checkFindings(checks) {
       quote: check.command,
       scenario: `exit code ${check.exitCode}: ${normalize(check.tail).slice(-200)}`,
       whyNotPrevented: 'the check fails on the current tree',
+      basis: 'measured',
       fromChecks: true,
     }));
 }
@@ -565,22 +604,18 @@ function record(cwd, options, input) {
   const diffText = readFileSync(repository.file(`round-${state.round}.diff`), 'utf8');
   const filesInRound = new Set(state.files);
   const failingChecks = checkFindings(state.checks);
-  const failingPrints = new Set(failingChecks.map(fingerprint));
+  const passedPrints = passedCheckPrints(repository.root, state.checks);
   const unverifiedPrints = new Set(state.checks.filter((check) => check.timedOut).map(checkFingerprint));
   const resolvedIds = new Set(review.resolved ?? []);
 
   const resolved = [];
   const carried = [];
   for (const item of state.open) {
-    const unverified = item.fromChecks && unverifiedPrints.has(item.fingerprint);
-    const isResolved = item.fromChecks
-      ? !failingPrints.has(item.fingerprint) && !unverified
-      : resolvedIds.has(item.id);
+    const isResolved = item.fromChecks ? passedPrints.has(item.fingerprint) : resolvedIds.has(item.id);
     if (isResolved) {
       resolved.push(item);
     } else {
-      const note = unverified ? 'its check timed out, so the fix is not verified' : 'the first fix did not resolve it';
-      carried.push({ ...item, attempts: item.attempts + 1, note });
+      carried.push({ ...item, attempts: item.attempts + 1, note: carriedNote(item, state.checks, unverifiedPrints) });
     }
   }
   const stuck = carried.filter((item) => item.attempts >= 2);

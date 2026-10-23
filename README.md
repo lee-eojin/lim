@@ -46,7 +46,7 @@ Adding the marketplace only registers the catalog. Each plugin is installed on i
 Before you commit, review-loop runs a short loop and stops on its own.
 
 1. **Checks.** It runs the `typecheck`, `lint`, and `test` scripts from your `package.json`. A failing check, or a `package.json` that is not valid JSON, becomes a P1 finding. A check that runs past its time limit is reported as "not verified" instead of failing.
-2. **Fresh review.** A separate reviewer agent gets the diff and a one-line summary of what you wanted, but not Claude's reasoning about the change. It can read surrounding code for context. It labels findings P1 to P5. It also reports code that agents add when they do not know the cause: guards for states nothing shows can happen, comments about history, TODOs without an issue link, and a second way to do a job the codebase already does. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it. Claims without evidence are shown to you as unverified.
+2. **Fresh review.** A separate reviewer agent gets the diff and a one-line summary of what you wanted, but not Claude's reasoning about the change. It can read surrounding code for context. It labels findings P1 to P5. It also reports code that agents add when they do not know the cause: guards for states nothing shows can happen, comments about history, TODOs without an issue link, and a second way to do a job the codebase already does. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it. Claims without evidence are shown to you as unverified. Each finding is labeled measured, inferred, or guessed, and a guessed P1 or P2 counts as unverified.
 3. **Fix.** Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one way to fix it, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first. If your project has a test script, Claude also writes a regression test from the failure scenario of each P1 or P2 it fixes, and review-loop shows that the test fails on the code from before the fix.
 4. **Re-review.** A new reviewer checks only the fixes and the findings still open. Up to 3 rounds.
 5. **Stop.** A script, not the model, decides when to stop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
@@ -76,7 +76,7 @@ Review round 2 of 3
 Checks: test passed
 
 Resolved since last round:
-- F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal
+- F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal (fixed, inferred: the re-review read the fix)
   test: src/coupon.test.js (before the fix: caught, after: passed)
 
 Trend (P1 + P2): 1 -> 0
@@ -100,7 +100,7 @@ A P1 or P2 about a file that is not in the diff the round reviewed is not fixed 
 
 ### Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 109 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 104 of them, including runs against real temporary git repositories and the commit gate hook. The other 5 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 121 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 113 of them, including runs against real temporary git repositories and the commit gate hook. The other 8 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
 
 review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed.
 

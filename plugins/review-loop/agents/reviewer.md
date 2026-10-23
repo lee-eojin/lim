@@ -66,6 +66,13 @@ Set these to true when they apply, so the user chooses how to fix:
 
 Set `ruleCandidate` to true when the fix is a convention someone has to remember, and a type, a lint rule, or a test could catch the same mistake next time.
 
+## Basis
+
+Give every finding a `basis`, so the user can tell what you saw from what you suspect:
+- `measured`: a search you ran or a check's output shows it. Put the search and the result in `measuredBy`, for example `Grep "total(" in tests: no match`.
+- `inferred`: you read the code and reasoned to it.
+- `guessed`: you suspect it but did not confirm it. A P1 or P2 that is `guessed` is shown to the user as unverified.
+
 ## Silence
 
 An empty `findings` list is a correct answer when nothing is wrong. Do not invent findings to look useful. Do not restate the diff. Style preferences are P4 or P5.
@@ -89,6 +96,7 @@ Return only this JSON, with no prose and no code fence:
       "quote": "total += item.price",
       "scenario": "qty 2 with a 10% coupon gives twice the expected total",
       "whyNotPrevented": "no test covers coupons with qty above 1",
+      "basis": "inferred",
       "multipleFixes": false,
       "behaviorChange": false,
       "removesFeature": false,
