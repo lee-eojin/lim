@@ -1,9 +1,9 @@
 diff --git a/src/cart.js b/src/cart.js
-index ef6e4db..c9d53ac 100644
+index 8b65bac..93951f8 100644
 --- a/src/cart.js
 +++ b/src/cart.js
-@@ -5,10 +5,18 @@ export function loadItems(storage) {
-   return saved === null ? [] : JSON.parse(saved);
+@@ -9,10 +9,18 @@ export function loadItems(storage) {
+   return Array.isArray(items) ? items : [];
  }
  
 +// Switched from reduce() to a plain loop after the last review asked for it.
@@ -22,9 +22,9 @@ index ef6e4db..c9d53ac 100644
    }
    return total;
  }
-@@ -16,3 +24,19 @@ export function cartTotal(items) {
- export function cartLabel(items) {
-   return `Total: ${formatPrice(cartTotal(items))}`;
+@@ -20,3 +28,19 @@ export function cartTotal(items) {
+ export function cartLabel(storage) {
+   return `Total: ${formatPrice(cartTotal(loadItems(storage)))}`;
  }
 +
 +export function readQuantity(input) {

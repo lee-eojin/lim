@@ -2,7 +2,11 @@ import { formatPrice } from './format.js';
 
 export function loadItems(storage) {
   const saved = storage.getItem('cart');
-  return saved === null ? [] : JSON.parse(saved);
+  if (saved === null) {
+    return [];
+  }
+  const items = JSON.parse(saved);
+  return Array.isArray(items) ? items : [];
 }
 
 // Switched from reduce() to a plain loop after the last review asked for it.
@@ -21,8 +25,8 @@ export function cartTotal(items) {
   return total;
 }
 
-export function cartLabel(items) {
-  return `Total: ${formatPrice(cartTotal(items))}`;
+export function cartLabel(storage) {
+  return `Total: ${formatPrice(cartTotal(loadItems(storage)))}`;
 }
 
 export function readQuantity(input) {

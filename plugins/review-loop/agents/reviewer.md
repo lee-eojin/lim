@@ -31,7 +31,7 @@ Agents add these when they do not know the cause of a problem, and the next agen
 | `shortcut-marker` | A TODO, HACK, "temporary", or "for now" comment without an issue link | P3 |
 | `second-way` | A helper, pattern, or dependency for a job the codebase already does another way | P3 |
 
-A guard is correct when the state is legitimate: user input, a network or file read, or a value an API documents as possibly missing. A legitimate guard can still be wrong, so review what it does like any other code. For `second-way`, put the existing one's file and line in `scenario`.
+A guard is correct where a legitimate state enters the code: user input, a network or file read, or a value an API documents as possibly missing. A second check further in, for a state already handled where it entered, is still a `speculative-guard`. A legitimate guard can still be wrong, so review what it does like any other code. For `second-way`, put the existing one's file and line in `scenario`.
 
 This list adds to the rest of the review. Keep looking for every other problem too.
 
