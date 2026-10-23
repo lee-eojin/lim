@@ -102,7 +102,7 @@ Un P1 o P2 sobre un archivo que no está en el diff que revisó la ronda no se c
 
 ### Mediciones
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) enumera 75 comportamientos en seis ejes: `do`, `tell`, `ask`, `silence`, `stop` y `evidence`. Los tests unitarios en CI cubren 73 de estos comportamientos, incluidas ejecuciones contra repositorios git temporales reales y el hook de commit gate. Los otros 2 necesitan una ejecución del modelo y están planificados para `claude plugin eval`: preguntar una sola vez sobre P3 a P5 y mostrar el informe antes de cualquier pregunta.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) enumera 78 comportamientos en seis ejes: `do`, `tell`, `ask`, `silence`, `stop` y `evidence`. Los tests unitarios en CI cubren 76 de estos comportamientos, incluidas ejecuciones contra repositorios git temporales reales y el hook de commit gate. Los otros 2 necesitan una ejecución del modelo y están planificados para `claude plugin eval`: preguntar una sola vez sobre P3 a P5 y mostrar el informe antes de cualquier pregunta.
 
 review-loop revisa los pull requests del propio LIM. [#8](https://github.com/lee-eojin/lim/pull/8) muestra dos ciclos en su primera versión. Uno de estos ciclos se detuvo por un falso positivo en la comprobación de debilitamiento de tests de review-loop. Después, ese falso positivo se corrigió.
 

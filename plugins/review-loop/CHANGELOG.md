@@ -4,6 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
+- Fixed: Snapshots start from a copy of git's index, so files that did not change are not hashed or run through clean filters such as Git LFS again. On a 3,000-file repository, five `loop status` runs took 325 ms instead of 1,232 ms. The real index is never written. Files marked assume-unchanged or skip-worktree stay out of the snapshot, as they would with `git add -A`. (#7)
 - Added: The test-weakening check also stops the loop when a fix removes running test cases from a test file, adds `skip`, `only`, `skipIf`, `runIf`, `todo`, or `fails` anywhere in a test call chain, or disables a lint rule at the end of a code line. Line checks now apply only to JavaScript and TypeScript files, and strings such as test fixtures still do not trigger them. (#6)
 - Added: You can ask Claude to confirm every P2, or every P1 and P2, before anything is fixed. The setting is per repository (`loop confirm --severity P2|all`, `--off` to turn it off). (#4)
 - Fixed: The README now says that a P1 or P2 about a file outside the reviewed diff is not fixed in the loop. It comes to you at the end, marked as outside the reviewed diff, with its severity kept. (#15)

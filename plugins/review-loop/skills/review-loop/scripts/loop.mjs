@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -382,10 +382,25 @@ function headTree(root) {
   }
 }
 
+function copyRealIndex(repository, target) {
+  try {
+    const realIndex = path.resolve(repository.root, git(['rev-parse', '--git-path', 'index'], { cwd: repository.root }).trim());
+    copyFileSync(realIndex, target);
+    const { atime, mtime } = statSync(realIndex);
+    utimesSync(target, atime, mtime);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function snapshotTree(repository) {
-  const env = { ...process.env, GIT_INDEX_FILE: repository.file('snapshot.index') };
-  const baseTree = headTree(repository.root);
-  git(['read-tree', ...(baseTree === EMPTY_TREE ? ['--empty'] : [baseTree])], { cwd: repository.root, env });
+  const index = repository.file('snapshot.index');
+  const env = { ...process.env, GIT_INDEX_FILE: index };
+  if (!copyRealIndex(repository, index)) {
+    const baseTree = headTree(repository.root);
+    git(['read-tree', ...(baseTree === EMPTY_TREE ? ['--empty'] : [baseTree])], { cwd: repository.root, env });
+  }
   git(['add', '-A'], { cwd: repository.root, env });
   return git(['write-tree'], { cwd: repository.root, env }).trim();
 }

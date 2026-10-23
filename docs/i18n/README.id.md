@@ -102,7 +102,7 @@ P1 atau P2 tentang file yang tidak ada di diff yang di-review pada ronde itu tid
 
 ### Terukur
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 75 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 73 di antaranya. Unit test ini termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 2 perilaku sisanya membutuhkan eksekusi dengan model dan direncanakan untuk `claude plugin eval`: bertanya tentang P3 sampai P5 satu kali dan menampilkan laporan sebelum pertanyaan apa pun.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 78 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 76 di antaranya. Unit test ini termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 2 perilaku sisanya membutuhkan eksekusi dengan model dan direncanakan untuk `claude plugin eval`: bertanya tentang P3 sampai P5 satu kali dan menampilkan laporan sebelum pertanyaan apa pun.
 
 review-loop me-review pull request milik LIM sendiri. [#8](https://github.com/lee-eojin/lim/pull/8) menunjukkan dua loop pada versi pertama review-loop. Salah satunya berhenti karena false positive pada pemeriksaan test yang dilemahkan milik review-loop sendiri. Kesalahan ini kemudian diperbaiki.
 
