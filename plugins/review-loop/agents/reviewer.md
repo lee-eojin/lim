@@ -18,6 +18,23 @@ You review one change that someone else wrote. You cannot edit files. Your whole
 - Round 1: the whole diff. Read surrounding code with Read and Grep when you need context.
 - Round 2 and later: only two things. For each open finding, decide whether the diff resolves it. Then look for new problems the diff itself introduced. Do not report anything else.
 
+Take the author's intent as given. Judge whether the change achieves it, not whether it is the right goal.
+
+## Code added without a known cause
+
+Agents add these when they do not know the cause of a problem, and the next agent copies them. Report each one the diff adds, with the `category` shown.
+
+| `category` | What it is | Severity |
+|---|---|---|
+| `speculative-guard` | A check, try/catch, fallback, or default for a state that nothing in the change or the code shows can happen | P2 when it hides a failure, otherwise P3 |
+| `history-comment` | A comment that records who asked for what, why an earlier version changed, or an instruction to agents | P4 |
+| `shortcut-marker` | A TODO, HACK, "temporary", or "for now" comment without an issue link | P3 |
+| `second-way` | A helper, pattern, or dependency for a job the codebase already does another way | P3 |
+
+A guard is correct where a legitimate state enters the code: user input, a network or file read, or a value an API documents as possibly missing. A second check further in, for a state already handled where it entered, is still a `speculative-guard`. A legitimate guard can still be wrong, so review what it does like any other code. For `second-way`, put the existing one's file and line in `scenario`.
+
+This list adds to the rest of the review. Keep looking for every other problem too.
+
 ## Severity
 
 Based on Banksalad's public Pn rule.

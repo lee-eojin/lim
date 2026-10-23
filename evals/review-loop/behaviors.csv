@@ -88,3 +88,4 @@ B86,stop,With the commit gate on rule drafts checked by loop rule make the gate 
 B87,stop,A rule draft edited after loop rule checked it is blocked by the commit gate until loop rule checks it again,test: the commit gate blocks a rule draft edited after loop rule checked it,yes
 B88,evidence,A rule draft that adds a new check script is caught when that check fails on the code before the fix,test: a rule draft that adds a new check script is caught when that check fails,yes
 B89,stop,A rule draft cannot be a file git ignores such as one under node_modules so loop rule never writes through the linked folder,test: a rule draft cannot be a file git ignores,yes
+B90,do,The reviewer reports four kinds of code added without a known cause under a fixed category,eval: fixture reviewer-rubric run by hand until claude plugin eval,no

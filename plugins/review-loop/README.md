@@ -20,7 +20,7 @@ If a session ends in the middle of a loop, running it again offers to continue w
 ## How it works
 
 1. Runs your project's typecheck, lint, and test scripts from `package.json`. A project without them is reviewed from the diff alone.
-2. A fresh reviewer subagent reads the diff and labels findings P1 to P5. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it.
+2. A fresh reviewer subagent reads the diff and labels findings P1 to P5. It also reports code that agents add when they do not know the cause: guards for states nothing shows can happen, comments about history, TODOs without an issue link, and a second way to do a job the codebase already does. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it.
 3. Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one fix, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first.
 4. A new reviewer checks only the fixes and the open findings. Up to 3 rounds.
 5. A script, not the model, stops the loop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
@@ -63,7 +63,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 89 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 87 of them. The other 2 (asking about P3 to P5 once, and showing the report before any question) need a model run and are planned for `claude plugin eval`.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 90 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 87 of them. The other 3 (asking about P3 to P5 once, showing the report before any question, and reporting code added without a known cause) need a model run and are planned for `claude plugin eval`.
 
 ## Data
 
