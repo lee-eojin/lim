@@ -209,7 +209,9 @@ export function renderReport(view) {
     if (items.length) lines.push('', title, ...items.flatMap(describe));
   };
   const outOfScope = cards.filter((card) => card.outOfScope && card.round === round);
-  section('Resolved since last round:', resolved, (item) => [`- ${item.id} [${item.severity}] ${item.title}`]);
+  section('Resolved since last round:', resolved, (item) => [
+    `- ${item.id} [${item.severity}] ${item.title}`, ...describeRegressionTest(item, checks),
+  ]);
   section('Fixing next:', fix, describeFinding);
   section('Needs your call on how to fix:', ask, describeFinding);
   section('Still open (P1 or P2):', stillOpen, describeFinding);
@@ -760,8 +762,8 @@ function hashFile(repository, file) {
 }
 
 function checkedRuleDrafts(repository, state) {
-  return [...state.cards, ...state.open]
-    .flatMap((item) => Object.entries(item.rule?.hashes ?? {}))
+  return [...state.cards, ...state.open, ...state.resolved]
+    .flatMap((item) => [item.rule, item.regression].flatMap((proven) => Object.entries(proven?.hashes ?? {})))
     .filter(([draft, hash]) => hash && hashFile(repository, draft) === hash)
     .map(([draft]) => draft);
 }
@@ -794,12 +796,52 @@ function checkRule(repository, beforeTree, drafts) {
   }
 }
 
+function isBeingFixed(state, item) {
+  if (!BLOCKING.has(item.severity) || item.fromChecks || !normalize(item.scenario)) return false;
+  return (state.awaiting === 'fix' && state.open.includes(item)) || item.decision === 'once';
+}
+
+function proveRegression({ proof, caughtBy }) {
+  if (proof !== 'caught' || caughtBy.includes('test')) return { proof };
+  return { proof: 'unproven', reason: `only ${caughtBy.join(' and ')} failed with the draft on the code before the fix, the test check did not fail` };
+}
+
+function describeRegressionTest(item, checks) {
+  if (!BLOCKING.has(item.severity) || item.fromChecks) return [];
+  const { drafts, proof, reason } = item.regression ?? {};
+  if (drafts) {
+    const test = checks?.find((check) => check.name === 'test');
+    const before = reason ? `${proof}, ${reason}` : proof;
+    return [`  test: ${drafts.join(', ')} (before the fix: ${before}, after: ${test ? checkOutcome(test) : 'not run'})`];
+  }
+  const hasTestScript = (checks ?? []).some((check) => check.name === 'test');
+  return [`  no test: ${reason ?? (hasTestScript ? 'none written and no reason given' : 'the project has no test script')}`];
+}
+
+function recordNoTest(repository, state, item, reason) {
+  if (typeof reason !== 'string' || !normalize(reason)) throw new Error('give the reason after --no-test');
+  item.regression = { reason: normalize(reason) };
+  saveState(repository, state);
+  logEvent(repository, { event: 'regression', ...summarize(item), fingerprint: item.fingerprint, reason: item.regression.reason });
+  return { id: item.id, kind: 'regression', noTest: item.regression.reason };
+}
+
 function rule(cwd, options) {
   const repository = openRepository(cwd);
   const state = loadState(repository);
   const item = [...state.cards, ...state.open].find((candidate) => candidate.id === options.id);
   if (!item) throw new Error(`no finding with id ${options.id}`);
-  if (item.decision !== 'rule') throw new Error(`${item.id} is not marked as a rule, run decide --choice rule first`);
+  const kind = item.decision === 'rule' ? 'rule' : 'regression';
+  if (kind === 'regression' && !isBeingFixed(state, item)) {
+    throw new Error(`${item.id} is not marked as a rule, and it is not a P1 or P2 with a scenario that is being fixed, run decide --choice rule first`);
+  }
+  if (options['no-test'] !== undefined) {
+    if (kind === 'rule') throw new Error(`${item.id} is marked as a rule, --no-test is for a P1 or P2 fixed without a regression test`);
+    return recordNoTest(repository, state, item, options['no-test']);
+  }
+  if (kind === 'regression' && !detectChecks(repository.root).some((check) => check.name === 'test')) {
+    throw new Error('package.json has no test script, so a regression test would not run, record that with --no-test');
+  }
   const drafts = [options.draft].flat().filter((draft) => typeof draft === 'string').map((draft) => repositoryPath(repository.root, draft));
   if (!drafts.length) throw new Error('name the rule draft files with --draft <path>');
   for (const draft of drafts) {
@@ -808,16 +850,18 @@ function rule(cwd, options) {
     if (!existsSync(path.join(repository.root, draft))) throw new Error(`${draft} does not exist`);
     if (isIgnored(repository, draft)) throw new Error(`${draft} is ignored by git, so it would not be committed with the rule`);
   }
-  const beforeTree = item.rule?.beforeTree ?? state.reviewedTree;
-  const { proof, caughtBy, withDrafts, withoutDrafts } = checkRule(repository, beforeTree, drafts);
+  const beforeTree = item[kind]?.beforeTree ?? state.reviewedTree;
+  const checked = checkRule(repository, beforeTree, drafts);
+  const { caughtBy, withDrafts, withoutDrafts } = checked;
+  const { proof, reason } = kind === 'regression' ? proveRegression(checked) : checked;
   const hashes = Object.fromEntries(drafts.map((draft) => [draft, hashFile(repository, draft)]));
-  item.rule = { beforeTree, drafts, hashes, proof };
+  item[kind] = { beforeTree, drafts, hashes, proof, caughtBy, reason };
   saveState(repository, state);
   logEvent(repository, {
-    event: 'rule', ...summarize(item), category: item.category, quote: item.quote, scenario: item.scenario,
-    fingerprint: item.fingerprint, drafts, proof, caughtBy,
+    event: kind, ...summarize(item), category: item.category, quote: item.quote, scenario: item.scenario,
+    fingerprint: item.fingerprint, drafts, proof, caughtBy, reason,
   });
-  return { id: item.id, proof, caughtBy, withDrafts, withoutDrafts };
+  return { id: item.id, kind, proof, reason, caughtBy, withDrafts, withoutDrafts };
 }
 
 function rerunChecks(cwd) {

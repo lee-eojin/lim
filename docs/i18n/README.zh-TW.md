@@ -49,7 +49,7 @@
 
 1. **檢查。** review-loop 執行你的 `package.json` 中的 `typecheck`、`lint` 和 `test` 腳本。如果某個檢查失敗，或者 `package.json` 不是有效的 JSON，review-loop 會將其記為一個 P1 發現項目。如果某個檢查的執行時間超過時間限制，review-loop 會將其回報為「未驗證」，而不是「失敗」。
 2. **全新審查。** 一個獨立的審查者 agent 會收到 diff 和一行摘要，該摘要說明你想要達成什麼。審查者不會收到 Claude 對這次變更的推理。審查者可以讀取周圍的程式碼來了解脈絡。審查者把發現項目標記為 P1 到 P5。審查者還會回報 agent 在不了解原因時加入的程式碼：針對沒有證據顯示會發生的狀態所加的防禦檢查、描述歷史的註解、沒有 issue 連結的 TODO，以及用第二種方式完成程式碼庫已經在做的工作。P1 和 P2 需要證據：確切的程式碼行、一個失敗情境，以及為什麼現有程式碼沒有防止該問題。沒有證據的主張會以「未驗證」的狀態顯示給你。
-3. **修正。** Claude 先說明它要修正什麼，然後修正 P1 和 P2。如果某個修正需要設計決策（修正方式不只一種、使用者看得到的行為變化、移除功能、修改測試），由你先做選擇。如果想在任何變更之前看到每個 P2（或每個 P1 和 P2），請要求 Claude 先向你確認。
+3. **修正。** Claude 先說明它要修正什麼，然後修正 P1 和 P2。如果某個修正需要設計決策（修正方式不只一種、使用者看得到的行為變化、移除功能、修改測試），由你先做選擇。如果想在任何變更之前看到每個 P2（或每個 P1 和 P2），請要求 Claude 先向你確認。如果你的專案有 test 腳本，Claude 還會根據它修正的每個 P1 和 P2 的失敗情境撰寫回歸測試，review-loop 會證明該測試在修正之前的程式碼上失敗。
 4. **再次審查。** 一個新的審查者只檢查本輪的修正和仍未解決的發現項目。最多 3 輪。
 5. **停止。** 由腳本而不是模型決定何時停止。停止條件：沒有剩餘的 P1 或 P2、達到輪數上限、某個發現項目經過兩次修正後仍然存在、某個已解決的發現項目再次出現、P1 + P2 的數量不再減少，或者某個修正削弱了測試或檢查。
 6. **決定。** 其餘發現項目由你一次決定：所有 P3 到 P5，以及仍未解決、無法驗證或針對已審查 diff 之外檔案的 P1 和 P2。對每一個項目，你可以選擇：維持原樣、僅本次修正，或者設為規則。規則是 Claude 隨修正一起撰寫的 lint 規則或測試。review-loop 會在修正之前的程式碼上執行你的檢查，以證明該規則能抓到這個問題。你選擇維持原樣的發現項目，在被引用的那一行改變之前，後續審查不會再次詢問，而是由報告顯示其數量。
@@ -64,7 +64,7 @@
 | 沒有審查，或者有審查未涵蓋的檔案發生了變更 | 阻擋提交，並要求 Claude 執行審查 |
 | 審查迴圈正在進行，或者還有待定的決定 | 阻擋提交 |
 | 審查已通過 | 提交前詢問你。如果你在此儲存庫中委派了提交，則允許提交 |
-| 審查後只有已審查的檔案或經 `loop rule` 檢查的規則草稿發生了變更 | 詢問你 |
+| 審查後只有已審查的檔案或經 `loop rule` 檢查的規則草稿和回歸測試發生了變更 | 詢問你 |
 | `git push` 或強制推送（force push） | 即使你已委派提交，也一定詢問你 |
 | 帶有 `--no-verify` 的提交 | 即使你已委派提交，也詢問你。未通過審查的提交仍會被阻擋 |
 | 在關卡無法辨識的資料夾中提交（例如 `cd "$(...)"` 或不存在的路徑） | 如果啟動 Claude Code 的儲存庫開啟了關卡，即使你已委派提交，也詢問你 |
@@ -79,6 +79,7 @@ Checks: test passed
 
 Resolved since last round:
 - F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal
+  test: src/coupon.test.js (before the fix: caught, after: passed)
 
 Trend (P1 + P2): 1 -> 0
 Stopped: no P1 or P2 left in this change
@@ -101,7 +102,7 @@ Left for you: P3 1, P4 0, P5 0
 
 ### 測量結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 101 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 97 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 4 個行為需要實際執行模型，預計使用 `claude plugin eval` 測試：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 109 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 104 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 5 個行為需要實際執行模型，預計使用 `claude plugin eval` 測試：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture。
 
 review-loop 審查 LIM 自己的 pull request。[#8](https://github.com/lee-eojin/lim/pull/8) 展示了 review-loop 第一個版本上執行的兩次迴圈。其中一次停止是由 review-loop 自己的測試削弱檢查中的誤判造成的，這個誤判之後已經修正。
 
@@ -119,7 +120,7 @@ review-loop 本身不會發出任何網路請求。Claude 和審查者讀取 dif
 - 提交關卡只檢查 Claude 透過它的 Bash 工具執行的指令。你在自己的終端機中輸入的提交不會被檢查。`git ci` 這類 git 別名也不會被辨識。
 - 如果你在不是儲存庫的資料夾中啟動 Claude Code，關卡無法檢查它辨識不出儲存庫的提交，例如 `cd "$(...)"` 之後的提交。
 - review-loop 審查 `git add -A` 會包含的所有內容，而不是你手動挑選的一組已暫存變更。
-- 規則在一個暫存副本中檢查。該副本包含你已追蹤的檔案，以及一個指向根目錄 `node_modules` 的連結。其他被忽略的檔案（例如 `.env` 或巢狀的 `node_modules`）不在其中，因此依賴這些檔案的檢查會把規則回報為未證實，或因錯誤的原因被抓到。Claude 會讀取失敗訊息來判斷是哪一種。
+- 規則和回歸測試在一個暫存副本中檢查。該副本包含你已追蹤的檔案，以及一個指向根目錄 `node_modules` 的連結。其他被忽略的檔案（例如 `.env` 或巢狀的 `node_modules`）不在其中，因此依賴這些檔案的檢查會把規則或測試回報為未證實，或因錯誤的原因被抓到。Claude 會讀取失敗訊息來判斷是哪一種。
 
 ## 常見問題
 

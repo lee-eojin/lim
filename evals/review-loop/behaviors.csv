@@ -100,3 +100,11 @@ B98,stop,A failing check stays a P1 finding even after the user kept it,test: a 
 B99,ask,A kept finding raised again at a higher severity than the one kept becomes a card again,test: a kept finding raised again at a higher severity is a card again,yes
 B100,ask,A kept finding becomes a card again when its quoted text appears more than once in the current file,test: a kept finding is a card again when its quoted line appears twice in the file,yes
 B101,silence,A kept finding whose quoted line the diff removed is still treated as kept in the next review,test: a kept finding whose quoted line the diff removed stays kept,yes
+B102,evidence,A regression test for a P1 or P2 being fixed is caught when it fails on the code before the fix and passes there without it,test: a regression test that fails on the code before the fix is caught,yes
+B103,tell,The round report lists each resolved P1 or P2 with its regression test and whether it failed before the fix and passed after,test: the report lists a fixed P1 or P2 with its regression test and proof,yes
+B104,tell,The round report says why a resolved P1 or P2 has no regression test: the reason Claude recorded or no test script,test: the report says why a fixed P1 or P2 has no regression test,yes
+B105,stop,loop rule refuses a regression test when package.json has no test script and refuses --no-test without a reason,test: a regression test needs a test script,yes
+B106,stop,loop rule takes a regression test only for a P1 or P2 with a scenario while it is being fixed and not for P3 to P5 or a failing check,test: a regression test is only for a P1 or P2 with a scenario while it is being fixed,yes
+B107,stop,With the commit gate on a regression test proven after the loop stopped makes the gate ask until it is edited,test: the commit gate asks for a regression test proven after the loop stopped and blocks it once edited,yes
+B108,do,Claude writes a regression test from the scenario of each fixed P1 or P2 without asking when the project has a test script,eval: planned for claude plugin eval,no
+B109,evidence,A regression test that fails only lint or typecheck on the code before the fix is unproven and not caught because only the test check proves it,test: a regression test that fails only lint on the code before the fix is not caught,yes

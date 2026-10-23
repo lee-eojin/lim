@@ -47,7 +47,7 @@ Before you commit, review-loop runs a short loop and stops on its own.
 
 1. **Checks.** It runs the `typecheck`, `lint`, and `test` scripts from your `package.json`. A failing check, or a `package.json` that is not valid JSON, becomes a P1 finding. A check that runs past its time limit is reported as "not verified" instead of failing.
 2. **Fresh review.** A separate reviewer agent gets the diff and a one-line summary of what you wanted, but not Claude's reasoning about the change. It can read surrounding code for context. It labels findings P1 to P5. It also reports code that agents add when they do not know the cause: guards for states nothing shows can happen, comments about history, TODOs without an issue link, and a second way to do a job the codebase already does. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it. Claims without evidence are shown to you as unverified.
-3. **Fix.** Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one way to fix it, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first.
+3. **Fix.** Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one way to fix it, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first. If your project has a test script, Claude also writes a regression test from the failure scenario of each P1 or P2 it fixes, and review-loop shows that the test fails on the code from before the fix.
 4. **Re-review.** A new reviewer checks only the fixes and the findings still open. Up to 3 rounds.
 5. **Stop.** A script, not the model, decides when to stop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
 6. **Decide.** You decide the rest once: every P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff. For each one you choose: keep as is, fix this time only, or make it a rule. A rule is a lint rule or a test that Claude writes next to the fix. review-loop runs your checks on the code from before the fix to show that the rule catches it. A finding you keep as is is not asked about again in a later review until its quoted line changes, and the report counts it instead.
@@ -62,7 +62,7 @@ The commit gate is a hook that is off until you turn it on in a repository. At t
 | No review, or files changed that the review did not cover | Blocks the commit and tells Claude to run the review |
 | A review loop is in progress, or decisions are still pending | Blocks the commit |
 | The review passed | Asks you before committing, or allows it if you delegated commits in this repository |
-| Only reviewed files, or rule drafts that `loop rule` checked, changed after the review | Asks you |
+| Only reviewed files, or rule drafts and regression tests that `loop rule` checked, changed after the review | Asks you |
 | `git push` or a force push | Always asks, even with delegation |
 | A commit with `--no-verify` | Asks, even with delegation, and still blocks a commit without a passing review |
 | A commit in a folder the gate cannot read, such as `cd "$(...)"` or a path that does not exist | Asks you, even with delegation, if the gate is on in the repository where you started Claude Code |
@@ -77,6 +77,7 @@ Checks: test passed
 
 Resolved since last round:
 - F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal
+  test: src/coupon.test.js (before the fix: caught, after: passed)
 
 Trend (P1 + P2): 1 -> 0
 Stopped: no P1 or P2 left in this change
@@ -99,7 +100,7 @@ A P1 or P2 about a file that is not in the diff the round reviewed is not fixed 
 
 ### Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 101 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 97 of them, including runs against real temporary git repositories and the commit gate hook. The other 4 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 109 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 104 of them, including runs against real temporary git repositories and the commit gate hook. The other 5 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
 
 review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed.
 
@@ -117,7 +118,7 @@ review-loop makes no network calls of its own. Claude and the reviewer read the 
 - The commit gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked, and git aliases such as `git ci` are not recognized.
 - If you start Claude Code in a folder that is not a repository, the gate cannot check a commit whose repository it cannot tell, for example after `cd "$(...)"`.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
-- A rule is checked in a temporary copy that has your tracked files and a link to the root `node_modules`. Other ignored files, such as `.env` or a nested `node_modules`, are not there, so a check that needs them reports the rule as unproven or caught for the wrong reason. Claude reads the failure to tell which.
+- A rule or a regression test is checked in a temporary copy that has your tracked files and a link to the root `node_modules`. Other ignored files, such as `.env` or a nested `node_modules`, are not there, so a check that needs them reports it as unproven or caught for the wrong reason. Claude reads the failure to tell which.
 
 ## FAQ
 

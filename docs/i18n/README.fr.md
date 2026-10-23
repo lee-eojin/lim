@@ -49,7 +49,7 @@ Avant votre commit, review-loop exécute une boucle courte et s'arrête sans vot
 
 1. **Vérifications.** review-loop exécute les scripts `typecheck`, `lint` et `test` de votre `package.json`. Si une vérification échoue, ou si votre `package.json` n'est pas un JSON valide, le résultat est un constat P1. Si une vérification dépasse sa limite de temps, review-loop signale cette vérification comme "non vérifiée" et non comme un échec.
 2. **Nouvelle revue.** Un agent réviseur séparé reçoit le diff et un résumé d'une ligne de ce que vous vouliez. Le réviseur ne reçoit pas le raisonnement de Claude sur la modification. Le réviseur peut lire le code voisin pour comprendre le contexte. Le réviseur classe les constats de P1 à P5. Le réviseur signale aussi le code que les agents ajoutent quand ils ne connaissent pas la cause : des gardes pour des états dont rien ne montre qu'ils peuvent se produire, des commentaires sur l'historique, des TODO sans lien vers une issue et une deuxième façon de faire une tâche que la base de code fait déjà. P1 et P2 exigent une preuve : la ligne exacte, un scénario d'échec et la raison pour laquelle rien dans le code n'empêche déjà le problème. Si une affirmation n'a pas de preuve, review-loop vous la montre comme non vérifiée.
-3. **Correction.** Claude indique ce qu'il va corriger, puis corrige P1 et P2. Si une correction exige un choix de conception (plus d'une façon de corriger, un changement de comportement visible, la suppression d'une fonctionnalité, la modification de tests), vous choisissez d'abord. Pour voir chaque P2 (ou chaque P1 et P2) avant toute modification, demandez à Claude de vous les faire confirmer d'abord.
+3. **Correction.** Claude indique ce qu'il va corriger, puis corrige P1 et P2. Si une correction exige un choix de conception (plus d'une façon de corriger, un changement de comportement visible, la suppression d'une fonctionnalité, la modification de tests), vous choisissez d'abord. Pour voir chaque P2 (ou chaque P1 et P2) avant toute modification, demandez à Claude de vous les faire confirmer d'abord. Si votre projet a un script de test, Claude écrit aussi un test de régression à partir du scénario d'échec de chaque P1 ou P2 qu'il corrige, et review-loop montre que le test échoue sur le code d'avant la correction.
 4. **Revue des corrections.** Un nouveau réviseur vérifie uniquement les corrections et les constats encore ouverts. La boucle compte au maximum 3 tours.
 5. **Arrêt.** Un script, et non le modèle, décide quand la boucle s'arrête. La boucle s'arrête dans ces cas : il ne reste ni P1 ni P2, la limite de tours est atteinte, un constat reste ouvert après deux corrections, un constat résolu réapparaît, P1 + P2 cesse de diminuer, ou une correction affaiblit les tests ou les vérifications.
 6. **Décision.** Vous décidez une seule fois pour le reste : tous les P3 à P5, et chaque P1 ou P2 encore ouvert, non vérifié ou qui porte sur un fichier hors du diff revu. Pour chaque constat, vous choisissez : garder tel quel, corriger cette fois uniquement ou en faire une règle. Une règle est une règle de lint ou un test que Claude écrit à côté de la correction. review-loop exécute vos vérifications sur le code d'avant la correction pour montrer que la règle détecte le problème. Un constat gardé tel quel n'est plus redemandé dans une revue suivante tant que la ligne citée ne change pas, et le rapport le compte à la place.
@@ -64,7 +64,7 @@ Le commit gate est un hook. Ce hook est désactivé tant que vous ne l'activez p
 | Aucune revue, ou des fichiers modifiés que la revue n'a pas couverts | Bloque le commit et demande à Claude d'exécuter la revue |
 | Une boucle de revue est en cours, ou des décisions sont encore en attente | Bloque le commit |
 | La revue est validée | Vous demande avant le commit, ou autorise le commit si vous avez délégué les commits dans ce dépôt |
-| Après la revue, seuls des fichiers déjà revus ou des brouillons de règles vérifiés par `loop rule` ont changé | Vous demande |
+| Après la revue, seuls des fichiers déjà revus ou des brouillons de règles et des tests de régression vérifiés par `loop rule` ont changé | Vous demande |
 | `git push` ou un force push | Demande toujours, même avec la délégation |
 | Un commit avec `--no-verify` | Demande, même avec la délégation, et bloque toujours un commit sans revue validée |
 | Un commit dans un dossier que le gate ne peut pas lire, comme `cd "$(...)"` ou un chemin qui n'existe pas | Demande, même avec la délégation, si le gate est activé dans le dépôt où vous avez lancé Claude Code |
@@ -79,6 +79,7 @@ Checks: test passed
 
 Resolved since last round:
 - F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal
+  test: src/coupon.test.js (before the fix: caught, after: passed)
 
 Trend (P1 + P2): 1 -> 0
 Stopped: no P1 or P2 left in this change
@@ -101,7 +102,7 @@ Un P1 ou P2 qui porte sur un fichier absent du diff revu par le tour n'est pas c
 
 ### Mesures
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liste 101 comportements sur six axes : `do`, `tell`, `ask`, `silence`, `stop` et `evidence`. Les tests unitaires de la CI couvrent 97 de ces comportements, y compris des exécutions sur de vrais dépôts git temporaires et le hook de commit gate. Les 4 autres exigent une exécution du modèle et sont prévus pour `claude plugin eval` : demander une seule fois pour P3 à P5, montrer le rapport avant toute question, garder chaque étape dans la liste de tâches avec une raison pour chaque étape sautée et signaler le code ajouté sans cause connue. Le dernier a une fixture dans [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liste 109 comportements sur six axes : `do`, `tell`, `ask`, `silence`, `stop` et `evidence`. Les tests unitaires de la CI couvrent 104 de ces comportements, y compris des exécutions sur de vrais dépôts git temporaires et le hook de commit gate. Les 5 autres exigent une exécution du modèle et sont prévus pour `claude plugin eval` : demander une seule fois pour P3 à P5, montrer le rapport avant toute question, garder chaque étape dans la liste de tâches avec une raison pour chaque étape sautée, écrire un test de régression pour chaque P1 ou P2 corrigé et signaler le code ajouté sans cause connue. Le dernier a une fixture dans [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
 
 review-loop fait la revue des pull requests de LIM lui-même. [#8](https://github.com/lee-eojin/lim/pull/8) montre deux boucles sur la première version de review-loop. Une de ces boucles s'est arrêtée à cause d'un faux positif dans la vérification d'affaiblissement des tests de review-loop. Ce faux positif a ensuite été corrigé.
 
@@ -119,7 +120,7 @@ review-loop ne fait aucun appel réseau par lui-même. Claude et le réviseur li
 - Le commit gate vérifie uniquement les commandes que Claude exécute avec son outil Bash. Les commits que vous tapez dans votre propre terminal ne sont pas vérifiés. Les alias git comme `git ci` ne sont pas reconnus.
 - Si vous lancez Claude Code dans un dossier qui n'est pas un dépôt, le gate ne peut pas vérifier un commit dont il ne peut pas identifier le dépôt, par exemple après `cd "$(...)"`.
 - review-loop fait la revue de tout ce que `git add -A` inclurait, et non d'un ensemble de modifications en stage que vous choisissez à la main.
-- Une règle est vérifiée dans une copie temporaire qui contient vos fichiers suivis par git et un lien vers le `node_modules` à la racine. Les autres fichiers ignorés, comme `.env` ou un `node_modules` imbriqué, n'y sont pas. Une vérification qui en a besoin signale donc la règle comme non prouvée ou comme détectée pour une mauvaise raison. Claude lit l'échec pour savoir de quel cas il s'agit.
+- Une règle ou un test de régression est vérifié dans une copie temporaire qui contient vos fichiers suivis par git et un lien vers le `node_modules` à la racine. Les autres fichiers ignorés, comme `.env` ou un `node_modules` imbriqué, n'y sont pas. Une vérification qui en a besoin le signale donc comme non prouvé ou comme détecté pour une mauvaise raison. Claude lit l'échec pour savoir de quel cas il s'agit.
 
 ## Questions fréquentes
 

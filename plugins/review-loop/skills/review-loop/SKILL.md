@@ -26,9 +26,9 @@ Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs <command>` from 
 Run `loop start`. If `status` is `nothing-to-review`, tell the user and stop.
 
 If `status` is `in-progress`, a loop from an earlier session is unfinished. Show `report` if there is one, say which round it is in and what it is waiting for, and ask once whether to continue or start over. To start over, run `loop start --fresh`. To continue:
-- `awaiting: review`: if `treeMatchesReview` is false, the diff is out of date, so start over. Otherwise, if `checksFinished` is false, run `loop checks`. Then go to step 2 with `diffPath` and `openPath`.
-- `awaiting: fix`: go to step 4 with `fix` and `ask`.
-- `awaiting: decisions`: go to step 5 with `stillOpen` and `cards`.
+- `awaiting: review`: if `treeMatchesReview` is false, the diff is out of date, so start over. Otherwise, if `checksFinished` is false, run `loop checks`. Then go to section 2 (Review) with `diffPath` and `openPath`.
+- `awaiting: fix`: go to section 4 (Continue or stop) with `fix` and `ask`.
+- `awaiting: decisions`: go to section 5 (Decide) with `stillOpen` and `cards`.
 
 It reviews everything `git add -A` would commit and runs the project's typecheck, lint, and test scripts if `package.json` has them. A failing check, or a `package.json` that is not valid JSON, becomes a P1 finding. A check that runs past its time limit is reported as "timed out (not verified)" and does not become a finding.
 
@@ -61,9 +61,14 @@ When `decision` is `continue`:
 1. Say in one line what you will fix, for example "Fixing F-1 and F-3, then re-reviewing."
 2. If `ask` is not empty, ask once with AskUserQuestion before fixing: one question per finding, options are concrete fixes, your recommendation first. These are findings where the fix needs a design choice, a first fix did not work, or the user asked to confirm that severity before any fix.
 3. Fix the `fix` and `ask` findings.
-4. Run `loop next`. If `status` is `stopped`, show `report` and go to step 5. Otherwise go back to step 2.
+4. Prove each P1 or P2 fix with a regression test, without asking. Skip findings with category `checks`: the failing check is their test. If `package.json` has no test script, skip this step; the report says so.
+   - Write a test from the finding's `scenario`, in a test file, never in the finding's own file. It must fail on the old code for the reason the scenario gives.
+   - Run `loop rule --id <id> --draft <test file>` with a Bash timeout of 600000 ms. It runs the tests on the code before the fix, with and without the test. The checks on the fixed code run with `loop next`.
+   - `caught`: read `withDrafts[].tail` and confirm the failure is the test's own assertion. `missed`: revise the test once and run `loop rule` again. `unproven`: keep the test; the report shows it. If its `reason` says only lint or typecheck failed and the test did not, treat it like `missed`.
+   - If the scenario cannot be tested cheaply (it needs a network, a browser, real time, or a large setup), or the test is still `missed`, delete the test and run `loop rule --id <id> --no-test "<reason>"`.
+5. Run `loop next`. If `status` is `stopped`, show `report` and go to section 5 (Decide). Otherwise go back to section 2 (Review).
 
-When `decision` is `stop`, go to step 5.
+When `decision` is `stop`, go to section 5 (Decide).
 
 ## 5. Decide
 
@@ -78,7 +83,7 @@ Mark the option you recommend and give one reason and the cost of undoing it in 
 
 Record every answer with `loop decide --id <id> --choice keep|once|rule`. If the result has `ruleSkipped`, the choice was recorded as `once`: tell the user why in one line and do not draft a rule.
 
-Apply the "fix this time" and "make it a rule" fixes.
+Apply the "fix this time" and "make it a rule" fixes. Prove each P1 or P2 fixed this time only with a regression test, as in the regression test sub-step of section 4.
 
 For each "make it a rule" finding, draft the rule before running checks:
 1. Search the project's lint config and tests for a rule that already covers the finding. If one is on and still did not catch it, say so: the rule does not run, and a new rule would not help. Ask how to proceed.
@@ -88,16 +93,16 @@ For each "make it a rule" finding, draft the rule before running checks:
    - `missed`: the draft did not fail on the old code. Revise it once and run `loop rule` again. If it is still `missed`, ask whether to keep the draft or drop it.
    - `unproven`: a check timed out, or it also failed without the drafts. Say which, and ask whether to keep the draft.
 
-Then run `loop checks` on the fixed code. If a check fails, say which one and ask whether to continue.
+Then run `loop checks` on the fixed code. If a check fails, say which one and ask whether to continue. List each P1 or P2 fixed in this section with its test, its `proof`, and whether `loop checks` passed, or the reason it has no test.
 
 ## 6. Commit
 
 Run `loop status`.
 - Compare your todo list with `doneSteps`, the steps the script saw done (it cannot see commit). Steps marked `skip: <reason>` are not in it and need nothing. If a step you marked done without `skip:` is missing from it, do that step now or mark it `skip: <reason>` and tell the user why.
-- If `pendingDecisions` is not empty, go back to step 5 for those ids.
+- If `pendingDecisions` is not empty, go back to section 5 (Decide) for those ids.
 - If `gate.configured` is false, ask once whether to turn on the commit gate in this repository: "Turn on" or "Not in this repo". Run `loop gate --on` or `loop gate --off`. With the gate on, a hook blocks Claude's commits until a review passes and asks before each commit unless commits are delegated.
 - If `notVerifiedChecks` is not empty, say which checks timed out and were not verified, and ask whether the user wants to run them before committing.
-- If `treeMatchesReview` is false, first list what changed after the last review, such as the fixes from step 5 or a fix that stopped the loop for weakening a test.
+- If `treeMatchesReview` is false, first list what changed after the last review, such as the fixes from section 5 (Decide) or a fix that stopped the loop for weakening a test.
 - Never commit while a P1 or P2 is open unless the user chose "Keep as is" for it.
 - If `rules` is not empty, list each rule's drafts and `proof`, and name the rules in the commit message. The drafts go into the same commit as the change. With the gate on, files that `loop rule` checked count as known while their content is unchanged, so the gate asks instead of blocking. If you edit a draft after `loop rule`, run `loop rule` again; otherwise the gate blocks it like any file the review did not cover.
 - If `delegation.scope` is `repo` and nothing above needs the user, commit and say so in one line.

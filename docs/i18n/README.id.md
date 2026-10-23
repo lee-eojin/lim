@@ -49,7 +49,7 @@ Sebelum kamu commit, review-loop menjalankan satu loop pendek dan berhenti sendi
 
 1. **Pemeriksaan.** review-loop menjalankan script `typecheck`, `lint`, dan `test` dari `package.json` milikmu. Pemeriksaan yang gagal menjadi temuan P1. `package.json` yang bukan JSON valid juga menjadi temuan P1. Jika sebuah pemeriksaan berjalan melewati batas waktunya, review-loop melaporkannya sebagai "belum terverifikasi", bukan gagal.
 2. **Review baru.** Sebuah reviewer agent terpisah menerima diff dan ringkasan satu baris tentang tujuanmu. Agent ini tidak menerima penalaran Claude tentang perubahan itu. Agent ini dapat membaca kode di sekitarnya untuk memahami konteks. Agent ini memberi label P1 sampai P5 pada temuan. Agent ini juga melaporkan kode yang ditambahkan agent ketika tidak mengetahui penyebabnya: guard untuk state yang tidak terbukti dapat terjadi, komentar tentang riwayat kode, TODO tanpa tautan ke issue, dan cara kedua untuk melakukan pekerjaan yang sudah dilakukan codebase. P1 dan P2 membutuhkan bukti: baris yang tepat, skenario kegagalan, dan alasan mengapa belum ada yang mencegahnya. review-loop menampilkan klaim tanpa bukti kepadamu sebagai belum terverifikasi.
-3. **Perbaikan.** Claude menyebutkan apa yang akan diperbaikinya, lalu memperbaiki P1 dan P2. Jika sebuah perbaikan membutuhkan pilihan desain (ada lebih dari satu cara memperbaikinya, perubahan perilaku yang terlihat, penghapusan fitur, perubahan test), kamu memilih lebih dulu. Untuk melihat setiap P2 (atau setiap P1 dan P2) sebelum ada perubahan, minta Claude untuk mengonfirmasinya denganmu dulu.
+3. **Perbaikan.** Claude menyebutkan apa yang akan diperbaikinya, lalu memperbaiki P1 dan P2. Jika sebuah perbaikan membutuhkan pilihan desain (ada lebih dari satu cara memperbaikinya, perubahan perilaku yang terlihat, penghapusan fitur, perubahan test), kamu memilih lebih dulu. Untuk melihat setiap P2 (atau setiap P1 dan P2) sebelum ada perubahan, minta Claude untuk mengonfirmasinya denganmu dulu. Jika proyekmu punya script test, Claude juga menulis regression test dari skenario kegagalan setiap P1 atau P2 yang diperbaikinya, dan review-loop menunjukkan bahwa test itu gagal pada kode dari sebelum perbaikan.
 4. **Review ulang.** Reviewer baru hanya memeriksa perbaikan dan temuan yang masih terbuka. Maksimal 3 putaran.
 5. **Berhenti.** Sebuah script yang memutuskan kapan berhenti, bukan model. Script menghentikan loop dalam kasus berikut: tidak ada P1 atau P2 yang tersisa, batas putaran tercapai, sebuah temuan tetap ada setelah dua perbaikan, temuan yang sudah selesai muncul lagi, P1 + P2 berhenti berkurang, atau sebuah perbaikan melemahkan test atau pemeriksaan.
 6. **Putuskan.** Kamu memutuskan sisanya satu kali: semua P3 sampai P5, ditambah setiap P1 atau P2 yang masih terbuka, tidak dapat diverifikasi, atau menyangkut file di luar diff yang di-review. Untuk setiap temuan, kamu memilih: biarkan apa adanya, perbaiki untuk kali ini saja, atau jadikan aturan. Aturan adalah aturan lint atau test yang ditulis Claude bersama perbaikannya. review-loop menjalankan pemeriksaanmu pada kode dari sebelum perbaikan untuk menunjukkan bahwa aturan itu menangkap masalahnya. Temuan yang kamu biarkan apa adanya tidak ditanyakan lagi pada review berikutnya sampai baris yang dikutip berubah, dan laporan menghitungnya sebagai gantinya.
@@ -64,7 +64,7 @@ Commit gate adalah sebuah hook. Hook ini mati sampai kamu menyalakannya di sebua
 | Tidak ada review, atau ada file berubah yang tidak dicakup review | Memblokir commit dan meminta Claude menjalankan review |
 | Loop review sedang berjalan, atau masih ada keputusan yang tertunda | Memblokir commit |
 | Review lolos | Bertanya kepadamu sebelum commit, atau mengizinkan commit jika kamu sudah mendelegasikan commit di repository ini |
-| Setelah review, hanya file yang sudah di-review atau draf aturan yang sudah diperiksa `loop rule` yang berubah | Bertanya kepadamu |
+| Setelah review, hanya file yang sudah di-review atau draf aturan dan regression test yang sudah diperiksa `loop rule` yang berubah | Bertanya kepadamu |
 | `git push` atau force push | Selalu bertanya, bahkan dengan delegasi |
 | Commit dengan `--no-verify` | Bertanya, bahkan dengan delegasi, dan tetap memblokir commit tanpa review yang lolos |
 | Commit di folder yang tidak bisa dibaca gate, seperti `cd "$(...)"` atau path yang tidak ada | Bertanya, bahkan dengan delegasi, jika gate aktif di repositori tempat kamu memulai Claude Code |
@@ -79,6 +79,7 @@ Checks: test passed
 
 Resolved since last round:
 - F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal
+  test: src/coupon.test.js (before the fix: caught, after: passed)
 
 Trend (P1 + P2): 1 -> 0
 Stopped: no P1 or P2 left in this change
@@ -101,7 +102,7 @@ P1 atau P2 tentang file yang tidak ada di diff yang di-review pada ronde itu tid
 
 ### Terukur
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 101 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 97 di antaranya. Unit test ini termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 4 perilaku sisanya membutuhkan eksekusi dengan model dan direncanakan untuk `claude plugin eval`: bertanya tentang P3 sampai P5 satu kali, menampilkan laporan sebelum pertanyaan apa pun, menyimpan setiap langkah di daftar tugas dengan alasan untuk setiap langkah yang dilewati, dan melaporkan kode yang ditambahkan tanpa penyebab yang diketahui. Perilaku terakhir memiliki fixture di [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 109 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 104 di antaranya. Unit test ini termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 5 perilaku sisanya membutuhkan eksekusi dengan model dan direncanakan untuk `claude plugin eval`: bertanya tentang P3 sampai P5 satu kali, menampilkan laporan sebelum pertanyaan apa pun, menyimpan setiap langkah di daftar tugas dengan alasan untuk setiap langkah yang dilewati, menulis regression test untuk setiap P1 atau P2 yang diperbaiki, dan melaporkan kode yang ditambahkan tanpa penyebab yang diketahui. Perilaku terakhir memiliki fixture di [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
 
 review-loop me-review pull request milik LIM sendiri. [#8](https://github.com/lee-eojin/lim/pull/8) menunjukkan dua loop pada versi pertama review-loop. Salah satunya berhenti karena false positive pada pemeriksaan test yang dilemahkan milik review-loop sendiri. Kesalahan ini kemudian diperbaiki.
 
@@ -119,7 +120,7 @@ review-loop tidak melakukan panggilan jaringan sendiri. Claude dan reviewer memb
 - Commit gate hanya memeriksa perintah yang dijalankan Claude melalui tool Bash miliknya. Commit yang kamu ketik di terminalmu sendiri tidak diperiksa. Alias git seperti `git ci` tidak dikenali.
 - Jika kamu memulai Claude Code di folder yang bukan repositori, gate tidak bisa memeriksa commit yang repositorinya tidak bisa ia kenali, misalnya setelah `cd "$(...)"`.
 - review-loop me-review semua yang akan dimasukkan oleh `git add -A`. review-loop tidak me-review kumpulan perubahan staged yang kamu pilih sendiri.
-- Aturan diperiksa di salinan sementara. Salinan ini berisi file tracked milikmu dan tautan ke `node_modules` di root. File ignored lainnya, seperti `.env` atau `node_modules` bersarang, tidak ada di sana. Karena itu, pemeriksaan yang membutuhkannya melaporkan aturan sebagai belum terbukti atau tertangkap karena alasan yang salah. Claude membaca kegagalannya untuk mengetahui yang mana.
+- Aturan dan regression test diperiksa di salinan sementara. Salinan ini berisi file tracked milikmu dan tautan ke `node_modules` di root. File ignored lainnya, seperti `.env` atau `node_modules` bersarang, tidak ada di sana. Karena itu, pemeriksaan yang membutuhkannya melaporkan aturan atau test itu sebagai belum terbukti atau tertangkap karena alasan yang salah. Claude membaca kegagalannya untuk mengetahui yang mana.
 
 ## FAQ
 

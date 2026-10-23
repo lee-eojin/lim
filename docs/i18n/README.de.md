@@ -49,7 +49,7 @@ Vor deinem Commit führt review-loop eine kurze Schleife aus und stoppt selbstst
 
 1. **Checks.** review-loop führt die Skripte `typecheck`, `lint` und `test` aus deiner `package.json` aus. Ein fehlgeschlagener Check wird zu einem P1-Finding. Eine `package.json` mit ungültigem JSON wird ebenfalls zu einem P1-Finding. Wenn ein Check sein Zeitlimit überschreitet, meldet review-loop ihn als "nicht verifiziert" und nicht als fehlgeschlagen.
 2. **Neues Review.** Ein separater Reviewer-Agent bekommt den Diff und eine einzeilige Zusammenfassung deines Ziels. Er bekommt nicht Claudes Überlegungen zu der Änderung. Er kann den umliegenden Code lesen, um den Kontext zu verstehen. Er kennzeichnet Findings mit P1 bis P5. Er meldet auch Code, den Agenten hinzufügen, wenn sie die Ursache nicht kennen: Guards für Zustände, von denen nichts zeigt, dass sie eintreten können, Kommentare über die Historie, TODOs ohne Link zu einem Issue und einen zweiten Weg für eine Aufgabe, die die Codebase bereits erledigt. P1 und P2 brauchen Belege: die genaue Zeile, ein Fehlerszenario und eine Begründung, warum nichts Bestehendes den Fehler bereits verhindert. Behauptungen ohne Belege zeigt review-loop dir als nicht verifiziert.
-3. **Beheben.** Claude sagt, was es beheben wird, und behebt dann P1 und P2. Wenn ein Fix eine Designentscheidung braucht (mehr als ein möglicher Weg, eine sichtbare Verhaltensänderung, das Entfernen eines Features, Änderungen an Tests), entscheidest du zuerst. Wenn du jedes P2 (oder jedes P1 und P2) vor jeder Änderung sehen willst, bitte Claude, sie zuerst mit dir abzustimmen.
+3. **Beheben.** Claude sagt, was es beheben wird, und behebt dann P1 und P2. Wenn ein Fix eine Designentscheidung braucht (mehr als ein möglicher Weg, eine sichtbare Verhaltensänderung, das Entfernen eines Features, Änderungen an Tests), entscheidest du zuerst. Wenn du jedes P2 (oder jedes P1 und P2) vor jeder Änderung sehen willst, bitte Claude, sie zuerst mit dir abzustimmen. Wenn dein Projekt ein test-Skript hat, schreibt Claude außerdem aus dem Fehlerszenario jedes behobenen P1 oder P2 einen Regressionstest, und review-loop zeigt, dass der Test auf dem Code von vor dem Fix fehlschlägt.
 4. **Erneutes Review.** Ein neuer Reviewer prüft nur die Fixes und die noch offenen Findings. Es gibt maximal 3 Runden.
 5. **Stoppen.** Ein Skript entscheidet über den Stopp, nicht das Modell. Das Skript stoppt in diesen Fällen: Es gibt kein P1 oder P2 mehr, das Rundenlimit ist erreicht, ein Finding übersteht zwei Fixes, ein gelöstes Finding kommt zurück, P1 + P2 sinkt nicht mehr, oder ein Fix schwächt Tests oder Checks.
 6. **Entscheiden.** Du entscheidest einmal über den Rest: alle P3 bis P5 und jedes P1- oder P2-Finding, das noch offen, nicht verifiziert oder eine Datei außerhalb des geprüften Diffs betrifft. Für jedes Finding wählst du: so lassen, nur dieses Mal beheben oder eine Regel daraus machen. Eine Regel ist eine Lint-Regel oder ein Test, den Claude neben dem Fix schreibt. review-loop führt deine Checks auf dem Code von vor dem Fix aus, um zu zeigen, dass die Regel das Problem erkennt. Ein Finding, das du so lässt, wird in einem späteren Review erst wieder abgefragt, wenn sich die zitierte Zeile ändert, und bis dahin nur im Bericht gezählt.
@@ -64,7 +64,7 @@ Das Commit-Gate ist ein Hook. Dieser Hook ist aus, bis du ihn in einem Repositor
 | Kein Review, oder Dateien wurden geändert, die das Review nicht abgedeckt hat | Blockiert den Commit und sagt Claude, dass es das Review ausführen soll |
 | Eine Review-Schleife läuft, oder Entscheidungen sind noch offen | Blockiert den Commit |
 | Das Review ist bestanden | Fragt dich vor dem Commit, oder erlaubt den Commit, wenn du Commits in diesem Repository delegiert hast |
-| Nach dem Review wurden nur geprüfte Dateien oder von `loop rule` geprüfte Regelentwürfe geändert | Fragt dich |
+| Nach dem Review wurden nur geprüfte Dateien oder von `loop rule` geprüfte Regelentwürfe und Regressionstests geändert | Fragt dich |
 | `git push` oder ein Force-Push | Fragt immer, auch mit Delegation |
 | Ein Commit mit `--no-verify` | Fragt, auch mit Delegation, und blockiert weiterhin einen Commit ohne bestandenes Review |
 | Ein Commit in einem Ordner, den das Gate nicht lesen kann, etwa `cd "$(...)"` oder ein Pfad, der nicht existiert | Fragt, auch mit Delegation, wenn das Gate in dem Repository eingeschaltet ist, in dem du Claude Code gestartet hast |
@@ -79,6 +79,7 @@ Checks: test passed
 
 Resolved since last round:
 - F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal
+  test: src/coupon.test.js (before the fix: caught, after: passed)
 
 Trend (P1 + P2): 1 -> 0
 Stopped: no P1 or P2 left in this change
@@ -101,7 +102,7 @@ Ein P1 oder P2 zu einer Datei, die nicht im Diff der Runde liegt, wird in der Sc
 
 ### Gemessen
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 101 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 97 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 4 brauchen einen Lauf mit einem Modell und sind für `claude plugin eval` geplant: einmal nach P3 bis P5 fragen, den Bericht vor jeder Frage zeigen, jeden Schritt mit einem Grund für jedes Überspringen in der Todo-Liste behalten und Code melden, der ohne bekannte Ursache hinzugefügt wurde. Für die letzte gibt es eine Fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 109 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 104 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 5 brauchen einen Lauf mit einem Modell und sind für `claude plugin eval` geplant: einmal nach P3 bis P5 fragen, den Bericht vor jeder Frage zeigen, jeden Schritt mit einem Grund für jedes Überspringen in der Todo-Liste behalten, für jedes behobene P1 oder P2 einen Regressionstest schreiben und Code melden, der ohne bekannte Ursache hinzugefügt wurde. Für die letzte gibt es eine Fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
 
 review-loop prüft die Pull Requests von LIM selbst. [#8](https://github.com/lee-eojin/lim/pull/8) zeigt zwei Schleifen auf der ersten Version von review-loop. Eine davon stoppte wegen eines False Positive im eigenen Check auf geschwächte Tests. Dieser Fehler wurde danach behoben.
 
@@ -119,7 +120,7 @@ review-loop sendet selbst keine Netzwerkanfragen. Claude und der Reviewer lesen 
 - Das Commit-Gate prüft nur Befehle, die Claude über sein Bash-Tool ausführt. Commits, die du in deinem eigenen Terminal eingibst, prüft es nicht. git-Aliase wie `git ci` erkennt es nicht.
 - Wenn du Claude Code in einem Ordner startest, der kein Repository ist, kann das Gate einen Commit nicht prüfen, dessen Repository es nicht erkennen kann, zum Beispiel nach `cd "$(...)"`.
 - review-loop prüft alles, was `git add -A` einschließen würde. Eine von Hand ausgewählte Menge von gestagten Änderungen prüft es nicht.
-- Eine Regel wird in einer temporären Kopie geprüft, die deine getrackten Dateien und einen Link auf das `node_modules` im Root enthält. Andere ignorierte Dateien wie `.env` oder ein verschachteltes `node_modules` fehlen dort. Ein Check, der sie braucht, meldet die Regel darum als unbewiesen oder als aus dem falschen Grund erkannt. Claude liest den Fehlschlag, um zu erkennen, welcher Fall vorliegt.
+- Eine Regel oder ein Regressionstest wird in einer temporären Kopie geprüft, die deine getrackten Dateien und einen Link auf das `node_modules` im Root enthält. Andere ignorierte Dateien wie `.env` oder ein verschachteltes `node_modules` fehlen dort. Ein Check, der sie braucht, meldet die Regel oder den Test darum als unbewiesen oder als aus dem falschen Grund erkannt. Claude liest den Fehlschlag, um zu erkennen, welcher Fall vorliegt.
 
 ## FAQ
 

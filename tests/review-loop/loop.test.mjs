@@ -857,6 +857,115 @@ describe('loop status steps', () => {
   });
 });
 
+describe('regression tests', () => {
+  const runEveryCheck = 'node -e "for (const file of require(\'fs\').readdirSync(\'checks\')) require(\'./checks/\' + file)"';
+  const totalTest = [
+    "const source = require('fs').readFileSync('src/cart.js', 'utf8');",
+    "if (source.includes('* 2')) { console.error('one item priced 10 should total 10'); process.exit(1); }",
+    '',
+  ].join('\n');
+  const ledger = (root) => readFileSync(path.join(root, '.git/lim/review-loop/ledger.jsonl'), 'utf8')
+    .trim().split('\n').map((line) => JSON.parse(line));
+
+  function fixing({ files = {}, findings = [doubledPrice], startArgs = [] } = {}) {
+    const root = createRepository({
+      'package.json': JSON.stringify({ scripts: { test: runEveryCheck } }),
+      'checks/existing.cjs': '',
+      'src/cart.js': correctCart,
+      ...files,
+    });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start', ...startArgs]);
+    const recorded = loop(root, ['record'], { findings });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    return { root, recorded };
+  }
+
+  test('a regression test that fails on the code before the fix is caught', () => {
+    const { root } = fixing();
+    writeFiles(root, { 'checks/cart.cjs': totalTest });
+    const result = loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']);
+    assert.deepEqual([result.kind, result.proof, result.caughtBy], ['regression', 'caught', ['test']]);
+    assert.match(result.withDrafts[0].tail, /one item priced 10 should total 10/);
+    const entry = ledger(root).find((line) => line.event === 'regression');
+    assert.deepEqual([entry.id, entry.drafts, entry.proof], ['F-1', ['checks/cart.cjs'], 'caught']);
+    writeFiles(root, { 'checks/cart.cjs': "require('fs').readFileSync('src/cart.js', 'utf8');\n" });
+    assert.equal(loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']).proof, 'missed');
+  });
+
+  test('a regression test that fails only lint on the code before the fix is not caught', () => {
+    const lintRejectsVar = 'node -e "const fs = require(\'fs\'); process.exit(fs.existsSync(\'checks/cart.cjs\') && fs.readFileSync(\'checks/cart.cjs\', \'utf8\').includes(\'var \') ? 1 : 0)"';
+    const { root } = fixing({ files: { 'package.json': JSON.stringify({ scripts: { lint: lintRejectsVar, test: runEveryCheck } }) } });
+    writeFiles(root, { 'checks/cart.cjs': 'var price = 10;\n' });
+    const result = loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']);
+    assert.deepEqual([result.kind, result.proof, result.caughtBy], ['regression', 'unproven', ['lint']]);
+    assert.match(result.reason, /only lint failed .* the test check did not fail/);
+  });
+
+  test('the report lists a fixed P1 or P2 with its regression test and proof', () => {
+    const { root } = fixing();
+    writeFiles(root, { 'checks/cart.cjs': totalTest });
+    loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']);
+    loop(root, ['next']);
+    const { report } = loop(root, ['record'], { resolved: ['F-1'], findings: [] });
+    assert.match(report, /- F-1 \[P2\] Price is doubled\n {2}test: checks\/cart\.cjs \(before the fix: caught, after: passed\)/);
+  });
+
+  test('the report says why a fixed P1 or P2 has no regression test', () => {
+    const { root } = fixing();
+    const skipped = loop(root, ['rule', '--id', 'F-1', '--no-test', 'the total is only visible in the browser']);
+    assert.equal(skipped.noTest, 'the total is only visible in the browser');
+    loop(root, ['next']);
+    assert.match(loop(root, ['record'], { resolved: ['F-1'], findings: [] }).report, /- F-1 .*\n {2}no test: the total is only visible in the browser/);
+
+    const plain = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(plain, { 'src/cart.js': brokenCart });
+    loop(plain, ['start']);
+    loop(plain, ['record'], { findings: [doubledPrice] });
+    writeFiles(plain, { 'src/cart.js': correctCart });
+    loop(plain, ['next']);
+    assert.match(loop(plain, ['record'], { resolved: ['F-1'], findings: [] }).report, /- F-1 .*\n {2}no test: the project has no test script/);
+  });
+
+  test('a regression test needs a test script', () => {
+    const root = createRepository({ 'package.json': JSON.stringify({ scripts: { lint: 'node -e ""' } }), 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPrice] });
+    writeFiles(root, { 'checks/cart.cjs': totalTest });
+    assert.throws(() => loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']), /no test script/);
+    assert.throws(() => loop(root, ['rule', '--id', 'F-1', '--no-test']), /give the reason/);
+  });
+
+  test('a regression test is only for a P1 or P2 with a scenario while it is being fixed', () => {
+    const minor = { ...doubledPrice, severity: 'P3', quote: 'export const total', title: 'Name total as sumPrices' };
+    const { root } = fixing({ findings: [doubledPrice, minor] });
+    writeFiles(root, { 'checks/cart.cjs': totalTest });
+    assert.throws(() => loop(root, ['rule', '--id', 'F-2', '--draft', 'checks/cart.cjs']), /not marked as a rule/);
+    loop(root, ['next']);
+    assert.throws(() => loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']), /not a P1 or P2 with a scenario that is being fixed/);
+
+    const failing = fixing({ files: { 'checks/existing.cjs': 'process.exit(1);\n' }, findings: [] });
+    assert.equal(failing.recorded.fix[0].category, 'checks');
+    writeFiles(failing.root, { 'checks/cart.cjs': totalTest });
+    assert.throws(() => loop(failing.root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']), /not marked as a rule/);
+  });
+
+  test('the commit gate asks for a regression test proven after the loop stopped and blocks it once edited', () => {
+    const { root, recorded } = fixing({ startArgs: ['--max-rounds', '1'] });
+    assert.equal(recorded.reason, 'max-rounds');
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'once']);
+    const commit = () => gateDecision({ cwd: root, command: 'git commit -m "fix: cart"' });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'checks/cart.cjs': totalTest });
+    assert.match(commit().reason, /checks\/cart\.cjs changed after the last review/);
+    assert.equal(loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']).proof, 'caught');
+    assert.equal(commit().decision, 'ask');
+    writeFiles(root, { 'checks/cart.cjs': `${totalTest}// edited after the check\n` });
+    assert.match(commit().reason, /checks\/cart\.cjs changed after the last review/);
+  });
+});
+
 describe('commit gate', () => {
   const commit = (root, command = 'git commit -m "feat: coupon"') => gateDecision({ cwd: root, command });
 
