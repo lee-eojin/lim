@@ -49,7 +49,7 @@ Antes de tu commit, review-loop ejecuta un ciclo corto y se detiene sin tu inter
 
 1. **Comprobaciones.** review-loop ejecuta los scripts `typecheck`, `lint` y `test` de tu `package.json`. Si una comprobación falla, o si tu `package.json` no es JSON válido, el resultado es un hallazgo P1. Si una comprobación supera su límite de tiempo, review-loop la informa como "no verificada" y no como fallida.
 2. **Revisión nueva.** Un agente revisor separado recibe el diff y un resumen de una línea de lo que querías. El revisor no recibe el razonamiento de Claude sobre el cambio. El revisor puede leer el código cercano para entender el contexto. El revisor etiqueta los hallazgos de P1 a P5. El revisor también informa del código que los agentes añaden cuando no conocen la causa: guardas para estados que nada demuestra que puedan ocurrir, comentarios sobre el historial, TODO sin enlace a un issue y una segunda forma de hacer una tarea que el código base ya hace. P1 y P2 necesitan evidencia: la línea exacta, un escenario de fallo y la razón por la que nada en el código ya lo impide. Si una afirmación no tiene evidencia, review-loop te la muestra como no verificada.
-3. **Corrección.** Claude dice qué va a corregir y después corrige P1 y P2. Si una corrección necesita una decisión de diseño (más de una forma de corregir, un cambio de comportamiento visible, eliminar una funcionalidad, cambiar tests), tú eliges primero. Para ver cada P2 (o cada P1 y P2) antes de cualquier cambio, pide a Claude que te los confirme primero.
+3. **Corrección.** Claude dice qué va a corregir y después corrige P1 y P2. Si una corrección necesita una decisión de diseño (más de una forma de corregir, un cambio de comportamiento visible, eliminar una funcionalidad, cambiar tests), tú eliges primero. Para ver cada P2 (o cada P1 y P2) antes de cualquier cambio, pide a Claude que te los confirme primero. Si tu proyecto tiene un script de test, Claude también escribe un test de regresión a partir del escenario de fallo de cada P1 o P2 que corrige, y review-loop muestra que el test falla en el código de antes de la corrección.
 4. **Nueva revisión.** Un revisor nuevo comprueba solo las correcciones y los hallazgos que siguen abiertos. El ciclo tiene un máximo de 3 rondas.
 5. **Detención.** Un script, no el modelo, decide cuándo detener el ciclo. El ciclo se detiene en estos casos: no quedan P1 ni P2, se alcanza el límite de rondas, un hallazgo sigue abierto después de dos correcciones, un hallazgo resuelto vuelve a aparecer, P1 + P2 deja de disminuir, o una corrección debilita los tests o las comprobaciones.
 6. **Decisión.** Tú decides el resto una sola vez: todos los P3 a P5, y cada P1 o P2 que sigue abierto, no está verificado o trata de un archivo fuera del diff revisado. Para cada hallazgo eliges: dejarlo como está, corregirlo solo esta vez o convertirlo en una regla. Una regla es una regla de lint o un test que Claude escribe junto a la corrección. review-loop ejecuta tus comprobaciones sobre el código de antes de la corrección para mostrar que la regla detecta el problema. Un hallazgo que dejas como está no se vuelve a preguntar en una revisión posterior hasta que cambia la línea citada, y el informe lo cuenta en su lugar.
@@ -64,7 +64,7 @@ El commit gate es un hook. Este hook está desactivado hasta que lo activas en u
 | No hay revisión, o cambiaron archivos que la revisión no cubrió | Bloquea el commit y le indica a Claude que ejecute la revisión |
 | Un ciclo de revisión está en curso, o todavía hay decisiones pendientes | Bloquea el commit |
 | La revisión se aprobó | Te pregunta antes del commit, o permite el commit si delegaste los commits en este repositorio |
-| Después de la revisión, solo cambiaron archivos revisados o borradores de reglas que `loop rule` comprobó | Te pregunta |
+| Después de la revisión, solo cambiaron archivos revisados o borradores de reglas y tests de regresión que `loop rule` comprobó | Te pregunta |
 | `git push` o un force push | Siempre pregunta, incluso con delegación |
 | Un commit con `--no-verify` | Pregunta, incluso con delegación, y sigue bloqueando un commit sin una revisión aprobada |
 | Un commit en una carpeta que el gate no puede leer, como `cd "$(...)"` o una ruta que no existe | Pregunta, incluso con delegación, si el gate está activado en el repositorio donde iniciaste Claude Code |
@@ -79,6 +79,7 @@ Checks: test passed
 
 Resolved since last round:
 - F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal
+  test: src/coupon.test.js (before the fix: caught, after: passed)
 
 Trend (P1 + P2): 1 -> 0
 Stopped: no P1 or P2 left in this change
@@ -101,7 +102,7 @@ Un P1 o P2 sobre un archivo que no está en el diff que revisó la ronda no se c
 
 ### Mediciones
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) enumera 101 comportamientos en seis ejes: `do`, `tell`, `ask`, `silence`, `stop` y `evidence`. Los tests unitarios en CI cubren 97 de estos comportamientos, incluidas ejecuciones contra repositorios git temporales reales y el hook de commit gate. Los otros 4 necesitan una ejecución del modelo y están planificados para `claude plugin eval`: preguntar una sola vez sobre P3 a P5, mostrar el informe antes de cualquier pregunta, mantener cada paso en la lista de tareas con un motivo para cada paso omitido e informar del código añadido sin una causa conocida. El último tiene un fixture en [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) enumera 109 comportamientos en seis ejes: `do`, `tell`, `ask`, `silence`, `stop` y `evidence`. Los tests unitarios en CI cubren 104 de estos comportamientos, incluidas ejecuciones contra repositorios git temporales reales y el hook de commit gate. Los otros 5 necesitan una ejecución del modelo y están planificados para `claude plugin eval`: preguntar una sola vez sobre P3 a P5, mostrar el informe antes de cualquier pregunta, mantener cada paso en la lista de tareas con un motivo para cada paso omitido, escribir un test de regresión para cada P1 o P2 corregido e informar del código añadido sin una causa conocida. El último tiene un fixture en [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
 
 review-loop revisa los pull requests del propio LIM. [#8](https://github.com/lee-eojin/lim/pull/8) muestra dos ciclos en su primera versión. Uno de estos ciclos se detuvo por un falso positivo en la comprobación de debilitamiento de tests de review-loop. Después, ese falso positivo se corrigió.
 
@@ -119,7 +120,7 @@ review-loop no hace llamadas de red propias. Claude y el revisor leen el diff, l
 - El commit gate solo comprueba los comandos que Claude ejecuta con su herramienta Bash. Los commits que escribes en tu propia terminal no se comprueban. Los alias de git como `git ci` no se reconocen.
 - Si inicias Claude Code en una carpeta que no es un repositorio, el gate no puede comprobar un commit cuyo repositorio no puede identificar, por ejemplo después de `cd "$(...)"`.
 - review-loop revisa todo lo que `git add -A` incluiría, no un conjunto de cambios en stage que eliges a mano.
-- Una regla se comprueba en una copia temporal que tiene tus archivos rastreados por git y un enlace al `node_modules` de la raíz. Otros archivos ignorados, como `.env` o un `node_modules` anidado, no están ahí. Por eso, una comprobación que los necesita informa la regla como no demostrada o como detectada por una razón equivocada. Claude lee el fallo para saber cuál de los dos casos es.
+- Una regla o un test de regresión se comprueba en una copia temporal que tiene tus archivos rastreados por git y un enlace al `node_modules` de la raíz. Otros archivos ignorados, como `.env` o un `node_modules` anidado, no están ahí. Por eso, una comprobación que los necesita lo informa como no demostrado o como detectado por una razón equivocada. Claude lee el fallo para saber cuál de los dos casos es.
 
 ## Preguntas frecuentes
 
