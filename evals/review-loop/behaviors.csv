@@ -108,3 +108,15 @@ B106,stop,loop rule takes a regression test only for a P1 or P2 with a scenario 
 B107,stop,With the commit gate on a regression test proven after the loop stopped makes the gate ask until it is edited,test: the commit gate asks for a regression test proven after the loop stopped and blocks it once edited,yes
 B108,do,Claude writes a regression test from the scenario of each fixed P1 or P2 without asking when the project has a test script,eval: planned for claude plugin eval,no
 B109,evidence,A regression test that fails only lint or typecheck on the code before the fix is unproven and not caught because only the test check proves it,test: a regression test that fails only lint on the code before the fix is not caught,yes
+B110,evidence,Record rejects a finding basis other than measured or inferred or guessed so the reviewer is asked to fix the format,test: parseReview rejects a basis that is not measured or inferred or guessed,yes
+B111,evidence,Record rejects a measured finding that does not say which search or check output shows it,test: parseReview rejects a measured finding without measuredBy,yes
+B112,do,A finding without a basis from an older reviewer is still recorded and fixed as before,test: a finding without a basis from an older reviewer is still fixed,yes
+B113,tell,Record keeps the reviewer's basis and the report shows it next to each finding with the measured output when there is one,test: record keeps the basis and shows it next to each finding,yes
+B114,evidence,A P1 or P2 with basis guessed is treated as unverified like a missing quote and is not fixed,test: a guessed P1 or P2 is unverified and not fixed,yes
+B115,tell,A failing check is a measured finding and the report says its fix is measured because the check no longer fails,test: a failing check is a measured finding and its fix is reported as measured,yes
+B116,tell,The report says a finding the re-review resolved is fixed by inference from the re-review,test: a finding the re-review resolved is reported as an inferred fix,yes
+B117,evidence,Record with an unknown basis changes nothing and still waits for a valid review,test: record rejects an unknown basis and keeps waiting for the review,yes
+B118,evidence,The reviewer labels every finding measured or inferred or guessed and gives the search and its result for a measured one,eval: planned for claude plugin eval,no
+B119,tell,When Claude says a finding is fixed it says how it knows (a passing check or a reading of the new code) and never says it should work now without a basis,eval: planned for claude plugin eval,no
+B120,evidence,When the user pushes back on a finding Claude checks the claim again before agreeing and says what it checked,eval: planned for claude plugin eval,no
+B121,evidence,A failing check whose check did not run in the next round stays open as not verified instead of being reported as a measured fix,test: a failing check whose script was removed is not reported as a measured fix,yes

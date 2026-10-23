@@ -48,7 +48,7 @@ marketplace를 추가하면 카탈로그만 등록됩니다. 각 플러그인은
 커밋하기 전에 review-loop는 짧은 루프를 실행하고, 스스로 멈춥니다.
 
 1. **검사.** `package.json`의 `typecheck`, `lint`, `test` 스크립트를 실행합니다. 검사가 실패하거나 `package.json`이 올바른 JSON이 아니면, 그 결과는 P1 지적 사항이 됩니다. 검사가 제한 시간을 넘기면, 실패 대신 "검증되지 않음"(not verified)으로 보고합니다.
-2. **새 리뷰.** 별도의 리뷰어 에이전트가 diff와, 사용자가 원한 내용을 요약한 한 줄을 받습니다. 리뷰어는 이 변경에 대한 Claude의 추론을 받지 않습니다. 리뷰어는 맥락을 파악하기 위해 주변 코드를 읽을 수 있습니다. 리뷰어는 지적 사항에 P1부터 P5까지 등급을 붙입니다. 리뷰어는 에이전트가 원인을 모를 때 추가하는 코드도 보고합니다. 대상은 일어날 수 있다는 근거가 없는 상태를 막는 가드, 과거 이력을 설명하는 주석, 이슈 링크가 없는 TODO, 코드베이스가 이미 하는 일을 다른 방식으로 한 번 더 하는 코드입니다. P1과 P2에는 근거가 필요합니다. 근거는 정확한 줄, 실패 시나리오, 기존 장치가 그 실패를 막지 못하는 이유입니다. 근거가 없는 지적 사항은 미검증 상태로 사용자에게 보여 줍니다.
+2. **새 리뷰.** 별도의 리뷰어 에이전트가 diff와, 사용자가 원한 내용을 요약한 한 줄을 받습니다. 리뷰어는 이 변경에 대한 Claude의 추론을 받지 않습니다. 리뷰어는 맥락을 파악하기 위해 주변 코드를 읽을 수 있습니다. 리뷰어는 지적 사항에 P1부터 P5까지 등급을 붙입니다. 리뷰어는 에이전트가 원인을 모를 때 추가하는 코드도 보고합니다. 대상은 일어날 수 있다는 근거가 없는 상태를 막는 가드, 과거 이력을 설명하는 주석, 이슈 링크가 없는 TODO, 코드베이스가 이미 하는 일을 다른 방식으로 한 번 더 하는 코드입니다. P1과 P2에는 근거가 필요합니다. 근거는 정확한 줄, 실패 시나리오, 기존 장치가 그 실패를 막지 못하는 이유입니다. 근거가 없는 지적 사항은 미검증 상태로 사용자에게 보여 줍니다. 지적 사항마다 measured(측정), inferred(추론), guessed(추측) 중 하나로 근거의 종류를 표시하며, guessed인 P1과 P2도 미검증으로 봅니다.
 3. **수정.** Claude가 무엇을 수정할지 먼저 말하고, 그다음 P1과 P2를 수정합니다. 수정에 설계 선택이 필요하면(수정 방법이 둘 이상, 사용자에게 보이는 동작 변경, 기능 제거, 테스트 변경) 사용자가 먼저 선택합니다. 변경 전에 모든 P2(또는 모든 P1과 P2)를 보고 싶다면, 먼저 확인받으라고 Claude에게 요청합니다. 프로젝트에 test 스크립트가 있으면, Claude는 수정하는 P1과 P2마다 실패 시나리오로 회귀 테스트도 작성하고, review-loop는 그 테스트가 수정 전 코드에서 실패하는지 보여 줍니다.
 4. **재리뷰.** 새 리뷰어가 수정한 부분과 아직 해결되지 않은 지적 사항만 확인합니다. 최대 3라운드까지 진행합니다.
 5. **중단.** 멈출 시점은 모델 대신 스크립트가 결정합니다. 스크립트는 다음 중 하나에 해당하면 멈춥니다: P1이나 P2가 남지 않음, 라운드 한도에 도달함, 두 번 수정해도 남는 지적 사항이 있음, 해결된 지적 사항이 다시 나타남, P1 + P2 개수가 더 줄지 않음, 수정이 테스트나 검사를 약하게 만듦.
@@ -78,7 +78,7 @@ Review round 2 of 3
 Checks: test passed
 
 Resolved since last round:
-- F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal
+- F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal (fixed, inferred: the re-review read the fix)
   test: src/coupon.test.js (before the fix: caught, after: passed)
 
 Trend (P1 + P2): 1 -> 0
@@ -102,7 +102,7 @@ Left for you: P3 1, P4 0, P5 0
 
 ### 측정 결과
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 109개 동작이 있습니다. CI의 단위 테스트가 그중 104개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 5개는 모델 실행이 필요하므로, `claude plugin eval`로 측정할 계획입니다. 그 5개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있습니다.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 121개 동작이 있습니다. CI의 단위 테스트가 그중 113개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 8개는 모델 실행이 필요하므로, `claude plugin eval`로 측정할 계획입니다. 그 8개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있습니다.
 
 review-loop는 LIM 자체의 pull request를 리뷰합니다. [#8](https://github.com/lee-eojin/lim/pull/8)은 review-loop 첫 버전에서 실행한 루프 두 번을 보여 줍니다. 그중 한 번은 review-loop 자체의 테스트 약화 검사가 낸 오탐 때문에 멈췄고, 그 오탐은 이후에 수정되었습니다.
 

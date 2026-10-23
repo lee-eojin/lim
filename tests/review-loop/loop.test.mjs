@@ -304,6 +304,99 @@ describe('renderReport', () => {
   });
 });
 
+describe('finding basis', () => {
+  test('parseReview rejects a basis that is not measured or inferred or guessed', () => {
+    const review = JSON.stringify({ findings: [{ ...doubledPrice, basis: 'certain' }] });
+    assert.throws(() => parseReview(review), /finding 1 has basis "certain", use measured, inferred, or guessed/);
+  });
+
+  test('parseReview rejects a measured finding without measuredBy', () => {
+    const review = JSON.stringify({ findings: [{ ...doubledPrice, basis: 'measured', measuredBy: ' ' }] });
+    assert.throws(() => parseReview(review), /finding 1 is measured but has no measuredBy/);
+  });
+
+  test('a finding without a basis from an older reviewer is still fixed', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const result = loop(root, ['record'], { findings: [doubledPrice] });
+    assert.deepEqual(result.fix.map((item) => [item.id, item.basis]), [['F-1', undefined]]);
+    assert.doesNotMatch(result.report, /basis:/);
+  });
+
+  test('record keeps the basis and shows it next to each finding', () => {
+    const root = createRepository({ 'src/cart.js': correctCart, 'src/other.js': 'export const flag = true;\n' });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const measured = { ...doubledPrice, basis: 'measured', measuredBy: 'Grep "total(" in tests: no match' };
+    const outside = { ...doubledPrice, file: 'src/other.js', quote: 'export const flag = true;', basis: 'inferred' };
+    const result = loop(root, ['record'], { findings: [measured, outside] });
+    assert.deepEqual([result.fix[0].basis, result.fix[0].measuredBy], ['measured', 'Grep "total(" in tests: no match']);
+    assert.match(result.report, /Fixing next:\n- F-1 .*\n {2}was: .*\n {2}why: .*\n {2}basis: measured \(Grep "total\(" in tests: no match\)/);
+    assert.match(result.report, /- F-2 \[P2\] src\/other\.js:1 Price is doubled \(basis: inferred\)/);
+  });
+
+  test('a guessed P1 or P2 is unverified and not fixed', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const guessedNaming = { severity: 'P3', file: 'src/cart.js', title: 'Name total as sumPrices', basis: 'guessed' };
+    const result = loop(root, ['record'], { findings: [{ ...doubledPrice, basis: 'guessed' }, guessedNaming] });
+    assert.deepEqual([result.decision, result.reason, result.fix.length], ['stop', 'clean', 0]);
+    assert.deepEqual(result.cards.map((card) => [card.severity, card.basis, card.unproven]), [
+      ['P2', 'guessed', true], ['P3', 'guessed', undefined],
+    ]);
+    assert.match(result.report, /Left for you: P3 1, P4 0, P5 0, unproven P1\/P2 1/);
+  });
+
+  test('a failing check is a measured finding and its fix is reported as measured', () => {
+    const failing = JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } });
+    const passing = JSON.stringify({ scripts: { test: 'node -e "process.exit(0)"' } });
+    const root = createRepository({ 'package.json': failing, 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const first = loop(root, ['record'], { findings: [] });
+    assert.equal(first.fix[0].basis, 'measured');
+    assert.match(first.report, /- F-1 \[P1\] npm run test test fails\n(?: {2}.*\n)*? {2}basis: measured\n/);
+    writeFiles(root, { 'package.json': passing });
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { findings: [] });
+    assert.match(second.report, /- F-1 \[P1\] test fails \(fixed, measured: npm run test no longer fails\)/);
+  });
+
+  test('a failing check whose script was removed is not reported as a measured fix', () => {
+    const failing = JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } });
+    const root = createRepository({ 'package.json': failing, 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    writeFiles(root, { 'package.json': JSON.stringify({ scripts: {} }) });
+    assert.deepEqual(loop(root, ['next']).checks, []);
+    const second = loop(root, ['record'], { findings: [] });
+    assert.doesNotMatch(second.report, /fixed, measured/);
+    assert.deepEqual([second.ask[0].id, second.ask[0].note], ['F-1', 'its check did not run, so the fix is not verified']);
+  });
+
+  test('a finding the re-review resolved is reported as an inferred fix', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [{ ...doubledPrice, basis: 'inferred' }] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { resolved: ['F-1'], findings: [] });
+    assert.match(second.report, /- F-1 \[P2\] Price is doubled \(fixed, inferred: the re-review read the fix\)/);
+  });
+
+  test('record rejects an unknown basis and keeps waiting for the review', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    assert.throws(() => loop(root, ['record'], { findings: [{ ...doubledPrice, basis: 'sure' }] }), /finding 1 has basis \\"sure\\"/);
+    assert.equal(loop(root, ['record'], { findings: [{ ...doubledPrice, basis: 'inferred' }] }).fix[0].id, 'F-1');
+  });
+});
+
 describe('loop.mjs in a git repository', () => {
   test('fix then re-review ends clean', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
@@ -512,6 +605,10 @@ describe('loop.mjs in a git repository', () => {
     const result = loop(root, ['record'], { findings: [] });
     assert.equal(result.fix[0].severity, 'P1');
     assert.equal(result.fix[0].fromChecks, true);
+    writeFiles(root, { 'package.json': '{"scripts":{}}\n' });
+    loop(root, ['next']);
+    const fixed = loop(root, ['record'], { findings: [] });
+    assert.match(fixed.report, /- F-1 \[P1\] package\.json fails \(fixed, measured: read package\.json no longer fails\)/);
   });
 
   test('timed out check is reported as not verified instead of failing', () => {
@@ -908,7 +1005,7 @@ describe('regression tests', () => {
     loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']);
     loop(root, ['next']);
     const { report } = loop(root, ['record'], { resolved: ['F-1'], findings: [] });
-    assert.match(report, /- F-1 \[P2\] Price is doubled\n {2}test: checks\/cart\.cjs \(before the fix: caught, after: passed\)/);
+    assert.match(report, /- F-1 \[P2\] Price is doubled \(fixed, inferred: the re-review read the fix\)\n {2}test: checks\/cart\.cjs \(before the fix: caught, after: passed\)/);
   });
 
   test('the report says why a fixed P1 or P2 has no regression test', () => {

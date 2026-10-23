@@ -20,7 +20,7 @@ If a session ends in the middle of a loop, running it again offers to continue w
 ## How it works
 
 1. Runs your project's typecheck, lint, and test scripts from `package.json`. A project without them is reviewed from the diff alone.
-2. A fresh reviewer subagent reads the diff and labels findings P1 to P5. It also reports code that agents add when they do not know the cause: guards for states nothing shows can happen, comments about history, TODOs without an issue link, and a second way to do a job the codebase already does. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it.
+2. A fresh reviewer subagent reads the diff and labels findings P1 to P5. It also reports code that agents add when they do not know the cause: guards for states nothing shows can happen, comments about history, TODOs without an issue link, and a second way to do a job the codebase already does. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it. Each finding is labeled measured, inferred, or guessed, and a guessed P1 or P2 counts as unverified.
 3. Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one fix, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first. If your project has a test script, Claude also writes a regression test from the failure scenario of each P1 or P2 it fixes, and review-loop shows that the test fails on the code from before the fix.
 4. A new reviewer checks only the fixes and the open findings. Up to 3 rounds.
 5. A script, not the model, stops the loop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
@@ -34,7 +34,7 @@ Review round 2 of 3
 Checks: typecheck passed, lint passed, test passed
 
 Resolved since last round:
-- F-1 [P2] Coupon branch adds the item twice
+- F-1 [P2] Coupon branch adds the item twice (fixed, inferred: the re-review read the fix)
   test: src/coupon.test.ts (before the fix: caught, after: passed)
 
 Trend (P1 + P2): 2 -> 0
@@ -64,7 +64,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 109 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 104 of them. The other 5 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, and reporting code added without a known cause) need a model run and are planned for `claude plugin eval`.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 121 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 113 of them. The other 8 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, and reporting code added without a known cause) need a model run and are planned for `claude plugin eval`.
 
 ## Data
 
