@@ -50,7 +50,7 @@ Before you commit, review-loop runs a short loop and stops on its own.
 3. **Fix.** Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one way to fix it, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first.
 4. **Re-review.** A new reviewer checks only the fixes and the findings still open. Up to 3 rounds.
 5. **Stop.** A script, not the model, decides when to stop: no P1 or P2 left, the round limit, a finding that survives two fixes, a resolved finding that comes back, P1 + P2 that stops decreasing, or a fix that weakens tests or checks.
-6. **Decide.** You decide the rest once: every P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff. For each one you choose: keep as is, fix this time only, or make it a rule. A rule is a lint rule or a test that Claude writes next to the fix. review-loop runs your checks on the code from before the fix to show that the rule catches it.
+6. **Decide.** You decide the rest once: every P3 to P5, plus any P1 or P2 that is still open, could not be verified, or is about a file outside the reviewed diff. For each one you choose: keep as is, fix this time only, or make it a rule. A rule is a lint rule or a test that Claude writes next to the fix. review-loop runs your checks on the code from before the fix to show that the rule catches it. A finding you keep as is is not asked about again in a later review until its quoted line changes, and the report counts it instead.
 7. **Commit.** Claude asks before committing unless you chose "stop asking in this repo". It never pushes. If you turn on the commit gate, a hook makes this a rule: Claude's commits are blocked until a review passes.
 
 ### Commit gate
@@ -99,7 +99,7 @@ A P1 or P2 about a file that is not in the diff the round reviewed is not fixed 
 
 ### Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 93 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 89 of them, including runs against real temporary git repositories and the commit gate hook. The other 4 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 101 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 97 of them, including runs against real temporary git repositories and the commit gate hook. The other 4 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
 
 review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed.
 

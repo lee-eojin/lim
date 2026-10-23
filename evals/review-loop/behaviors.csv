@@ -92,3 +92,11 @@ B90,do,The reviewer reports four kinds of code added without a known cause under
 B91,tell,Claude puts every review-loop step in its todo list at start and marks a step that does not apply as skip with a reason instead of dropping it,eval: planned for claude plugin eval,no
 B92,tell,Status lists the steps the script saw done (start/review/record/fix/re-review/decide/rules/checks) so Claude can compare them with its todo list before committing,test: status lists the steps the script saw done,yes
 B93,evidence,Status leaves out decide while a decision is pending and checks that ran on code other than the current working tree and steps from an earlier run,test: status leaves out unfinished decisions and stale checks and earlier runs,yes
+B94,silence,A finding whose fingerprint matches a keep decision in the repository's ledger does not become a card in the next review,test: a finding kept in an earlier review is not a card in the next review,yes
+B95,tell,The report says in one line how many findings the user kept before were raised again,test: the report counts findings kept before that were raised again,yes
+B96,tell,A kept P1 or P2 raised again is listed in the report with its severity and is not fixed,test: a kept P1 or P2 raised again is listed with its severity and not fixed,yes
+B97,ask,A kept finding becomes a card again once its quoted line changes,test: a kept finding is asked about again once its quoted line changes,yes
+B98,stop,A failing check stays a P1 finding even after the user kept it,test: a failing check is still a P1 finding after the user kept it,yes
+B99,ask,A kept finding raised again at a higher severity than the one kept becomes a card again,test: a kept finding raised again at a higher severity is a card again,yes
+B100,ask,A kept finding becomes a card again when its quoted text appears more than once in the current file,test: a kept finding is a card again when its quoted line appears twice in the file,yes
+B101,silence,A kept finding whose quoted line the diff removed is still treated as kept in the next review,test: a kept finding whose quoted line the diff removed stays kept,yes
