@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Added: "Make it a rule" now drafts a lint rule or a test next to the fix. `loop rule` runs your checks on the code from before the fix, with and without the draft, and reports `caught`, `missed`, or `unproven`. The reviewer can mark findings as rule candidates. Without a typecheck, lint, or test script, the choice is recorded as "fix this time only". (#28)
+
 ## 0.3.0 (2026-10-23)
 
 - Fixed: Snapshots start from a copy of git's index, so files that did not change are not hashed or run through clean filters such as Git LFS again. On a 3,000-file repository, five `loop status` runs took 325 ms instead of 1,232 ms. The real index is never written. Files marked assume-unchanged or skip-worktree stay out of the snapshot, as they would with `git add -A`. (#7)

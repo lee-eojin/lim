@@ -71,13 +71,23 @@ Collect `stillOpen` first, then `cards` in severity order. Cards with `unproven:
 Ask once with AskUserQuestion. It takes at most 4 questions. With more items, ask about the 3 most severe and use the fourth question for the rest as a group. P4 and P5 can share one question. Options for each:
 - Keep as is
 - Fix this time only
-- Make it a rule (v0.1 records it for a future lint rule)
+- Make it a rule (fix it, and add a lint rule or test that catches it next time)
 
-Mark the option you recommend and give one reason and the cost of undoing it in its description.
+Mark the option you recommend and give one reason and the cost of undoing it in its description. Recommend "Make it a rule" for findings with `ruleCandidate: true`, but only if the last `checks` list is not empty. With no checks, nothing would run a rule: do not recommend it, and say so in that option's description.
 
-Record every answer with `loop decide --id <id> --choice keep|once|rule`.
+Record every answer with `loop decide --id <id> --choice keep|once|rule`. If the result has `ruleSkipped`, the choice was recorded as `once`: tell the user why in one line and do not draft a rule.
 
-Apply the "fix this time" and "make it a rule" fixes, then run `loop checks`. If a check fails, say which one and ask whether to continue.
+Apply the "fix this time" and "make it a rule" fixes.
+
+For each "make it a rule" finding, draft the rule before running checks:
+1. Search the project's lint config and tests for a rule that already covers the finding. If one is on and still did not catch it, say so: the rule does not run, and a new rule would not help. Ask how to proceed.
+2. Pick the first form that works: turn on an existing rule in the lint config; write a custom rule for the linter the project already uses; or write a regression test. A custom rule's message names the fix. If the pattern is common in the existing code, the rule must not fail on code the change did not touch.
+3. Never put the draft in the file the finding is in. Run `loop rule --id <id> --draft <path>`, with one `--draft` for every file you added or changed for the rule, with a Bash timeout of 600000 ms. It runs the project's checks on the code from before the fix, with and without the drafts.
+   - `caught`: a check failed only with the drafts. Read `withDrafts[].tail` and confirm the failure is the rule's own message or assertion, not a missing import or a syntax error. If it is not, fix the draft and run `loop rule` again.
+   - `missed`: the draft did not fail on the old code. Revise it once and run `loop rule` again. If it is still `missed`, ask whether to keep the draft or drop it.
+   - `unproven`: a check timed out, or it also failed without the drafts. Say which, and ask whether to keep the draft.
+
+Then run `loop checks` on the fixed code. If a check fails, say which one and ask whether to continue.
 
 ## 6. Commit
 
@@ -87,6 +97,7 @@ Run `loop status`.
 - If `notVerifiedChecks` is not empty, say which checks timed out and were not verified, and ask whether the user wants to run them before committing.
 - If `treeMatchesReview` is false, first list what changed after the last review, such as the fixes from step 5 or a fix that stopped the loop for weakening a test.
 - Never commit while a P1 or P2 is open unless the user chose "Keep as is" for it.
+- If `rules` is not empty, list each rule's drafts and `proof`, and name the rules in the commit message. The drafts go into the same commit as the change. With the gate on, files that `loop rule` checked count as known while their content is unchanged, so the gate asks instead of blocking. If you edit a draft after `loop rule`, run `loop rule` again; otherwise the gate blocks it like any file the review did not cover.
 - If `delegation.scope` is `repo` and nothing above needs the user, commit and say so in one line.
 - If `gate.enabled` is true and commits are not delegated, do not ask with AskUserQuestion. Run the commit; the gate shows the user one confirmation prompt.
 - Otherwise ask once with AskUserQuestion: "Commit now", "Commit, and stop asking in this repo", or "Not now". For the second option, run `loop delegate --scope repo` before committing.
@@ -105,4 +116,4 @@ If the user asks to see every P2 (or every P1 and P2) before anything is fixed, 
 
 ## Files
 
-State, diffs, check logs, and a decision ledger are kept in `.git/lim/review-loop/`. Nothing is written to the working tree. Deleting that folder resets everything.
+State, diffs, check logs, and a decision ledger are kept in `.git/lim/review-loop/`. Nothing is written to the working tree. `loop rule` writes the code from before the fix to a temporary folder outside the repository, links the root `node_modules` there, and deletes the folder when it is done. Deleting `.git/lim/review-loop/` resets everything.

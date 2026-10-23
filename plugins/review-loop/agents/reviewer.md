@@ -47,6 +47,8 @@ Set these to true when they apply, so the user chooses how to fix:
 - `removesFeature`: the fix removes a feature
 - `touchesTests`: the fix needs a test or a threshold changed
 
+Set `ruleCandidate` to true when the fix is a convention someone has to remember, and a type, a lint rule, or a test could catch the same mistake next time.
+
 ## Silence
 
 An empty `findings` list is a correct answer when nothing is wrong. Do not invent findings to look useful. Do not restate the diff. Style preferences are P4 or P5.
@@ -73,7 +75,8 @@ Return only this JSON, with no prose and no code fence:
       "multipleFixes": false,
       "behaviorChange": false,
       "removesFeature": false,
-      "touchesTests": false
+      "touchesTests": false,
+      "ruleCandidate": false
     }
   ],
   "resolved": [],

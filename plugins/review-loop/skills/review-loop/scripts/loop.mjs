@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import {
+  appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync,
+  symlinkSync, utimesSync, writeFileSync,
+} from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,7 +19,7 @@ const BLOCKING = new Set(['P1', 'P2']);
 const EVIDENCE_FIELDS = ['quote', 'scenario', 'whyNotPrevented'];
 const ASK_FLAGS = ['multipleFixes', 'behaviorChange', 'removesFeature', 'touchesTests'];
 const CONFIRM_LEVELS = { off: [], P2: ['P2'], all: ['P1', 'P2'] };
-const REVIEWER_FIELDS = ['severity', 'file', 'line', 'category', 'title', ...EVIDENCE_FIELDS, ...ASK_FLAGS];
+const REVIEWER_FIELDS = ['severity', 'file', 'line', 'category', 'title', ...EVIDENCE_FIELDS, ...ASK_FLAGS, 'ruleCandidate'];
 const DECISION_CHOICES = ['keep', 'once', 'rule'];
 const DIFF_COMMAND = ['-c', 'core.quotePath=false', 'diff', '--no-color', '--no-ext-diff', '--src-prefix=a/', '--dst-prefix=b/'];
 const CHECK_SCRIPTS = [
@@ -256,6 +259,8 @@ function tally(cards) {
   );
   const unproven = inside.filter((card) => card.unproven).length;
   if (unproven) parts.push(`unproven P1/P2 ${unproven}`);
+  const ruleCandidates = cards.filter((card) => card.ruleCandidate === true).length;
+  if (ruleCandidates) parts.push(`rule candidates ${ruleCandidates}`);
   if (outside.length) {
     const outsideBlocking = outside.filter((card) => BLOCKING.has(card.severity) && !card.unproven).length;
     parts.push(`outside the round's diff ${outside.length} (P1/P2 ${outsideBlocking})`);
@@ -307,9 +312,9 @@ function runCheck(root, { name, command, problem }, timeout) {
   }
 }
 
-function runChecks(root, logPath) {
-  const deadline = Date.now() + CHECKS_BUDGET_MS;
-  const results = detectChecks(root).map((check) => (
+function runChecks(root, logPath, { deadline = Date.now() + CHECKS_BUDGET_MS, only } = {}) {
+  const selected = detectChecks(root).filter((check) => !only || only.includes(check.name));
+  const results = selected.map((check) => (
     runCheck(root, check, Math.min(CHECK_TIMEOUT_MS, deadline - Date.now()))
   ));
   writeFileSync(logPath, results.map((result) => `$ ${result.command}\n${result.output}`).join('\n\n'));
@@ -640,11 +645,127 @@ function decide(cwd, options) {
   const item = [...state.cards, ...state.open].find((candidate) => candidate.id === options.id);
   if (!item) throw new Error(`no finding with id ${options.id}`);
   if (!DECISION_CHOICES.includes(options.choice)) throw new Error(`choice must be one of ${DECISION_CHOICES.join(', ')}`);
-  item.decision = options.choice;
+  const nothingRunsRules = options.choice === 'rule' && !detectChecks(repository.root).some((check) => check.command);
+  const choice = nothingRunsRules ? 'once' : options.choice;
+  item.decision = choice;
+  if (choice === 'rule') item.rule = { beforeTree: state.reviewedTree };
   saveState(repository, state);
-  logEvent(repository, { event: 'decision', ...summarize(item), choice: options.choice, fingerprint: item.fingerprint });
+  const ruleFields = choice === 'rule' ? { category: item.category, quote: item.quote, scenario: item.scenario } : {};
+  logEvent(repository, { event: 'decision', ...summarize(item), choice, fingerprint: item.fingerprint, ...ruleFields });
   const pending = [...state.cards, ...state.open].filter((candidate) => !candidate.decision).map((candidate) => candidate.id);
-  return { recorded: true, id: item.id, choice: options.choice, pending };
+  const result = { recorded: true, id: item.id, choice, pending };
+  if (nothingRunsRules) result.ruleSkipped = 'package.json has no typecheck, lint, or test script, so nothing would run a rule';
+  return result;
+}
+
+function checkoutTree(repository, tree, folder) {
+  const index = repository.file('rule.index');
+  const env = { ...process.env, GIT_INDEX_FILE: index };
+  try {
+    git(['read-tree', tree], { cwd: repository.root, env });
+    git(['checkout-index', '-a', `--prefix=${folder}${path.sep}`], { cwd: repository.root, env });
+  } finally {
+    rmSync(index, { force: true });
+  }
+}
+
+function copyDrafts(fromRoot, toRoot, drafts) {
+  for (const draft of drafts) {
+    mkdirSync(path.dirname(path.join(toRoot, draft)), { recursive: true });
+    copyFileSync(path.join(fromRoot, draft), path.join(toRoot, draft));
+  }
+}
+
+function restoreDrafts(repository, tree, folder, drafts) {
+  for (const draft of drafts) {
+    const target = path.join(folder, draft);
+    try {
+      writeFileSync(target, execFileSync('git', ['cat-file', 'blob', `${tree}:${draft}`], {
+        cwd: repository.root, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024,
+      }));
+    } catch {
+      rmSync(target, { force: true });
+    }
+  }
+}
+
+function isIgnored(repository, file) {
+  if (file === 'node_modules' || file.startsWith('node_modules/')) return true;
+  try {
+    git(['check-ignore', '-q', '--', file], { cwd: repository.root, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function hashFile(repository, file) {
+  try {
+    return git(['hash-object', '--', file], { cwd: repository.root, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function checkedRuleDrafts(repository, state) {
+  return [...state.cards, ...state.open]
+    .flatMap((item) => Object.entries(item.rule?.hashes ?? {}))
+    .filter(([draft, hash]) => hash && hashFile(repository, draft) === hash)
+    .map(([draft]) => draft);
+}
+
+function checkRule(repository, beforeTree, drafts) {
+  const folder = mkdtempSync(path.join(tmpdir(), 'review-loop-rule-'));
+  const deadline = Date.now() + CHECKS_BUDGET_MS;
+  try {
+    checkoutTree(repository, beforeTree, folder);
+    const modules = path.join(repository.root, 'node_modules');
+    if (existsSync(modules) && !existsSync(path.join(folder, 'node_modules'))) {
+      symlinkSync(modules, path.join(folder, 'node_modules'), 'dir');
+    }
+    copyDrafts(repository.root, folder, drafts);
+    const withDrafts = runChecks(folder, repository.file('rule.checks.log'), { deadline });
+    const failing = withDrafts.filter((check) => !check.timedOut && check.exitCode !== 0).map((check) => check.name);
+    if (!failing.length) {
+      return { proof: withDrafts.some((check) => check.timedOut) ? 'unproven' : 'missed', caughtBy: [], withDrafts, withoutDrafts: [] };
+    }
+    restoreDrafts(repository, beforeTree, folder, drafts);
+    const withoutDrafts = runChecks(folder, repository.file('rule.baseline.log'), { deadline, only: failing });
+    const passedWithout = (name) => {
+      const check = withoutDrafts.find((candidate) => candidate.name === name);
+      return !check || (!check.timedOut && check.exitCode === 0);
+    };
+    const caughtBy = failing.filter(passedWithout);
+    return { proof: caughtBy.length ? 'caught' : 'unproven', caughtBy, withDrafts, withoutDrafts };
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+}
+
+function rule(cwd, options) {
+  const repository = openRepository(cwd);
+  const state = loadState(repository);
+  const item = [...state.cards, ...state.open].find((candidate) => candidate.id === options.id);
+  if (!item) throw new Error(`no finding with id ${options.id}`);
+  if (item.decision !== 'rule') throw new Error(`${item.id} is not marked as a rule, run decide --choice rule first`);
+  const drafts = [options.draft].flat().filter((draft) => typeof draft === 'string').map((draft) => repositoryPath(repository.root, draft));
+  if (!drafts.length) throw new Error('name the rule draft files with --draft <path>');
+  for (const draft of drafts) {
+    if (draft.startsWith('../') || draft === '..') throw new Error(`${draft} is outside the repository`);
+    if (draft === item.file) throw new Error(`${draft} is the file the finding is in, a draft is a lint config, a lint rule, or a test`);
+    if (!existsSync(path.join(repository.root, draft))) throw new Error(`${draft} does not exist`);
+    if (isIgnored(repository, draft)) throw new Error(`${draft} is ignored by git, so it would not be committed with the rule`);
+  }
+  const beforeTree = item.rule?.beforeTree ?? state.reviewedTree;
+  const { proof, caughtBy, withDrafts, withoutDrafts } = checkRule(repository, beforeTree, drafts);
+  const hashes = Object.fromEntries(drafts.map((draft) => [draft, hashFile(repository, draft)]));
+  item.rule = { beforeTree, drafts, hashes, proof };
+  saveState(repository, state);
+  logEvent(repository, {
+    event: 'rule', ...summarize(item), category: item.category, quote: item.quote, scenario: item.scenario,
+    fingerprint: item.fingerprint, drafts, proof, caughtBy,
+  });
+  return { id: item.id, proof, caughtBy, withDrafts, withoutDrafts };
 }
 
 function rerunChecks(cwd) {
@@ -944,10 +1065,10 @@ function reviewVerdict(repository, gateSettings) {
   if (pending.length) return verdict('deny', `review-loop: decide ${pending.join(', ')} before committing. Run ${REVIEW_COMMAND} to continue.`);
   const currentTree = snapshotTree(repository);
   if (currentTree !== state.reviewedTree) {
-    const reviewedFiles = new Set(state.reviewedFiles ?? state.files ?? []);
-    const unreviewed = filesBetween(repository, state.reviewedTree, currentTree).filter((file) => !reviewedFiles.has(file));
+    const knownFiles = new Set([...(state.reviewedFiles ?? state.files ?? []), ...checkedRuleDrafts(repository, state)]);
+    const unreviewed = filesBetween(repository, state.reviewedTree, currentTree).filter((file) => !knownFiles.has(file));
     if (unreviewed.length) return verdict('deny', `review-loop: ${unreviewed.join(', ')} changed after the last review and were not reviewed. ${reviewFirst}`);
-    return verdict('ask', 'review-loop: reviewed files changed after the last review, for example fixes chosen in the decision step. Commit them without another review?');
+    return verdict('ask', 'review-loop: reviewed files or checked rule drafts changed after the last review, for example fixes and rules chosen in the decision step. Commit them without another review?');
   }
   if (delegated) return verdict('allow', 'review-loop: the review passed and commits are delegated in this repository.');
   return verdict('ask', 'review-loop: the review passed with no open P1 or P2. Commit now?');
@@ -1035,6 +1156,9 @@ function status(cwd) {
       counts: state.counts,
       open: state.open.map(summarize),
       pendingDecisions: pendingDecisionIds(state),
+      rules: [...state.cards, ...state.open]
+        .filter((item) => item.decision === 'rule')
+        .map((item) => ({ id: item.id, drafts: item.rule?.drafts ?? [], proof: item.rule?.proof ?? null })),
       notVerifiedChecks: (state.latestChecks ?? state.checks ?? []).filter((check) => check.timedOut).map((check) => check.name),
     },
     treeMatchesReview: snapshotTree(repository) === state.reviewedTree,
@@ -1044,7 +1168,7 @@ function status(cwd) {
   };
 }
 
-const COMMANDS = { start, record, next, decide, checks: rerunChecks, delegate, gate, confirm, status };
+const COMMANDS = { start, record, next, decide, rule, checks: rerunChecks, delegate, gate, confirm, status };
 
 function parseOptions(args) {
   const options = {};
@@ -1055,7 +1179,7 @@ function parseOptions(args) {
     if (value === undefined || value.startsWith('--')) {
       options[match[1]] = true;
     } else {
-      options[match[1]] = value;
+      options[match[1]] = Object.hasOwn(options, match[1]) ? [options[match[1]], value].flat() : value;
       index += 1;
     }
   }

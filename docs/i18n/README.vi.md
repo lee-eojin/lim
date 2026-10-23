@@ -52,7 +52,7 @@ Trước khi bạn commit, review-loop chạy một vòng lặp ngắn và tự 
 3. **Sửa.** Claude nói nó sẽ sửa gì, sau đó sửa P1 và P2. Nếu một bản sửa cần một lựa chọn thiết kế (có nhiều cách sửa, hành vi nhìn thấy được bị thay đổi, xóa một tính năng, thay đổi test), bạn chọn trước. Để xem mọi P2 (hoặc mọi P1 và P2) trước khi có bất kỳ thay đổi nào, hãy yêu cầu Claude xác nhận với bạn trước.
 4. **Review lại.** Một reviewer mới chỉ kiểm tra các bản sửa và các phát hiện còn mở. Tối đa 3 vòng.
 5. **Dừng.** Một script quyết định khi nào dừng, không phải mô hình. Script dừng vòng lặp trong các trường hợp sau: không còn P1 hoặc P2, đạt giới hạn số vòng, một phát hiện vẫn còn sau hai lần sửa, một phát hiện đã giải quyết quay lại, P1 + P2 không giảm nữa, hoặc một bản sửa làm yếu test hay check.
-6. **Quyết định.** Bạn quyết định phần còn lại một lần: mọi P3 đến P5, cùng với mọi P1 hoặc P2 vẫn còn mở, chưa xác minh được, hoặc nói về một file nằm ngoài diff đã review. Với mỗi phát hiện, bạn chọn: giữ nguyên, chỉ sửa lần này, hoặc biến nó thành một quy tắc.
+6. **Quyết định.** Bạn quyết định phần còn lại một lần: mọi P3 đến P5, cùng với mọi P1 hoặc P2 vẫn còn mở, chưa xác minh được, hoặc nói về một file nằm ngoài diff đã review. Với mỗi phát hiện, bạn chọn: giữ nguyên, chỉ sửa lần này, hoặc biến nó thành một quy tắc. Một quy tắc là một quy tắc lint hoặc một test mà Claude viết cùng với bản sửa. review-loop chạy các check của bạn trên code từ trước bản sửa để cho thấy quy tắc đó bắt được vấn đề.
 7. **Commit.** Claude hỏi trước khi commit, trừ khi bạn đã chọn "không hỏi nữa trong repo này". Claude không bao giờ push. Nếu bạn bật commit gate, một hook biến điều này thành quy tắc: commit của Claude bị chặn cho đến khi một lần review đạt.
 
 ### Commit gate
@@ -64,7 +64,7 @@ Commit gate là một hook. Hook này tắt cho đến khi bạn bật nó trong
 | Chưa có review, hoặc có file thay đổi mà review chưa bao phủ | Chặn commit và yêu cầu Claude chạy review |
 | Một vòng lặp review đang chạy, hoặc vẫn còn quyết định đang chờ | Chặn commit |
 | Review đã đạt | Hỏi bạn trước khi commit, hoặc cho phép commit nếu bạn đã ủy quyền commit trong repository này |
-| Sau review, chỉ có các file đã review thay đổi | Hỏi bạn |
+| Sau review, chỉ có các file đã review hoặc bản nháp quy tắc mà `loop rule` đã kiểm tra thay đổi | Hỏi bạn |
 | `git push` hoặc force push | Luôn hỏi, kể cả khi đã ủy quyền |
 | Commit với `--no-verify` | Hỏi, kể cả khi đã ủy quyền, và vẫn chặn commit chưa có review đạt |
 | Commit trong thư mục mà gate không đọc được, ví dụ `cd "$(...)"` hoặc đường dẫn không tồn tại | Hỏi, kể cả khi đã ủy quyền, nếu gate đang bật trong repository nơi bạn khởi động Claude Code |
@@ -101,13 +101,13 @@ P1 hoặc P2 về một file không có trong diff mà vòng đó đã review s�
 
 ### Số đo
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 78 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 76 hành vi trong số đó. Các unit test này bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 2 hành vi còn lại cần một lần chạy với mô hình và được dự kiến cho `claude plugin eval`: hỏi về P3 đến P5 một lần và hiển thị báo cáo trước mọi câu hỏi.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 89 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 87 hành vi trong số đó. Các unit test này bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 2 hành vi còn lại cần một lần chạy với mô hình và được dự kiến cho `claude plugin eval`: hỏi về P3 đến P5 một lần và hiển thị báo cáo trước mọi câu hỏi.
 
 review-loop review chính các pull request của LIM. [#8](https://github.com/lee-eojin/lim/pull/8) cho thấy hai vòng lặp trên phiên bản đầu tiên của review-loop. Một vòng trong đó dừng vì một false positive trong check phát hiện test bị làm yếu của chính nó. Lỗi này sau đó đã được sửa.
 
 ### Dữ liệu
 
-Trạng thái, diff, log của check và một sổ ghi quyết định nằm trong `.git/lim/review-loop/` bên trong repository của bạn. review-loop không ghi gì vào working tree của bạn. Xóa thư mục đó để đặt lại.
+Trạng thái, diff, log của check và một sổ ghi quyết định nằm trong `.git/lim/review-loop/` bên trong repository của bạn. review-loop không ghi gì vào working tree của bạn. Để kiểm tra một quy tắc, review-loop ghi code từ trước bản sửa vào một thư mục tạm bên ngoài repository của bạn và xóa thư mục đó sau khi xong. Xóa `.git/lim/review-loop/` để đặt lại.
 
 review-loop không tự thực hiện lệnh gọi mạng nào. Claude và reviewer đọc diff, các phát hiện và output của check giống như mọi file khác trong session của bạn. Vì vậy, nội dung đó được gửi đến nhà cung cấp mô hình theo cùng cách với phần còn lại của session Claude Code của bạn.
 
@@ -119,6 +119,7 @@ review-loop không tự thực hiện lệnh gọi mạng nào. Claude và revie
 - Commit gate chỉ kiểm tra các lệnh mà Claude chạy qua công cụ Bash của nó. Các commit bạn tự gõ trong terminal của mình không được kiểm tra. Git alias như `git ci` không được nhận diện.
 - Nếu bạn khởi động Claude Code trong một thư mục không phải repository, gate không thể kiểm tra commit mà nó không xác định được repository, ví dụ sau `cd "$(...)"`.
 - review-loop review mọi thứ mà `git add -A` sẽ bao gồm. Nó không review một tập thay đổi đã stage do bạn tự chọn.
+- Một quy tắc được kiểm tra trong một bản sao tạm. Bản sao này có các file được track của bạn và một liên kết tới `node_modules` ở thư mục gốc. Các file bị ignore khác, như `.env` hoặc một `node_modules` lồng bên trong, không có ở đó. Vì vậy, một check cần các file đó sẽ báo quy tắc là chưa được chứng minh hoặc bắt được lỗi vì sai lý do. Claude đọc lỗi để biết đó là trường hợp nào.
 
 ## FAQ
 
@@ -151,7 +152,7 @@ Sau đó, xóa `.git/lim/review-loop/` trong mỗi repository mà bạn đã ch�
 
 ## Lộ trình
 
-- review-loop: biến các phát hiện bạn đã chọn "biến nó thành một quy tắc" thành bản nháp quy tắc lint và test
+- review-loop: soạn bản nháp quy tắc từ các phát hiện bạn đã chọn "biến nó thành một quy tắc" trong các lần review trước
 - Eval ở cấp mô hình với `claude plugin eval` cho các hành vi mà unit test không bao phủ được
 
 ## Đóng góp
