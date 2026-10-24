@@ -14,6 +14,8 @@ const DEFAULT_MAX_ROUNDS = 3;
 const MAX_ROUNDS_LIMIT = 5;
 const REPEAT_AFTER = 3;
 const MOST_REPEATED_LIMIT = 5;
+// Only categories that name one kind of mistake repeat; a broad label such as correctness would add up unrelated findings.
+export const NAMED_KINDS = new Set(['speculative-guard', 'history-comment', 'shortcut-marker', 'second-way']);
 const CHECK_TIMEOUT_MS = Number(process.env.LIM_CHECK_TIMEOUT_MS) || 5 * 60 * 1000;
 const CHECKS_BUDGET_MS = 9 * 60 * 1000;
 const SEVERITIES = ['P1', 'P2', 'P3', 'P4', 'P5'];
@@ -550,13 +552,13 @@ function kindCounts(repository, { except } = {}) {
 
 function repeatOf(seenBefore, finding) {
   const category = kindOf(finding);
-  const count = seenBefore.get(category) ?? 0;
+  const count = NAMED_KINDS.has(category) ? seenBefore.get(category) ?? 0 : 0;
   return count >= REPEAT_AFTER ? { repeat: { category, seenBefore: count } } : {};
 }
 
 function mostRepeatedKinds(repository) {
   return [...kindCounts(repository)]
-    .filter(([, count]) => count > 1)
+    .filter(([category, count]) => NAMED_KINDS.has(category) && count > 1)
     .sort(([firstKind, first], [secondKind, second]) => second - first || firstKind.localeCompare(secondKind))
     .slice(0, MOST_REPEATED_LIMIT)
     .map(([category, count]) => ({ category, count }));
