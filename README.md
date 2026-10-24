@@ -24,7 +24,7 @@ Fork it, change it, make it yours. Issues and pull requests are welcome.
 
 | Plugin | Status | One job |
 |---|---|---|
-| [review-loop](plugins/review-loop) | 0.3.0 | Reviews your changes before you commit, fixes P1 and P2 findings, re-reviews, and hands the rest to you. |
+| [review-loop](plugins/review-loop) | 0.4.0 | Reviews your changes before you commit, fixes P1 and P2 findings, re-reviews, and hands the rest to you. |
 
 ## Install
 

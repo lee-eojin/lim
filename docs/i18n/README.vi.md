@@ -26,7 +26,7 @@ Hãy fork, chỉnh sửa và biến nó thành của bạn. Chúng tôi hoan ngh
 
 | Plugin | Trạng thái | Một việc |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.3.0 | Review các thay đổi của bạn trước khi commit, sửa các phát hiện P1 và P2, review lại và giao phần còn lại cho bạn. |
+| [review-loop](../../plugins/review-loop) | 0.4.0 | Review các thay đổi của bạn trước khi commit, sửa các phát hiện P1 và P2, review lại và giao phần còn lại cho bạn. |
 
 ## Cài đặt
 

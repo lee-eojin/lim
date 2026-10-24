@@ -26,7 +26,7 @@ Haz un fork, cámbialo, hazlo tuyo. Los issues y los pull requests son bienvenid
 
 | Plugin | Estado | Un trabajo |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.3.0 | Revisa tus cambios antes del commit, corrige los hallazgos P1 y P2, vuelve a revisar y te entrega el resto. |
+| [review-loop](../../plugins/review-loop) | 0.4.0 | Revisa tus cambios antes del commit, corrige los hallazgos P1 y P2, vuelve a revisar y te entrega el resto. |
 
 ## Instalación
 

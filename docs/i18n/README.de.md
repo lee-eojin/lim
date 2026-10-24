@@ -26,7 +26,7 @@ Forke es, ändere es, mach es zu deinem. Issues und Pull Requests sind willkomme
 
 | Plugin | Status | Eine Aufgabe |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.3.0 | Prüft deine Änderungen vor dem Commit, behebt P1- und P2-Findings, prüft erneut und übergibt den Rest an dich. |
+| [review-loop](../../plugins/review-loop) | 0.4.0 | Prüft deine Änderungen vor dem Commit, behebt P1- und P2-Findings, prüft erneut und übergibt den Rest an dich. |
 
 ## Installation
 
