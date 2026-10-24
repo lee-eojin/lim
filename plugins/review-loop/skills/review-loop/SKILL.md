@@ -121,7 +121,26 @@ The user can turn delegation off with `loop delegate --scope off`.
 
 If the user asks to commit without a review just this once, run `loop gate --skip-once` before the commit. If the gate blocks a commit, follow the reason it gives; it names the step to take.
 
+## Unattended
+
+If the user asks for an unattended run, for example overnight, run `loop start --unattended`. `loop start` and `loop status` return `unattended`. When it is true, nobody can answer, so never use AskUserQuestion. Wherever this skill says to ask, take the safe default below and record it at once:
+
+```bash
+node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs note --phase <step> --decision "<what you did>" --why "<why>" --evidence "<what showed it>"
+```
+
+- section 1 (Start): continue a loop that is in progress instead of asking, unless the Start steps say to start over; then run `loop start --fresh --unattended` so the new run stays unattended.
+- section 4 (Continue or stop): skip the `ask` step. The script moved those findings to `deferred` with the reason; do not fix them.
+- section 5 (Decide): ask nothing and decide nothing. Cards and `deferred` findings stay pending for the user.
+- A rule or regression test draft that is `unproven`: keep it.
+- section 6 (Commit): do not ask about the commit gate; leave it unconfigured. Commit only if `delegation.scope` is `repo` and `pendingDecisions` is empty; otherwise leave the change uncommitted. Never push.
+- Anything else this skill would ask about, such as a fix that needs a weakened test: take the choice that changes the least and is easy to undo.
+
+End with `loop summary` and show its `report` as the Rules say. When the user later asks what happened, run `loop summary` again; `--since <ISO time>` changes where it starts.
+
 ## Settings
+
+If the user asks for every review in this repository to run unattended, run `loop unattended --on`; `loop unattended --off` turns it off.
 
 If the user asks to see every P2 (or every P1 and P2) before anything is fixed, run `loop confirm --severity P2` (or `--severity all`). `loop confirm --off` turns it off. The setting applies to the whole repository. If a round is waiting for fixes, the command also moves findings at that severity from the fix list to the ask list and returns their ids in `rerouted`; ask about those before fixing anything.
 

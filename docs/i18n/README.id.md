@@ -106,6 +106,7 @@ turn off the gate:      /review-loop:review-loop turn off the commit gate in thi
 skip once:              /review-loop:review-loop commit this without a review, just this once.
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
+run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 ```
 
 </details>
@@ -195,18 +196,19 @@ Untuk commit satu kali tanpa review, minta Claude untuk melewati review kali ini
 
 ### Pengaturan
 
-Tiga pengaturan pertama berlaku untuk satu repository. Untuk mengubahnya, ketik permintaanmu setelah `/review-loop:review-loop`, agar Claude sudah memuat perintah dari skill tersebut. Batas waktu pemeriksaan adalah environment variable, jadi berlaku di mana pun kamu mengaturnya, dan total 9 menit bersifat tetap.
+Empat pengaturan pertama berlaku untuk satu repository. Untuk mengubahnya, ketik permintaanmu setelah `/review-loop:review-loop`, agar Claude sudah memuat perintah dari skill tersebut. Batas waktu pemeriksaan adalah environment variable, jadi berlaku di mana pun kamu mengaturnya, dan total 9 menit bersifat tetap.
 
 | Pengaturan | Default | Yang diketik |
 |---|---|---|
 | Konfirmasi sebelum perbaikan | Mati | "konfirmasi setiap P2 denganku" atau "konfirmasi setiap P1 dan P2 denganku" |
 | Commit gate | Ditanyakan satu kali di akhir review pertama | "nyalakan (atau matikan) commit gate" |
 | Delegasi commit | Bertanya sebelum setiap commit | "berhenti bertanya sebelum commit di repo ini" |
+| Tanpa pengawasan | Mati | "jalankan tanpa pengawasan" untuk satu eksekusi, atau "nyalakan (atau matikan) mode tanpa pengawasan di repo ini". Claude tidak menanyakan apa pun, menunda hal yang membutuhkanmu, dan mengakhiri dengan ringkasan tentang apa yang sudah dilakukannya dan apa yang menunggumu |
 | Batas waktu pemeriksaan | 5 menit per pemeriksaan, total 9 menit | Atur `LIM_CHECK_TIMEOUT_MS` untuk mengubah batas per pemeriksaan |
 
 ## Terukur
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 129 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 120 di antaranya, termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 9 perilaku lainnya membutuhkan eksekusi dengan model dan direncanakan untuk `claude plugin eval`: bertanya tentang P3 sampai P5 satu kali, menampilkan laporan sebelum pertanyaan apa pun, menyimpan setiap langkah di daftar tugas dengan alasan untuk setiap langkah yang dilewati, menulis regression test untuk setiap P1 atau P2 yang diperbaiki, memberi label measured, inferred, atau guessed pada setiap temuan, menyebutkan bagaimana sebuah perbaikan diketahui berhasil, memeriksa ulang sebuah temuan saat kamu membantahnya, merekomendasikan aturan untuk jenis temuan yang terus muncul kembali, dan melaporkan kode yang ditambahkan tanpa penyebab yang diketahui. Perilaku terakhir memiliki fixture di [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 142 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 132 di antaranya, termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 10 perilaku lainnya membutuhkan eksekusi dengan model dan direncanakan untuk `claude plugin eval`: bertanya tentang P3 sampai P5 satu kali, menampilkan laporan sebelum pertanyaan apa pun, menyimpan setiap langkah di daftar tugas dengan alasan untuk setiap langkah yang dilewati, menulis regression test untuk setiap P1 atau P2 yang diperbaiki, memberi label measured, inferred, atau guessed pada setiap temuan, menyebutkan bagaimana sebuah perbaikan diketahui berhasil, memeriksa ulang sebuah temuan saat kamu membantahnya, merekomendasikan aturan untuk jenis temuan yang terus muncul kembali, tidak bertanya apa pun dalam eksekusi tanpa pengawasan, dan melaporkan kode yang ditambahkan tanpa penyebab yang diketahui. Perilaku terakhir memiliki fixture di [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
 
 <details>
 <summary>Biaya</summary>
@@ -320,7 +322,6 @@ review-loop bekerja dengan pemeriksaan yang sudah kamu punya. Semakin baik scrip
 
 - Eval tingkat model dengan `claude plugin eval` untuk perilaku yang tidak dapat dicakup oleh unit test, serta perbandingan buta atas kualitas dan biaya review
 - Reviewer yang berjalan pada model yang berbeda dari model yang menulis perubahan
-- Mode tanpa pengawasan yang mencatat setiap keputusan agar bisa kamu tinjau nanti
 - Panduan singkat dengan prompt siap salin, output nyata, dan biaya
 
 ## Berkontribusi

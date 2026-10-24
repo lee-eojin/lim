@@ -106,6 +106,7 @@ turn off the gate:      /review-loop:review-loop turn off the commit gate in thi
 skip once:              /review-loop:review-loop commit this without a review, just this once.
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
+run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 ```
 
 </details>
@@ -195,18 +196,19 @@ Pour faire un commit une seule fois sans revue, demandez à Claude de sauter la 
 
 ### Réglages
 
-Les trois premiers réglages s'appliquent à un seul dépôt. Pour en changer un, tapez la demande après `/review-loop:review-loop`, afin que Claude ait chargé les commandes de la skill. La limite de temps des vérifications est une variable d'environnement, elle s'applique donc partout où vous la définissez, et le total de 9 minutes est fixe.
+Les quatre premiers réglages s'appliquent à un seul dépôt. Pour en changer un, tapez la demande après `/review-loop:review-loop`, afin que Claude ait chargé les commandes de la skill. La limite de temps des vérifications est une variable d'environnement, elle s'applique donc partout où vous la définissez, et le total de 9 minutes est fixe.
 
 | Réglage | Par défaut | À taper |
 |---|---|---|
 | Confirmer avant de corriger | Désactivé | "confirme avec moi chaque P2" ou "confirme avec moi chaque P1 et P2" |
 | Commit gate | Demandé une fois à la fin de la première revue | "active (ou désactive) le commit gate" |
 | Délégation des commits | Demande avant chaque commit | "ne demande plus avant les commits dans ce dépôt" |
+| Sans surveillance | Désactivé | "exécute sans surveillance" pour une seule exécution, ou "active (ou désactive) le mode sans surveillance dans ce dépôt". Claude ne pose aucune question, laisse pour plus tard ce qui a besoin de vous et termine par un résumé de ce qu'il a fait et de ce qui vous attend |
 | Limite de temps des vérifications | 5 minutes par vérification, 9 minutes au total | Définissez `LIM_CHECK_TIMEOUT_MS` pour modifier la limite de chaque vérification |
 
 ## Mesures
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liste 129 comportements sur six axes : `do`, `tell`, `ask`, `silence`, `stop` et `evidence`. Les tests unitaires de la CI couvrent 120 de ces comportements, y compris des exécutions sur de vrais dépôts git temporaires et le hook de commit gate. Les 9 autres exigent une exécution du modèle et sont prévus pour `claude plugin eval` : demander une seule fois pour P3 à P5, montrer le rapport avant toute question, garder chaque étape dans la liste de tâches avec une raison pour chaque étape sautée, écrire un test de régression pour chaque P1 ou P2 corrigé, étiqueter chaque constat measured, inferred ou guessed, dire comment on sait qu'une correction fonctionne, revérifier un constat que vous contestez, recommander une règle pour un type de constat qui revient sans cesse et signaler le code ajouté sans cause connue. Le dernier a une fixture dans [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liste 142 comportements sur six axes : `do`, `tell`, `ask`, `silence`, `stop` et `evidence`. Les tests unitaires de la CI couvrent 132 de ces comportements, y compris des exécutions sur de vrais dépôts git temporaires et le hook de commit gate. Les 10 autres exigent une exécution du modèle et sont prévus pour `claude plugin eval` : demander une seule fois pour P3 à P5, montrer le rapport avant toute question, garder chaque étape dans la liste de tâches avec une raison pour chaque étape sautée, écrire un test de régression pour chaque P1 ou P2 corrigé, étiqueter chaque constat measured, inferred ou guessed, dire comment on sait qu'une correction fonctionne, revérifier un constat que vous contestez, recommander une règle pour un type de constat qui revient sans cesse, ne poser aucune question lors d'une exécution sans surveillance et signaler le code ajouté sans cause connue. Le dernier a une fixture dans [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
 
 <details>
 <summary>Coût</summary>
@@ -320,7 +322,6 @@ review-loop fonctionne avec les vérifications que vous avez déjà. Plus vos sc
 
 - Des evals au niveau du modèle avec `claude plugin eval` pour les comportements que les tests unitaires ne peuvent pas couvrir, et une comparaison à l'aveugle de la qualité et du coût des revues
 - Un réviseur qui tourne sur un autre modèle que celui qui a écrit la modification
-- Un mode sans surveillance qui enregistre chaque décision pour que vous la revoyiez plus tard
 - Un guide court avec des prompts prêts à copier, de vraies sorties et le coût
 
 ## Contribuer

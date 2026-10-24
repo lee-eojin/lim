@@ -106,6 +106,7 @@ turn off the gate:      /review-loop:review-loop turn off the commit gate in thi
 skip once:              /review-loop:review-loop commit this without a review, just this once.
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
+run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 ```
 
 </details>
@@ -195,18 +196,19 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 
 ### 설정
 
-처음 세 설정은 저장소 하나에 적용됩니다. 설정을 바꾸려면 `/review-loop:review-loop` 뒤에 요청을 입력합니다. 그래야 Claude가 스킬의 명령을 불러온 상태에서 처리합니다. 검사 제한 시간은 환경 변수라서 설정한 곳 어디에나 적용되고, 전체 9분은 고정입니다.
+처음 네 설정은 저장소 하나에 적용됩니다. 설정을 바꾸려면 `/review-loop:review-loop` 뒤에 요청을 입력합니다. 그래야 Claude가 스킬의 명령을 불러온 상태에서 처리합니다. 검사 제한 시간은 환경 변수라서 설정한 곳 어디에나 적용되고, 전체 9분은 고정입니다.
 
 | 설정 | 기본값 | 입력 |
 |---|---|---|
 | 수정 전 확인 | 꺼짐 | "모든 P2는 나에게 먼저 확인받아 줘" 또는 "모든 P1과 P2는 나에게 먼저 확인받아 줘" |
 | 커밋 게이트 | 첫 리뷰가 끝날 때 한 번 물음 | "커밋 게이트를 켜 줘(또는 꺼 줘)" |
 | 커밋 위임 | 커밋할 때마다 물음 | "이 저장소에서는 커밋 전에 더 묻지 마" |
+| 무인 실행 | 꺼짐 | 이번 한 번은 "무인으로 실행해 줘", 이 저장소에 계속 적용하려면 "이 저장소에서 무인 모드를 켜 줘(또는 꺼 줘)". Claude는 아무것도 묻지 않고, 사용자가 판단할 일은 나중으로 남기고, 한 일과 사용자를 기다리는 일을 요약하며 끝냅니다 |
 | 검사 제한 시간 | 검사 하나에 5분, 전체 9분 | 검사 하나의 제한 시간을 바꾸려면 `LIM_CHECK_TIMEOUT_MS`를 설정 |
 
 ## 측정 결과
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 129개 동작이 있습니다. CI의 단위 테스트가 그중 120개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 9개는 모델 실행이 필요하므로, `claude plugin eval`로 측정할 계획입니다. 그 9개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 같은 종류로 되풀이되는 지적 사항에 규칙 만들기 권하기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있습니다.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 142개 동작이 있습니다. CI의 단위 테스트가 그중 132개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 10개는 모델 실행이 필요하므로, `claude plugin eval`로 측정할 계획입니다. 그 10개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 같은 종류로 되풀이되는 지적 사항에 규칙 만들기 권하기, 무인 실행에서는 아무것도 묻지 않기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있습니다.
 
 <details>
 <summary>비용</summary>
@@ -320,7 +322,6 @@ review-loop는 이미 있는 검사를 그대로 씁니다. `typecheck`, `lint`,
 
 - 단위 테스트로 다룰 수 없는 동작을 위한 `claude plugin eval` 기반 모델 수준 eval, 그리고 리뷰 품질과 비용의 블라인드 비교
 - 변경을 작성한 모델과 다른 모델에서 실행하는 리뷰어
-- 결정을 하나하나 기록해 두고 사용자가 나중에 검토하는 무인 모드
 - 바로 복사해 쓸 수 있는 프롬프트, 실제 출력, 비용을 담은 짧은 가이드
 
 ## 기여하기

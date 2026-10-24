@@ -106,6 +106,7 @@ turn off the gate:      /review-loop:review-loop turn off the commit gate in thi
 skip once:              /review-loop:review-loop commit this without a review, just this once.
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
+run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 ```
 
 </details>
@@ -195,18 +196,19 @@ Commit gate là một hook luôn tắt cho đến khi bạn bật nó trong mộ
 
 ### Thiết lập
 
-Ba thiết lập đầu tiên áp dụng cho một repository. Để thay đổi, hãy gõ yêu cầu sau `/review-loop:review-loop`, để Claude đã nạp sẵn các lệnh của skill. Giới hạn thời gian của check là một biến môi trường, nên nó áp dụng ở bất cứ nơi nào bạn đặt, và tổng 9 phút là cố định.
+Bốn thiết lập đầu tiên áp dụng cho một repository. Để thay đổi, hãy gõ yêu cầu sau `/review-loop:review-loop`, để Claude đã nạp sẵn các lệnh của skill. Giới hạn thời gian của check là một biến môi trường, nên nó áp dụng ở bất cứ nơi nào bạn đặt, và tổng 9 phút là cố định.
 
 | Thiết lập | Mặc định | Cần gõ |
 |---|---|---|
 | Xác nhận trước khi sửa | Tắt | "xác nhận mọi P2 với tôi" hoặc "xác nhận mọi P1 và P2 với tôi" |
 | Commit gate | Được hỏi một lần ở cuối lần review đầu tiên | "bật (hoặc tắt) commit gate" |
 | Ủy quyền commit | Hỏi trước mỗi commit | "không hỏi nữa trước khi commit trong repo này" |
+| Không giám sát | Tắt | "chạy không giám sát" cho một lần chạy, hoặc "bật (hoặc tắt) chế độ không giám sát trong repo này". Claude không hỏi gì, để lại cho sau những việc cần đến bạn, và kết thúc bằng một bản tóm tắt những gì đã làm và những gì đang chờ bạn |
 | Giới hạn thời gian của check | 5 phút cho mỗi check, tổng cộng 9 phút | Đặt `LIM_CHECK_TIMEOUT_MS` để thay đổi giới hạn cho mỗi check |
 
 ## Số đo
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 129 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 120 hành vi trong số đó, bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 9 hành vi còn lại cần một lần chạy với mô hình và được dự kiến cho `claude plugin eval`: hỏi về P3 đến P5 một lần, hiển thị báo cáo trước mọi câu hỏi, giữ mọi bước trong danh sách việc cần làm kèm lý do cho mỗi bước bị bỏ qua, viết regression test cho mỗi P1 hoặc P2 đã sửa, gắn nhãn measured, inferred hoặc guessed cho mỗi phát hiện, nói rõ làm sao biết một bản sửa đã hiệu quả, kiểm tra lại một phát hiện khi bạn phản bác, đề xuất một quy tắc cho loại phát hiện cứ lặp lại, và báo cáo code được thêm vào mà không rõ nguyên nhân. Hành vi cuối cùng có một fixture trong [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 142 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 132 hành vi trong số đó, bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 10 hành vi còn lại cần một lần chạy với mô hình và được dự kiến cho `claude plugin eval`: hỏi về P3 đến P5 một lần, hiển thị báo cáo trước mọi câu hỏi, giữ mọi bước trong danh sách việc cần làm kèm lý do cho mỗi bước bị bỏ qua, viết regression test cho mỗi P1 hoặc P2 đã sửa, gắn nhãn measured, inferred hoặc guessed cho mỗi phát hiện, nói rõ làm sao biết một bản sửa đã hiệu quả, kiểm tra lại một phát hiện khi bạn phản bác, đề xuất một quy tắc cho loại phát hiện cứ lặp lại, không hỏi gì trong một lần chạy không giám sát, và báo cáo code được thêm vào mà không rõ nguyên nhân. Hành vi cuối cùng có một fixture trong [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
 
 <details>
 <summary>Chi phí</summary>
@@ -320,7 +322,6 @@ review-loop làm việc với các check bạn đã có. Script `typecheck`, `li
 
 - Eval ở cấp mô hình với `claude plugin eval` cho các hành vi mà unit test không bao phủ được, và một phép so sánh mù về chất lượng và chi phí review
 - Một reviewer chạy trên một mô hình khác với mô hình đã viết thay đổi
-- Một chế độ không cần giám sát, ghi lại từng quyết định để bạn xem lại sau
 - Một hướng dẫn ngắn với các prompt sẵn sàng sao chép, output thực tế và chi phí
 
 ## Đóng góp

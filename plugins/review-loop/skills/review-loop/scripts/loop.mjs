@@ -64,6 +64,15 @@ const STOP_REASONS = {
   stuck: 'a finding is still open after two fix attempts',
   regression: 'a resolved finding came back',
   integrity: 'a fix weakened tests or checks',
+  waiting: 'nothing left to fix without you',
+};
+const SUMMARY_FIELDS = {
+  record: ['round', 'decision', 'reason', 'counts', 'resolved', 'open', 'deferred', 'cards'],
+  decision: ['id', 'severity', 'title', 'choice'],
+  rule: ['id', 'severity', 'title', 'drafts', 'proof', 'reason'],
+  regression: ['id', 'severity', 'title', 'drafts', 'proof', 'reason'],
+  note: ['phase', 'decision', 'why', 'evidence'],
+  next: ['round', 'reason', 'integrity'],
 };
 
 const normalize = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
@@ -112,10 +121,10 @@ export function isStalled(counts) {
   return second >= first && third >= second;
 }
 
-export function decideNext({ round, maxRounds, counts, open, stuck = [], regressions = [] }) {
+export function decideNext({ round, maxRounds, counts, open, waiting = 0, stuck = [], regressions = [] }) {
   if (regressions.length) return { decision: 'stop', reason: 'regression' };
   if (stuck.length) return { decision: 'stop', reason: 'stuck' };
-  if (open === 0) return { decision: 'stop', reason: 'clean' };
+  if (open === 0) return { decision: 'stop', reason: waiting ? 'waiting' : 'clean' };
   if (isStalled(counts)) return { decision: 'stop', reason: 'stalled' };
   if (round >= maxRounds) return { decision: 'stop', reason: 'max-rounds' };
   return { decision: 'continue', reason: 'fix' };
@@ -223,7 +232,7 @@ export function parseReview(input) {
 export function renderReport(view) {
   const {
     round, maxRounds, checks = [], resolved = [], fix = [], ask = [], stillOpen = [], regressions = [],
-    integrity = [], cards = [], kept = [], counts = [], looped = [], decision, reason,
+    integrity = [], cards = [], kept = [], counts = [], looped = [], deferred = [], decision, reason,
   } = view;
   const lines = [`Review round ${round} of ${maxRounds}`, `Checks: ${describeChecks(checks)}`];
   const section = (title, items, describe) => {
@@ -238,6 +247,9 @@ export function renderReport(view) {
   section('Fixing next:', fix, describeFinding);
   section('Needs your call on how to fix:', ask, describeFinding);
   section('Still open (P1 or P2):', stillOpen, describeFinding);
+  section('Waiting for you (not fixed in an unattended run):', deferred, (item) => [
+    ...describeFinding(item), `  waiting because: ${item.deferredReason}`,
+  ]);
   section('Came back after being resolved:', regressions, describeFinding);
   section('Fixes that weakened tests or checks:', integrity, (issue) => [`- ${issue.file}: ${issue.reason}`]);
   section("Noticed outside this round's diff (not looped, decided at the end):", outOfScope, (item) => [
@@ -253,9 +265,12 @@ export function renderReport(view) {
   if (decision === 'continue') {
     lines.push(`Next: fix, then re-review in round ${round + 1} of ${maxRounds}`);
   } else {
-    const stopText = reason === 'clean' && kept.some((item) => BLOCKING.has(item.severity))
-      ? 'no P1 or P2 left to fix; the kept ones are listed above'
-      : STOP_REASONS[reason] ?? reason;
+    let stopText = STOP_REASONS[reason] ?? reason;
+    if (reason === 'clean' && kept.some((item) => BLOCKING.has(item.severity))) {
+      stopText = 'no P1 or P2 left to fix; the kept ones are listed above';
+    } else if (reason === 'waiting') {
+      stopText = `${stopText}; ${deferred.length} P1 or P2 waiting for you`;
+    }
     lines.push(`Stopped: ${stopText}`, `Left for you: ${tally(cards, looped)}`);
   }
   return lines.join('\n');
@@ -586,8 +601,12 @@ function runRoundChecks(repository, state) {
   return state.checks;
 }
 
+function decidableFindings(state) {
+  return [...state.cards, ...state.open, ...(state.deferred ?? [])];
+}
+
 function pendingDecisionIds(state) {
-  return [...state.cards, ...state.open].filter((item) => !item.decision).map((item) => item.id);
+  return decidableFindings(state).filter((item) => !item.decision).map((item) => item.id);
 }
 
 function readSavedState(repository) {
@@ -603,6 +622,33 @@ function routeOf(item) {
   return ASK_FLAGS.some((flag) => item[flag] === true) || item.attempts > 0 ? 'ask' : 'fix';
 }
 
+function deferredReason(item, confirmSetting) {
+  if (item.attempts > 0) return item.note ?? 'the first fix did not resolve it';
+  const flags = ASK_FLAGS.filter((flag) => item[flag] === true);
+  if (flags.length) return flags.join(', ');
+  if (confirmSetting.severities.includes(item.severity)) return `confirm --severity ${confirmSetting.severity}`;
+  return 'it needs your call before fixing';
+}
+
+function defer(item, confirmSetting) {
+  const { note, ...finding } = item;
+  return { ...finding, deferredReason: deferredReason(item, confirmSetting) };
+}
+
+function readUnattended(repository) {
+  return { enabled: readSetting(repository, 'unattended.json', {}).enabled === true };
+}
+
+function makeUnattended(repository, state) {
+  const moved = state.awaiting === 'fix' ? state.open.filter((item) => routeOf(item) === 'ask') : [];
+  const confirmSetting = readConfirm(repository);
+  state.unattended = true;
+  state.open = state.open.filter((item) => !moved.includes(item));
+  state.deferred = [...(state.deferred ?? []), ...moved.map((item) => defer(item, confirmSetting))];
+  saveState(repository, state);
+  return moved.map((item) => item.id);
+}
+
 function isInProgress(state) {
   return ['review', 'fix'].includes(state.awaiting) || pendingDecisionIds(state).length > 0;
 }
@@ -611,18 +657,21 @@ function resumeView(repository, state) {
   const openPath = repository.file(`round-${state.round}.open.json`);
   const fixing = state.awaiting === 'fix';
   const deciding = state.awaiting === 'decisions';
+  const deferred = (state.deferred ?? []).filter((item) => !item.decision);
   return {
     report: state.lastReport ?? null,
     status: 'in-progress',
     round: state.round,
     maxRounds: state.maxRounds,
     awaiting: state.awaiting,
+    unattended: state.unattended === true,
     diffPath: repository.file(`round-${state.round}.diff`),
     openPath: existsSync(openPath) ? openPath : null,
     checksFinished: state.checks !== null,
     fix: fixing ? state.open.filter((item) => routeOf(item) === 'fix') : [],
     ask: fixing ? state.open.filter((item) => routeOf(item) === 'ask') : [],
-    stillOpen: deciding ? state.open.filter((item) => !item.decision) : [],
+    stillOpen: deciding ? [...state.open.filter((item) => !item.decision), ...deferred] : [],
+    deferred,
     cards: deciding ? state.cards.filter((card) => !card.decision) : [],
     treeMatchesReview: snapshotTree(repository) === state.reviewedTree,
   };
@@ -631,7 +680,16 @@ function resumeView(repository, state) {
 function start(cwd, options) {
   const repository = openRepository(cwd);
   const existing = options.fresh ? null : readSavedState(repository);
-  if (existing && isInProgress(existing)) return resumeView(repository, existing);
+  const unattended = options.unattended === true || readUnattended(repository).enabled;
+  if (existing && isInProgress(existing)) {
+    if (unattended) {
+      makeUnattended(repository, existing);
+    } else {
+      existing.unattended = false;
+      saveState(repository, existing);
+    }
+    return resumeView(repository, existing);
+  }
   const maxRounds = clampRounds(options['max-rounds']);
   const baseTree = headTree(repository.root);
   const reviewedTree = snapshotTree(repository);
@@ -641,13 +699,15 @@ function start(cwd, options) {
   const files = filesBetween(repository, baseTree, reviewedTree);
   const state = {
     version: 1, runId: randomUUID(), startedAt: now(), round: 1, maxRounds, baseTree, reviewedTree, nextId: 1,
-    files, reviewedFiles: files,
-    open: [], resolved: [], cards: [], kept: [], counts: [], checks: null, awaiting: 'review', stopped: null,
+    files, reviewedFiles: files, unattended,
+    open: [], resolved: [], cards: [], deferred: [], kept: [], counts: [], checks: null, awaiting: 'review', stopped: null,
   };
   saveState(repository, state);
   const checks = runRoundChecks(repository, state);
-  logEvent(repository, { event: 'start', reviewedTree, checks: checks.map(({ name, exitCode }) => ({ name, exitCode })) });
-  return { status: 'review', round: 1, maxRounds, diffPath: repository.file('round-1.diff'), checks };
+  logEvent(repository, {
+    event: 'start', reviewedTree, unattended, checks: checks.map(({ name, exitCode }) => ({ name, exitCode })),
+  });
+  return { status: 'review', round: 1, maxRounds, unattended, diffPath: repository.file('round-1.diff'), checks };
 }
 
 function record(cwd, options, input) {
@@ -680,7 +740,8 @@ function record(cwd, options, input) {
   const keptBefore = keptSeverities(repository);
   const seenBefore = kindCounts(repository, { except: state.runId });
   const previouslyKept = state.kept ?? [];
-  const knownPrints = new Set([...state.open, ...previouslyKept].map((item) => item.fingerprint));
+  const previouslyDeferred = state.deferred ?? [];
+  const knownPrints = new Set([...state.open, ...previouslyDeferred, ...previouslyKept].map((item) => item.fingerprint));
   const reported = [];
   const kept = [];
   for (const finding of review.findings.map((entry) => reviewerFinding(repository.root, entry))) {
@@ -696,7 +757,9 @@ function record(cwd, options, input) {
   }
   const allKept = [...previouslyKept, ...kept];
   const newChecks = failingChecks.filter((finding) => !state.open.some((item) => item.fingerprint === fingerprint(finding)));
-  const classified = classify([...newChecks, ...reported.filter((finding) => filesInRound.has(finding.file))], sourcesFor, readConfirm(repository).severities);
+  const confirmSetting = readConfirm(repository);
+  const inRound = [...newChecks, ...reported.filter((finding) => filesInRound.has(finding.file))];
+  const classified = classify(inRound, sourcesFor, confirmSetting.severities);
   const outside = classify(reported.filter((finding) => !filesInRound.has(finding.file)), sourcesFor);
   const outsideCards = [...outside.fix, ...outside.ask, ...outside.cards].map((item) => ({ ...item, outOfScope: true }));
 
@@ -706,14 +769,17 @@ function record(cwd, options, input) {
   }));
   const fix = assignIds(classified.fix, 'fix');
   const newAsk = assignIds(classified.ask, 'ask');
-  const ask = [...newAsk, ...retried.map((item) => ({ ...item, route: 'ask' }))];
+  const needsYou = [...newAsk, ...retried.map((item) => ({ ...item, route: 'ask' }))];
+  const ask = state.unattended ? [] : needsYou;
+  const deferred = state.unattended ? needsYou.map((item) => defer(item, confirmSetting)) : [];
+  const allDeferred = [...previouslyDeferred, ...deferred];
   const cards = assignIds([...classified.cards, ...outsideCards]);
   const resolvedPrints = new Set(state.resolved.map((item) => item.fingerprint));
-  const regressions = [...fix, ...ask].filter((item) => resolvedPrints.has(item.fingerprint));
+  const regressions = [...fix, ...newAsk].filter((item) => resolvedPrints.has(item.fingerprint));
   const open = [...fix, ...ask, ...stuck];
   const counts = [...state.counts, open.length];
   const { decision, reason } = decideNext({
-    round: state.round, maxRounds: state.maxRounds, counts, open: open.length, stuck, regressions,
+    round: state.round, maxRounds: state.maxRounds, counts, open: open.length, waiting: allDeferred.length, stuck, regressions,
   });
   const stopped = decision === 'stop';
 
@@ -721,14 +787,16 @@ function record(cwd, options, input) {
   const view = {
     round: state.round, maxRounds: state.maxRounds, checks: state.checks, resolved,
     fix: stopped ? [] : fix, ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
+    deferred: stopped ? allDeferred : deferred,
     regressions, cards: allCards, kept: allKept, counts, decision, reason,
-    looped: [...state.resolved, ...resolved, ...open],
+    looped: [...state.resolved, ...resolved, ...open, ...allDeferred],
   };
   const report = renderReport(view);
   Object.assign(state, {
     open,
     resolved: [...state.resolved, ...resolved],
     cards: allCards,
+    deferred: allDeferred,
     kept: allKept,
     counts,
     awaiting: stopped ? 'decisions' : 'fix',
@@ -738,13 +806,14 @@ function record(cwd, options, input) {
   saveState(repository, state);
   logEvent(repository, {
     event: 'record', round: state.round, decision, reason, counts,
-    open: open.map(summarize), cards: cards.map(summarize), kept,
+    resolved: resolved.map(summarize), open: open.map(summarize),
+    deferred: deferred.map((item) => ({ ...summarize(item), reason: item.deferredReason })), cards: cards.map(summarize), kept,
   });
   recordKinds(repository, state.runId, [...fix, ...newAsk, ...cards]);
   return {
     report,
     decision, reason, round: state.round,
-    fix: view.fix, ask: view.ask, stillOpen: view.stillOpen,
+    fix: view.fix, ask: view.ask, stillOpen: view.stillOpen, deferred,
     cards: stopped ? state.cards : [],
   };
 }
@@ -770,13 +839,13 @@ function next(cwd) {
     const report = renderReport({
       round: state.round, maxRounds: state.maxRounds, checks: null, stillOpen: state.open,
       integrity, cards: state.cards, kept: state.kept, counts: state.counts, decision: 'stop', reason: 'integrity',
-      looped: [...state.resolved, ...state.open],
+      deferred: state.deferred ?? [], looped: [...state.resolved, ...state.open, ...(state.deferred ?? [])],
     });
     Object.assign(state, {
       checks: null, awaiting: 'decisions', stopped: { reason: 'integrity', at: now() }, lastReport: report,
     });
     saveState(repository, state);
-    logEvent(repository, { event: 'next', round: state.round, integrity });
+    logEvent(repository, { event: 'next', round: state.round, decision: 'stop', reason: 'integrity', integrity });
     return { report, status: 'stopped', reason: 'integrity', integrity, stillOpen: state.open, cards: state.cards };
   }
 
@@ -792,7 +861,7 @@ function next(cwd) {
 function decide(cwd, options) {
   const repository = openRepository(cwd);
   const state = loadState(repository);
-  const item = [...state.cards, ...state.open].find((candidate) => candidate.id === options.id);
+  const item = decidableFindings(state).find((candidate) => candidate.id === options.id);
   if (!item) throw new Error(`no finding with id ${options.id}`);
   if (!DECISION_CHOICES.includes(options.choice)) throw new Error(`choice must be one of ${DECISION_CHOICES.join(', ')}`);
   const nothingRunsRules = options.choice === 'rule' && !detectChecks(repository.root).some((check) => check.command);
@@ -802,8 +871,7 @@ function decide(cwd, options) {
   saveState(repository, state);
   const ruleFields = choice === 'rule' ? { category: item.category, quote: item.quote, scenario: item.scenario } : {};
   logEvent(repository, { event: 'decision', ...summarize(item), choice, fingerprint: item.fingerprint, ...ruleFields });
-  const pending = [...state.cards, ...state.open].filter((candidate) => !candidate.decision).map((candidate) => candidate.id);
-  const result = { recorded: true, id: item.id, choice, pending };
+  const result = { recorded: true, id: item.id, choice, pending: pendingDecisionIds(state) };
   if (nothingRunsRules) result.ruleSkipped = 'package.json has no typecheck, lint, or test script, so nothing would run a rule';
   return result;
 }
@@ -858,7 +926,7 @@ function hashFile(repository, file) {
 }
 
 function checkedRuleDrafts(repository, state) {
-  return [...state.cards, ...state.open, ...state.resolved]
+  return [...decidableFindings(state), ...state.resolved]
     .flatMap((item) => [item.rule, item.regression].flatMap((proven) => Object.entries(proven?.hashes ?? {})))
     .filter(([draft, hash]) => hash && hashFile(repository, draft) === hash)
     .map(([draft]) => draft);
@@ -925,7 +993,7 @@ function recordNoTest(repository, state, item, reason) {
 function rule(cwd, options) {
   const repository = openRepository(cwd);
   const state = loadState(repository);
-  const item = [...state.cards, ...state.open].find((candidate) => candidate.id === options.id);
+  const item = decidableFindings(state).find((candidate) => candidate.id === options.id);
   if (!item) throw new Error(`no finding with id ${options.id}`);
   const kind = item.decision === 'rule' ? 'rule' : 'regression';
   if (kind === 'regression' && !isBeingFixed(state, item)) {
@@ -1003,6 +1071,22 @@ function confirm(cwd, options) {
     if (rerouted.length) saveState(repository, state);
   }
   return { ...readConfirm(repository), rerouted };
+}
+
+function setUnattended(cwd, options) {
+  const repository = openRepository(cwd);
+  if (!options.on && !options.off) return readUnattended(repository);
+  const enabled = Boolean(options.on);
+  writeFileSync(repository.shared('unattended.json'), JSON.stringify({ enabled, updatedAt: now() }, null, 2));
+  const state = readSavedState(repository);
+  let deferred = [];
+  if (state && enabled) {
+    deferred = makeUnattended(repository, state);
+  } else if (state) {
+    saveState(repository, { ...state, unattended: false });
+  }
+  logEvent(repository, { event: 'unattended', enabled, deferred });
+  return { enabled, deferred };
 }
 
 function delegate(cwd, options) {
@@ -1340,7 +1424,7 @@ function eventsSinceStart(repository) {
 
 function doneSteps(repository, state, currentTree) {
   const lastChecks = eventsSinceStart(repository).findLast((entry) => entry.event === 'checks');
-  const items = [...state.cards, ...state.open];
+  const items = decidableFindings(state);
   const rules = items.filter((item) => item.decision === 'rule');
   const reviews = state.counts.length;
   const steps = {
@@ -1363,7 +1447,8 @@ function status(cwd) {
   const gateSettings = readGate(repository);
   const confirmSettings = readConfirm(repository);
   const repeatedKinds = mostRepeatedKinds(repository);
-  if (!state) return { review: null, delegation, gate: gateSettings, confirm: confirmSettings, repeatedKinds };
+  const unattended = state?.unattended === true || readUnattended(repository).enabled;
+  if (!state) return { review: null, unattended, delegation, gate: gateSettings, confirm: confirmSettings, repeatedKinds };
   const currentTree = snapshotTree(repository);
   return {
     review: {
@@ -1373,8 +1458,9 @@ function status(cwd) {
       stopped: state.stopped,
       counts: state.counts,
       open: state.open.map(summarize),
+      deferred: (state.deferred ?? []).map(describeDeferred),
       pendingDecisions: pendingDecisionIds(state),
-      rules: [...state.cards, ...state.open]
+      rules: decidableFindings(state)
         .filter((item) => item.decision === 'rule')
         .map((item) => ({ id: item.id, drafts: item.rule?.drafts ?? [], proof: item.rule?.proof ?? null })),
       notVerifiedChecks: (state.latestChecks ?? state.checks ?? []).filter((check) => check.timedOut).map((check) => check.name),
@@ -1384,6 +1470,7 @@ function status(cwd) {
         .map(({ id, severity, repeat }) => ({ id, severity, category: repeat.category, seenBefore: repeat.seenBefore })),
     },
     treeMatchesReview: currentTree === state.reviewedTree,
+    unattended,
     delegation,
     gate: gateSettings,
     confirm: confirmSettings,
@@ -1391,7 +1478,105 @@ function status(cwd) {
   };
 }
 
-const COMMANDS = { start, record, next, decide, rule, checks: rerunChecks, delegate, gate, confirm, status };
+function describeDeferred(item) {
+  return { ...summarize(item), reason: item.deferredReason };
+}
+
+function note(cwd, options) {
+  const repository = openRepository(cwd);
+  const entry = { event: 'note' };
+  for (const field of ['phase', 'decision', 'why', 'evidence']) {
+    const value = options[field];
+    if (field === 'evidence' && value === undefined) continue;
+    if (typeof value !== 'string' || !normalize(value)) throw new Error(`give --${field} <text>`);
+    entry[field] = normalize(value);
+  }
+  logEvent(repository, entry);
+  return { recorded: true, ...entry };
+}
+
+function summaryStart(repository, state, requested) {
+  if (requested === undefined) {
+    return state?.startedAt ?? ledgerEvents(repository).findLast((entry) => entry.event === 'start')?.at ?? null;
+  }
+  const time = typeof requested === 'string' ? Date.parse(requested) : Number.NaN;
+  if (Number.isNaN(time)) throw new Error('--since needs an ISO time such as 2026-10-25T09:00:00Z');
+  return new Date(time).toISOString();
+}
+
+function summaryEvent(entry) {
+  const fields = ['at', 'event', ...SUMMARY_FIELDS[entry.event]].filter((field) => entry[field] !== undefined);
+  return Object.fromEntries(fields.map((field) => [field, entry[field]]));
+}
+
+function waitingFor(repository, state) {
+  const undecided = (items = []) => items.filter((item) => !item.decision);
+  const unfinished = state && ['review', 'fix'].includes(state.awaiting);
+  return {
+    unfinished: unfinished ? { round: state.round, awaiting: state.awaiting } : null,
+    deferred: undecided(state?.deferred).map(describeDeferred),
+    pendingDecisions: undecided(state?.cards).map(summarize),
+    stillOpen: undecided(state?.open).map(summarize),
+    notVerifiedChecks: (state?.latestChecks ?? state?.checks ?? []).filter((check) => check.timedOut).map((check) => check.name),
+    gateNotConfigured: !readGate(repository).configured,
+  };
+}
+
+function describeEvent(entry) {
+  const finding = `${entry.id} [${entry.severity}] ${entry.title}`;
+  if (entry.event === 'record') {
+    const outcome = entry.decision === 'continue' ? 'continued' : `stopped: ${STOP_REASONS[entry.reason] ?? entry.reason}`;
+    const tally = `P1 or P2 open ${entry.open?.length ?? 0}, waiting for you ${entry.deferred?.length ?? 0}, new cards ${entry.cards?.length ?? 0}`;
+    return [
+      `- Round ${entry.round}: ${tally}; ${outcome}`,
+      ...(entry.resolved ?? []).map((item) => `- Resolved ${item.id} [${item.severity}] ${item.title}`),
+    ];
+  }
+  if (entry.event === 'next') {
+    return [
+      `- Round ${entry.round}: stopped: ${STOP_REASONS[entry.reason] ?? entry.reason}`,
+      ...(entry.integrity ?? []).map((issue) => `  - ${issue.file}: ${issue.reason}`),
+    ];
+  }
+  if (entry.event === 'decision') return [`- Decided ${finding}: ${entry.choice}`];
+  if (entry.event === 'note') {
+    return [`- Note (${entry.phase}): ${entry.decision}. Why: ${entry.why}${entry.evidence ? `. Evidence: ${entry.evidence}` : ''}`];
+  }
+  const label = entry.event === 'rule' ? 'Rule' : 'Regression test';
+  const outcome = entry.proof ? `${entry.proof} (${(entry.drafts ?? []).join(', ')})` : `no test, ${entry.reason}`;
+  return [`- ${label} for ${finding}: ${outcome}`];
+}
+
+function renderSummary(since, events, waiting) {
+  const lines = [`Since ${since ?? 'the first entry in the ledger'}`, '', 'What happened:'];
+  lines.push(...(events.length ? events.flatMap(describeEvent) : ['- nothing recorded']));
+  const waitingLines = [
+    ...(waiting.unfinished ? [`- The loop is not finished: round ${waiting.unfinished.round} waits for ${waiting.unfinished.awaiting}`] : []),
+    ...waiting.deferred.map((item) => `- ${item.id} [${item.severity}] ${location(item)} ${item.title} (not fixed: ${item.reason})`),
+    ...waiting.stillOpen.map((item) => `- Still open: ${item.id} [${item.severity}] ${location(item)} ${item.title}`),
+    ...waiting.pendingDecisions.map((item) => `- Decide ${item.id} [${item.severity}] ${location(item)} ${item.title}`),
+    ...(waiting.notVerifiedChecks.length ? [`- Checks not verified: ${waiting.notVerifiedChecks.join(', ')}`] : []),
+    ...(waiting.gateNotConfigured ? ['- The commit gate is not configured in this repository'] : []),
+  ];
+  lines.push('', 'Waiting for you:', ...(waitingLines.length ? waitingLines : ['- nothing']));
+  return lines.join('\n');
+}
+
+function summary(cwd, options) {
+  const repository = openRepository(cwd);
+  const state = readSavedState(repository);
+  const since = summaryStart(repository, state, options.since);
+  const events = ledgerEvents(repository)
+    .filter((entry) => Object.hasOwn(SUMMARY_FIELDS, entry.event) && (entry.event !== 'next' || entry.decision === 'stop'))
+    .filter((entry) => since === null || entry.at >= since)
+    .map(summaryEvent);
+  const waiting = waitingFor(repository, state);
+  return { report: renderSummary(since, events, waiting), since, events, waiting };
+}
+
+const COMMANDS = {
+  start, record, next, decide, rule, checks: rerunChecks, delegate, gate, confirm, unattended: setUnattended, note, summary, status,
+};
 
 function parseOptions(args) {
   const options = {};
