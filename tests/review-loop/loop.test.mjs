@@ -12,6 +12,7 @@ import {
   gateDecision,
   gitInvocations,
   isStalled,
+  NAMED_KINDS,
   parseReview,
   renderReport,
 } from '../../plugins/review-loop/skills/review-loop/scripts/loop.mjs';
@@ -1583,19 +1584,36 @@ describe('repeated kinds', () => {
 
   test('a repeated P2 fixed in the loop shows its repeat in the stop report and in status', () => {
     const root = brokenCartRepository();
-    for (const name of ['a', 'b', 'c']) review(root, [{ ...doubledPrice, severity: 'P3', title: `Earlier ${name}`, quote: `earlier ${name}` }]);
-    const first = review(root, [doubledPrice]);
+    const doubledGuard = { ...doubledPrice, category: 'speculative-guard' };
+    for (const name of ['a', 'b', 'c']) review(root, [{ ...doubledGuard, severity: 'P3', title: `Earlier ${name}`, quote: `earlier ${name}` }]);
+    const first = review(root, [doubledGuard]);
     const { id } = first.fix[0];
-    assert.deepEqual(first.fix[0].repeat, { category: 'correctness', seenBefore: 3 });
+    assert.deepEqual(first.fix[0].repeat, { category: 'speculative-guard', seenBefore: 3 });
     writeFiles(root, { 'src/cart.js': correctCart });
     loop(root, ['next']);
     const second = loop(root, ['record'], { resolved: [id], findings: [] });
     assert.equal(second.decision, 'stop');
     assert.match(second.report, new RegExp(
-      `Resolved since last round:\\n- ${id} \\[P2\\] .* \\(fixed, inferred: the re-review read the fix\\)\\n {2}repeat: correctness, seen 3 times before\\n {2}(no )?test: `,
+      `Resolved since last round:\\n- ${id} \\[P2\\] .* \\(fixed, inferred: the re-review read the fix\\)\\n {2}repeat: speculative-guard, seen 3 times before\\n {2}(no )?test: `,
     ));
     assert.match(second.report, /Left for you: .*, repeats 1/);
-    assert.deepEqual(loop(root, ['status']).review.resolvedRepeats, [{ id, severity: 'P2', category: 'correctness', seenBefore: 3 }]);
+    assert.deepEqual(loop(root, ['status']).review.resolvedRepeats, [{ id, severity: 'P2', category: 'speculative-guard', seenBefore: 3 }]);
+  });
+
+  test('a broad category such as correctness is never marked as a repeat', () => {
+    const root = brokenCartRepository();
+    const broad = (name) => ({ ...doubledPrice, severity: 'P3', title: `Broad ${name}`, quote: `broad ${name}` });
+    for (const name of ['a', 'b', 'c', 'd']) review(root, [broad(name)]);
+    const latest = review(root, [broad('e')]);
+    assert.equal(latest.cards[0].repeat, undefined);
+    assert.doesNotMatch(latest.report, /repeat/);
+    assert.deepEqual(loop(root, ['status']).repeatedKinds, []);
+  });
+
+  test('the kinds that can repeat are the categories in the reviewer table', () => {
+    const reviewer = readFileSync(fileURLToPath(new URL('../../plugins/review-loop/agents/reviewer.md', import.meta.url)), 'utf8');
+    const tableKinds = [...reviewer.matchAll(/^\| `([a-z-]+)` \|/gm)].map((match) => match[1]).filter((kind) => kind !== 'category');
+    assert.deepEqual(new Set(tableKinds), NAMED_KINDS);
   });
 
   test('status lists the most repeated kinds and leaves out failing checks', () => {
