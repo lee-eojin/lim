@@ -106,6 +106,7 @@ turn off the gate:      /review-loop:review-loop turn off the commit gate in thi
 skip once:              /review-loop:review-loop commit this without a review, just this once.
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
+run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 ```
 
 </details>
@@ -195,18 +196,19 @@ take it back:           /review-loop:review-loop turn off commit delegation.
 
 ### 設定
 
-前三項設定只作用於一個儲存庫。要修改設定，請在 `/review-loop:review-loop` 後面輸入你的要求，這樣 Claude 會在載入該 skill 指令的狀態下處理。檢查時間限制是一個環境變數，因此在你設定它的任何地方都會生效，而合計 9 分鐘是固定的。
+前四項設定只作用於一個儲存庫。要修改設定，請在 `/review-loop:review-loop` 後面輸入你的要求，這樣 Claude 會在載入該 skill 指令的狀態下處理。檢查時間限制是一個環境變數，因此在你設定它的任何地方都會生效，而合計 9 分鐘是固定的。
 
 | 設定 | 預設值 | 輸入內容 |
 |---|---|---|
 | 修正前確認 | 關閉 | 「每個 P2 都先跟我確認」或「每個 P1 和 P2 都先跟我確認」 |
 | 提交關卡 | 在第一次審查結束時詢問一次 | 「啟用（或停用）提交關卡」 |
 | 提交委派 | 每次提交前詢問 | 「在此儲存庫中提交前不再詢問」 |
+| 無人值守 | 關閉 | 單次執行輸入「無人值守執行」，或輸入「在此儲存庫中啟用（或停用）無人值守模式」。Claude 不提出任何問題，把需要你處理的事留到之後，最後總結它做了什麼以及哪些事在等你處理 |
 | 檢查時間限制 | 每個檢查 5 分鐘，合計 9 分鐘 | 設定 `LIM_CHECK_TIMEOUT_MS` 以修改單一檢查的時間限制 |
 
 ## 測量結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 129 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 120 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 9 個行為需要實際執行模型，預計使用 `claude plugin eval` 測試：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、為每個發現項目標明 measured、inferred 或 guessed、說明如何確認修正有效、在你提出異議時重新查證發現項目、為反覆出現的同類發現項目建議設為規則、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 142 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 132 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 10 個行為需要實際執行模型，預計使用 `claude plugin eval` 測試：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、為每個發現項目標明 measured、inferred 或 guessed、說明如何確認修正有效、在你提出異議時重新查證發現項目、為反覆出現的同類發現項目建議設為規則、在無人值守執行中不提出任何問題、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture。
 
 <details>
 <summary>成本</summary>
@@ -320,7 +322,6 @@ review-loop 使用你已有的檢查。你的 `typecheck`、`lint` 和 `test` �
 
 - 使用 `claude plugin eval` 進行模型層級的 eval，涵蓋單元測試無法涵蓋的行為，並對審查品質和成本做盲測比較
 - 在與撰寫變更的模型不同的模型上執行的審查者
-- 無人看管模式，記錄每個決定，讓你之後再檢視
 - 一份簡短指南，包含可直接複製的提示詞、真實輸出和成本
 
 ## 參與貢獻

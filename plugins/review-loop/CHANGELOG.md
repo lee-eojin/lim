@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Added: An unattended mode for runs nobody is watching, such as overnight. Ask for an unattended run, or turn it on for the repository with `loop unattended --on`. Claude then asks nothing: findings that need your call are not fixed and wait for you with the reason, P3 to P5 stay pending, each choice Claude makes is written to the decision ledger with `loop note`, commits follow the delegation and gate rules, and nothing is pushed. `loop summary` lists what happened since the run started and everything waiting for you. (#40)
+
 ## 0.4.0 (2026-10-25)
 
 - Added: "Make it a rule" now drafts a lint rule or a test next to the fix. `loop rule` runs your checks on the code from before the fix, with and without the draft, and reports `caught`, `missed`, or `unproven`. The reviewer can mark findings as rule candidates. Without a typecheck, lint, or test script, the choice is recorded as "fix this time only". (#28)

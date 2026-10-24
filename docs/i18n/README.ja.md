@@ -106,6 +106,7 @@ turn off the gate:      /review-loop:review-loop turn off the commit gate in thi
 skip once:              /review-loop:review-loop commit this without a review, just this once.
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
+run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 ```
 
 </details>
@@ -195,18 +196,19 @@ Banksaladが公開しているPnルールに基づきます。
 
 ### 設定
 
-最初の3つの設定は1つのリポジトリに適用されます。設定を変更するには、`/review-loop:review-loop`の後に要望を入力します。そうすると、Claudeはスキルのコマンドを読み込んだ状態で変更できます。チェックの制限時間は環境変数なので、設定した場所であればどこでも適用されます。合計9分は固定です。
+最初の4つの設定は1つのリポジトリに適用されます。設定を変更するには、`/review-loop:review-loop`の後に要望を入力します。そうすると、Claudeはスキルのコマンドを読み込んだ状態で変更できます。チェックの制限時間は環境変数なので、設定した場所であればどこでも適用されます。合計9分は固定です。
 
 | 設定 | デフォルト | 入力する内容 |
 |---|---|---|
 | 修正前の確認 | オフ | 「P2はすべて先に確認して」または「P1とP2はすべて先に確認して」 |
 | コミットゲート | 最初のレビューの最後に1回だけ確認 | 「コミットゲートを有効にして(または無効にして)」 |
 | コミットの委任 | コミットのたびに確認 | 「このリポジトリではコミット前に確認しないで」 |
+| 無人実行 | オフ | 1回だけなら「無人で実行して」、このリポジトリで続けるなら「このリポジトリで無人モードを有効にして(または無効にして)」。Claudeは何も質問せず、ユーザーの判断が必要なことは後回しにし、最後に行ったことと対応を待っていることをまとめて報告します |
 | チェックの制限時間 | チェックごとに5分、合計9分 | チェックごとの制限時間を変えるには`LIM_CHECK_TIMEOUT_MS`を設定 |
 
 ## 測定結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる129個の動作が記載されています。CIの単体テストが、そのうち120個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行と、コミットゲートhookのテストも含まれます。残りの9個はモデルの実行が必要なため、`claude plugin eval`で測定する予定です。その9個は、P3からP5について1回だけ確認すること、質問より先にレポートを表示すること、すべての手順をtodoリストに残し、飛ばす手順には理由を書くこと、修正したP1とP2ごとに回帰テストを書くこと、各指摘にmeasured、inferred、guessedのラベルを付けること、修正をどう確かめたかを伝えること、ユーザーが反論したら指摘をもう一度確かめること、何度も繰り返される種類の指摘にルール化を勧めること、原因が分からないまま追加されたコードを報告することです。最後の1個には、[`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)にfixtureがあります。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる142個の動作が記載されています。CIの単体テストが、そのうち132個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行と、コミットゲートhookのテストも含まれます。残りの10個はモデルの実行が必要なため、`claude plugin eval`で測定する予定です。その10個は、P3からP5について1回だけ確認すること、質問より先にレポートを表示すること、すべての手順をtodoリストに残し、飛ばす手順には理由を書くこと、修正したP1とP2ごとに回帰テストを書くこと、各指摘にmeasured、inferred、guessedのラベルを付けること、修正をどう確かめたかを伝えること、ユーザーが反論したら指摘をもう一度確かめること、何度も繰り返される種類の指摘にルール化を勧めること、無人実行では何も質問しないこと、原因が分からないまま追加されたコードを報告することです。最後の1個には、[`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)にfixtureがあります。
 
 <details>
 <summary>コスト</summary>
@@ -320,7 +322,6 @@ review-loopは、プロジェクトにすでにあるチェックを使って動
 
 - 単体テストではカバーできない動作のための、`claude plugin eval`によるモデルレベルの評価と、レビューの品質とコストのブラインド比較
 - 変更を書いたモデルとは別のモデルで動くレビュアー
-- 各判断を記録し、後でユーザーが確認できる無人モード
 - そのまま使えるプロンプト、実際の出力、コストをまとめた短いガイド
 
 ## コントリビュート

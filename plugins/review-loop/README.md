@@ -17,6 +17,8 @@ Run `/review-loop:review-loop`. Asking Claude to review or commit your changes c
 
 If a session ends in the middle of a loop, running it again offers to continue where it stopped.
 
+To run it with nobody watching, for example overnight, add "run unattended" after the command, or ask Claude to turn on unattended mode in the repository. Claude then asks nothing: it leaves design choices and P3 to P5 for you, records each choice it makes in the decision ledger, and ends with a summary of what it did and what waits for you.
+
 ## How it works
 
 1. Runs your project's typecheck, lint, and test scripts from `package.json`. A project without them is reviewed from the diff alone.
@@ -64,7 +66,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 129 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 120 of them. The other 9 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, and reporting code added without a known cause) need a model run and are planned for `claude plugin eval`.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 142 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 132 of them. The other 10 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, and reporting code added without a known cause) need a model run and are planned for `claude plugin eval`.
 
 ## Data
 

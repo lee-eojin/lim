@@ -106,6 +106,7 @@ turn off the gate:      /review-loop:review-loop turn off the commit gate in thi
 skip once:              /review-loop:review-loop commit this without a review, just this once.
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
+run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 ```
 
 </details>
@@ -195,18 +196,19 @@ Para hacer un commit una sola vez sin revisión, pide a Claude que omita la revi
 
 ### Configuración
 
-Los tres primeros ajustes se aplican a un repositorio. Para cambiar uno, escribe la petición después de `/review-loop:review-loop`, así Claude tiene cargados los comandos de la skill. El límite de tiempo de las comprobaciones es una variable de entorno, así que se aplica donde la definas, y el total de 9 minutos es fijo.
+Los cuatro primeros ajustes se aplican a un repositorio. Para cambiar uno, escribe la petición después de `/review-loop:review-loop`, así Claude tiene cargados los comandos de la skill. El límite de tiempo de las comprobaciones es una variable de entorno, así que se aplica donde la definas, y el total de 9 minutos es fijo.
 
 | Ajuste | Valor por defecto | Qué escribir |
 |---|---|---|
 | Confirmar antes de corregir | Desactivado | "confirma conmigo cada P2" o "confirma conmigo cada P1 y P2" |
 | Commit gate | Se pregunta una vez al final de la primera revisión | "activa (o desactiva) el commit gate" |
 | Delegación de commits | Pregunta antes de cada commit | "deja de preguntar antes de los commits en este repositorio" |
+| Sin supervisión | Desactivado | "ejecuta sin supervisión" para una ejecución, o "activa (o desactiva) el modo sin supervisión en este repositorio". Claude no pregunta nada, deja para después lo que te necesita y termina con un resumen de lo que hizo y de lo que te espera |
 | Límite de tiempo de las comprobaciones | 5 minutos por comprobación, 9 minutos en total | Define `LIM_CHECK_TIMEOUT_MS` para cambiar el límite de cada comprobación |
 
 ## Mediciones
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) enumera 129 comportamientos en seis ejes: `do`, `tell`, `ask`, `silence`, `stop` y `evidence`. Los tests unitarios en CI cubren 120 de estos comportamientos, incluidas ejecuciones contra repositorios git temporales reales y el hook de commit gate. Los otros 9 necesitan una ejecución del modelo y están planificados para `claude plugin eval`: preguntar una sola vez sobre P3 a P5, mostrar el informe antes de cualquier pregunta, mantener cada paso en la lista de tareas con un motivo para cada paso omitido, escribir un test de regresión para cada P1 o P2 corregido, etiquetar cada hallazgo como measured, inferred o guessed, decir cómo se sabe que una corrección funciona, volver a comprobar un hallazgo que cuestionas, recomendar una regla para un tipo de hallazgo que se repite e informar del código añadido sin una causa conocida. El último tiene un fixture en [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) enumera 142 comportamientos en seis ejes: `do`, `tell`, `ask`, `silence`, `stop` y `evidence`. Los tests unitarios en CI cubren 132 de estos comportamientos, incluidas ejecuciones contra repositorios git temporales reales y el hook de commit gate. Los otros 10 necesitan una ejecución del modelo y están planificados para `claude plugin eval`: preguntar una sola vez sobre P3 a P5, mostrar el informe antes de cualquier pregunta, mantener cada paso en la lista de tareas con un motivo para cada paso omitido, escribir un test de regresión para cada P1 o P2 corregido, etiquetar cada hallazgo como measured, inferred o guessed, decir cómo se sabe que una corrección funciona, volver a comprobar un hallazgo que cuestionas, recomendar una regla para un tipo de hallazgo que se repite, no preguntar nada en una ejecución sin supervisión e informar del código añadido sin una causa conocida. El último tiene un fixture en [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/).
 
 <details>
 <summary>Costo</summary>
@@ -320,7 +322,6 @@ review-loop funciona con las comprobaciones que ya tienes. Cuanto mejores sean t
 
 - Evals a nivel de modelo con `claude plugin eval` para los comportamientos que los tests unitarios no pueden cubrir, y una comparación a ciegas de la calidad y el costo de la revisión
 - Un revisor que se ejecute en un modelo distinto del que escribió el cambio
-- Un modo desatendido que registre cada decisión para que la revises después
 - Una guía breve con prompts listos para copiar, salida real y costo
 
 ## Contribuir

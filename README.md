@@ -104,6 +104,7 @@ turn off the gate:      /review-loop:review-loop turn off the commit gate in thi
 skip once:              /review-loop:review-loop commit this without a review, just this once.
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
+run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 ```
 
 </details>
@@ -193,18 +194,19 @@ To commit once without a review, ask Claude to skip the review this time. The ga
 
 ### Settings
 
-The first three settings apply to one repository. Change one by typing the request after `/review-loop:review-loop`, so Claude has the skill's commands loaded. The check time limit is an environment variable, so it applies wherever you set it, and the 9-minute total is fixed.
+The first four settings apply to one repository. Change one by typing the request after `/review-loop:review-loop`, so Claude has the skill's commands loaded. The check time limit is an environment variable, so it applies wherever you set it, and the 9-minute total is fixed.
 
 | Setting | Default | Type |
 |---|---|---|
 | Confirm before fixing | Off | "confirm every P2 with me" or "confirm every P1 and P2 with me" |
 | Commit gate | Asked once at the end of the first review | "turn on (or off) the commit gate" |
 | Commit delegation | Asks before every commit | "stop asking before commits in this repo" |
+| Unattended | Off | "run unattended" for one run, or "turn on (or off) unattended mode in this repo". Claude asks nothing, leaves what needs you for later, and ends with a summary of what it did and what waits for you |
 | Check time limit | 5 minutes per check, 9 minutes in total | Set `LIM_CHECK_TIMEOUT_MS` to change the per-check limit |
 
 ## Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 129 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 120 of them, including runs against real temporary git repositories and the commit gate hook. The other 9 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 142 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 132 of them, including runs against real temporary git repositories and the commit gate hook. The other 10 need a model run and are planned for `claude plugin eval`: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/).
 
 <details>
 <summary>Cost</summary>
@@ -318,7 +320,6 @@ review-loop works with the checks you already have. The better your `typecheck`,
 
 - Model-level evals with `claude plugin eval` for the behaviors unit tests cannot cover, and a blind comparison of review quality and cost
 - A reviewer that runs on a different model than the one that wrote the change
-- An unattended mode that records each decision for you to review later
 - A short guide with copy-ready prompts, real output, and cost
 
 ## Contributing

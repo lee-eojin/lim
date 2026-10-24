@@ -132,6 +132,12 @@ describe('stop rules', () => {
     assert.equal(stuck.reason, 'stuck');
   });
 
+  test('decideNext stops as waiting instead of clean when findings wait for you', () => {
+    assert.deepEqual(decideNext({ round: 1, maxRounds: 3, counts: [0], open: 0, waiting: 1 }), { decision: 'stop', reason: 'waiting' });
+    assert.deepEqual(decideNext({ round: 1, maxRounds: 3, counts: [0], open: 0 }), { decision: 'stop', reason: 'clean' });
+    assert.equal(decideNext({ round: 1, maxRounds: 3, counts: [1], open: 1, waiting: 2 }).decision, 'continue');
+  });
+
   test('isStalled needs two rounds without a decrease', () => {
     assert.equal(isStalled([2, 2]), false);
     assert.equal(isStalled([2, 2, 2]), true);
@@ -1627,5 +1633,213 @@ describe('repeated kinds', () => {
       { category: 'speculative-guard', count: 3 },
       { category: 'history-comment', count: 2 },
     ]);
+  });
+});
+
+describe('unattended runs', () => {
+  const namingCard = { severity: 'P3', file: 'src/cart.js', title: 'Name total as sumPrices' };
+  const designChoice = { ...doubledPrice, title: 'Pick a rounding rule', quote: 'items.reduce', multipleFixes: true };
+  const savedState = (root) => JSON.parse(readFileSync(path.join(root, '.git', 'lim', 'review-loop', 'state.json'), 'utf8'));
+  const commit = (root) => gateDecision({ cwd: root, command: 'git commit -m "feat: cart"' });
+
+  function brokenRepository() {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    return root;
+  }
+
+  test('the unattended setting makes every run in the repository unattended until it is turned off', () => {
+    const root = brokenRepository();
+    assert.equal(loop(root, ['unattended']).enabled, false);
+    assert.equal(loop(root, ['unattended', '--on']).enabled, true);
+    assert.equal(loop(root, ['start']).unattended, true);
+    assert.equal(loop(root, ['status']).unattended, true);
+    assert.equal(loop(root, ['start', '--fresh']).unattended, true);
+    assert.equal(loop(root, ['unattended', '--off']).enabled, false);
+    assert.equal(loop(root, ['status']).unattended, false);
+    assert.equal(loop(root, ['start', '--fresh']).unattended, false);
+  });
+
+  test('start --unattended makes only that run unattended', () => {
+    const root = brokenRepository();
+    assert.equal(loop(root, ['start', '--unattended']).unattended, true);
+    assert.equal(loop(root, ['status']).unattended, true);
+    assert.equal(loop(root, ['start', '--unattended']).unattended, true);
+    assert.equal(loop(root, ['start']).unattended, false);
+    assert.equal(loop(root, ['status']).unattended, false);
+    assert.equal(loop(root, ['unattended']).enabled, false);
+    assert.equal(loop(root, ['start', '--fresh']).unattended, false);
+  });
+
+  test("an attended start resumes an unattended run's pending decisions and asks about the deferred findings", () => {
+    const root = brokenRepository();
+    loop(root, ['start', '--unattended']);
+    const stopped = loop(root, ['record'], { findings: [designChoice, namingCard] });
+    assert.deepEqual([stopped.decision, stopped.reason], ['stop', 'waiting']);
+    const resumed = loop(root, ['start']);
+    assert.deepEqual([resumed.status, resumed.awaiting, resumed.unattended], ['in-progress', 'decisions', false]);
+    assert.deepEqual(resumed.stillOpen.map((item) => [item.id, item.deferredReason]), [['F-1', 'multipleFixes']]);
+    assert.deepEqual(resumed.cards.map((item) => item.id), ['F-2']);
+    assert.equal(savedState(root).unattended, false);
+    assert.equal(loop(root, ['decide', '--id', 'F-1', '--choice', 'once']).choice, 'once');
+  });
+
+  test('an unattended run defers findings that need your call with the flag or rule that sent them', () => {
+    const flagged = brokenRepository();
+    loop(flagged, ['start', '--unattended']);
+    const first = loop(flagged, ['record'], { findings: [designChoice, doubledPrice] });
+    assert.deepEqual([first.decision, first.ask], ['continue', []]);
+    assert.deepEqual(first.fix.map((item) => item.title), ['Price is doubled']);
+    assert.deepEqual(first.deferred.map((item) => [item.id, item.deferredReason]), [['F-2', 'multipleFixes']]);
+    assert.match(first.report, /Waiting for you \(not fixed in an unattended run\):\n- F-2 \[P2\] src\/cart\.js:1 Pick a rounding rule/);
+    assert.match(first.report, /waiting because: multipleFixes/);
+
+    const confirming = brokenRepository();
+    loop(confirming, ['confirm', '--severity', 'P2']);
+    loop(confirming, ['start', '--unattended']);
+    const confirmed = loop(confirming, ['record'], { findings: [doubledPrice] });
+    assert.deepEqual([confirmed.fix, confirmed.ask], [[], []]);
+    assert.equal(confirmed.deferred[0].deferredReason, 'confirm --severity P2');
+
+    const retried = brokenRepository();
+    loop(retried, ['start', '--unattended']);
+    loop(retried, ['record'], { findings: [doubledPrice] });
+    loop(retried, ['next']);
+    const second = loop(retried, ['record'], { stillOpen: ['F-1'], findings: [] });
+    assert.deepEqual([second.reason, second.ask], ['waiting', []]);
+    assert.equal(second.deferred[0].id, 'F-1');
+    assert.match(second.deferred[0].deferredReason, /first fix did not resolve it/);
+  });
+
+  test('an unattended stop report says how many P1 or P2 wait for you instead of none left', () => {
+    const root = brokenRepository();
+    loop(root, ['start', '--unattended']);
+    const currency = { ...designChoice, severity: 'P1', title: 'Pick a currency', quote: 'item.price' };
+    const stopped = loop(root, ['record'], { findings: [designChoice, currency] });
+    assert.deepEqual([stopped.decision, stopped.reason], ['stop', 'waiting']);
+    assert.match(stopped.report, /Stopped: nothing left to fix without you; 2 P1 or P2 waiting for you/);
+    assert.doesNotMatch(stopped.report, /no P1 or P2 left/);
+    assert.deepEqual(stopped.deferred.map((item) => item.title).sort(), ['Pick a currency', 'Pick a rounding rule']);
+  });
+
+  test('deferred findings and cards stay pending after an unattended run so the commit gate blocks', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    loop(root, ['delegate', '--scope', 'repo']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start', '--unattended']);
+    loop(root, ['record'], { findings: [designChoice, namingCard] });
+    assert.deepEqual(loop(root, ['status']).review.pendingDecisions.sort(), ['F-1', 'F-2']);
+    assert.equal(commit(root).decision, 'deny');
+    assert.match(commit(root).reason, /decide F-2, F-1/);
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'keep']);
+    loop(root, ['decide', '--id', 'F-2', '--choice', 'keep']);
+    assert.equal(commit(root).decision, 'allow');
+  });
+
+  test('turning unattended on while a round waits for fixes defers its ask findings', () => {
+    const root = brokenRepository();
+    loop(root, ['start']);
+    assert.deepEqual(loop(root, ['record'], { findings: [designChoice, doubledPrice] }).ask.map((item) => item.id), ['F-2']);
+    assert.deepEqual(loop(root, ['unattended', '--on']).deferred, ['F-2']);
+    const resumed = loop(root, ['start']);
+    assert.deepEqual([resumed.unattended, resumed.ask, resumed.fix.map((item) => item.id)], [true, [], ['F-1']]);
+    assert.equal(resumed.deferred[0].deferredReason, 'multipleFixes');
+
+    const switched = brokenRepository();
+    loop(switched, ['start']);
+    loop(switched, ['record'], { findings: [designChoice, doubledPrice] });
+    const continued = loop(switched, ['start', '--unattended']);
+    assert.deepEqual([continued.status, continued.unattended, continued.ask], ['in-progress', true, []]);
+    assert.deepEqual(continued.deferred.map((item) => item.id), ['F-2']);
+  });
+
+  test('note records the phase and decision and why and evidence in the ledger', () => {
+    const root = brokenRepository();
+    loop(root, ['start', '--unattended']);
+    const noted = loop(root, [
+      'note', '--phase', 'commit', '--decision', 'left the change uncommitted', '--why', 'F-1 waits for you', '--evidence', 'pendingDecisions: F-1',
+    ]);
+    assert.equal(noted.recorded, true);
+    const ledger = readFileSync(path.join(root, '.git', 'lim', 'review-loop', 'ledger.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    const { at, ...note } = ledger.at(-1);
+    assert.ok(!Number.isNaN(Date.parse(at)));
+    assert.deepEqual(note, {
+      event: 'note', phase: 'commit', decision: 'left the change uncommitted', why: 'F-1 waits for you', evidence: 'pendingDecisions: F-1',
+    });
+    assert.throws(() => loop(root, ['note', '--phase', 'commit', '--decision', 'left the change uncommitted']));
+  });
+
+  test('summary lists what happened since the run started and everything waiting for you', () => {
+    const root = brokenRepository();
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    loop(root, ['start', '--fresh', '--unattended']);
+    loop(root, ['record'], { findings: [doubledPrice, designChoice, namingCard] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    loop(root, ['record'], { resolved: ['F-1'], findings: [] });
+    loop(root, ['note', '--phase', 'decide', '--decision', 'left F-3 pending', '--why', 'nobody to ask']);
+
+    const summary = loop(root, ['summary']);
+    assert.equal(summary.since, savedState(root).startedAt);
+    assert.deepEqual(summary.events.map((entry) => entry.event), ['record', 'record', 'note']);
+    assert.deepEqual(summary.events[1].resolved.map((item) => item.id), ['F-1']);
+    assert.deepEqual(summary.waiting.deferred.map((item) => [item.id, item.reason]), [['F-2', 'multipleFixes']]);
+    assert.deepEqual(summary.waiting.pendingDecisions.map((item) => item.id), ['F-3']);
+    assert.equal(summary.waiting.gateNotConfigured, true);
+    assert.match(summary.report, /Resolved F-1 \[P2\] Price is doubled/);
+    assert.match(summary.report, /Note \(decide\): left F-3 pending\. Why: nobody to ask/);
+    assert.match(summary.report, /Waiting for you:\n- F-2 \[P2\] src\/cart\.js:1 Pick a rounding rule \(not fixed: multipleFixes\)/);
+    assert.match(summary.report, /- Decide F-3 \[P3\]/);
+
+    assert.deepEqual(loop(root, ['summary', '--since', '2999-01-01T00:00:00Z']).events, []);
+    assert.throws(() => loop(root, ['summary', '--since', 'yesterday']));
+  });
+
+  test('summary includes a next that stopped the loop with its reason and integrity issues', () => {
+    const root = createRepository({ 'src/cart.js': correctCart, 'src/cart.test.js': "it('totals', () => {});\n" });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start', '--unattended']);
+    loop(root, ['record'], { findings: [doubledPrice] });
+    writeFiles(root, { 'src/cart.test.js': "it.skip('totals', () => {});\n" });
+    loop(root, ['next']);
+
+    const summary = loop(root, ['summary']);
+    const { at, ...stop } = summary.events.at(-1);
+    assert.deepEqual(stop, {
+      event: 'next', round: 2, reason: 'integrity',
+      integrity: [{ file: 'src/cart.test.js', reason: 'test skipped or focused', line: "it.skip('totals', () => {});" }],
+    });
+    assert.match(summary.report, /- Round 2: stopped: a fix weakened tests or checks\n {2}- src\/cart\.test\.js: test skipped or focused/);
+  });
+
+  test('summary leaves out a next that started another round', () => {
+    const root = brokenRepository();
+    loop(root, ['start', '--unattended']);
+    loop(root, ['record'], { findings: [doubledPrice] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    assert.deepEqual(loop(root, ['summary']).events.map((entry) => entry.event), ['record']);
+  });
+
+  test('an unattended run reaches a stop without ask items and leaves the deferred P2 and the P3 waiting', () => {
+    const root = brokenRepository();
+    const asked = [];
+    const step = (args, review) => {
+      const result = loop(root, args, review);
+      asked.push(...(result.ask ?? []), ...savedState(root).open.filter((item) => item.route === 'ask'));
+      return result;
+    };
+    step(['start', '--unattended']);
+    assert.equal(step(['record'], { findings: [doubledPrice, designChoice, namingCard] }).decision, 'continue');
+    writeFiles(root, { 'src/cart.js': correctCart });
+    step(['next']);
+    const last = step(['record'], { resolved: ['F-1'], findings: [designChoice] });
+    assert.deepEqual([last.decision, last.reason], ['stop', 'waiting']);
+    assert.deepEqual(asked, []);
+    const { waiting } = loop(root, ['summary']);
+    assert.deepEqual(waiting.deferred.map((item) => [item.id, item.severity]), [['F-2', 'P2']]);
+    assert.deepEqual(waiting.pendingDecisions.map((item) => [item.id, item.severity]), [['F-3', 'P3']]);
   });
 });
