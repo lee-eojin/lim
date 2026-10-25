@@ -16,10 +16,11 @@ const readmes = [
   ['README.md', 'evals/review-loop/behaviors.csv'],
   ['plugins/review-loop/README.md', 'evals/review-loop/behaviors.csv'],
   ['plugins/clear-explain/README.md', 'evals/clear-explain/behaviors.csv'],
+  ['plugins/verify/README.md', 'evals/verify/behaviors.csv'],
 ];
 
 for (const [file, csv] of readmes) {
-  test(`${file} states the behavior counts in behaviors.csv`, () => {
+  test(`${file} states the behavior counts in ${csv}`, () => {
     const measured = measuredParagraph(proseLines(pathOf(file)));
     assert.ok(measured, `${file} has no paragraph that links behaviors.csv`);
     assert.deepEqual(measured.numbers.slice(0, 3).map(Number), behaviorCounts(csv), 'total, covered by unit tests, and the rest');

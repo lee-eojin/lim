@@ -1,0 +1,8 @@
+{
+  "name": "tally",
+  "version": "0.4.1",
+  "description": "Count, sum, and average a column of a CSV file",
+  "type": "module",
+  "bin": { "tally": "bin/tally.js" },
+  "license": "MIT"
+}

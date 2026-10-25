@@ -1,0 +1,24 @@
+diff --git a/src/stats.js b/src/stats.js
+index 0bfe481..33ec1d4 100644
+--- a/src/stats.js
++++ b/src/stats.js
+@@ -1,8 +1,8 @@
+ export function columnStats({ header, rows }, column) {
+   const index = header.indexOf(column);
+   if (index === -1) throw new Error(`Unknown column: ${column}`);
+-  const values = rows
+-    .map((row) => row[index])
++  const cells = rows.map((row) => row[index]);
++  const values = cells
+     .filter((cell) => cell !== '' && cell !== undefined)
+     .map(Number)
+     .filter(Number.isFinite);
+@@ -10,7 +10,7 @@ export function columnStats({ header, rows }, column) {
+   return {
+     count: values.length,
+     sum: round(sum),
+-    mean: values.length ? round(sum / values.length) : null,
++    mean: values.length ? round(sum / cells.length) : null,
+   };
+ }
+ 

@@ -1,0 +1,12 @@
+diff --git a/src/slugify.js b/src/slugify.js
+index 3f7d85d..99ab7fd 100644
+--- a/src/slugify.js
++++ b/src/slugify.js
+@@ -1,7 +1,6 @@
+ export function slugify(text, { maxLength } = {}) {
+   const slug = String(text)
+     .normalize('NFKD')
+-    .replace(/\p{M}/gu, '')
+     .toLowerCase()
+     .replace(/[^a-z0-9]+/g, '-')
+     .replace(/^-+|-+$/g, '');

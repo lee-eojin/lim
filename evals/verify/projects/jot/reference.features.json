@@ -1,0 +1,36 @@
+{
+  "features": [
+    {
+      "id": "jot-add",
+      "feature": "Adds an item and prints its number",
+      "run": ["node", "bin/jot.js", "--file", "tmp/add.json", "add", "buy", "milk"],
+      "expect": {
+        "exitCode": 0,
+        "stdout": { "equals": "Added #1: buy milk" },
+        "files": [{ "path": "tmp/add.json", "includes": "\"text\": \"buy milk\"" }]
+      }
+    },
+    {
+      "id": "jot-done",
+      "feature": "Marks the numbered item done",
+      "run": ["node", "bin/jot.js", "--file", "tmp/two.json", "done", "2"],
+      "expect": {
+        "exitCode": 0,
+        "stdout": { "equals": "Done #2: walk the dog" },
+        "files": [{ "path": "tmp/two.json", "matches": "\"text\": \"walk the dog\",\\s*\"done\": true" }]
+      }
+    },
+    {
+      "id": "jot-done-unknown",
+      "feature": "Rejects a number with no item",
+      "run": ["node", "bin/jot.js", "--file", "tmp/none.json", "done", "7"],
+      "expect": { "exitCode": 1, "stderr": { "includes": "No todo #7" } }
+    },
+    {
+      "id": "jot-empty",
+      "feature": "Lists an empty list",
+      "run": ["node", "bin/jot.js", "--file", "tmp/empty.json", "list"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "No todos." } }
+    }
+  ]
+}

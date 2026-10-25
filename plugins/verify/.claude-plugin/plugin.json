@@ -1,0 +1,12 @@
+{
+  "name": "verify",
+  "version": "0.1.0",
+  "description": "Prove features by running them: a feature map of commands and expected results, run by a script that decides pass or fail and saves the output as evidence.",
+  "author": {
+    "name": "lee-eojin"
+  },
+  "homepage": "https://github.com/lee-eojin/lim",
+  "repository": "https://github.com/lee-eojin/lim",
+  "license": "MIT",
+  "keywords": ["verification", "evidence", "feature-map", "cli"]
+}

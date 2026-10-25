@@ -1,0 +1,34 @@
+{
+  "features": [
+    {
+      "id": "slug-basic",
+      "feature": "Lowercases and joins words with hyphens",
+      "run": ["node", "bin/slug.js", "Hello, World!"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "hello-world" } }
+    },
+    {
+      "id": "slug-accents",
+      "feature": "Turns accented letters into plain letters",
+      "run": ["node", "bin/slug.js", "Crème brûlée à la carte"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "creme-brulee-a-la-carte" } }
+    },
+    {
+      "id": "slug-max",
+      "feature": "--max cuts at a word boundary",
+      "run": ["node", "bin/slug.js", "--max", "11", "hello world again"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "hello-world" } }
+    },
+    {
+      "id": "slug-usage",
+      "feature": "Prints the usage line without text",
+      "run": ["node", "bin/slug.js"],
+      "expect": { "exitCode": 1, "stderr": { "includes": "Usage: slug [--max <n>] <text>" } }
+    },
+    {
+      "id": "library-spaces",
+      "feature": "slugify() collapses spaces",
+      "run": ["node", "tmp/call.mjs", "slugify", "  Many   spaces  "],
+      "expect": { "exitCode": 0, "stdout": { "equals": "many-spaces" } }
+    }
+  ]
+}

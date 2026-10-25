@@ -1,0 +1,28 @@
+{
+  "features": [
+    {
+      "id": "tally-text",
+      "feature": "Counts, sums, and averages a column, skipping cells that are not numbers",
+      "run": ["node", "bin/tally.js", "examples/sales.csv", "--column", "amount"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "count: 3\nsum: 60\nmean: 20" } }
+    },
+    {
+      "id": "tally-json",
+      "feature": "Prints the result as JSON",
+      "run": ["node", "bin/tally.js", "examples/sales.csv", "--column", "units", "--format", "json"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "{\"count\":4,\"sum\":10,\"mean\":2.5}" } }
+    },
+    {
+      "id": "tally-unknown-column",
+      "feature": "Rejects a column the header does not have",
+      "run": ["node", "bin/tally.js", "examples/sales.csv", "--column", "price"],
+      "expect": { "exitCode": 2, "stderr": { "includes": "Unknown column: price" } }
+    },
+    {
+      "id": "tally-missing-file",
+      "feature": "Reports a file it cannot read",
+      "run": ["node", "bin/tally.js", "examples/none.csv", "--column", "amount"],
+      "expect": { "exitCode": 2, "stderr": { "includes": "Cannot read examples/none.csv" } }
+    }
+  ]
+}

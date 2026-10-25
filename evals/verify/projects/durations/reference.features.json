@@ -1,0 +1,28 @@
+{
+  "features": [
+    {
+      "id": "parse-hours-minutes",
+      "feature": "Parses hours and minutes",
+      "run": ["node", "tmp/call.mjs", "parseDuration", "1h30m"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "5400000" } }
+    },
+    {
+      "id": "parse-milliseconds",
+      "feature": "Parses parts with spaces and milliseconds",
+      "run": ["node", "tmp/call.mjs", "parseDuration", "1m 30s 500ms"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "90500" } }
+    },
+    {
+      "id": "parse-invalid",
+      "feature": "Rejects text that is not a duration",
+      "run": ["node", "tmp/call.mjs", "parseDuration", "soon"],
+      "expect": { "exitCode": 1, "stderr": { "includes": "Invalid duration: \"soon\"" } }
+    },
+    {
+      "id": "format-largest-first",
+      "feature": "Formats with the largest units first",
+      "run": ["node", "tmp/call.mjs", "formatDuration", "90061000"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "1d 1h 1m 1s" } }
+    }
+  ]
+}

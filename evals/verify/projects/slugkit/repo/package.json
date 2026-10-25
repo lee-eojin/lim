@@ -1,0 +1,9 @@
+{
+  "name": "slugkit",
+  "version": "1.2.0",
+  "description": "Turn titles into URL slugs",
+  "type": "module",
+  "main": "src/slugify.js",
+  "bin": { "slug": "bin/slug.js" },
+  "license": "MIT"
+}
