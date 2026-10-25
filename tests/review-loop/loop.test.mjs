@@ -1165,7 +1165,63 @@ describe('commit gate', () => {
     writeFiles(root, { 'src/cart.js': brokenCart });
     loop(root, ['gate', '--skip-once']);
     assert.equal(commit(root).decision, 'ask');
+    commitAll(root);
+    writeFiles(root, { 'src/cart.js': correctCart });
     assert.equal(commit(root).decision, 'deny');
+  });
+
+  test('a one-time skip is used up once a commit lands', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['gate', '--skip-once']);
+    assert.equal(commit(root).decision, 'ask');
+    assert.equal(commit(root).decision, 'ask');
+    commitAll(root);
+    execFileSync('git', ['reset', '-q', '--soft', 'HEAD~1'], { cwd: root });
+    const afterReset = commit(root);
+    assert.equal(afterReset.decision, 'deny');
+    assert.doesNotMatch(afterReset.reason, /skipped once/);
+    assert.equal(loop(root, ['status']).gate.skipOnce, false);
+  });
+
+  test('a checkout to another branch and back keeps the one-time skip', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    const runGit = (...args) => execFileSync('git', args, { cwd: root, stdio: 'ignore' });
+    runGit('checkout', '-q', '-b', 'side');
+    writeFiles(root, { 'notes.md': 'side\n' });
+    commitAll(root);
+    runGit('checkout', '-q', '-');
+    loop(root, ['gate', '--on']);
+    loop(root, ['gate', '--skip-once']);
+    runGit('checkout', '-q', 'side');
+    assert.equal(loop(root, ['status']).gate.skipOnce, true);
+    runGit('checkout', '-q', '-');
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const result = commit(root);
+    assert.equal(result.decision, 'ask');
+    assert.match(result.reason, /skipped once/);
+  });
+
+  test('a chained command that fails before the commit keeps the one-time skip', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    loop(root, ['delegate', '--scope', 'repo']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['gate', '--skip-once']);
+    const chained = 'false && git commit -qam x';
+    assert.equal(commit(root, chained).decision, 'ask');
+    assert.throws(() => execFileSync('sh', ['-c', chained], { cwd: root, stdio: 'ignore' }));
+    assert.equal(commit(root).decision, 'allow');
+  });
+
+  test('a one-time skip covers only the first of two commits in one command', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    loop(root, ['delegate', '--scope', 'repo']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['gate', '--skip-once']);
+    assert.equal(commit(root, 'git commit -am one && git commit -am two').decision, 'deny');
   });
 
   test('push and --no-verify always ask even with delegation', () => {
@@ -1369,6 +1425,8 @@ describe('commit gate', () => {
     loop(root, ['gate', '--skip-once']);
     writeFiles(root, { 'src/cart.js': brokenCart });
     assert.equal(commit(root, '(cd src && ls) && git commit -am one').decision, 'ask');
+    commitAll(root);
+    writeFiles(root, { 'src/cart.js': correctCart });
     assert.equal(commit(root, 'git commit -am two').decision, 'deny');
   });
 
@@ -1429,6 +1487,20 @@ describe('commit gate hook script', () => {
     const payload = JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git commit -m x' }, cwd: root });
     const output = JSON.parse(execFileSync('node', [hook], { input: payload, encoding: 'utf8' }));
     assert.equal(output.hookSpecificOutput.permissionDecision, 'deny');
+  });
+
+  test('a declined commit prompt keeps the one-time skip', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['gate', '--skip-once']);
+    const payload = JSON.stringify({ tool_name: 'Bash', tool_input: { command: 'git commit -am x' }, cwd: root });
+    for (const attempt of ['declined', 'asked again']) {
+      const output = JSON.parse(execFileSync('node', [hook], { input: payload, encoding: 'utf8' })).hookSpecificOutput;
+      assert.equal(output.permissionDecision, 'ask', attempt);
+      assert.match(output.permissionDecisionReason, /skipped once/, attempt);
+    }
+    assert.equal(loop(root, ['status']).gate.skipOnce, true);
   });
 
   test('hook stays silent on other commands and bad input', () => {
