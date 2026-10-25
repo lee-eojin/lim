@@ -1,0 +1,46 @@
+id,axis,behavior,verified_by,blocking
+B01,do,An explanation opens with a paragraph that answers the question,eval: run-explain.mjs reports opensWithAnswer and the judge's answerFirst for each arm,no
+B02,do,Each concept the answer introduces gets a one-line definition on first use,eval: not scored; read the stored answers in evals/clear-explain/results/,no
+B03,do,Named technical concepts keep their official English names in a reply in another language,eval: not scored; read the Korean answers in evals/clear-explain/results/,no
+B04,do,The reply is in the user's language,eval: run-explain.mjs asks 6 Korean questions; not scored,no
+B05,do,Two things compared side by side go in a table,eval: not scored; read the stored answers in evals/clear-explain/results/,no
+B06,tell,An inference is marked as an inference with its reason and nothing unknown is written as fact,eval: run-explain.mjs records the judge's factualError for each arm,no
+B07,do,The skill starts for explanation questions without being named,eval: run-explain.mjs counts the answers that invoked the skill; run-explain.mjs --triggers on 2026-10-25 saw it start for 12 of 12 questions with the tools of a normal session,no
+B08,silence,The skill does not start for requests to fix or write code or text or to translate or to look up a fact,eval: run-explain.mjs --triggers on 2026-10-25 saw it start for 0 of 8 such requests in English and Korean with the tools of a normal session,no
+B09,evidence,The script reports an em dash or a middle dot as must-fix with its line number,test: an em dash and a middle dot are must-fix findings with their line numbers,yes
+B10,evidence,The script reports the two characters inside code blocks too,test: the two characters are found inside code blocks too,yes
+B11,evidence,The script reports English vague words with their line numbers,test: English vague words are found with their line numbers,yes
+B12,evidence,The script reports Korean vague words with their line numbers,test: Korean vague words are found with their line numbers,yes
+B13,silence,The script does not report vague words in inline code or fenced code or URLs,test: code and URLs are not checked for vague words,yes
+B14,evidence,The script reports an English sentence over 25 words,test: an English sentence over 25 words is long and one of 25 words is not,yes
+B15,evidence,The script reports a Korean sentence over 100 characters,test: a Korean sentence over 100 characters is long and one of 100 is not,yes
+B16,silence,The script does not count headings or table rows as long sentences,test: headings and table rows are not counted as long sentences,yes
+B17,evidence,The script reports three Korean possessives in a row,test: three Korean possessives in a row are a chain and two are not,yes
+B18,silence,The script does not count nouns that end in 의 as possessives,test: nouns that end in 의 do not count as possessives,yes
+B19,evidence,The script reports English possessive and of chains,test: English possessive and of chains are found,yes
+B20,evidence,The script reports stacked passives in Korean and English,test: stacked passives are found in Korean and English,yes
+B21,evidence,The script reports a Korean double negative,test: a Korean double negative is found,yes
+B22,silence,The script reports nothing for clear English and Korean text,test: clear English and Korean text has nothing to look at,yes
+B23,tell,The script counts findings per 1000 prose characters,test: the summary counts findings per 1000 prose characters,yes
+B24,tell,The script's report gives each finding's line and ends with the counts,test: the report lists each finding with its line and ends with the counts,yes
+B25,stop,The script exits 1 only for must-fix findings and reads stdin,test: the command reads stdin and prints JSON on request and exits 1 only for must-fix findings,yes
+B26,evidence,The measurement runs both arms with no user settings and loads the plugin only in the with arm,test: both arms run with no user settings and only the with arm loads the plugin,yes
+B27,evidence,The judge does not see the plugin name and sees the answers in the order it is given,test: the judge prompt hides the plugin name and keeps the order it is given,yes
+B28,evidence,The judge's A and B map back to the arms it saw,test: a verdict maps A and B back to the arms in the order the judge saw them,yes
+B29,tell,The measurement reports how often the judge picked the second answer,test: the summary counts wins and scores and cost and how often the judge picked the second answer,yes
+B30,evidence,The second judge pass shows every pair in the opposite order from the first and keeps the first pass,test: the second judge pass shows every pair in the opposite order and keeps the first pass,yes
+B31,evidence,The script finds a possessive chain that Markdown emphasis markers wrap,test: emphasis markers at word edges do not hide a Korean possessive chain,yes
+B32,silence,The script does not check indented code blocks outside lists as prose,test: indented code blocks are not checked as prose but indented list text is,yes
+B33,tell,The script reports the Korean 등 without the space before it,test: the Korean 등 is reported as the word without the space before it,yes
+B34,evidence,The trigger measurement has fix and lookup and coding requests in English and Korean,test: the trigger set has fixes and lookups and coding tasks in English and Korean that are not explanations,yes
+B35,evidence,A trigger run loads the plugin with the tools of a normal session and no user settings,test: a trigger run loads the plugin with the tools of a normal session and no user settings,yes
+B36,tell,The trigger measurement counts how often the skill started for explanations and for other requests,test: the trigger summary counts how often the skill started for explanations and for other requests,yes
+B37,evidence,The script reports the Korean 등 at the end of a line and before 으로 and 에서,test: the Korean 등 is found at the end of a line and before 으로 and 에서,yes
+B38,silence,The script does not report 등 inside a word such as 등록 or 평등,test: a word that contains 등 such as 등록 or 평등 is not reported,yes
+B39,stop,The script exits 2 with a one-line error for a file it cannot read,test: a file that cannot be read is a one-line usage error with exit code 2,yes
+B40,evidence,The script keeps checking prose after an indented line that looks like a fence,test: an indented line that looks like a fence does not hide the rest of the file,yes
+B41,evidence,The held-out trigger set has new requests and explanation questions in English and Korean that are not in the tuning set,test: the held-out trigger set is new requests in English and Korean that are not in the tuning set,yes
+B42,evidence,A held-out trigger run sends only the held-out requests with their own explain flags,test: a held-out run keeps the explain flag of each request and the tuning run marks only the questions,yes
+B43,tell,Each results file records the SKILL.md body hash and the description separately,test: the skill version records the body hash without the frontmatter and the description separately,yes
+B44,do,The skill starts for held-out explanation questions that the description was not written against,eval: run-explain.mjs --held-out evals/clear-explain/triggers-held-out.json on 2026-10-26 saw it start for 8 of 8 questions in English and Korean,no
+B45,silence,The skill does not start for held-out requests to review a diff or write tests or JSDoc or summarize or rename or continue or ask the date or the weather,eval: run-explain.mjs --held-out evals/clear-explain/triggers-held-out.json on 2026-10-26 saw it start for 0 of 11 such requests in English and Korean,no

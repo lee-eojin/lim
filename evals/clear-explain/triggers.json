@@ -1,0 +1,10 @@
+[
+  { "id": "en-fix-test", "lang": "en", "kind": "fix", "prompt": "Why does this test fail? Fix it.\n\n```js\nfunction sum(items) {\n  let total = 0;\n  for (let index = 1; index < items.length; index++) total += items[index];\n  return total;\n}\n\ntest('sum', () => expect(sum([1, 2, 3])).toBe(6));\n```" },
+  { "id": "en-lookup-version", "lang": "en", "kind": "lookup", "prompt": "What is the latest version of zod?" },
+  { "id": "en-task-dedupe", "lang": "en", "kind": "task", "prompt": "Write a JavaScript function that removes duplicate items from an array and keeps the order of first appearance." },
+  { "id": "en-rewrite", "lang": "en", "kind": "rewrite", "prompt": "Rewrite this commit message so it is shorter: \"Fixed the issue where the login button would not respond when the user clicked it twice very quickly.\"" },
+  { "id": "ko-fix-error", "lang": "ko", "kind": "fix", "prompt": "이 코드에서 TypeError: Cannot read properties of undefined (reading 'name') 에러가 나. 고쳐줘.\n\n```js\nconst users = [];\nconsole.log(users[0].name);\n```" },
+  { "id": "ko-lookup-lts", "lang": "ko", "kind": "lookup", "prompt": "Node.js 최신 LTS 버전이 뭐야?" },
+  { "id": "ko-task-sort", "lang": "ko", "kind": "task", "prompt": "날짜 문자열 배열을 최신순으로 정렬하는 TypeScript 함수 만들어줘." },
+  { "id": "ko-translate", "lang": "ko", "kind": "translate", "prompt": "이 문장 영어로 번역해줘: 결제가 끝나면 주문 상태를 완료로 바꾼다." }
+]
