@@ -23,6 +23,7 @@ const BLOCKING = new Set(['P1', 'P2']);
 const EVIDENCE_FIELDS = ['quote', 'scenario', 'whyNotPrevented'];
 const ASK_FLAGS = ['multipleFixes', 'behaviorChange', 'removesFeature', 'touchesTests'];
 const CONFIRM_LEVELS = { off: [], P2: ['P2'], all: ['P1', 'P2'] };
+const REVIEWER_MODELS = ['inherit', 'opus', 'sonnet', 'haiku', 'fable'];
 const BASES = ['measured', 'inferred', 'guessed'];
 const REVIEWER_FIELDS = [
   'severity', 'file', 'line', 'category', 'title', ...EVIDENCE_FIELDS, 'basis', 'measuredBy', ...ASK_FLAGS, 'ruleCandidate',
@@ -233,9 +234,10 @@ export function parseReview(input) {
 export function renderReport(view) {
   const {
     round, maxRounds, checks = [], resolved = [], fix = [], ask = [], stillOpen = [], regressions = [],
-    integrity = [], cards = [], kept = [], counts = [], looped = [], deferred = [], decision, reason,
+    integrity = [], cards = [], kept = [], counts = [], looped = [], deferred = [], decision, reason, reviewerModel,
   } = view;
-  const lines = [`Review round ${round} of ${maxRounds}`, `Checks: ${describeChecks(checks)}`];
+  const reviewerLabel = reviewerModel ? ` (reviewer: ${reviewerModel === 'inherit' ? 'session model' : reviewerModel})` : '';
+  const lines = [`Review round ${round} of ${maxRounds}${reviewerLabel}`, `Checks: ${describeChecks(checks)}`];
   const section = (title, items, describe) => {
     if (items.length) lines.push('', title, ...items.flatMap(describe));
   };
@@ -701,6 +703,7 @@ function resumeView(repository, state) {
     maxRounds: state.maxRounds,
     awaiting: state.awaiting,
     unattended: state.unattended === true,
+    reviewerModel: state.reviewerModel ?? 'inherit',
     diffPath: repository.file(`round-${state.round}.diff`),
     openPath: existsSync(openPath) ? openPath : null,
     reviewPath: state.awaiting === 'review' ? reviewPathFor(repository, state.round) : null,
@@ -734,9 +737,10 @@ function start(cwd, options) {
   if (!diff.trim()) return { status: 'nothing-to-review' };
   writeFileSync(repository.file('round-1.diff'), diff);
   const files = filesBetween(repository, baseTree, reviewedTree);
+  const reviewerModel = readReviewerModel(repository);
   const state = {
     version: 1, runId: randomUUID(), startedAt: now(), round: 1, maxRounds, baseTree, reviewedTree, nextId: 1,
-    files, reviewedFiles: files, unattended,
+    files, reviewedFiles: files, unattended, reviewerModel,
     open: [], resolved: [], cards: [], deferred: [], kept: [], counts: [], checks: null, awaiting: 'review', stopped: null,
   };
   saveState(repository, state);
@@ -745,7 +749,7 @@ function start(cwd, options) {
     event: 'start', reviewedTree, unattended, checks: checks.map(({ name, exitCode }) => ({ name, exitCode })),
   });
   return {
-    status: 'review', round: 1, maxRounds, unattended, diffPath: repository.file('round-1.diff'),
+    status: 'review', round: 1, maxRounds, unattended, reviewerModel, diffPath: repository.file('round-1.diff'),
     reviewPath: reviewPathFor(repository, 1), checks,
   };
 }
@@ -831,8 +835,9 @@ function recordReview(repository, input) {
   const stopped = decision === 'stop';
 
   const allCards = [...state.cards, ...cards];
+  const reviewerModel = state.reviewerModel ?? 'inherit';
   const view = {
-    round: state.round, maxRounds: state.maxRounds, checks: state.checks, resolved,
+    round: state.round, maxRounds: state.maxRounds, reviewerModel, checks: state.checks, resolved,
     fix: stopped ? [] : fix, ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
     deferred: stopped ? allDeferred : deferred,
     regressions, cards: allCards, kept: allKept, counts, decision, reason,
@@ -852,7 +857,7 @@ function recordReview(repository, input) {
   });
   saveState(repository, state);
   logEvent(repository, {
-    event: 'record', round: state.round, decision, reason, counts,
+    event: 'record', round: state.round, reviewerModel, decision, reason, counts,
     resolved: resolved.map(summarize), open: open.map(summarize),
     deferred: deferred.map((item) => ({ ...summarize(item), reason: item.deferredReason })), cards: cards.map(summarize), kept,
   });
@@ -898,12 +903,15 @@ function next(cwd) {
 
   const fixedFiles = filesBetween(repository, state.reviewedTree, fixedTree);
   const reviewedFiles = [...new Set([...(state.reviewedFiles ?? state.files ?? []), ...fixedFiles])];
-  Object.assign(state, { reviewedTree: fixedTree, files: fixedFiles, reviewedFiles, checks: null, awaiting: 'review' });
+  Object.assign(state, {
+    reviewedTree: fixedTree, files: fixedFiles, reviewedFiles, checks: null, awaiting: 'review',
+    reviewerModel: readReviewerModel(repository),
+  });
   saveState(repository, state);
   const checks = runRoundChecks(repository, state);
   logEvent(repository, { event: 'next', round: state.round, fixedTree, changedFiles: state.files });
   return {
-    status: 'review', round: state.round, maxRounds: state.maxRounds, diffPath, openPath,
+    status: 'review', round: state.round, maxRounds: state.maxRounds, reviewerModel: state.reviewerModel, diffPath, openPath,
     reviewPath: reviewPathFor(repository, state.round), checks,
   };
 }
@@ -1121,6 +1129,20 @@ function confirm(cwd, options) {
     if (rerouted.length) saveState(repository, state);
   }
   return { ...readConfirm(repository), rerouted };
+}
+
+function readReviewerModel(repository) {
+  const { model } = readSetting(repository, 'reviewer.json', {});
+  return REVIEWER_MODELS.includes(model) ? model : 'inherit';
+}
+
+function reviewer(cwd, options) {
+  const repository = openRepository(cwd);
+  if (options.model === undefined) return { model: readReviewerModel(repository) };
+  if (!REVIEWER_MODELS.includes(options.model)) throw new Error('model must be inherit, opus, sonnet, haiku, or fable');
+  writeFileSync(repository.shared('reviewer.json'), JSON.stringify({ model: options.model, updatedAt: now() }, null, 2));
+  logEvent(repository, { event: 'reviewer', model: options.model });
+  return { model: options.model };
 }
 
 function setUnattended(cwd, options) {
@@ -1498,7 +1520,10 @@ function status(cwd) {
   const confirmSettings = readConfirm(repository);
   const repeatedKinds = mostRepeatedKinds(repository);
   const unattended = state?.unattended === true || readUnattended(repository).enabled;
-  if (!state) return { review: null, unattended, delegation, gate: gateSettings, confirm: confirmSettings, repeatedKinds };
+  const reviewerModel = readReviewerModel(repository);
+  if (!state) {
+    return { review: null, unattended, reviewerModel, delegation, gate: gateSettings, confirm: confirmSettings, repeatedKinds };
+  }
   const currentTree = snapshotTree(repository);
   return {
     review: {
@@ -1521,6 +1546,7 @@ function status(cwd) {
     },
     treeMatchesReview: currentTree === state.reviewedTree,
     unattended,
+    reviewerModel,
     delegation,
     gate: gateSettings,
     confirm: confirmSettings,
@@ -1625,7 +1651,8 @@ function summary(cwd, options) {
 }
 
 const COMMANDS = {
-  start, record, next, decide, rule, checks: rerunChecks, delegate, gate, confirm, unattended: setUnattended, note, summary, status,
+  start, record, next, decide, rule, checks: rerunChecks, delegate, gate, confirm, reviewer, unattended: setUnattended, note,
+  summary, status,
 };
 
 function parseOptions(args) {

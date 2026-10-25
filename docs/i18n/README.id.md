@@ -73,7 +73,7 @@ Claude juga dapat memulai review-loop sendiri saat kamu memintanya me-review ata
 Setiap putaran berakhir dengan laporan. Claude menampilkannya sebelum hal lain:
 
 ```
-Review round 2 of 3
+Review round 2 of 3 (reviewer: session model)
 Checks: test passed
 
 Resolved since last round:
@@ -107,6 +107,7 @@ skip once:              /review-loop:review-loop commit this without a review, j
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
+reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
 ```
 
 </details>
@@ -196,7 +197,7 @@ Untuk commit satu kali tanpa review, minta Claude untuk melewati review kali ini
 
 ### Pengaturan
 
-Empat pengaturan pertama berlaku untuk satu repository. Untuk mengubahnya, ketik permintaanmu setelah `/review-loop:review-loop`, agar Claude sudah memuat perintah dari skill tersebut. Batas waktu pemeriksaan adalah environment variable, jadi berlaku di mana pun kamu mengaturnya, dan total 9 menit bersifat tetap.
+Lima pengaturan pertama berlaku untuk satu repository. Untuk mengubahnya, ketik permintaanmu setelah `/review-loop:review-loop`, agar Claude sudah memuat perintah dari skill tersebut. Batas waktu pemeriksaan adalah environment variable, jadi berlaku di mana pun kamu mengaturnya, dan total 9 menit bersifat tetap.
 
 | Pengaturan | Default | Yang diketik |
 |---|---|---|
@@ -204,11 +205,12 @@ Empat pengaturan pertama berlaku untuk satu repository. Untuk mengubahnya, ketik
 | Commit gate | Ditanyakan satu kali di akhir review pertama | "nyalakan (atau matikan) commit gate" |
 | Delegasi commit | Bertanya sebelum setiap commit | "berhenti bertanya sebelum commit di repo ini" |
 | Tanpa pengawasan | Mati | "jalankan tanpa pengawasan" untuk satu eksekusi, atau "nyalakan (atau matikan) mode tanpa pengawasan di repo ini". Claude tidak menanyakan apa pun, menunda hal yang membutuhkanmu, dan mengakhiri dengan ringkasan tentang apa yang sudah dilakukannya dan apa yang menunggumu |
+| Model reviewer | Model sesimu | "jalankan reviewer dengan sonnet di repo ini" (atau opus, haiku, fable), atau "jalankan reviewer dengan model sesi". Bagian Terukur menunjukkan apa yang ditemukan tiap model dan berapa biayanya |
 | Batas waktu pemeriksaan | 5 menit per pemeriksaan, total 9 menit | Atur `LIM_CHECK_TIMEOUT_MS` untuk mengubah batas per pemeriksaan |
 
 ## Terukur
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 149 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 139 di antaranya, termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 10 perilaku lainnya membutuhkan eksekusi dengan model: bertanya tentang P3 sampai P5 satu kali, menampilkan laporan sebelum pertanyaan apa pun, menyimpan setiap langkah di daftar tugas dengan alasan untuk setiap langkah yang dilewati, menulis regression test untuk setiap P1 atau P2 yang diperbaiki, memberi label measured, inferred, atau guessed pada setiap temuan, menyebutkan bagaimana sebuah perbaikan diketahui berhasil, memeriksa ulang sebuah temuan saat kamu membantahnya, merekomendasikan aturan untuk jenis temuan yang terus muncul kembali, tidak bertanya apa pun dalam eksekusi tanpa pengawasan, dan melaporkan kode yang ditambahkan tanpa penyebab yang diketahui. Perilaku terakhir memiliki fixture di [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), dan dua perilaku pertama memiliki eksekusi manual di [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 155 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 144 di antaranya, termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 11 perilaku lainnya membutuhkan eksekusi dengan model: bertanya tentang P3 sampai P5 satu kali, menampilkan laporan sebelum pertanyaan apa pun, menyimpan setiap langkah di daftar tugas dengan alasan untuk setiap langkah yang dilewati, menulis regression test untuk setiap P1 atau P2 yang diperbaiki, memberi label measured, inferred, atau guessed pada setiap temuan, menyebutkan bagaimana sebuah perbaikan diketahui berhasil, memeriksa ulang sebuah temuan saat kamu membantahnya, merekomendasikan aturan untuk jenis temuan yang terus muncul kembali, tidak bertanya apa pun dalam eksekusi tanpa pengawasan, menjalankan reviewer dengan model yang kamu pilih, dan melaporkan kode yang ditambahkan tanpa penyebab yang diketahui. Perilaku terakhir memiliki fixture di [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), dan dua perilaku pertama memiliki eksekusi manual di [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Sebuah benchmark deteksi memberi reviewer perubahan di repository sementara yang namanya tidak menunjukkan bahwa itu adalah sebuah test. [`evals/review-loop/detection/`](../../evals/review-loop/detection/) berisi 12 perubahan yang masing-masing berisi satu bug yang sengaja ditanam dan 6 perubahan yang bersih. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) berisi 6 bug yang lebih sulit, misalnya bug yang hanya terlihat di file yang tidak disentuh diff, bug di dalam diff sepanjang 183 baris, race antara dua pencarian, dan lock yang tidak dilepas di jalur error, serta 4 perubahan bersih yang terlihat mencurigakan. Hasil pada 2026-10-25, dengan 3 eksekusi per kasus:
 
@@ -218,7 +220,9 @@ Sebuah benchmark deteksi memberi reviewer perubahan di repository sementara yang
 | claude-sonnet-5-5 | tidak dijalankan | tidak dijalankan | 18 dari 18 | 1 dari 12 | $0,76 |
 | claude-haiku-5-5 | tidak dijalankan | tidak dijalankan | 17 dari 18 | 3 dari 12 | $0,06, menurut laporan Claude Code |
 
-Reviewer berjalan dengan model sesimu. Opus menemukan setiap bug yang ditanam di kedua set, jadi benchmark ini belum bisa menunjukkan penurunan kecil untuknya. Model yang lebih lemah menunjukkan bahwa benchmark ini memang menangkap bug yang terlewat dan alarm palsu. Satu-satunya kegagalan Haiku menyebut bug-nya, tetapi memberikan baris yang melewati akhir file yang disebutnya dan mengutip kode dari file lain, dan review-loop juga akan menampilkannya sebagai belum terverifikasi. Setelah eksekusi pertama, kata kunci ditambahkan di tiga kasus ketika reviewer menyebut bug yang ditanam dengan kata-kata yang tidak diterima oleh penilaian, dan setiap eksekusi yang tersimpan dinilai ulang dengan kata kunci itu. Eksekusi Opus sebelumnya pada set yang lebih sulit, sebelum perubahan yang hanya menyentuh fixture, menghasilkan satu P2 palsu pada kasus bersih (kasus yang sama dengan alarm palsu Sonnet dan Haiku), jadi dari 6 eksekusi Opus kasus itu menghasilkan 1. Jalankan lagi dengan `node evals/review-loop/run-detection.mjs --runs 3`, dan tambahkan `--cases evals/review-loop/detection-hard` untuk set yang lebih sulit.
+Secara default, reviewer berjalan dengan model sesimu. Opus menemukan setiap bug yang ditanam di kedua set, jadi benchmark ini belum bisa menunjukkan penurunan kecil untuknya. Model yang lebih lemah menunjukkan bahwa benchmark ini memang menangkap bug yang terlewat dan alarm palsu. Satu-satunya kegagalan Haiku menyebut bug-nya, tetapi memberikan baris yang melewati akhir file yang disebutnya dan mengutip kode dari file lain, dan review-loop juga akan menampilkannya sebagai belum terverifikasi. Setelah eksekusi pertama, kata kunci ditambahkan di tiga kasus ketika reviewer menyebut bug yang ditanam dengan kata-kata yang tidak diterima oleh penilaian, dan setiap eksekusi yang tersimpan dinilai ulang dengan kata kunci itu. Eksekusi Opus sebelumnya pada set yang lebih sulit, sebelum perubahan yang hanya menyentuh fixture, menghasilkan satu P2 palsu pada kasus bersih (kasus yang sama dengan alarm palsu Sonnet dan Haiku), jadi dari 6 eksekusi Opus kasus itu menghasilkan 1. Jalankan lagi dengan `node evals/review-loop/run-detection.mjs --runs 3`, dan tambahkan `--cases evals/review-loop/detection-hard` untuk set yang lebih sulit.
+
+Tabel di atas menjadi dasar model default reviewer. Pada set lebih sulit, Opus menemukan 18 dari 18 tanpa P1 atau P2 palsu, Sonnet menemukan 18 dari 18 dengan 1 P1 atau P2 palsu dari 12 eksekusi bersih dengan biaya sekitar 43% dari Opus, dan Haiku menemukan 17 dari 18 dengan 3 dari 12. Jadi default tetap model sesi, dan Sonnet adalah pilihan yang lebih murah saat kamu ingin reviewer berjalan pada model yang berbeda dari model yang menulis perubahan.
 
 <details>
 <summary>Biaya</summary>
@@ -227,10 +231,10 @@ Reviewer berjalan dengan model sesimu. Opus menemukan setiap bug yang ditanam di
 
 | Bagian | Selalu aktif, setiap sesi | Setiap kali berjalan |
 |---|---|---|
-| skill review-loop | sekitar 140 token | sekitar 4.600 token |
+| skill review-loop | sekitar 140 token | sekitar 5.500 token |
 | reviewer agent | sekitar 70 token | sekitar 1.700 token, ditambah diff dan kode yang dibacanya |
 
-Biaya skill dibayar satu kali per eksekusi. Biaya reviewer dibayar satu kali per putaran, dan satu loop berjalan maksimal 3 putaran. Pemeriksaanmu berjalan di mesinmu sendiri dan tidak memakan token.
+Biaya skill dibayar satu kali per eksekusi. Biaya reviewer dibayar satu kali per putaran, dan satu loop berjalan maksimal 3 putaran. Model reviewer mengubah biaya itu; tabel benchmark di atas menunjukkannya untuk tiap model. Pemeriksaanmu berjalan di mesinmu sendiri dan tidak memakan token.
 
 </details>
 
@@ -331,7 +335,6 @@ review-loop bekerja dengan pemeriksaan yang sudah kamu punya. Semakin baik scrip
 ## Roadmap
 
 - Eval tingkat model dengan `claude plugin eval` untuk perilaku yang tidak dapat dicakup oleh unit test, serta perbandingan buta atas kualitas dan biaya review
-- Reviewer yang berjalan pada model yang berbeda dari model yang menulis perubahan
 - Panduan singkat dengan prompt siap salin, output nyata, dan biaya
 
 ## Berkontribusi

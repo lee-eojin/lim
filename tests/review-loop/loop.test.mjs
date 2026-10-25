@@ -327,6 +327,14 @@ describe('renderReport', () => {
     });
     assert.match(stopped, /Left for you: P3 1, P4 0, P5 0, repeats 2/);
   });
+
+  test('report header names the reviewer model or the session model', () => {
+    const firstLine = (reviewerModel) => renderReport({
+      round: 1, maxRounds: 3, reviewerModel, counts: [0], decision: 'stop', reason: 'clean',
+    }).split('\n')[0];
+    assert.equal(firstLine('sonnet'), 'Review round 1 of 3 (reviewer: sonnet)');
+    assert.equal(firstLine('inherit'), 'Review round 1 of 3 (reviewer: session model)');
+  });
 });
 
 describe('finding basis', () => {
@@ -1932,5 +1940,56 @@ describe('review file', () => {
     assert.match(result.reason, /review passed/);
     execFileSync('git', ['add', '-A'], { cwd: root });
     assert.equal(gitOutput(root, 'diff', '--cached', '--name-only'), 'src/cart.js');
+  });
+});
+
+describe('reviewer model', () => {
+  const ledger = (root) => readFileSync(path.join(root, '.git', 'lim', 'review-loop', 'ledger.jsonl'), 'utf8')
+    .trim().split('\n').map((line) => JSON.parse(line));
+
+  test('the reviewer model setting is saved for the repository and rejects other values', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    assert.equal(loop(root, ['reviewer']).model, 'inherit');
+    assert.equal(loop(root, ['reviewer', '--model', 'sonnet']).model, 'sonnet');
+    assert.equal(loop(root, ['reviewer']).model, 'sonnet');
+    assert.throws(() => loop(root, ['reviewer', '--model', 'gpt-5']), /model must be inherit, opus, sonnet, haiku, or fable/);
+    assert.throws(() => loop(root, ['reviewer', '--model']), /model must be inherit, opus, sonnet, haiku, or fable/);
+    assert.equal(loop(root, ['reviewer']).model, 'sonnet');
+    assert.equal(loop(root, ['reviewer', '--model', 'inherit']).model, 'inherit');
+  });
+
+  test('start and next and status return the reviewer model', () => {
+    const fresh = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(fresh, { 'src/cart.js': brokenCart });
+    assert.equal(loop(fresh, ['start']).reviewerModel, 'inherit');
+    assert.equal(loop(fresh, ['status']).reviewerModel, 'inherit');
+
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['reviewer', '--model', 'haiku']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    assert.equal(loop(root, ['start']).reviewerModel, 'haiku');
+    assert.equal(loop(root, ['status']).reviewerModel, 'haiku');
+    loop(root, ['reviewer', '--model', 'opus']);
+    assert.equal(loop(root, ['start']).reviewerModel, 'haiku');
+    loop(root, ['record'], { findings: [doubledPrice] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    assert.equal(loop(root, ['next']).reviewerModel, 'opus');
+    assert.equal(loop(root, ['status']).reviewerModel, 'opus');
+  });
+
+  test('the record event stores the reviewer model the round started with', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['reviewer', '--model', 'sonnet']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['reviewer', '--model', 'haiku']);
+    const first = loop(root, ['record'], { findings: [doubledPrice] });
+    assert.equal(first.report.split('\n')[0], 'Review round 1 of 3 (reviewer: sonnet)');
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { findings: [], resolved: ['F-1'] });
+    assert.equal(second.report.split('\n')[0], 'Review round 2 of 3 (reviewer: haiku)');
+    const records = ledger(root).filter((entry) => entry.event === 'record');
+    assert.deepEqual(records.map((entry) => entry.reviewerModel), ['sonnet', 'haiku']);
   });
 });

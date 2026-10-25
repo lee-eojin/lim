@@ -73,7 +73,7 @@ Claude Code가 재시작을 요청하면 재시작합니다. marketplace를 추�
 모든 라운드는 보고서로 끝납니다. Claude는 다른 무엇보다 이 보고서를 먼저 보여 줍니다.
 
 ```
-Review round 2 of 3
+Review round 2 of 3 (reviewer: session model)
 Checks: test passed
 
 Resolved since last round:
@@ -107,6 +107,7 @@ skip once:              /review-loop:review-loop commit this without a review, j
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
+reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
 ```
 
 </details>
@@ -196,7 +197,7 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 
 ### 설정
 
-처음 네 설정은 저장소 하나에 적용됩니다. 설정을 바꾸려면 `/review-loop:review-loop` 뒤에 요청을 입력합니다. 그래야 Claude가 스킬의 명령을 불러온 상태에서 처리합니다. 검사 제한 시간은 환경 변수라서 설정한 곳 어디에나 적용되고, 전체 9분은 고정입니다.
+처음 다섯 설정은 저장소 하나에 적용됩니다. 설정을 바꾸려면 `/review-loop:review-loop` 뒤에 요청을 입력합니다. 그래야 Claude가 스킬의 명령을 불러온 상태에서 처리합니다. 검사 제한 시간은 환경 변수라서 설정한 곳 어디에나 적용되고, 전체 9분은 고정입니다.
 
 | 설정 | 기본값 | 입력 |
 |---|---|---|
@@ -204,11 +205,12 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 | 커밋 게이트 | 첫 리뷰가 끝날 때 한 번 물음 | "커밋 게이트를 켜 줘(또는 꺼 줘)" |
 | 커밋 위임 | 커밋할 때마다 물음 | "이 저장소에서는 커밋 전에 더 묻지 마" |
 | 무인 실행 | 꺼짐 | 이번 한 번은 "무인으로 실행해 줘", 이 저장소에 계속 적용하려면 "이 저장소에서 무인 모드를 켜 줘(또는 꺼 줘)". Claude는 아무것도 묻지 않고, 사용자가 판단할 일은 나중으로 남기고, 한 일과 사용자를 기다리는 일을 요약하며 끝냅니다 |
+| 리뷰어 모델 | 세션의 모델 | "이 저장소에서 리뷰어를 sonnet으로 실행해 줘"(또는 opus, haiku, fable), 또는 "리뷰어를 세션의 모델로 실행해 줘". 모델별로 찾은 버그와 비용은 측정 결과에 있습니다 |
 | 검사 제한 시간 | 검사 하나에 5분, 전체 9분 | 검사 하나의 제한 시간을 바꾸려면 `LIM_CHECK_TIMEOUT_MS`를 설정 |
 
 ## 측정 결과
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 149개 동작이 있습니다. CI의 단위 테스트가 그중 139개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 10개는 모델 실행이 필요합니다. 그 10개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 같은 종류로 되풀이되는 지적 사항에 규칙 만들기 권하기, 무인 실행에서는 아무것도 묻지 않기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있고, 처음 두 동작은 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)에 수동 실행 기록이 있습니다.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 155개 동작이 있습니다. CI의 단위 테스트가 그중 144개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 11개는 모델 실행이 필요합니다. 그 11개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 같은 종류로 되풀이되는 지적 사항에 규칙 만들기 권하기, 무인 실행에서는 아무것도 묻지 않기, 고른 모델로 리뷰어 시작하기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있고, 처음 두 동작은 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)에 수동 실행 기록이 있습니다.
 
 탐지 벤치마크는 이름만 봐서는 테스트인지 알 수 없는 임시 저장소에 변경을 만들어 리뷰어에게 줍니다. [`evals/review-loop/detection/`](../../evals/review-loop/detection/)에는 버그를 하나씩 심은 변경 12개와 깨끗한 변경 6개가 있습니다. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/)에는 더 어려운 버그 6개와, 수상해 보이지만 깨끗한 변경 4개가 있습니다. 더 어려운 버그에는 diff가 건드리지 않은 파일을 봐야만 보이는 버그, 183줄짜리 diff 안에 있는 버그, 두 검색 사이의 경쟁 상태, 에러 경로에서 풀리지 않고 남은 락 같은 것이 있습니다. 2026-10-25에 케이스마다 3번씩 실행한 결과입니다.
 
@@ -218,7 +220,9 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 | claude-sonnet-5-5 | 실행 안 함 | 실행 안 함 | 18개 중 18개 | 12개 중 1개 | $0.76 |
 | claude-haiku-5-5 | 실행 안 함 | 실행 안 함 | 18개 중 17개 | 12개 중 3개 | $0.06(Claude Code가 보고한 값) |
 
-리뷰어는 사용자 세션의 모델로 실행됩니다. Opus는 두 세트에서 심은 버그를 모두 찾았기 때문에, 이 벤치마크는 아직 Opus의 작은 성능 하락을 보여 주지 못합니다. 더 약한 모델의 결과는 이 벤치마크가 놓친 버그와 오탐을 실제로 잡아낸다는 것을 보여 줍니다. Haiku가 놓친 하나는 버그를 짚기는 했지만, 지목한 파일의 끝을 넘어서는 줄을 제시하고 다른 파일의 코드를 인용했습니다. review-loop에서도 이런 지적 사항은 미검증으로 보입니다. 첫 실행 뒤에, 리뷰어가 심은 버그를 채점이 받아들이지 않는 표현으로 짚은 케이스 세 개에 키워드를 추가했고, 저장된 모든 실행을 그 키워드로 다시 채점했습니다. fixture만 바꾸기 전에 어려운 세트를 Opus로 실행했을 때는 깨끗한 케이스 하나에서 잘못된 P2가 하나 나왔습니다(Sonnet과 Haiku가 오탐을 낸 바로 그 케이스입니다). 그래서 Opus 6회 실행에서 그 케이스의 오탐은 1개입니다. 다시 실행하려면 `node evals/review-loop/run-detection.mjs --runs 3`을 쓰고, 어려운 세트는 `--cases evals/review-loop/detection-hard`를 덧붙이세요.
+리뷰어는 기본적으로 사용자 세션의 모델로 실행됩니다. Opus는 두 세트에서 심은 버그를 모두 찾았기 때문에, 이 벤치마크는 아직 Opus의 작은 성능 하락을 보여 주지 못합니다. 더 약한 모델의 결과는 이 벤치마크가 놓친 버그와 오탐을 실제로 잡아낸다는 것을 보여 줍니다. Haiku가 놓친 하나는 버그를 짚기는 했지만, 지목한 파일의 끝을 넘어서는 줄을 제시하고 다른 파일의 코드를 인용했습니다. review-loop에서도 이런 지적 사항은 미검증으로 보입니다. 첫 실행 뒤에, 리뷰어가 심은 버그를 채점이 받아들이지 않는 표현으로 짚은 케이스 세 개에 키워드를 추가했고, 저장된 모든 실행을 그 키워드로 다시 채점했습니다. fixture만 바꾸기 전에 어려운 세트를 Opus로 실행했을 때는 깨끗한 케이스 하나에서 잘못된 P2가 하나 나왔습니다(Sonnet과 Haiku가 오탐을 낸 바로 그 케이스입니다). 그래서 Opus 6회 실행에서 그 케이스의 오탐은 1개입니다. 다시 실행하려면 `node evals/review-loop/run-detection.mjs --runs 3`을 쓰고, 어려운 세트는 `--cases evals/review-loop/detection-hard`를 덧붙이세요.
+
+위 표가 리뷰어 기본 모델의 근거입니다. 어려운 세트에서 Opus는 18개 중 18개를 찾았고 잘못 낸 P1이나 P2가 없었습니다. Sonnet은 18개 중 18개를 찾았고 깨끗한 실행 12회 중 1회에서 P1이나 P2를 잘못 냈으며, 비용은 Opus의 약 43%였습니다. Haiku는 18개 중 17개를 찾았고 12회 중 3회에서 P1이나 P2를 잘못 냈습니다. 그래서 기본값은 세션의 모델로 두고, 변경을 작성한 모델과 다른 모델로 리뷰하고 싶다면 Sonnet이 더 저렴한 선택입니다.
 
 <details>
 <summary>비용</summary>
@@ -227,10 +231,10 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 
 | 구성 요소 | 항상 켜짐, 모든 세션 | 실행할 때마다 |
 |---|---|---|
-| review-loop 스킬 | 약 140 토큰 | 약 4,600 토큰 |
+| review-loop 스킬 | 약 140 토큰 | 약 5,500 토큰 |
 | 리뷰어 에이전트 | 약 70 토큰 | 약 1,700 토큰, 여기에 diff와 리뷰어가 읽는 코드가 더해짐 |
 
-스킬 비용은 실행마다 한 번 듭니다. 리뷰어 비용은 라운드마다 한 번 들고, 루프는 최대 3라운드까지 진행합니다. 검사는 사용자의 컴퓨터에서 실행되므로 토큰이 들지 않습니다.
+스킬 비용은 실행마다 한 번 듭니다. 리뷰어 비용은 라운드마다 한 번 들고, 루프는 최대 3라운드까지 진행합니다. 리뷰어 모델에 따라 이 비용이 달라지며, 모델별 비용은 위 벤치마크 표에 있습니다. 검사는 사용자의 컴퓨터에서 실행되므로 토큰이 들지 않습니다.
 
 </details>
 
@@ -331,7 +335,6 @@ review-loop는 이미 있는 검사를 그대로 씁니다. `typecheck`, `lint`,
 ## 로드맵
 
 - 단위 테스트로 다룰 수 없는 동작을 위한 `claude plugin eval` 기반 모델 수준 eval, 그리고 리뷰 품질과 비용의 블라인드 비교
-- 변경을 작성한 모델과 다른 모델에서 실행하는 리뷰어
 - 바로 복사해 쓸 수 있는 프롬프트, 실제 출력, 비용을 담은 짧은 가이드
 
 ## 기여하기

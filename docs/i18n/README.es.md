@@ -73,7 +73,7 @@ Claude también puede iniciar review-loop por su cuenta cuando le pides que revi
 Cada ronda termina con un informe. Claude lo muestra antes que cualquier otra cosa:
 
 ```
-Review round 2 of 3
+Review round 2 of 3 (reviewer: session model)
 Checks: test passed
 
 Resolved since last round:
@@ -107,6 +107,7 @@ skip once:              /review-loop:review-loop commit this without a review, j
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
+reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
 ```
 
 </details>
@@ -196,7 +197,7 @@ Para hacer un commit una sola vez sin revisión, pide a Claude que omita la revi
 
 ### Configuración
 
-Los cuatro primeros ajustes se aplican a un repositorio. Para cambiar uno, escribe la petición después de `/review-loop:review-loop`, así Claude tiene cargados los comandos de la skill. El límite de tiempo de las comprobaciones es una variable de entorno, así que se aplica donde la definas, y el total de 9 minutos es fijo.
+Los cinco primeros ajustes se aplican a un repositorio. Para cambiar uno, escribe la petición después de `/review-loop:review-loop`, así Claude tiene cargados los comandos de la skill. El límite de tiempo de las comprobaciones es una variable de entorno, así que se aplica donde la definas, y el total de 9 minutos es fijo.
 
 | Ajuste | Valor por defecto | Qué escribir |
 |---|---|---|
@@ -204,11 +205,12 @@ Los cuatro primeros ajustes se aplican a un repositorio. Para cambiar uno, escri
 | Commit gate | Se pregunta una vez al final de la primera revisión | "activa (o desactiva) el commit gate" |
 | Delegación de commits | Pregunta antes de cada commit | "deja de preguntar antes de los commits en este repositorio" |
 | Sin supervisión | Desactivado | "ejecuta sin supervisión" para una ejecución, o "activa (o desactiva) el modo sin supervisión en este repositorio". Claude no pregunta nada, deja para después lo que te necesita y termina con un resumen de lo que hizo y de lo que te espera |
+| Modelo del revisor | El modelo de tu sesión | "ejecuta el revisor con sonnet en este repositorio" (u opus, haiku, fable), o "ejecuta el revisor con el modelo de la sesión". En Mediciones verás lo que encontró y lo que costó cada modelo |
 | Límite de tiempo de las comprobaciones | 5 minutos por comprobación, 9 minutos en total | Define `LIM_CHECK_TIMEOUT_MS` para cambiar el límite de cada comprobación |
 
 ## Mediciones
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) enumera 149 comportamientos en seis ejes: `do`, `tell`, `ask`, `silence`, `stop` y `evidence`. Los tests unitarios en CI cubren 139 de estos comportamientos, incluidas ejecuciones contra repositorios git temporales reales y el hook de commit gate. Los otros 10 necesitan una ejecución del modelo: preguntar una sola vez sobre P3 a P5, mostrar el informe antes de cualquier pregunta, mantener cada paso en la lista de tareas con un motivo para cada paso omitido, escribir un test de regresión para cada P1 o P2 corregido, etiquetar cada hallazgo como measured, inferred o guessed, decir cómo se sabe que una corrección funciona, volver a comprobar un hallazgo que cuestionas, recomendar una regla para un tipo de hallazgo que se repite, no preguntar nada en una ejecución sin supervisión e informar del código añadido sin una causa conocida. El último tiene un fixture en [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), y los dos primeros tienen una ejecución manual en [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) enumera 155 comportamientos en seis ejes: `do`, `tell`, `ask`, `silence`, `stop` y `evidence`. Los tests unitarios en CI cubren 144 de estos comportamientos, incluidas ejecuciones contra repositorios git temporales reales y el hook de commit gate. Los otros 11 necesitan una ejecución del modelo: preguntar una sola vez sobre P3 a P5, mostrar el informe antes de cualquier pregunta, mantener cada paso en la lista de tareas con un motivo para cada paso omitido, escribir un test de regresión para cada P1 o P2 corregido, etiquetar cada hallazgo como measured, inferred o guessed, decir cómo se sabe que una corrección funciona, volver a comprobar un hallazgo que cuestionas, recomendar una regla para un tipo de hallazgo que se repite, no preguntar nada en una ejecución sin supervisión, iniciar el revisor con el modelo que elegiste e informar del código añadido sin una causa conocida. El último tiene un fixture en [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), y los dos primeros tienen una ejecución manual en [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Un benchmark de detección le da al revisor cambios en repositorios temporales cuyos nombres no indican que son una prueba. [`evals/review-loop/detection/`](../../evals/review-loop/detection/) tiene 12 cambios con un bug sembrado en cada uno y 6 cambios limpios. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) tiene 6 bugs más difíciles, como uno que solo se ve en un archivo que el diff no toca, uno dentro de un diff de 183 líneas, una condición de carrera entre dos búsquedas y un lock que no se libera en una ruta de error, además de 4 cambios limpios que parecen sospechosos. Resultados del 2026-10-25, con 3 ejecuciones por caso:
 
@@ -218,7 +220,9 @@ Un benchmark de detección le da al revisor cambios en repositorios temporales c
 | claude-sonnet-5-5 | no ejecutado | no ejecutado | 18 de 18 | 1 de 12 | 0,76 USD |
 | claude-haiku-5-5 | no ejecutado | no ejecutado | 17 de 18 | 3 de 12 | 0,06 USD, según informa Claude Code |
 
-El revisor usa el modelo de tu sesión. Opus encontró todos los bugs sembrados en ambos conjuntos, así que el benchmark todavía no puede mostrar una caída pequeña en su caso. Los modelos más débiles muestran que sí detecta bugs que se escapan y falsas alarmas. El único fallo de Haiku nombró el bug, pero dio una línea más allá del final del archivo que indicó y citó código de otro archivo, y review-loop también lo mostraría como no verificado. Después de las primeras ejecuciones se añadieron palabras clave en tres casos en los que un revisor nombró el bug sembrado con palabras que la puntuación no aceptaba, y todas las ejecuciones guardadas se puntuaron de nuevo con ellas. Una ejecución anterior de Opus sobre el conjunto difícil, antes de un cambio que solo tocó los fixtures, dio un P2 falso en un caso limpio (el mismo caso que provocó las falsas alarmas de Sonnet y Haiku), así que en 6 ejecuciones de Opus ese caso dio 1. Vuelve a ejecutarlo con `node evals/review-loop/run-detection.mjs --runs 3` y añade `--cases evals/review-loop/detection-hard` para el conjunto difícil.
+Por defecto, el revisor usa el modelo de tu sesión. Opus encontró todos los bugs sembrados en ambos conjuntos, así que el benchmark todavía no puede mostrar una caída pequeña en su caso. Los modelos más débiles muestran que sí detecta bugs que se escapan y falsas alarmas. El único fallo de Haiku nombró el bug, pero dio una línea más allá del final del archivo que indicó y citó código de otro archivo, y review-loop también lo mostraría como no verificado. Después de las primeras ejecuciones se añadieron palabras clave en tres casos en los que un revisor nombró el bug sembrado con palabras que la puntuación no aceptaba, y todas las ejecuciones guardadas se puntuaron de nuevo con ellas. Una ejecución anterior de Opus sobre el conjunto difícil, antes de un cambio que solo tocó los fixtures, dio un P2 falso en un caso limpio (el mismo caso que provocó las falsas alarmas de Sonnet y Haiku), así que en 6 ejecuciones de Opus ese caso dio 1. Vuelve a ejecutarlo con `node evals/review-loop/run-detection.mjs --runs 3` y añade `--cases evals/review-loop/detection-hard` para el conjunto difícil.
+
+La tabla de arriba es la base del modelo por defecto del revisor. En el conjunto difícil, Opus encontró 18 de 18 sin P1 o P2 falsos, Sonnet encontró 18 de 18 con 1 P1 o P2 falso en 12 ejecuciones limpias por cerca del 43% del costo de Opus, y Haiku encontró 17 de 18 con 3 de 12. Por eso el valor por defecto sigue siendo el modelo de la sesión, y Sonnet es la opción más barata cuando quieres que el revisor use un modelo distinto del que escribió el cambio.
 
 <details>
 <summary>Costo</summary>
@@ -227,10 +231,10 @@ El revisor usa el modelo de tu sesión. Opus encontró todos los bugs sembrados 
 
 | Parte | Siempre activo, en cada sesión | Cada vez que se ejecuta |
 |---|---|---|
-| skill review-loop | unos 140 tokens | unos 4600 tokens |
+| skill review-loop | unos 140 tokens | unos 5500 tokens |
 | agente revisor | unos 70 tokens | unos 1700 tokens, más el diff y el código que lee |
 
-El costo de la skill se paga una vez por ejecución. El del revisor se paga una vez por ronda, y un ciclo tiene como máximo 3 rondas. Tus comprobaciones se ejecutan en tu máquina y no cuestan tokens.
+El costo de la skill se paga una vez por ejecución. El del revisor se paga una vez por ronda, y un ciclo tiene como máximo 3 rondas. El modelo del revisor cambia ese costo; la tabla del benchmark de arriba lo muestra para cada modelo. Tus comprobaciones se ejecutan en tu máquina y no cuestan tokens.
 
 </details>
 
@@ -331,7 +335,6 @@ review-loop funciona con las comprobaciones que ya tienes. Cuanto mejores sean t
 ## Hoja de ruta
 
 - Evals a nivel de modelo con `claude plugin eval` para los comportamientos que los tests unitarios no pueden cubrir, y una comparación a ciegas de la calidad y el costo de la revisión
-- Un revisor que se ejecute en un modelo distinto del que escribió el cambio
 - Una guía breve con prompts listos para copiar, salida real y costo
 
 ## Contribuir

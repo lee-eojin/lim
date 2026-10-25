@@ -19,6 +19,8 @@ If a session ends in the middle of a loop, running it again offers to continue w
 
 To run it with nobody watching, for example overnight, add "run unattended" after the command, or ask Claude to turn on unattended mode in the repository. Claude then asks nothing: it leaves design choices and P3 to P5 for you, records each choice it makes in the decision ledger, and ends with a summary of what it did and what waits for you.
 
+The reviewer runs on your session's model unless you ask Claude to run it on another one in the repository, for example "run the reviewer on sonnet in this repo" for a cheaper review (`loop reviewer --model opus|sonnet|haiku|fable|inherit`); the report's first line names it.
+
 ## How it works
 
 1. Runs your project's typecheck, lint, and test scripts from `package.json`. A project without them is reviewed from the diff alone.
@@ -32,7 +34,7 @@ To run it with nobody watching, for example overnight, add "run unattended" afte
 Every round ends with a report like this:
 
 ```
-Review round 2 of 3
+Review round 2 of 3 (reviewer: session model)
 Checks: typecheck passed, lint passed, test passed
 
 Resolved since last round:
@@ -66,7 +68,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 149 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 139 of them. The other 10 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, and reporting code added without a known cause) need a model run. The first two have a manual run in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md), and the reviewer has a detection benchmark in [`evals/review-loop/detection/`](../../evals/review-loop/detection/).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 155 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 144 of them. The other 11 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, starting the reviewer on the model you chose, and reporting code added without a known cause) need a model run. The first two have a manual run in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md), and the reviewer has a detection benchmark in [`evals/review-loop/detection/`](../../evals/review-loop/detection/).
 
 ## Data
 

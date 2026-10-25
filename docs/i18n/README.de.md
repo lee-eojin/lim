@@ -73,7 +73,7 @@ Claude kann review-loop auch von selbst starten, wenn du um ein Review oder eine
 Jede Runde endet mit einem Bericht. Claude zeigt ihn vor allem anderen:
 
 ```
-Review round 2 of 3
+Review round 2 of 3 (reviewer: session model)
 Checks: test passed
 
 Resolved since last round:
@@ -107,6 +107,7 @@ skip once:              /review-loop:review-loop commit this without a review, j
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
+reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
 ```
 
 </details>
@@ -196,7 +197,7 @@ Wenn du einmal ohne Review committen willst, bitte Claude, das Review dieses Mal
 
 ### Einstellungen
 
-Die ersten vier Einstellungen gelten für ein Repository. Du änderst eine Einstellung, indem du die Anfrage nach `/review-loop:review-loop` eingibst. So hat Claude die Befehle des Skills geladen. Das Zeitlimit für Checks ist eine Umgebungsvariable, darum gilt es überall, wo du es setzt, und die 9 Minuten insgesamt sind fest.
+Die ersten fünf Einstellungen gelten für ein Repository. Du änderst eine Einstellung, indem du die Anfrage nach `/review-loop:review-loop` eingibst. So hat Claude die Befehle des Skills geladen. Das Zeitlimit für Checks ist eine Umgebungsvariable, darum gilt es überall, wo du es setzt, und die 9 Minuten insgesamt sind fest.
 
 | Einstellung | Standard | Eingabe |
 |---|---|---|
@@ -204,11 +205,12 @@ Die ersten vier Einstellungen gelten für ein Repository. Du änderst eine Einst
 | Commit-Gate | Wird am Ende des ersten Reviews einmal abgefragt | "schalte das Commit-Gate ein (oder aus)" |
 | Commit-Delegation | Fragt vor jedem Commit | "frag in diesem Repo nicht mehr vor Commits" |
 | Unbeaufsichtigt | Aus | "arbeite unbeaufsichtigt" für einen Lauf oder "schalte den unbeaufsichtigten Modus in diesem Repo ein (oder aus)". Claude fragt nichts, lässt liegen, was dich braucht, und endet mit einer Zusammenfassung dessen, was es getan hat und was auf dich wartet |
+| Reviewer-Modell | Das Modell deiner Session | "lass den Reviewer in diesem Repo auf sonnet laufen" (oder opus, haiku, fable) oder "lass den Reviewer auf dem Modell der Session laufen". Unter Gemessen steht, was jedes Modell gefunden und gekostet hat |
 | Zeitlimit für Checks | 5 Minuten pro Check, 9 Minuten insgesamt | Setze `LIM_CHECK_TIMEOUT_MS`, um das Limit pro Check zu ändern |
 
 ## Gemessen
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 149 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 139 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 10 brauchen einen Lauf mit einem Modell: einmal nach P3 bis P5 fragen, den Bericht vor jeder Frage zeigen, jeden Schritt mit einem Grund für jedes Überspringen in der Todo-Liste behalten, für jedes behobene P1 oder P2 einen Regressionstest schreiben, jedes Finding als measured, inferred oder guessed kennzeichnen, sagen, woher man weiß, dass ein Fix wirkt, ein Finding erneut prüfen, wenn du widersprichst, für eine Art von Finding, die immer wiederkommt, eine Regel empfehlen, in einem unbeaufsichtigten Lauf nichts fragen und Code melden, der ohne bekannte Ursache hinzugefügt wurde. Für die letzte gibt es eine Fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), und für die ersten beiden gibt es einen manuellen Lauf in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 155 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 144 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 11 brauchen einen Lauf mit einem Modell: einmal nach P3 bis P5 fragen, den Bericht vor jeder Frage zeigen, jeden Schritt mit einem Grund für jedes Überspringen in der Todo-Liste behalten, für jedes behobene P1 oder P2 einen Regressionstest schreiben, jedes Finding als measured, inferred oder guessed kennzeichnen, sagen, woher man weiß, dass ein Fix wirkt, ein Finding erneut prüfen, wenn du widersprichst, für eine Art von Finding, die immer wiederkommt, eine Regel empfehlen, in einem unbeaufsichtigten Lauf nichts fragen, den Reviewer auf dem gewählten Modell starten und Code melden, der ohne bekannte Ursache hinzugefügt wurde. Für die letzte gibt es eine Fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), und für die ersten beiden gibt es einen manuellen Lauf in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Ein Detection-Benchmark gibt dem Reviewer Änderungen in temporären Repositories, deren Namen nicht verraten, dass es ein Test ist. [`evals/review-loop/detection/`](../../evals/review-loop/detection/) enthält 12 Änderungen mit je einem eingebauten Bug und 6 saubere Änderungen. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) enthält 6 schwierigere Bugs, etwa einen, den man nur in einer Datei sieht, die der Diff nicht berührt, einen in einem 183 Zeilen langen Diff, eine Race Condition zwischen zwei Suchen und einen Lock, der auf einem Fehlerpfad nicht freigegeben wird, dazu 4 saubere Änderungen, die verdächtig aussehen. Ergebnisse vom 2026-10-25, mit 3 Läufen pro Fall:
 
@@ -218,7 +220,9 @@ Ein Detection-Benchmark gibt dem Reviewer Änderungen in temporären Repositorie
 | claude-sonnet-5-5 | nicht ausgeführt | nicht ausgeführt | 18 von 18 | 1 von 12 | 0,76 $ |
 | claude-haiku-5-5 | nicht ausgeführt | nicht ausgeführt | 17 von 18 | 3 von 12 | 0,06 $, laut Claude Code |
 
-Der Reviewer läuft mit dem Modell deiner Session. Opus fand jeden eingebauten Bug in beiden Sets, daher kann der Benchmark für Opus noch keinen kleinen Rückgang zeigen. Die schwächeren Modelle zeigen, dass er übersehene Bugs und Fehlalarme tatsächlich erkennt. Haikus einziger Fehlschlag nannte den Bug, gab aber eine Zeile hinter dem Ende der genannten Datei an und zitierte Code aus einer anderen Datei, und review-loop würde ihn ebenfalls als nicht verifiziert zeigen. Nach den ersten Läufen kamen in drei Fällen Schlüsselwörter hinzu, in denen ein Reviewer den eingebauten Bug mit Worten nannte, die die Bewertung nicht akzeptierte, und jeder gespeicherte Lauf wurde damit neu bewertet. Ein früherer Opus-Lauf des schwierigeren Sets, vor einer Änderung nur an den Fixtures, ergab ein falsches P2 bei einem sauberen Fall (demselben Fall, bei dem Sonnet und Haiku Fehlalarme auslösten), also ergab dieser Fall über 6 Opus-Läufe 1. Starte ihn erneut mit `node evals/review-loop/run-detection.mjs --runs 3` und füge für das schwierigere Set `--cases evals/review-loop/detection-hard` hinzu.
+Standardmäßig läuft der Reviewer mit dem Modell deiner Session. Opus fand jeden eingebauten Bug in beiden Sets, daher kann der Benchmark für Opus noch keinen kleinen Rückgang zeigen. Die schwächeren Modelle zeigen, dass er übersehene Bugs und Fehlalarme tatsächlich erkennt. Haikus einziger Fehlschlag nannte den Bug, gab aber eine Zeile hinter dem Ende der genannten Datei an und zitierte Code aus einer anderen Datei, und review-loop würde ihn ebenfalls als nicht verifiziert zeigen. Nach den ersten Läufen kamen in drei Fällen Schlüsselwörter hinzu, in denen ein Reviewer den eingebauten Bug mit Worten nannte, die die Bewertung nicht akzeptierte, und jeder gespeicherte Lauf wurde damit neu bewertet. Ein früherer Opus-Lauf des schwierigeren Sets, vor einer Änderung nur an den Fixtures, ergab ein falsches P2 bei einem sauberen Fall (demselben Fall, bei dem Sonnet und Haiku Fehlalarme auslösten), also ergab dieser Fall über 6 Opus-Läufe 1. Starte ihn erneut mit `node evals/review-loop/run-detection.mjs --runs 3` und füge für das schwierigere Set `--cases evals/review-loop/detection-hard` hinzu.
+
+Die Tabelle oben ist die Grundlage für das Standardmodell des Reviewers. Im schwierigeren Set fand Opus 18 von 18 ohne falsche P1 oder P2, Sonnet fand 18 von 18 mit 1 falschen P1 oder P2 in 12 sauberen Läufen bei etwa 43 % der Kosten von Opus, und Haiku fand 17 von 18 mit 3 von 12. Darum bleibt der Standard das Modell der Session, und Sonnet ist die günstigere Wahl, wenn der Reviewer auf einem anderen Modell laufen soll als dem, das die Änderung geschrieben hat.
 
 <details>
 <summary>Kosten</summary>
@@ -227,10 +231,10 @@ Der Reviewer läuft mit dem Modell deiner Session. Opus fand jeden eingebauten B
 
 | Teil | Immer aktiv, in jeder Session | Bei jedem Lauf |
 |---|---|---|
-| review-loop-Skill | etwa 140 Tokens | etwa 4.600 Tokens |
+| review-loop-Skill | etwa 140 Tokens | etwa 5.500 Tokens |
 | Reviewer-Agent | etwa 70 Tokens | etwa 1.700 Tokens, dazu der Diff und der Code, den er liest |
 
-Die Kosten des Skills fallen einmal pro Lauf an. Die Kosten des Reviewers fallen einmal pro Runde an, und eine Schleife hat höchstens 3 Runden. Deine Checks laufen auf deinem Rechner und kosten keine Tokens.
+Die Kosten des Skills fallen einmal pro Lauf an. Die Kosten des Reviewers fallen einmal pro Runde an, und eine Schleife hat höchstens 3 Runden. Das Reviewer-Modell ändert diese Kosten; die Benchmark-Tabelle oben zeigt sie für jedes Modell. Deine Checks laufen auf deinem Rechner und kosten keine Tokens.
 
 </details>
 
@@ -331,7 +335,6 @@ review-loop arbeitet mit den Checks, die du schon hast. Je besser deine Skripte 
 ## Roadmap
 
 - Evals auf Modell-Ebene mit `claude plugin eval` für die Verhaltensweisen, die Unit-Tests nicht abdecken können, und ein Blindvergleich von Review-Qualität und Kosten
-- Ein Reviewer, der auf einem anderen Modell läuft als dem, das die Änderung geschrieben hat
 - Eine kurze Anleitung mit Prompts zum Kopieren, echter Ausgabe und Kosten
 
 ## Mitwirken

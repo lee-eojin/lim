@@ -28,7 +28,7 @@ Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs <command>` from 
 Run `loop start`. If `status` is `nothing-to-review`, tell the user and stop.
 
 If `status` is `in-progress`, a loop from an earlier session is unfinished. Show `report` if there is one, say which round it is in and what it is waiting for, and ask once whether to continue or start over. To start over, run `loop start --fresh`. To continue:
-- `awaiting: review`: if `treeMatchesReview` is false, the diff is out of date, so start over. Otherwise, if `checksFinished` is false, run `loop checks`. Then go to section 2 (Review) with `diffPath`, `openPath`, and `reviewPath`.
+- `awaiting: review`: if `treeMatchesReview` is false, the diff is out of date, so start over. Otherwise, if `checksFinished` is false, run `loop checks`. Then go to section 2 (Review) with `diffPath`, `openPath`, `reviewPath`, and `reviewerModel`.
 - `awaiting: fix`: go to section 4 (Continue or stop) with `fix` and `ask`.
 - `awaiting: decisions`: go to section 5 (Decide) with `stillOpen` and `cards`.
 
@@ -36,7 +36,7 @@ It reviews everything `git add -A` would commit and runs the project's typecheck
 
 ## 2. Review
 
-Start `review-loop:reviewer` with:
+Start `review-loop:reviewer` with the Agent tool. If `reviewerModel` from the same command is not `inherit`, set the Agent tool's `model` to it, which overrides the agent's own `model: inherit`; with `inherit`, leave `model` out. Give the reviewer:
 - the round number and `diffPath`
 - from round 2, `openPath` (the open findings it must check)
 - one line about what the user wanted from this change
@@ -137,6 +137,8 @@ End with `loop summary` and show its `report` as the Rules say. When the user la
 If the user asks for every review in this repository to run unattended, run `loop unattended --on`; `loop unattended --off` turns it off.
 
 If the user asks to see every P2 (or every P1 and P2) before anything is fixed, run `loop confirm --severity P2` (or `--severity all`). `loop confirm --off` turns it off. The setting applies to the whole repository. If a round is waiting for fixes, the command also moves findings at that severity from the fix list to the ask list and returns their ids in `rerouted`; ask about those before fixing anything.
+
+If the user asks for the reviewer to run on another model, run `loop reviewer --model opus|sonnet|haiku|fable`; `--model inherit` goes back to the session's model. It applies from the next round the script hands out.
 
 ## Files
 

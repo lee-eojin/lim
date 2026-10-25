@@ -73,7 +73,7 @@ Claude cũng có thể tự khởi động review-loop khi bạn yêu cầu nó 
 Mỗi vòng kết thúc bằng một báo cáo. Claude hiển thị báo cáo này trước mọi thứ khác:
 
 ```
-Review round 2 of 3
+Review round 2 of 3 (reviewer: session model)
 Checks: test passed
 
 Resolved since last round:
@@ -107,6 +107,7 @@ skip once:              /review-loop:review-loop commit this without a review, j
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
+reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
 ```
 
 </details>
@@ -196,7 +197,7 @@ Commit gate là một hook luôn tắt cho đến khi bạn bật nó trong mộ
 
 ### Thiết lập
 
-Bốn thiết lập đầu tiên áp dụng cho một repository. Để thay đổi, hãy gõ yêu cầu sau `/review-loop:review-loop`, để Claude đã nạp sẵn các lệnh của skill. Giới hạn thời gian của check là một biến môi trường, nên nó áp dụng ở bất cứ nơi nào bạn đặt, và tổng 9 phút là cố định.
+Năm thiết lập đầu tiên áp dụng cho một repository. Để thay đổi, hãy gõ yêu cầu sau `/review-loop:review-loop`, để Claude đã nạp sẵn các lệnh của skill. Giới hạn thời gian của check là một biến môi trường, nên nó áp dụng ở bất cứ nơi nào bạn đặt, và tổng 9 phút là cố định.
 
 | Thiết lập | Mặc định | Cần gõ |
 |---|---|---|
@@ -204,11 +205,12 @@ Bốn thiết lập đầu tiên áp dụng cho một repository. Để thay đ�
 | Commit gate | Được hỏi một lần ở cuối lần review đầu tiên | "bật (hoặc tắt) commit gate" |
 | Ủy quyền commit | Hỏi trước mỗi commit | "không hỏi nữa trước khi commit trong repo này" |
 | Không giám sát | Tắt | "chạy không giám sát" cho một lần chạy, hoặc "bật (hoặc tắt) chế độ không giám sát trong repo này". Claude không hỏi gì, để lại cho sau những việc cần đến bạn, và kết thúc bằng một bản tóm tắt những gì đã làm và những gì đang chờ bạn |
+| Model của reviewer | Model của session | "chạy reviewer bằng sonnet trong repo này" (hoặc opus, haiku, fable), hoặc "chạy reviewer bằng model của session". Phần Số đo cho thấy mỗi model tìm được gì và tốn bao nhiêu |
 | Giới hạn thời gian của check | 5 phút cho mỗi check, tổng cộng 9 phút | Đặt `LIM_CHECK_TIMEOUT_MS` để thay đổi giới hạn cho mỗi check |
 
 ## Số đo
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 149 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 139 hành vi trong số đó, bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 10 hành vi còn lại cần một lần chạy với mô hình: hỏi về P3 đến P5 một lần, hiển thị báo cáo trước mọi câu hỏi, giữ mọi bước trong danh sách việc cần làm kèm lý do cho mỗi bước bị bỏ qua, viết regression test cho mỗi P1 hoặc P2 đã sửa, gắn nhãn measured, inferred hoặc guessed cho mỗi phát hiện, nói rõ làm sao biết một bản sửa đã hiệu quả, kiểm tra lại một phát hiện khi bạn phản bác, đề xuất một quy tắc cho loại phát hiện cứ lặp lại, không hỏi gì trong một lần chạy không giám sát, và báo cáo code được thêm vào mà không rõ nguyên nhân. Hành vi cuối cùng có một fixture trong [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), và hai hành vi đầu tiên có một lần chạy thủ công trong [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 155 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 144 hành vi trong số đó, bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 11 hành vi còn lại cần một lần chạy với mô hình: hỏi về P3 đến P5 một lần, hiển thị báo cáo trước mọi câu hỏi, giữ mọi bước trong danh sách việc cần làm kèm lý do cho mỗi bước bị bỏ qua, viết regression test cho mỗi P1 hoặc P2 đã sửa, gắn nhãn measured, inferred hoặc guessed cho mỗi phát hiện, nói rõ làm sao biết một bản sửa đã hiệu quả, kiểm tra lại một phát hiện khi bạn phản bác, đề xuất một quy tắc cho loại phát hiện cứ lặp lại, không hỏi gì trong một lần chạy không giám sát, khởi động reviewer bằng model bạn đã chọn, và báo cáo code được thêm vào mà không rõ nguyên nhân. Hành vi cuối cùng có một fixture trong [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), và hai hành vi đầu tiên có một lần chạy thủ công trong [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Một benchmark phát hiện lỗi đưa cho reviewer các thay đổi trong các repository tạm thời có tên không cho biết đó là một bài test. [`evals/review-loop/detection/`](../../evals/review-loop/detection/) có 12 thay đổi, mỗi thay đổi được cài sẵn một bug, cùng 6 thay đổi sạch. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) có 6 bug khó hơn, chẳng hạn một bug chỉ thấy được trong một file mà diff không chạm tới, một bug nằm trong một diff dài 183 dòng, một race giữa hai lần tìm kiếm, và một lock không được giải phóng trên một nhánh xử lý lỗi, cùng 4 thay đổi sạch trông có vẻ đáng ngờ. Kết quả ngày 2026-10-25, với 3 lần chạy cho mỗi trường hợp:
 
@@ -218,7 +220,9 @@ Một benchmark phát hiện lỗi đưa cho reviewer các thay đổi trong cá
 | claude-sonnet-5-5 | chưa chạy | chưa chạy | 18 trên 18 | 1 trên 12 | 0,76 USD |
 | claude-haiku-5-5 | chưa chạy | chưa chạy | 17 trên 18 | 3 trên 12 | 0,06 USD, theo báo cáo của Claude Code |
 
-Reviewer chạy bằng model mà session của bạn đang dùng. Opus tìm thấy mọi bug được cài sẵn trong cả hai bộ, nên benchmark chưa thể cho thấy một mức giảm nhỏ đối với nó. Các model yếu hơn cho thấy benchmark thực sự bắt được các bug bị bỏ sót và các cảnh báo sai. Lần bỏ sót duy nhất của Haiku đã nêu đúng bug nhưng đưa ra một dòng nằm sau cuối file mà nó nêu và trích dẫn code từ một file khác, và review-loop cũng sẽ hiển thị nó là chưa xác minh. Sau các lần chạy đầu tiên, từ khóa đã được thêm vào ba trường hợp mà reviewer nêu bug được cài sẵn bằng cách diễn đạt mà cách chấm điểm không chấp nhận, và mọi lần chạy đã lưu đều được chấm lại với các từ khóa đó. Một lần chạy Opus trước đó trên bộ khó hơn, trước một thay đổi chỉ chạm vào fixture, đã tạo ra một P2 sai trên một trường hợp sạch (chính trường hợp đã khiến Sonnet và Haiku báo sai), nên qua 6 lần chạy Opus trường hợp đó có 1. Chạy lại bằng `node evals/review-loop/run-detection.mjs --runs 3`, và thêm `--cases evals/review-loop/detection-hard` cho bộ khó hơn.
+Mặc định, reviewer chạy bằng model mà session của bạn đang dùng. Opus tìm thấy mọi bug được cài sẵn trong cả hai bộ, nên benchmark chưa thể cho thấy một mức giảm nhỏ đối với nó. Các model yếu hơn cho thấy benchmark thực sự bắt được các bug bị bỏ sót và các cảnh báo sai. Lần bỏ sót duy nhất của Haiku đã nêu đúng bug nhưng đưa ra một dòng nằm sau cuối file mà nó nêu và trích dẫn code từ một file khác, và review-loop cũng sẽ hiển thị nó là chưa xác minh. Sau các lần chạy đầu tiên, từ khóa đã được thêm vào ba trường hợp mà reviewer nêu bug được cài sẵn bằng cách diễn đạt mà cách chấm điểm không chấp nhận, và mọi lần chạy đã lưu đều được chấm lại với các từ khóa đó. Một lần chạy Opus trước đó trên bộ khó hơn, trước một thay đổi chỉ chạm vào fixture, đã tạo ra một P2 sai trên một trường hợp sạch (chính trường hợp đã khiến Sonnet và Haiku báo sai), nên qua 6 lần chạy Opus trường hợp đó có 1. Chạy lại bằng `node evals/review-loop/run-detection.mjs --runs 3`, và thêm `--cases evals/review-loop/detection-hard` cho bộ khó hơn.
+
+Bảng ở trên là cơ sở cho model mặc định của reviewer. Trên bộ khó hơn, Opus tìm được 18 trên 18 và không có P1 hoặc P2 sai, Sonnet tìm được 18 trên 18 với 1 P1 hoặc P2 sai trong 12 lần chạy sạch, với chi phí khoảng 43% của Opus, còn Haiku tìm được 17 trên 18 với 3 trên 12. Vì vậy mặc định vẫn là model của session, và Sonnet là lựa chọn rẻ hơn khi bạn muốn reviewer chạy trên một model khác với model đã viết thay đổi.
 
 <details>
 <summary>Chi phí</summary>
@@ -227,10 +231,10 @@ Reviewer chạy bằng model mà session của bạn đang dùng. Opus tìm th�
 
 | Thành phần | Luôn bật, trong mọi session | Mỗi lần chạy |
 |---|---|---|
-| skill review-loop | khoảng 140 token | khoảng 4.600 token |
+| skill review-loop | khoảng 140 token | khoảng 5.500 token |
 | reviewer agent | khoảng 70 token | khoảng 1.700 token, cộng với diff và code mà nó đọc |
 
-Chi phí của skill được tính một lần cho mỗi lần chạy. Chi phí của reviewer được tính một lần cho mỗi vòng, và một vòng lặp chạy tối đa 3 vòng. Các check của bạn chạy trên máy của bạn và không tốn token.
+Chi phí của skill được tính một lần cho mỗi lần chạy. Chi phí của reviewer được tính một lần cho mỗi vòng, và một vòng lặp chạy tối đa 3 vòng. Model của reviewer làm thay đổi chi phí đó; bảng benchmark ở trên cho thấy chi phí của từng model. Các check của bạn chạy trên máy của bạn và không tốn token.
 
 </details>
 
@@ -331,7 +335,6 @@ review-loop làm việc với các check bạn đã có. Script `typecheck`, `li
 ## Lộ trình
 
 - Eval ở cấp mô hình với `claude plugin eval` cho các hành vi mà unit test không bao phủ được, và một phép so sánh mù về chất lượng và chi phí review
-- Một reviewer chạy trên một mô hình khác với mô hình đã viết thay đổi
 - Một hướng dẫn ngắn với các prompt sẵn sàng sao chép, output thực tế và chi phí
 
 ## Đóng góp
