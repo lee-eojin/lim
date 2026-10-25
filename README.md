@@ -206,7 +206,7 @@ The first four settings apply to one repository. Change one by typing the reques
 
 ## Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 142 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 132 of them, including runs against real temporary git repositories and the commit gate hook. The other 10 need a model run: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/), and the first two have a manual run in [`evals/review-loop/manual-behaviors.md`](evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 149 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 139 of them, including runs against real temporary git repositories and the commit gate hook. The other 10 need a model run: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/), and the first two have a manual run in [`evals/review-loop/manual-behaviors.md`](evals/review-loop/manual-behaviors.md).
 
 A detection benchmark in [`evals/review-loop/detection/`](evals/review-loop/detection/) gives the reviewer 12 changes with one seeded bug each and 6 clean changes, in temporary repositories whose names do not say they are a test. On 2026-10-25, with claude-opus-5-5 and one run per case, the reviewer reported all 12 bugs as P1 or P2 and raised no P1 or P2 on the clean changes. The run used about 390,000 tokens ($0.89) and took 74 seconds with 4 cases at a time. A perfect score also means these cases are too easy to show a small regression, so harder cases come next. Run it again with `node evals/review-loop/run-detection.mjs`.
 
@@ -265,7 +265,7 @@ A commit is local and easy to undo. A push is not. review-loop stops at the comm
 
 ## Data
 
-State, diffs, check logs, and a decision ledger live in `.git/lim/review-loop/` inside your repository. Nothing is written to your working tree. To check a rule, review-loop writes the code from before the fix to a temporary folder outside your repository and deletes it afterwards. Delete `.git/lim/review-loop/` to reset.
+State, diffs, check logs, and a decision ledger live in `.git/lim/review-loop/` inside your repository. Claude writes each review to `.lim-review/` in your working tree for a moment; git ignores that folder through `.git/info/exclude`, and review-loop deletes the file after reading it. To check a rule, review-loop writes the code from before the fix to a temporary folder outside your repository and deletes it afterwards. Delete `.git/lim/review-loop/` to reset.
 
 review-loop makes no network calls of its own. Claude and the reviewer read the diff, the findings, and the check output like any other file in your session, so that content goes to the model provider in the same way as the rest of your Claude Code session.
 
@@ -300,7 +300,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Then delete `.git/lim/review-loop/` in each repository where you ran it.
+Then delete `.git/lim/review-loop/` in each repository where you ran it, and the `.lim-review/` line in its `.git/info/exclude`.
 
 ## Make it yours
 

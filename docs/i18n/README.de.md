@@ -208,7 +208,7 @@ Die ersten vier Einstellungen gelten für ein Repository. Du änderst eine Einst
 
 ## Gemessen
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 142 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 132 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 10 brauchen einen Lauf mit einem Modell: einmal nach P3 bis P5 fragen, den Bericht vor jeder Frage zeigen, jeden Schritt mit einem Grund für jedes Überspringen in der Todo-Liste behalten, für jedes behobene P1 oder P2 einen Regressionstest schreiben, jedes Finding als measured, inferred oder guessed kennzeichnen, sagen, woher man weiß, dass ein Fix wirkt, ein Finding erneut prüfen, wenn du widersprichst, für eine Art von Finding, die immer wiederkommt, eine Regel empfehlen, in einem unbeaufsichtigten Lauf nichts fragen und Code melden, der ohne bekannte Ursache hinzugefügt wurde. Für die letzte gibt es eine Fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), und für die ersten beiden gibt es einen manuellen Lauf in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 149 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 139 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 10 brauchen einen Lauf mit einem Modell: einmal nach P3 bis P5 fragen, den Bericht vor jeder Frage zeigen, jeden Schritt mit einem Grund für jedes Überspringen in der Todo-Liste behalten, für jedes behobene P1 oder P2 einen Regressionstest schreiben, jedes Finding als measured, inferred oder guessed kennzeichnen, sagen, woher man weiß, dass ein Fix wirkt, ein Finding erneut prüfen, wenn du widersprichst, für eine Art von Finding, die immer wiederkommt, eine Regel empfehlen, in einem unbeaufsichtigten Lauf nichts fragen und Code melden, der ohne bekannte Ursache hinzugefügt wurde. Für die letzte gibt es eine Fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), und für die ersten beiden gibt es einen manuellen Lauf in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Ein Detection-Benchmark in [`evals/review-loop/detection/`](../../evals/review-loop/detection/) gibt dem Reviewer 12 Änderungen mit je einem eingebauten Bug und 6 saubere Änderungen, in temporären Repositories, deren Namen nicht verraten, dass es ein Test ist. Am 2026-10-25 meldete der Reviewer mit claude-opus-5-5 und einem Lauf pro Fall alle 12 Bugs als P1 oder P2 und meldete bei den sauberen Änderungen kein P1 oder P2. Der Lauf verbrauchte etwa 390.000 Tokens (0,89 $) und dauerte 74 Sekunden, mit 4 Fällen gleichzeitig. Ein perfektes Ergebnis bedeutet aber auch, dass diese Fälle zu leicht sind, um eine kleine Regression zu zeigen. Deshalb kommen als Nächstes schwierigere Fälle. Starte ihn erneut mit `node evals/review-loop/run-detection.mjs`.
 
@@ -267,7 +267,7 @@ Ein Commit ist lokal und leicht rückgängig zu machen. Ein Push nicht. review-l
 
 ## Daten
 
-Zustand, Diffs, Check-Logs und ein Entscheidungsprotokoll liegen in `.git/lim/review-loop/` in deinem Repository. In deinen Working Tree wird nichts geschrieben. Um eine Regel zu prüfen, schreibt review-loop den Code von vor dem Fix in einen temporären Ordner außerhalb deines Repositorys und löscht ihn danach. Lösche `.git/lim/review-loop/`, um alles zurückzusetzen.
+Zustand, Diffs, Check-Logs und ein Entscheidungsprotokoll liegen in `.git/lim/review-loop/` in deinem Repository. Claude schreibt jedes Review für einen Moment in `.lim-review/` in deinem Working Tree; git ignoriert diesen Ordner über `.git/info/exclude`, und review-loop löscht die Datei, nachdem es sie gelesen hat. Um eine Regel zu prüfen, schreibt review-loop den Code von vor dem Fix in einen temporären Ordner außerhalb deines Repositorys und löscht ihn danach. Lösche `.git/lim/review-loop/`, um alles zurückzusetzen.
 
 review-loop sendet selbst keine Netzwerkanfragen. Claude und der Reviewer lesen den Diff, die Findings und die Check-Ausgabe wie jede andere Datei in deiner Session. Darum geht dieser Inhalt auf dieselbe Weise an den Modellanbieter wie der Rest deiner Claude-Code-Session.
 
@@ -302,7 +302,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Lösche danach `.git/lim/review-loop/` in jedem Repository, in dem du review-loop ausgeführt hast.
+Lösche danach `.git/lim/review-loop/` in jedem Repository, in dem du review-loop ausgeführt hast, und die Zeile `.lim-review/` in seiner `.git/info/exclude`.
 
 ## Mach es zu deinem
 
