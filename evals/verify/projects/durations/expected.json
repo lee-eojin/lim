@@ -1,0 +1,16 @@
+{
+  "kind": "library",
+  "features": [
+    "parseDuration with hours and minutes",
+    "parseDuration with days",
+    "parseDuration with spaces and milliseconds",
+    "parseDuration rejects text that is not a duration",
+    "formatDuration with largest units first",
+    "formatDuration of 0",
+    "formatDuration rejects a negative number"
+  ],
+  "broken": {
+    "feature": "parseDuration with spaces and milliseconds",
+    "how": "the unit pattern tries m before ms, so any input with ms throws Invalid duration"
+  }
+}

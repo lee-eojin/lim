@@ -1,0 +1,13 @@
+diff --git a/src/index.js b/src/index.js
+index 5a5c6ad..6a95bfe 100644
+--- a/src/index.js
++++ b/src/index.js
+@@ -6,7 +6,7 @@ const UNITS = [
+   ['ms', 1],
+ ];
+ const SIZE = new Map(UNITS);
+-const PART = /(\d+)(ms|d|h|m|s)/g;
++const PART = /(\d+)(d|h|m|s|ms)/g;
+ 
+ export function parseDuration(text) {
+   const input = String(text).replace(/\s+/g, '');

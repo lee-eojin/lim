@@ -1,0 +1,15 @@
+{
+  "kind": "command-line tool that writes a file",
+  "features": [
+    "add appends an item and prints its number",
+    "list prints items with their state",
+    "done marks an item done",
+    "done with an unknown number fails without changing the file",
+    "--file uses another file",
+    "usage error"
+  ],
+  "broken": {
+    "feature": "done marks an item done",
+    "how": "done prints the right message but marks the next item, so only a list or the file after done shows it"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "durations",
+  "version": "3.1.0",
+  "description": "Parse and format durations such as 1h30m",
+  "type": "module",
+  "exports": "./src/index.js",
+  "license": "MIT"
+}

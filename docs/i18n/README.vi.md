@@ -27,6 +27,7 @@ Hãy fork, chỉnh sửa và biến nó thành của bạn. Chúng tôi hoan ngh
 | Plugin | Trạng thái | Một việc |
 |---|---|---|
 | [review-loop](../../plugins/review-loop) | 0.5.0 | Review các thay đổi của bạn trước khi commit, sửa các phát hiện P1 và P2, review lại và giao phần còn lại cho bạn. |
+| [verify](../../plugins/verify) | 0.1.0 | Chứng minh các tính năng hoạt động bằng cách chạy chúng, và lưu lệnh cùng output làm bằng chứng. |
 
 ## Cài đặt
 

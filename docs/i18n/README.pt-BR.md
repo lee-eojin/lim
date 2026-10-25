@@ -27,6 +27,7 @@ Faça um fork, mude, deixe do seu jeito. Issues e pull requests são bem-vindos.
 | Plugin | Status | Um trabalho |
 |---|---|---|
 | [review-loop](../../plugins/review-loop) | 0.5.0 | Revisa suas alterações antes do commit, corrige os achados P1 e P2, revisa de novo e entrega o restante para você. |
+| [verify](../../plugins/verify) | 0.1.0 | Prova que suas funcionalidades funcionam executando-as e salva os comandos e a saída como evidência. |
 
 ## Instalação
 

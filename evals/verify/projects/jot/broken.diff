@@ -1,0 +1,13 @@
+diff --git a/src/todos.js b/src/todos.js
+index df3427c..55e4f33 100644
+--- a/src/todos.js
++++ b/src/todos.js
+@@ -5,7 +5,7 @@ export function addTodo(todos, text) {
+ export function completeTodo(todos, number) {
+   const index = number - 1;
+   if (!Number.isInteger(number) || !todos[index]) throw new Error(`No todo #${number}`);
+-  return todos.map((todo, position) => (position === index ? { ...todo, done: true } : todo));
++  return todos.map((todo, position) => (position === number ? { ...todo, done: true } : todo));
+ }
+ 
+ export function formatList(todos) {

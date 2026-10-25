@@ -1,0 +1,15 @@
+{
+  "kind": "command-line tool",
+  "features": [
+    "count, sum, and mean of a column",
+    "skips cells that are empty or not numbers",
+    "JSON output",
+    "unknown column error",
+    "unreadable file error",
+    "usage error"
+  ],
+  "broken": {
+    "feature": "skips cells that are empty or not numbers",
+    "how": "the mean divides by every row instead of the numeric cells, so the example mean is 15 instead of 20"
+  }
+}

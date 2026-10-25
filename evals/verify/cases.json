@@ -1,0 +1,8 @@
+[
+  { "case": "slugkit-broken", "project": "slugkit", "broken": true },
+  { "case": "tally-broken", "project": "tally", "broken": true },
+  { "case": "jot-broken", "project": "jot", "broken": true },
+  { "case": "durations-broken", "project": "durations", "broken": true },
+  { "case": "tally-working", "project": "tally", "broken": false },
+  { "case": "jot-working", "project": "jot", "broken": false }
+]

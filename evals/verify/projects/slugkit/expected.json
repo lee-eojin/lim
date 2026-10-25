@@ -1,0 +1,15 @@
+{
+  "kind": "command-line tool and library",
+  "features": [
+    "lowercases and joins words with hyphens",
+    "turns accented letters into plain letters",
+    "--max cuts at a word boundary",
+    "usage error without text",
+    "--max rejects a value that is not a positive whole number",
+    "slugify() collapses spaces"
+  ],
+  "broken": {
+    "feature": "turns accented letters into plain letters",
+    "how": "the step that removes combining marks is gone, so \"Crème brûlée\" becomes \"cre-me-bru-le-e\""
+  }
+}

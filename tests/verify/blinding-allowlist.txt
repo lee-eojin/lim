@@ -1,0 +1,13 @@
+# Common words that a benchmark input or output shares with ordinary plugin prose, as `word: reason`.
+# A word listed here is still caught as part of a longer phrase, such as a whole expected line.
+added: the changelog labels each entry "Added:" as the repository's changelog format requires; the benchmark's use is the "Added #1" output
+again: plain English in "run it again"; the benchmark's use is one word of the input "hello world again"
+cannot: the plugin's central phrase "a check that cannot fail"; the benchmark's use is the "Cannot read" error prefix
+count: the run counts in verify.mjs and a --count option in an invented example; the benchmark's use is the "count:" output label
+duration: the evidence records each check's duration; the benchmark's use is the "Invalid duration" error message
+empty: "empty output" is one of the outputs the script tests rules against; the benchmark's use is an empty-list file name
+examples: headings and prose about the skill's own invented examples; the benchmark's use is a folder name
+format: "Feature map format" and the evidence format; the benchmark's use is a --format option
+price: "list-price estimates" of cost in the README; the benchmark's use is a column name in an error case
+unknown: the script refuses unknown keys and unknown ids; the benchmark's use is the "Unknown column" error message
+usage: the script's own usage line; the benchmark's use is the "Usage: slug" line
