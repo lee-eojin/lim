@@ -52,6 +52,8 @@ Fork 它、修改它，把它变成你自己的。欢迎提交 issue 和 pull re
 
 就这么简单。review-loop 会运行你的检查、审查改动、修复必须修复的问题，并就其余问题询问你。最后，它会询问一次是否为此仓库开启提交门禁，然后询问是否提交。
 
+第一次使用？[指南](../../docs/guide/README.md)（英文）用真实输出介绍第一次审查、如何决定、提交门禁、成本和常见陷阱。
+
 ## 用法
 
 ### 只需使用 `/review-loop:review-loop`
@@ -231,7 +233,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 | 部分 | 始终加载（每个会话） | 每次运行 |
 |---|---|---|
-| review-loop skill | 约 140 个 token | 约 5,500 个 token |
+| review-loop skill | 约 140 个 token | 约 5,600 个 token |
 | 审查者 agent | 约 70 个 token | 约 1,700 个 token，另加 diff 和它读取的代码 |
 
 skill 的成本在每次运行时支付一次。审查者的成本在每轮支付一次，一个循环最多运行 3 轮。审查者模型会改变这项成本，上方的基准测试表列出了每个模型的费用。你的检查在你自己的机器上运行，不消耗 token。
@@ -335,7 +337,6 @@ review-loop 使用你已有的检查。你的 `typecheck`、`lint` 和 `test` �
 ## 路线图
 
 - 使用 `claude plugin eval` 进行模型级 eval，覆盖单元测试无法覆盖的行为，并对审查质量和成本做盲测对比
-- 一份简短指南，包含可直接复制的提示词、真实输出和成本
 
 ## 参与贡献
 

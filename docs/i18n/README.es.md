@@ -52,6 +52,8 @@ Dos pasos:
 
 Eso es todo. review-loop ejecuta tus comprobaciones, revisa el cambio, corrige lo que hay que corregir y te pregunta por el resto. Al final pregunta una vez si quieres activar el commit gate en este repositorio, y después si quieres hacer el commit.
 
+¿Es tu primera vez? La [guía](../../docs/guide/README.md), en inglés, recorre una primera revisión, cómo decidir, el commit gate, el costo y los errores comunes, con salida real.
+
 ## Uso
 
 ### Basta con `/review-loop:review-loop`
@@ -231,7 +233,7 @@ La tabla de arriba es la base del modelo por defecto del revisor. En el conjunto
 
 | Parte | Siempre activo, en cada sesión | Cada vez que se ejecuta |
 |---|---|---|
-| skill review-loop | unos 140 tokens | unos 5500 tokens |
+| skill review-loop | unos 140 tokens | unos 5600 tokens |
 | agente revisor | unos 70 tokens | unos 1700 tokens, más el diff y el código que lee |
 
 El costo de la skill se paga una vez por ejecución. El del revisor se paga una vez por ronda, y un ciclo tiene como máximo 3 rondas. El modelo del revisor cambia ese costo; la tabla del benchmark de arriba lo muestra para cada modelo. Tus comprobaciones se ejecutan en tu máquina y no cuestan tokens.
@@ -335,7 +337,6 @@ review-loop funciona con las comprobaciones que ya tienes. Cuanto mejores sean t
 ## Hoja de ruta
 
 - Evals a nivel de modelo con `claude plugin eval` para los comportamientos que los tests unitarios no pueden cubrir, y una comparación a ciegas de la calidad y el costo de la revisión
-- Una guía breve con prompts listos para copiar, salida real y costo
 
 ## Contribuir
 

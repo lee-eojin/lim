@@ -52,6 +52,8 @@ Zwei Schritte:
 
 Das ist alles. review-loop führt deine Checks aus, prüft die Änderung, behebt, was behoben werden muss, und fragt dich nach dem Rest. Am Ende fragt es einmal, ob das Commit-Gate für dieses Repository eingeschaltet werden soll, und danach, ob committet werden soll.
 
+Neu hier? Der [Leitfaden](../../docs/guide/README.md), auf Englisch, zeigt mit echter Ausgabe ein erstes Review, das Entscheiden, das Commit-Gate, die Kosten und typische Fallstricke.
+
 ## Verwendung
 
 ### Einfach `/review-loop:review-loop` verwenden
@@ -231,7 +233,7 @@ Die Tabelle oben ist die Grundlage für das Standardmodell des Reviewers. Im sch
 
 | Teil | Immer aktiv, in jeder Session | Bei jedem Lauf |
 |---|---|---|
-| review-loop-Skill | etwa 140 Tokens | etwa 5.500 Tokens |
+| review-loop-Skill | etwa 140 Tokens | etwa 5.600 Tokens |
 | Reviewer-Agent | etwa 70 Tokens | etwa 1.700 Tokens, dazu der Diff und der Code, den er liest |
 
 Die Kosten des Skills fallen einmal pro Lauf an. Die Kosten des Reviewers fallen einmal pro Runde an, und eine Schleife hat höchstens 3 Runden. Das Reviewer-Modell ändert diese Kosten; die Benchmark-Tabelle oben zeigt sie für jedes Modell. Deine Checks laufen auf deinem Rechner und kosten keine Tokens.
@@ -335,7 +337,6 @@ review-loop arbeitet mit den Checks, die du schon hast. Je besser deine Skripte 
 ## Roadmap
 
 - Evals auf Modell-Ebene mit `claude plugin eval` für die Verhaltensweisen, die Unit-Tests nicht abdecken können, und ein Blindvergleich von Review-Qualität und Kosten
-- Eine kurze Anleitung mit Prompts zum Kopieren, echter Ausgabe und Kosten
 
 ## Mitwirken
 
