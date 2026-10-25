@@ -71,7 +71,7 @@ Claude can also start review-loop on its own when you ask it to review or commit
 Every round ends with a report. Claude shows it before anything else:
 
 ```
-Review round 2 of 3
+Review round 2 of 3 (reviewer: session model)
 Checks: test passed
 
 Resolved since last round:
@@ -105,6 +105,7 @@ skip once:              /review-loop:review-loop commit this without a review, j
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
+reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
 ```
 
 </details>
@@ -194,7 +195,7 @@ To commit once without a review, ask Claude to skip the review this time. The ga
 
 ### Settings
 
-The first four settings apply to one repository. Change one by typing the request after `/review-loop:review-loop`, so Claude has the skill's commands loaded. The check time limit is an environment variable, so it applies wherever you set it, and the 9-minute total is fixed.
+The first five settings apply to one repository. Change one by typing the request after `/review-loop:review-loop`, so Claude has the skill's commands loaded. The check time limit is an environment variable, so it applies wherever you set it, and the 9-minute total is fixed.
 
 | Setting | Default | Type |
 |---|---|---|
@@ -202,11 +203,12 @@ The first four settings apply to one repository. Change one by typing the reques
 | Commit gate | Asked once at the end of the first review | "turn on (or off) the commit gate" |
 | Commit delegation | Asks before every commit | "stop asking before commits in this repo" |
 | Unattended | Off | "run unattended" for one run, or "turn on (or off) unattended mode in this repo". Claude asks nothing, leaves what needs you for later, and ends with a summary of what it did and what waits for you |
+| Reviewer model | The session's model | "run the reviewer on sonnet in this repo" (or opus, haiku, fable), or "run the reviewer on the session's model". Measured below shows what each model found and cost |
 | Check time limit | 5 minutes per check, 9 minutes in total | Set `LIM_CHECK_TIMEOUT_MS` to change the per-check limit |
 
 ## Measured
 
-[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 149 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 139 of them, including runs against real temporary git repositories and the commit gate hook. The other 10 need a model run: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/), and the first two have a manual run in [`evals/review-loop/manual-behaviors.md`](evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](evals/review-loop/behaviors.csv) lists 155 behaviors across six axes: do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 144 of them, including runs against real temporary git repositories and the commit gate hook. The other 11 need a model run: asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, starting the reviewer on the model you chose, and reporting code added without a known cause. The last one has a fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](evals/review-loop/fixtures/reviewer-rubric/), and the first two have a manual run in [`evals/review-loop/manual-behaviors.md`](evals/review-loop/manual-behaviors.md).
 
 A detection benchmark gives the reviewer changes in temporary repositories whose names do not say they are a test. [`evals/review-loop/detection/`](evals/review-loop/detection/) has 12 changes with one seeded bug each and 6 clean changes. [`evals/review-loop/detection-hard/`](evals/review-loop/detection-hard/) has 6 harder bugs, such as one you only see in a file the diff does not touch, one inside a 183-line diff, a race between two searches, and a lock left held on an error path, and 4 clean changes that look suspicious. Results from 2026-10-25, with 3 runs per case:
 
@@ -216,7 +218,9 @@ A detection benchmark gives the reviewer changes in temporary repositories whose
 | claude-sonnet-5-5 | not run | not run | 18 of 18 | 1 of 12 | $0.76 |
 | claude-haiku-5-5 | not run | not run | 17 of 18 | 3 of 12 | $0.06, as reported by Claude Code |
 
-The reviewer runs on your session's model. Opus found every seeded bug in both sets, so the benchmark cannot yet show a small drop for it. The weaker models show that it does catch missed bugs and false alarms. Haiku's one miss named the bug but gave a line past the end of the file it named and quoted code from a different file, which review-loop would also show as unverified. After the first runs, keywords were added in three cases where a reviewer named the seeded bug in words the scoring did not accept, and every saved run was scored again with them. An earlier Opus run of the harder set, before a fixture-only change, drew one false P2 on a clean case (the same case that drew Sonnet's and Haiku's false alarms), so over 6 Opus runs that case drew 1. Run it again with `node evals/review-loop/run-detection.mjs --runs 3`, and add `--cases evals/review-loop/detection-hard` for the harder set.
+By default the reviewer runs on your session's model. Opus found every seeded bug in both sets, so the benchmark cannot yet show a small drop for it. The weaker models show that it does catch missed bugs and false alarms. Haiku's one miss named the bug but gave a line past the end of the file it named and quoted code from a different file, which review-loop would also show as unverified. After the first runs, keywords were added in three cases where a reviewer named the seeded bug in words the scoring did not accept, and every saved run was scored again with them. An earlier Opus run of the harder set, before a fixture-only change, drew one false P2 on a clean case (the same case that drew Sonnet's and Haiku's false alarms), so over 6 Opus runs that case drew 1. Run it again with `node evals/review-loop/run-detection.mjs --runs 3`, and add `--cases evals/review-loop/detection-hard` for the harder set.
+
+The table above is the basis for the reviewer's default model. On the harder set, Opus found 18 of 18 with no false P1 or P2, Sonnet found 18 of 18 with 1 false P1 or P2 in 12 clean runs at about 43% of Opus's cost, and Haiku found 17 of 18 with 3 of 12. So the default stays the session's model, and Sonnet is the cheaper choice when you want the reviewer on a different model than the one that wrote the change.
 
 <details>
 <summary>Cost</summary>
@@ -225,10 +229,10 @@ The reviewer runs on your session's model. Opus found every seeded bug in both s
 
 | Part | Always on, every session | Each time it runs |
 |---|---|---|
-| review-loop skill | about 140 tokens | about 4,600 tokens |
+| review-loop skill | about 140 tokens | about 5,500 tokens |
 | reviewer agent | about 70 tokens | about 1,700 tokens, plus the diff and the code it reads |
 
-The skill's cost is paid once per run. The reviewer's cost is paid once per round, and a loop runs at most 3 rounds. Your checks run on your machine and cost no tokens.
+The skill's cost is paid once per run. The reviewer's cost is paid once per round, and a loop runs at most 3 rounds. The reviewer model changes that cost; the benchmark table above shows it for each model. Your checks run on your machine and cost no tokens.
 
 </details>
 
@@ -329,7 +333,6 @@ review-loop works with the checks you already have. The better your `typecheck`,
 ## Roadmap
 
 - Model-level evals with `claude plugin eval` for the behaviors unit tests cannot cover, and a blind comparison of review quality and cost
-- A reviewer that runs on a different model than the one that wrote the change
 - A short guide with copy-ready prompts, real output, and cost
 
 ## Contributing

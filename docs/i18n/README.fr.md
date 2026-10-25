@@ -73,7 +73,7 @@ Claude peut aussi démarrer review-loop de lui-même quand vous lui demandez une
 Chaque tour se termine par un rapport. Claude l'affiche avant toute autre chose :
 
 ```
-Review round 2 of 3
+Review round 2 of 3 (reviewer: session model)
 Checks: test passed
 
 Resolved since last round:
@@ -107,6 +107,7 @@ skip once:              /review-loop:review-loop commit this without a review, j
 delegate commits:       /review-loop:review-loop stop asking before commits in this repo.
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
+reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
 ```
 
 </details>
@@ -196,7 +197,7 @@ Pour faire un commit une seule fois sans revue, demandez à Claude de sauter la 
 
 ### Réglages
 
-Les quatre premiers réglages s'appliquent à un seul dépôt. Pour en changer un, tapez la demande après `/review-loop:review-loop`, afin que Claude ait chargé les commandes de la skill. La limite de temps des vérifications est une variable d'environnement, elle s'applique donc partout où vous la définissez, et le total de 9 minutes est fixe.
+Les cinq premiers réglages s'appliquent à un seul dépôt. Pour en changer un, tapez la demande après `/review-loop:review-loop`, afin que Claude ait chargé les commandes de la skill. La limite de temps des vérifications est une variable d'environnement, elle s'applique donc partout où vous la définissez, et le total de 9 minutes est fixe.
 
 | Réglage | Par défaut | À taper |
 |---|---|---|
@@ -204,11 +205,12 @@ Les quatre premiers réglages s'appliquent à un seul dépôt. Pour en changer u
 | Commit gate | Demandé une fois à la fin de la première revue | "active (ou désactive) le commit gate" |
 | Délégation des commits | Demande avant chaque commit | "ne demande plus avant les commits dans ce dépôt" |
 | Sans surveillance | Désactivé | "exécute sans surveillance" pour une seule exécution, ou "active (ou désactive) le mode sans surveillance dans ce dépôt". Claude ne pose aucune question, laisse pour plus tard ce qui a besoin de vous et termine par un résumé de ce qu'il a fait et de ce qui vous attend |
+| Modèle du réviseur | Le modèle de votre session | "fais tourner le réviseur sur sonnet dans ce dépôt" (ou opus, haiku, fable), ou "fais tourner le réviseur sur le modèle de la session". La section Mesures montre ce que chaque modèle a trouvé et coûté |
 | Limite de temps des vérifications | 5 minutes par vérification, 9 minutes au total | Définissez `LIM_CHECK_TIMEOUT_MS` pour modifier la limite de chaque vérification |
 
 ## Mesures
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liste 149 comportements sur six axes : `do`, `tell`, `ask`, `silence`, `stop` et `evidence`. Les tests unitaires de la CI couvrent 139 de ces comportements, y compris des exécutions sur de vrais dépôts git temporaires et le hook de commit gate. Les 10 autres exigent une exécution du modèle : demander une seule fois pour P3 à P5, montrer le rapport avant toute question, garder chaque étape dans la liste de tâches avec une raison pour chaque étape sautée, écrire un test de régression pour chaque P1 ou P2 corrigé, étiqueter chaque constat measured, inferred ou guessed, dire comment on sait qu'une correction fonctionne, revérifier un constat que vous contestez, recommander une règle pour un type de constat qui revient sans cesse, ne poser aucune question lors d'une exécution sans surveillance et signaler le code ajouté sans cause connue. Le dernier a une fixture dans [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), et les deux premiers ont une exécution manuelle dans [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liste 155 comportements sur six axes : `do`, `tell`, `ask`, `silence`, `stop` et `evidence`. Les tests unitaires de la CI couvrent 144 de ces comportements, y compris des exécutions sur de vrais dépôts git temporaires et le hook de commit gate. Les 11 autres exigent une exécution du modèle : demander une seule fois pour P3 à P5, montrer le rapport avant toute question, garder chaque étape dans la liste de tâches avec une raison pour chaque étape sautée, écrire un test de régression pour chaque P1 ou P2 corrigé, étiqueter chaque constat measured, inferred ou guessed, dire comment on sait qu'une correction fonctionne, revérifier un constat que vous contestez, recommander une règle pour un type de constat qui revient sans cesse, ne poser aucune question lors d'une exécution sans surveillance, lancer le réviseur sur le modèle choisi et signaler le code ajouté sans cause connue. Le dernier a une fixture dans [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), et les deux premiers ont une exécution manuelle dans [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Un benchmark de détection donne au réviseur des modifications dans des dépôts temporaires dont les noms n'indiquent pas qu'il s'agit d'un test. [`evals/review-loop/detection/`](../../evals/review-loop/detection/) contient 12 modifications contenant chacune un bug introduit volontairement et 6 modifications propres. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) contient 6 bugs plus difficiles, par exemple un bug visible seulement dans un fichier que le diff ne touche pas, un autre au milieu d'un diff de 183 lignes, une race condition entre deux recherches et un verrou qui n'est pas libéré sur un chemin d'erreur, ainsi que 4 modifications propres qui ont l'air suspectes. Résultats du 2026-10-25, avec 3 exécutions par cas :
 
@@ -218,7 +220,9 @@ Un benchmark de détection donne au réviseur des modifications dans des dépôt
 | claude-sonnet-5-5 | non exécuté | non exécuté | 18 sur 18 | 1 sur 12 | 0,76 $ |
 | claude-haiku-5-5 | non exécuté | non exécuté | 17 sur 18 | 3 sur 12 | 0,06 $, selon Claude Code |
 
-Le réviseur tourne avec le modèle de votre session. Opus a trouvé tous les bugs introduits dans les deux jeux, donc le benchmark ne peut pas encore montrer une petite baisse pour lui. Les modèles plus faibles montrent qu'il repère bien les bugs manqués et les fausses alertes. Le seul échec de Haiku nommait le bug mais donnait une ligne au-delà de la fin du fichier indiqué et citait du code d'un autre fichier, et review-loop le présenterait aussi comme non vérifié. Après les premières exécutions, des mots-clés ont été ajoutés dans trois cas où un réviseur nommait le bug introduit avec des mots que la notation n'acceptait pas, et chaque exécution enregistrée a été notée de nouveau avec eux. Une exécution antérieure d'Opus sur le jeu difficile, avant une modification qui ne touchait que les fixtures, a donné un faux P2 sur un cas propre (le même cas que celui des fausses alertes de Sonnet et de Haiku), donc sur 6 exécutions d'Opus ce cas en a donné 1. Relancez-le avec `node evals/review-loop/run-detection.mjs --runs 3`, et ajoutez `--cases evals/review-loop/detection-hard` pour le jeu difficile.
+Par défaut, le réviseur tourne avec le modèle de votre session. Opus a trouvé tous les bugs introduits dans les deux jeux, donc le benchmark ne peut pas encore montrer une petite baisse pour lui. Les modèles plus faibles montrent qu'il repère bien les bugs manqués et les fausses alertes. Le seul échec de Haiku nommait le bug mais donnait une ligne au-delà de la fin du fichier indiqué et citait du code d'un autre fichier, et review-loop le présenterait aussi comme non vérifié. Après les premières exécutions, des mots-clés ont été ajoutés dans trois cas où un réviseur nommait le bug introduit avec des mots que la notation n'acceptait pas, et chaque exécution enregistrée a été notée de nouveau avec eux. Une exécution antérieure d'Opus sur le jeu difficile, avant une modification qui ne touchait que les fixtures, a donné un faux P2 sur un cas propre (le même cas que celui des fausses alertes de Sonnet et de Haiku), donc sur 6 exécutions d'Opus ce cas en a donné 1. Relancez-le avec `node evals/review-loop/run-detection.mjs --runs 3`, et ajoutez `--cases evals/review-loop/detection-hard` pour le jeu difficile.
+
+Le tableau ci-dessus fonde le modèle par défaut du réviseur. Sur le jeu difficile, Opus a trouvé 18 sur 18 sans faux P1 ou P2, Sonnet a trouvé 18 sur 18 avec 1 faux P1 ou P2 sur 12 exécutions propres pour environ 43 % du coût d'Opus, et Haiku a trouvé 17 sur 18 avec 3 sur 12. Le modèle par défaut reste donc celui de la session, et Sonnet est le choix le moins cher si vous voulez que le réviseur tourne sur un autre modèle que celui qui a écrit la modification.
 
 <details>
 <summary>Coût</summary>
@@ -227,10 +231,10 @@ Le réviseur tourne avec le modèle de votre session. Opus a trouvé tous les bu
 
 | Partie | Toujours actif, à chaque session | À chaque exécution |
 |---|---|---|
-| skill review-loop | environ 140 tokens | environ 4600 tokens |
+| skill review-loop | environ 140 tokens | environ 5500 tokens |
 | agent réviseur | environ 70 tokens | environ 1700 tokens, plus le diff et le code qu'il lit |
 
-Le coût de la skill est payé une fois par exécution. Celui du réviseur est payé une fois par tour, et une boucle compte au maximum 3 tours. Vos vérifications s'exécutent sur votre machine et ne coûtent aucun token.
+Le coût de la skill est payé une fois par exécution. Celui du réviseur est payé une fois par tour, et une boucle compte au maximum 3 tours. Le modèle du réviseur change ce coût ; le tableau du benchmark ci-dessus le montre pour chaque modèle. Vos vérifications s'exécutent sur votre machine et ne coûtent aucun token.
 
 </details>
 
@@ -331,7 +335,6 @@ review-loop fonctionne avec les vérifications que vous avez déjà. Plus vos sc
 ## Feuille de route
 
 - Des evals au niveau du modèle avec `claude plugin eval` pour les comportements que les tests unitaires ne peuvent pas couvrir, et une comparaison à l'aveugle de la qualité et du coût des revues
-- Un réviseur qui tourne sur un autre modèle que celui qui a écrit la modification
 - Un guide court avec des prompts prêts à copier, de vraies sorties et le coût
 
 ## Contribuer

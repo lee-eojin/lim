@@ -148,3 +148,9 @@ B146,stop,loop record --file keeps the file and still waits for the review when 
 B147,silence,A file under .lim-review/ is left out of the review diff even before .lim-review/ is excluded,test: a review file is left out of the review diff even before .lim-review/ is excluded,yes
 B148,silence,A file under .lim-review/ is not staged by git add -A and does not make the commit gate block,test: a review file is not staged by git add -A and does not make the commit gate block,yes
 B149,do,A review file left from an earlier session is deleted when a review starts so Claude can write the new one,test: a review file left from an earlier session is cleared when a review starts,yes
+B150,do,loop reviewer --model saves the reviewer model for the whole repository and loop reviewer returns it with inherit as the default,test: the reviewer model setting is saved for the repository and rejects other values,yes
+B151,stop,loop reviewer rejects a model other than inherit or opus or sonnet or haiku or fable and keeps the saved setting,test: the reviewer model setting is saved for the repository and rejects other values,yes
+B152,tell,loop start and loop next return reviewerModel for the round they hand out and loop status returns the repository setting,test: start and next and status return the reviewer model,yes
+B153,tell,The round report's first line names the reviewer model or says session model for inherit,test: report header names the reviewer model or the session model,yes
+B154,evidence,The ledger's record event stores the reviewer model in force when the round started even if the setting changed before record,test: the record event stores the reviewer model the round started with,yes
+B155,do,Claude starts review-loop:reviewer with the Agent tool's model set to reviewerModel when it is not inherit and leaves model out with inherit,eval: planned for claude plugin eval,no
