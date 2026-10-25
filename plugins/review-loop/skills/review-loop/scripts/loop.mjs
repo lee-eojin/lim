@@ -473,6 +473,38 @@ function headTree(root) {
   }
 }
 
+function headCommit(root) {
+  try {
+    return git(['rev-parse', '--verify', '-q', 'HEAD'], { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function headReflog(root) {
+  try {
+    const output = git(['reflog', 'show', '--format=%H%x09%gd%x09%gs', '--date=unix', 'HEAD', '--'], { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] });
+    return output.split('\n').filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function reflogMarker(root) {
+  const entries = headReflog(root);
+  return { count: entries.length, newest: entries[0] ?? null };
+}
+
+function commitLandedSince(root, skip) {
+  if (!skip.reflog) return true;
+  const entries = headReflog(root);
+  const newer = entries.length - skip.reflog.count;
+  if (newer < 0 || (skip.reflog.count > 0 && entries[newer] !== skip.reflog.newest)) return true;
+  // With core.logAllRefUpdates off there is no reflog, and a moved HEAD is the only sign left.
+  if (entries.length === 0) return headCommit(root) !== skip.head;
+  return entries.slice(0, newer).some((entry) => entry.split('\t')[2]?.startsWith('commit'));
+}
+
 function copyRealIndex(repository, target) {
   try {
     const realIndex = path.resolve(repository.root, git(['rev-parse', '--git-path', 'index'], { cwd: repository.root }).trim());
@@ -1177,8 +1209,15 @@ function readSetting(repository, name, fallback) {
 
 function readGate(repository) {
   const { enabled = false, configured = false, updatedAt = '' } = readSetting(repository, 'gate.json', {});
+  return { enabled, configured, skipOnce: enabled && pendingSkip(repository, updatedAt) };
+}
+
+function pendingSkip(repository, gateUpdatedAt) {
   const skip = readJson(repository.file('skip-once.json'), null);
-  return { enabled, configured, skipOnce: Boolean(enabled && skip?.requestedAt >= updatedAt) };
+  if (!skip) return false;
+  if (skip.requestedAt >= gateUpdatedAt && !commitLandedSince(repository.root, skip)) return true;
+  rmSync(repository.file('skip-once.json'), { force: true });
+  return false;
 }
 
 function gate(cwd, options) {
@@ -1186,7 +1225,8 @@ function gate(cwd, options) {
   const current = readGate(repository);
   if (options['skip-once']) {
     if (!current.enabled) throw new Error('the commit gate is off in this repository');
-    writeFileSync(repository.file('skip-once.json'), JSON.stringify({ requestedAt: now() }, null, 2));
+    const skip = { requestedAt: now(), head: headCommit(repository.root), reflog: reflogMarker(repository.root) };
+    writeFileSync(repository.file('skip-once.json'), JSON.stringify(skip, null, 2));
     logEvent(repository, { event: 'gate', enabled: true, skipOnce: true });
     return { ...current, skipOnce: true };
   }
@@ -1395,7 +1435,6 @@ function commitVerdict(repository, { args }, gateSettings) {
 function reviewVerdict(repository, gateSettings) {
   const delegated = readSetting(repository, 'delegation.json', { scope: 'off' }).scope === 'repo';
   if (gateSettings.skipOnce) {
-    rmSync(repository.file('skip-once.json'), { force: true });
     logEvent(repository, { event: 'gate-skip' });
     return delegated
       ? verdict('allow', 'review-loop: review skipped once at your request.')
@@ -1460,6 +1499,7 @@ function locateTargets(directories) {
 
 function gateVerdicts(invocations, sessionFolders) {
   const verdicts = [];
+  const skipped = new Set();
   for (const invocation of invocations) {
     if (!['commit', 'push'].includes(invocation.subcommand)) continue;
     const targets = locateTargets(invocation.directories);
@@ -1480,9 +1520,12 @@ function gateVerdicts(invocations, sessionFolders) {
       checkedRepositories.add(repository.root);
       const gateSettings = readGate(repository);
       if (!gateSettings.enabled) continue;
+      // The skip stays until a commit lands, so a second commit in the same command must not reuse it.
+      const skipOnce = invocation.subcommand === 'commit' && gateSettings.skipOnce && !ambiguous && !skipped.has(repository.root);
+      if (skipOnce) skipped.add(repository.root);
       const result = invocation.subcommand === 'push'
         ? pushVerdict(invocation)
-        : commitVerdict(repository, invocation, ambiguous ? { ...gateSettings, skipOnce: false } : gateSettings);
+        : commitVerdict(repository, invocation, { ...gateSettings, skipOnce });
       verdicts.push(ambiguousVerdict(result, ambiguous, gateSettings.skipOnce));
     }
   }

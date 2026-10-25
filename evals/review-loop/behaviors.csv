@@ -154,3 +154,8 @@ B152,tell,loop start and loop next return reviewerModel for the round they hand 
 B153,tell,The round report's first line names the reviewer model or says session model for inherit,test: report header names the reviewer model or the session model,yes
 B154,evidence,The ledger's record event stores the reviewer model in force when the round started even if the setting changed before record,test: the record event stores the reviewer model the round started with,yes
 B155,do,Claude starts review-loop:reviewer with the Agent tool's model set to reviewerModel when it is not inherit and leaves model out with inherit,eval: planned for claude plugin eval,no
+B156,ask,A one-time review skip survives a commit prompt the user declines so the next commit attempt is asked again,test: a declined commit prompt keeps the one-time skip,yes
+B157,stop,A one-time review skip is used up once a commit lands and does not come back after a reset moves HEAD back,test: a one-time skip is used up once a commit lands,yes
+B158,do,A one-time review skip survives a chained command that fails before git commit runs,test: a chained command that fails before the commit keeps the one-time skip,yes
+B159,stop,A one-time review skip covers only the first of two commits in one command,test: a one-time skip covers only the first of two commits in one command,yes
+B160,do,A one-time review skip survives a checkout to another branch and back because no commit landed,test: a checkout to another branch and back keeps the one-time skip,yes
