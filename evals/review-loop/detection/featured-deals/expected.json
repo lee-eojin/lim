@@ -1,0 +1,17 @@
+{
+  "intent": "Show the three cheapest products as deals on the home page",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "mutation of an argument: sort() reorders the cached catalog in place, so newest shows the wrong items",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/featured.js", "lines": [1, 7] },
+        { "file": "src/home.js", "lines": [5, 5] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["mutates", "mutate", "mutating", "mutation", "in place", "in-place", "toSorted", "original order"]
+    }
+  ],
+  "forbid": []
+}

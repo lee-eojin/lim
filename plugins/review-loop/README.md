@@ -66,7 +66,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 142 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 132 of them. The other 10 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, and reporting code added without a known cause) need a model run and are planned for `claude plugin eval`.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 142 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 132 of them. The other 10 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, and reporting code added without a known cause) need a model run. The first two have a manual run in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md), and the reviewer has a detection benchmark in [`evals/review-loop/detection/`](../../evals/review-loop/detection/).
 
 ## Data
 

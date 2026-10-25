@@ -1,0 +1,16 @@
+{
+  "intent": "Bill every account on the first day of each month from the daily job",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "wrong method: getDay() is the weekday, so accounts are billed every Monday",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/scheduler.js", "lines": [4, 6] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["getDay", "getDate", "getUTCDate", "weekday", "Monday", "Mondays", "day of the week"]
+    }
+  ],
+  "forbid": []
+}

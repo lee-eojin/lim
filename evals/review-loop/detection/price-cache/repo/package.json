@@ -1,0 +1,5 @@
+{
+  "name": "pricing-service",
+  "private": true,
+  "type": "module"
+}

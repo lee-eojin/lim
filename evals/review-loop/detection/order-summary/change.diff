@@ -1,0 +1,16 @@
+diff --git a/src/orders.js b/src/orders.js
+index 271ec14..8c1baf7 100644
+--- a/src/orders.js
++++ b/src/orders.js
+@@ -1,5 +1,11 @@
+ import { lineTotal } from './lines.js';
++import { formatPrice } from './money.js';
+ 
+ export function orderTotal(order) {
+   return order.lines.reduce((sum, line) => sum + lineTotal(line), 0);
+ }
++
++export function orderSummary(order) {
++  const itemCount = order.lines.reduce((count, line) => count + line.qty, 0);
++  return { id: order.id, itemCount, total: formatPrice(orderTotal(order)) };
++}

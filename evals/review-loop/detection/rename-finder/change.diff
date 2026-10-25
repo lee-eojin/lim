@@ -1,0 +1,39 @@
+diff --git a/src/admin.js b/src/admin.js
+index 5b88e81..b463b2f 100644
+--- a/src/admin.js
++++ b/src/admin.js
+@@ -1,7 +1,7 @@
+-import { getUsr, saveUser } from './users.js';
++import { findUser, saveUser } from './users.js';
+ 
+ export function deactivate(id) {
+-  const user = getUsr(id);
++  const user = findUser(id);
+   if (!user) {
+     return null;
+   }
+diff --git a/src/profile.js b/src/profile.js
+index e7d988b..8ecd17b 100644
+--- a/src/profile.js
++++ b/src/profile.js
+@@ -1,6 +1,6 @@
+-import { getUsr } from './users.js';
++import { findUser } from './users.js';
+ 
+ export function profileView(id) {
+-  const user = getUsr(id);
++  const user = findUser(id);
+   return user ? { id: user.id, displayName: user.displayName } : null;
+ }
+diff --git a/src/users.js b/src/users.js
+index 6c33da9..5a801a6 100644
+--- a/src/users.js
++++ b/src/users.js
+@@ -5,6 +5,6 @@ export function saveUser(user) {
+   return user;
+ }
+ 
+-export function getUsr(id) {
++export function findUser(id) {
+   return users.get(id) ?? null;
+ }

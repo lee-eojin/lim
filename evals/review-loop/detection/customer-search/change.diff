@@ -1,0 +1,32 @@
+diff --git a/src/customers.js b/src/customers.js
+index fec0199..6c071a2 100644
+--- a/src/customers.js
++++ b/src/customers.js
+@@ -6,3 +6,10 @@ export async function getCustomer(db, id) {
+ export async function listCustomers(db, limit = 50) {
+   return db.query('SELECT id, name, email FROM customers ORDER BY id LIMIT $1', [limit]);
+ }
++
++export async function searchCustomers(db, term, limit = 50) {
++  return db.query(
++    `SELECT id, name, email FROM customers WHERE name ILIKE '%${term}%' ORDER BY id LIMIT $1`,
++    [limit],
++  );
++}
+diff --git a/src/routes.js b/src/routes.js
+index a8970f1..f21c566 100644
+--- a/src/routes.js
++++ b/src/routes.js
+@@ -1,8 +1,11 @@
+-import { getCustomer, listCustomers } from './customers.js';
++import { getCustomer, listCustomers, searchCustomers } from './customers.js';
+ 
+ export async function customersHandler(db, query) {
+   if (query.id) {
+     return getCustomer(db, query.id);
+   }
++  if (query.q) {
++    return searchCustomers(db, query.q);
++  }
+   return listCustomers(db);
+ }

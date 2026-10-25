@@ -1,0 +1,30 @@
+diff --git a/src/checkout.js b/src/checkout.js
+index 78b0be7..d17b98b 100644
+--- a/src/checkout.js
++++ b/src/checkout.js
+@@ -1,4 +1,4 @@
+-import { findCoupon } from './coupons.js';
++import { activeCoupons, findCoupon } from './coupons.js';
+ 
+ export function applyCoupon(cart, code) {
+   const coupon = findCoupon(code);
+@@ -7,3 +7,7 @@ export function applyCoupon(cart, code) {
+   }
+   return { ...cart, coupon, total: Math.round(cart.total * (1 - coupon.percent / 100)) };
+ }
++
++export function checkoutView(cart) {
++  return { cart, offers: activeCoupons().map((coupon) => coupon.code) };
++}
+diff --git a/src/coupons.js b/src/coupons.js
+index cd7d14a..3c35df4 100644
+--- a/src/coupons.js
++++ b/src/coupons.js
+@@ -7,3 +7,7 @@ export function addCoupon(coupon) {
+ export function findCoupon(code) {
+   return coupons.get(code.trim().toUpperCase()) ?? null;
+ }
++
++export function activeCoupons(now = Date.now()) {
++  return [...coupons.values()].filter((coupon) => coupon.expiresAt < now);
++}

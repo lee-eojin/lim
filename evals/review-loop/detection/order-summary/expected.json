@@ -1,0 +1,10 @@
+{
+  "intent": "Add an order summary with the item count and the formatted total",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

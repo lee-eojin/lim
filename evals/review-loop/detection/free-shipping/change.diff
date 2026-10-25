@@ -1,0 +1,22 @@
+diff --git a/src/shipping.js b/src/shipping.js
+index 9d28fe6..34dbbb8 100644
+--- a/src/shipping.js
++++ b/src/shipping.js
+@@ -1,5 +1,16 @@
++import { formatCents } from './money.js';
++
+ const FLAT_RATE_CENTS = 499;
++const FREE_SHIPPING_FROM_CENTS = 5000;
+ 
+-export function shippingCost() {
++export function shippingCost(cart) {
++  if (cart.subtotalCents > FREE_SHIPPING_FROM_CENTS) {
++    return 0;
++  }
+   return FLAT_RATE_CENTS;
+ }
++
++export function freeShippingBanner(cart) {
++  const left = FREE_SHIPPING_FROM_CENTS - cart.subtotalCents;
++  return left > 0 ? `Spend ${formatCents(left)} more for free shipping` : 'Your order ships free';
++}

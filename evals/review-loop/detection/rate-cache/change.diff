@@ -1,0 +1,35 @@
+diff --git a/src/prices.js b/src/prices.js
+index 27329b5..eaaf1a6 100644
+--- a/src/prices.js
++++ b/src/prices.js
+@@ -1,6 +1,6 @@
+-import { fetchRate } from './rates.js';
++import { cachedRate } from './rates.js';
+ 
+ export async function priceIn(client, product, currency) {
+-  const rate = await fetchRate(client, currency);
++  const rate = await cachedRate(client, currency);
+   return Math.round(product.priceCents * rate);
+ }
+diff --git a/src/rates.js b/src/rates.js
+index 3ef112f..deee264 100644
+--- a/src/rates.js
++++ b/src/rates.js
+@@ -1,4 +1,17 @@
++const RATE_TTL_MS = 10 * 60 * 1000;
++const cachedRates = new Map();
++
+ export async function fetchRate(client, currency) {
+   const response = await client.get(`/rates/${currency}`);
+   return response.rate;
+ }
++
++export async function cachedRate(client, currency, now = Date.now()) {
++  const cached = cachedRates.get(currency);
++  if (cached && now - cached.fetchedAt < RATE_TTL_MS) {
++    return cached.rate;
++  }
++  const rate = await fetchRate(client, currency);
++  cachedRates.set(currency, { rate, fetchedAt: now });
++  return rate;
++}

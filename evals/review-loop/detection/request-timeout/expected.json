@@ -1,0 +1,17 @@
+{
+  "intent": "Let callers set their own request timeout with timeoutMs, and turn it off with timeoutMs: 0 for large exports",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "falsy zero: timeoutMs || default turns 0 into 5000, so the timeout can never be turned off",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/http.js", "lines": [4, 7] },
+        { "file": "src/export.js", "lines": [4, 4] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["falsy", "nullish", "|| default", "|| DEFAULT_TIMEOUT_MS", "?? DEFAULT_TIMEOUT_MS", "0 || 5000", "timeoutMs: 0", "timeout of 0", "never be turned off"]
+    }
+  ],
+  "forbid": []
+}

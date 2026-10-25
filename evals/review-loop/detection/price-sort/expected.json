@@ -1,0 +1,10 @@
+{
+  "intent": "Let the product list sort by price, ascending or descending",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

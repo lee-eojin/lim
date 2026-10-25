@@ -1,0 +1,17 @@
+{
+  "intent": "Number product pages from 1 and show which items the page covers, like 'Showing 1 to 20 of 45'",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "off-by-one: the end index uses items.length - 1, so the last page drops its last item",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/pagination.js", "lines": [2, 5] },
+        { "file": "src/pagination.js", "lines": [8, 8] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["off-by-one", "off by one", "length - 1", "last item", "drops the last", "exclusive"]
+    }
+  ],
+  "forbid": []
+}

@@ -1,0 +1,17 @@
+diff --git a/src/scheduler.js b/src/scheduler.js
+new file mode 100644
+index 0000000..4e367aa
+--- /dev/null
++++ b/src/scheduler.js
+@@ -0,0 +1,11 @@
++import { createInvoice } from './billing.js';
++
++export function runDailyJobs(accounts, now = new Date()) {
++  const invoices = [];
++  if (now.getDay() === 1) {
++    for (const account of accounts) {
++      invoices.push(createInvoice(account, now));
++    }
++  }
++  return invoices;
++}

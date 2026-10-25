@@ -1,0 +1,12 @@
+diff --git a/src/leaderboard.js b/src/leaderboard.js
+index 2830e72..d0a5ce7 100644
+--- a/src/leaderboard.js
++++ b/src/leaderboard.js
+@@ -7,3 +7,7 @@ export function addScore(board, player, points) {
+   }
+   return board;
+ }
++
++export function topPlayers(board, count = 3) {
++  return [...board].sort((a, b) => a.points < b.points).slice(0, count);
++}

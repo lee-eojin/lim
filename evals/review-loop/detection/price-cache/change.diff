@@ -1,0 +1,19 @@
+diff --git a/src/prices.js b/src/prices.js
+index 27329b5..5dc95db 100644
+--- a/src/prices.js
++++ b/src/prices.js
+@@ -1,6 +1,13 @@
+ import { fetchRate } from './rates.js';
+ 
++const converted = new Map();
++
+ export async function priceIn(client, product, currency) {
++  if (converted.has(product.id)) {
++    return converted.get(product.id);
++  }
+   const rate = await fetchRate(client, currency);
+-  return Math.round(product.priceCents * rate);
++  const cents = Math.round(product.priceCents * rate);
++  converted.set(product.id, cents);
++  return cents;
+ }
