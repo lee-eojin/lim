@@ -1,0 +1,46 @@
+# Korean patterns for check-clarity.mjs. See references/korean-rules.md for the reasons.
+# One rule per line: <regular expression> => <what to write instead>.
+# Each match is something to look at, not an error. Only forms that are almost always vague are listed.
+
+처리(?:[하-핳]|[해-햏]|[되-됳]|[돼-됗]) => name the action (parse, save, validate, show)
+관리(?:[하-핳]|[해-햏]|[되-됳]|[돼-됗]) => name the action (save, update, release)
+(?:진행|수행|실시)(?:[하-핳]|[해-햏]|[되-됳]|[돼-됗]|중) => turn the noun before it into the verb
+반영(?:[하-핳]|[해-햏]|[되-됳]|[돼-됗]) => say what changes where
+지원(?:[하-핳]|[해-햏]|[되-됳]|[돼-됗]) => give the condition and the range (from version 13)
+제공(?:[하-핳]|[해-햏]|[되-됳]|[돼-됗]) => give the direction (enter, return, show)
+(?:활용|이용)(?:[하-핳]|[해-햏]) => use one verb for "use" throughout
+연동(?:[하-핳]|[해-햏]|[되-됳]|[돼-됗]) => say which side calls what
+최적화 => say which measure changed and by how much
+개선(?:[하-핳]|[해-햏]|[되-됳]|[돼-됗]) => say what got better, with a number
+적절(?:히|[하-핳]|[해-햏]) => give the criterion or the number
+적당(?:히|[하-핳]|[해-햏]) => give the criterion or the number
+어느 정도 => give the criterion or the number
+해당(?=\s)(?! 없) => name the thing (this function, that request)
+등등 => list every item, or say the list is open
+(?<=\S )등(?=(?:[이을를은는의에도만과와]|으로|에서|에게|까지|부터|처럼|보다|이나|이다|이고|이며|입니다)?(?![가-힣])) => a closed list names every item; an open list says so
+(?<=\s)및(?=\s) => write both items with 와/과, or say both
+내지 => write 또는, or a range (from A to B)
+기본적으로 => remove, or name the exception
+일반적으로 => remove, or name the exception
+사실상 => remove, or say it exactly
+간단(?:히|[하-핳]|[해-햏]) => remove
+(?<![가-힣])그냥 => remove
+당연(?:히|[하-핳]|[해-햏]) => remove
+쉽게 말해 => remove and explain directly
+(?:같은|의) 경우 => shorter: ~는, ~면
+(?<=[가-힣]) 시(?:에는|에도|에|의)?(?=[\s,.]) => write ~할 때
+(?:적인|하는) 부분 => name the thing directly
+것 같(?:다|아요|습니다|은데|네요) => state certainty: measured, inferred, or unknown
+수도 있을 것 같 => keep one hedge, with its reason
+수 있(?:다|습니다|어요|는|고|으며|으면|을) => pick one meaning: ability, possibility, or permission
+에 있어서 => write ~에서 or ~할 때
+에 의해(?:서)? => make the actor the subject; for a means, write ~으로
+필요로 (?:[하-핳]|[해-햏]) => write ~이 필요하다
+중에 있 => write ~하고 있다
+(?:을|를) 가지고 있 => write ~가 있다
+이슈 => say which: bug, outage, question, or feature request
+로직 => say which: formula, validation rule, or branch
+(?:API|요청|서버)(?:을|를|에)?\s?(?:쏘|쏴|쐈|때리|때려|때렸|찌르|찔러|찔렀|날리|날려|날렸) => write "send a request" or "call the API"
+(?:먹히|먹혀|먹힌) => write 적용된다 or 적용되지 않는다
+(?:꼬였|꼬이|꼬여) => say what differs from what
+(?:터졌|터지|터져) => say what stopped and how

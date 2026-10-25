@@ -1,0 +1,1737 @@
+{
+  "date": "2026-10-25T14:32:18.979Z",
+  "model": "opus",
+  "judgeModel": "sonnet",
+  "claudeVersion": "2.1.310 (Claude Code)",
+  "skill": {
+    "path": "plugins/clear-explain/skills/clear-explain/SKILL.md",
+    "sha256": "789779006d07a4f5b7aa90e12ea9425e3f6725cb240d4c48fd0689bbdbb91213",
+    "bodySha256": "460dadf7cb8f0782c08ea6b9e5bcbee2f51459ed34ab48e8b2dfc19b08898483",
+    "description": "Writes explanations that a reader understands the same way after one read, with the answer first, a one-line definition for each new term, one meaning per word, one idea per sentence, and technical concepts in their official English names, adapted from ASD-STE100 Simplified Technical English. Use when the user asks what something is, what code does, why an error happens, how something works, or how two things differ, in any language."
+  },
+  "label": null,
+  "runsPerArm": 1,
+  "elapsedSeconds": 170,
+  "summary": {
+    "questions": 12,
+    "ties": 0,
+    "with": {
+      "answered": 12,
+      "skillInvoked": 12,
+      "issuesPer1000": 1.34,
+      "longSentences": 2,
+      "mustFix": 0,
+      "characters": 1406.33,
+      "opensWithAnswer": 12,
+      "judgeAnswerFirst": 12,
+      "judgeFactualError": 0,
+      "wins": 10
+    },
+    "without": {
+      "answered": 12,
+      "skillInvoked": 0,
+      "issuesPer1000": 2.9,
+      "longSentences": 3,
+      "mustFix": 1,
+      "characters": 1294.25,
+      "opensWithAnswer": 7,
+      "judgeAnswerFirst": 9,
+      "judgeFactualError": 1,
+      "wins": 2
+    },
+    "position": {
+      "withShownSecond": 10,
+      "judgePickedSecond": 10,
+      "withWinsShownSecond": 9,
+      "withWinsShownFirst": 1
+    },
+    "en": {
+      "questions": 6,
+      "ties": 0,
+      "with": {
+        "answered": 6,
+        "skillInvoked": 6,
+        "issuesPer1000": 0.58,
+        "longSentences": 2,
+        "mustFix": 0,
+        "characters": 1794,
+        "opensWithAnswer": 6,
+        "judgeAnswerFirst": 6,
+        "judgeFactualError": 0,
+        "wins": 4
+      },
+      "without": {
+        "answered": 6,
+        "skillInvoked": 0,
+        "issuesPer1000": 1.27,
+        "longSentences": 3,
+        "mustFix": 0,
+        "characters": 1614.33,
+        "opensWithAnswer": 6,
+        "judgeAnswerFirst": 5,
+        "judgeFactualError": 0,
+        "wins": 2
+      }
+    },
+    "ko": {
+      "questions": 6,
+      "ties": 0,
+      "with": {
+        "answered": 6,
+        "skillInvoked": 6,
+        "issuesPer1000": 2.1,
+        "longSentences": 0,
+        "mustFix": 0,
+        "characters": 1018.67,
+        "opensWithAnswer": 6,
+        "judgeAnswerFirst": 6,
+        "judgeFactualError": 0,
+        "wins": 6
+      },
+      "without": {
+        "answered": 6,
+        "skillInvoked": 0,
+        "issuesPer1000": 4.52,
+        "longSentences": 0,
+        "mustFix": 1,
+        "characters": 974.17,
+        "opensWithAnswer": 1,
+        "judgeAnswerFirst": 4,
+        "judgeFactualError": 1,
+        "wins": 0
+      }
+    },
+    "errors": 0,
+    "costUsd": {
+      "with": 1.1202,
+      "without": 0.6892,
+      "judge": 0.266,
+      "total": 2.0754
+    },
+    "tokens": {
+      "with": 227347,
+      "without": 95129,
+      "judge": 65791
+    },
+    "wallSeconds": 480
+  },
+  "items": [
+    {
+      "id": "en-closure",
+      "lang": "en",
+      "question": "What is a closure in JavaScript?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 11168,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8357,
+            "cacheRead": 9351,
+            "output": 774,
+            "total": 18488
+          },
+          "costUsd": 0.0842302,
+          "turns": 3,
+          "answer": "A closure is a function together with the variables it can reach from the place where you defined it. The function keeps access to those variables after the outer function has returned.\n\nA function in JavaScript can read variables from the scope where you wrote it, not only from the scope where it runs. (Scope is the region of code where a variable is visible.) When the outer function returns, JavaScript keeps any variables that an inner function still uses. It does not delete them.\n\n```js\nfunction makeCounter() {\n  let count = 0;\n  return function () {\n    count += 1;\n    return count;\n  };\n}\n\nconst counter = makeCounter();\ncounter(); // 1\ncounter(); // 2\n\nconst other = makeCounter();\nother();   // 1\n```\n\n1. `makeCounter` creates `count` and returns the inner function.\n2. `makeCounter` has finished, but the inner function still uses `count`, so JavaScript keeps `count`.\n3. Each call to `counter` reads and changes that same `count`.\n4. A second call to `makeCounter` creates a new `count`. `other` has its own copy, so `counter` and `other` do not affect each other.\n\nClosures are common in these cases:\n\n- **Private state:** code outside `makeCounter` can't change `count` directly.\n- **Callbacks and event handlers:** a handler created inside a function still uses that function's variables when the event happens later.\n- **Function factories:** for example, `makeMultiplier(3)` returns a function that multiplies by 3.\n\nOne common bug comes from closures. A closure captures the variable itself, not a copy of its value at that moment. If the variable changes later, the closure sees the new value. With `var` in a loop, all callbacks share one variable:\n\n```js\nfor (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i)); // prints 3, 3, 3\n}\n```\n\nWith `let`, each loop iteration gets its own `i`, so the same code prints 0, 1, 2.",
+          "score": {
+            "characters": 1414,
+            "issues": 1,
+            "issuesPer1000": 0.71,
+            "longSentences": 1,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 11289,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4633,
+            "cacheRead": 2293,
+            "output": 948,
+            "total": 7876
+          },
+          "costUsd": 0.0564906,
+          "turns": 1,
+          "answer": "A **closure** is a function that keeps access to the variables of the scope it was created in, even after that outer scope has finished running.\n\n## Basic example\n\n```javascript\nfunction makeCounter() {\n  let count = 0;            // local to makeCounter\n\n  return function () {      // inner function \"closes over\" count\n    count++;\n    return count;\n  };\n}\n\nconst counter = makeCounter();\ncounter(); // 1\ncounter(); // 2\ncounter(); // 3\n```\n\nOnce `makeCounter()` returns, you might expect `count` to be gone. It isn't, because the returned function still refers to it. Each call to `makeCounter()` creates a separate `count`:\n\n```javascript\nconst a = makeCounter();\nconst b = makeCounter();\na(); // 1\na(); // 2\nb(); // 1  ← independent state\n```\n\n## Why it works\n\nJavaScript uses **lexical scoping**. A function's access to variables depends on where it is written in the source, not where it gets called. When a function is created, it keeps a reference to its surrounding scope. That function plus its remembered scope is the closure.\n\nThe function holds a *reference* to the variables, not a copy of their values. If a variable changes later, the closure sees the new value.\n\n## Common uses\n\n**1. Private state / encapsulation**\n```javascript\nfunction createAccount(initial) {\n  let balance = initial;\n  return {\n    deposit(amt) { balance += amt; },\n    getBalance() { return balance; }\n  };\n}\nconst acct = createAccount(100);\nacct.deposit(50);\nacct.getBalance(); // 150\n// balance can't be reached directly from outside\n```\n\n**2. Function factories**\n```javascript\nconst multiplier = (factor) => (x) => x * factor;\nconst double = multiplier(2);\ndouble(5); // 10\n```\n\n**3. Callbacks and event handlers**\n```javascript\nfunction setupButton(id, message) {\n  document.getElementById(id).addEventListener('click', () => {\n    alert(message); // remembers `message`\n  });\n}\n```\n\n**4. Memoization, debouncing, and throttling** all depend on closures to store state between calls.\n\n## A classic pitfall\n\n```javascript\nfor (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 100);\n}\n// prints 3, 3, 3\n```\n\n`var` is function-scoped, so all three callbacks share the same `i`. By the time they run, the loop has finished and `i` is 3. Using `let` fixes this, because `let` creates a new binding on each loop iteration:\n\n```javascript\nfor (let i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 100);\n}\n// prints 0, 1, 2\n```\n\n## Summary\n\nA closure lets a function \"remember\" the variables from where it was defined. You get one every time you create a function inside another function, and they're how JavaScript handles private state, factories, and callbacks.",
+          "score": {
+            "characters": 1386,
+            "issues": 2,
+            "issuesPer1000": 1.44,
+            "longSentences": 1,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 5595,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4059,
+          "cacheRead": 649,
+          "output": 149,
+          "total": 4859
+        },
+        "costUsd": 0.0177949,
+        "raw": {
+          "clearer": "A",
+          "reason": "Both are correct, but A opens with a crisp definition and shows the independent-state, reference-not-copy, and var/let points with clear examples. B has a slightly misleading line (\"other has its own copy\") that contradicts its own reference-not-copy point, and its numbered walkthrough is denser.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "without",
+        "reason": "Both are correct, but A opens with a crisp definition and shows the independent-state, reference-not-copy, and var/let points with clear examples. B has a slightly misleading line (\"other has its own copy\") that contradicts its own reference-not-copy point, and its numbered walkthrough is denser.",
+        "answerFirst": {
+          "without": true,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 7289,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4055,
+          "cacheRead": 649,
+          "output": 161,
+          "total": 4867
+        },
+        "costUsd": 0.0178989,
+        "raw": {
+          "clearer": "A",
+          "reason": "Both are correct and open with a direct definition. A explains the idea in a tight, step-by-step walkthrough that a reader will take as intended, and its accurate note that closures capture variables rather than values is built into the pitfall. B covers more ground (memoization, debouncing, extra examples) but is longer and spreads the core idea thinner.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "Both are correct and open with a direct definition. A explains the idea in a tight, step-by-step walkthrough that a reader will take as intended, and its accurate note that closures capture variables rather than values is built into the pitfall. B covers more ground (memoization, debouncing, extra examples) but is longer and spreads the core idea thinner.",
+        "answerFirst": {
+          "with": true,
+          "without": true
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      }
+    },
+    {
+      "id": "en-effect-twice",
+      "lang": "en",
+      "question": "Why does my useEffect run twice when I start the app in development?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 12575,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8376,
+            "cacheRead": 9358,
+            "output": 878,
+            "total": 18618
+          },
+          "costUsd": 0.0864636,
+          "turns": 3,
+          "answer": "React runs your Effect twice on purpose when the app is in Strict Mode during development. Production builds run it once. React does this to find Effects that are missing a cleanup function.\n\n**Strict Mode** is a development-only React feature that runs extra checks on the components inside `<React.StrictMode>`. **An Effect** is code you pass to `useEffect` that runs after React shows the component on screen. **A cleanup function** is the function your Effect returns. React calls it before the Effect runs again and when the component is removed.\n\nSince React 18, Strict Mode does three things when a component mounts:\n\n1. React mounts the component and runs your Effect.\n2. React unmounts the component as a test and runs your cleanup function.\n3. React mounts the component again and runs your Effect a second time.\n\nIf your Effect has a correct cleanup function, a user can't see any difference between one run and the mount, unmount, mount sequence. If the second run causes a bug, like two subscriptions, two timers, or a duplicated log, the Effect is missing its cleanup. The same bug can show up in production, for example when the user navigates away and comes back.\n\nHere, the cleanup function stops the first interval, so only one interval stays active:\n\n```jsx\nuseEffect(() => {\n  const id = setInterval(() => console.log('tick'), 1000);\n  return () => clearInterval(id); // cleanup function\n}, []);\n```\n\nFor data fetching, use a flag so the first response is ignored:\n\n```jsx\nuseEffect(() => {\n  let ignore = false;\n  fetch('/api/user')\n    .then(res => res.json())\n    .then(data => { if (!ignore) setUser(data); });\n  return () => { ignore = true; };\n}, []);\n```\n\nYour browser's Network tab still shows two requests in development. That is expected, and production sends one.\n\nTo confirm the cause, look for `<React.StrictMode>` in your entry file (usually `main.jsx` or `index.js`). If you remove it, the Effect runs once, but React also stops these checks. The React documentation recommends adding cleanup functions instead of removing Strict Mode.",
+          "score": {
+            "characters": 1641,
+            "issues": 1,
+            "issuesPer1000": 0.61,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 11610,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4640,
+            "cacheRead": 2293,
+            "output": 940,
+            "total": 7875
+          },
+          "costUsd": 0.0563866,
+          "turns": 1,
+          "answer": "This is almost certainly **React Strict Mode**, and it's intentional.\n\n## What's happening\n\nSince React 18, when your app is wrapped in `<StrictMode>` (Create React App, Vite templates, and Next.js all turn it on by default), React does this **in development only** on mount:\n\n1. Mounts the component and runs your effect\n2. Immediately runs the effect's cleanup (simulating an unmount)\n3. Runs the effect again\n\nSo you see the effect run twice. **Production builds don't do this.**\n\n```jsx\n// main.jsx / index.js\nroot.render(\n  <React.StrictMode>\n    <App />\n  </React.StrictMode>\n);\n```\n\n## Why React does it\n\nIt's a stress test. React may unmount and remount components later on (Fast Refresh, offscreen/Activity, navigation that keeps state). If an effect breaks when it runs twice, it's usually missing a cleanup function. Common examples are duplicate subscriptions, intervals that pile up, and fetch requests that race each other.\n\n## The right fix: add cleanup\n\n```jsx\n// Subscriptions / listeners\nuseEffect(() => {\n  const handler = () => { /* ... */ };\n  window.addEventListener('resize', handler);\n  return () => window.removeEventListener('resize', handler);\n}, []);\n\n// Timers\nuseEffect(() => {\n  const id = setInterval(tick, 1000);\n  return () => clearInterval(id);\n}, []);\n\n// Data fetching: ignore or abort the stale request\nuseEffect(() => {\n  const controller = new AbortController();\n  fetch('/api/data', { signal: controller.signal })\n    .then(r => r.json())\n    .then(setData)\n    .catch(err => { if (err.name !== 'AbortError') throw err; });\n  return () => controller.abort();\n}, []);\n```\n\nWith proper cleanup, the mount → unmount → mount sequence ends up behaving just like a single mount.\n\n## Things to avoid\n\n- **Removing `<StrictMode>`** to hide the issue. It works, but you lose the check, and the underlying bug can still show up in production.\n- **`useRef` flags like `hasRun.current`** to block the second run. They hide the symptom rather than fix it.\n\n## When it really must run once\n\nSome code truly should run once per app load, like initializing analytics or an SDK. Put it outside components at module level, or guard it with a module-level variable:\n\n```js\nlet didInit = false;\nfunction App() {\n  useEffect(() => {\n    if (didInit) return;\n    didInit = true;\n    initAnalytics();\n  }, []);\n}\n```\n\nFor data fetching in general, a library like TanStack Query or SWR (or your framework's data loader) takes care of deduplication and race conditions for you.\n\nIf you share the effect that's causing trouble, I can show you what its cleanup should look like.",
+          "score": {
+            "characters": 1609,
+            "issues": 7,
+            "issuesPer1000": 4.35,
+            "longSentences": 2,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 8848,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4097,
+          "cacheRead": 649,
+          "output": 755,
+          "total": 5503
+        },
+        "costUsd": 0.024006899999999998,
+        "raw": {
+          "clearer": "B",
+          "reason": "Both are correct and lead with Strict Mode. B stays consistent and gives the one fix (cleanup) plus how to confirm the cause. A tells the reader to avoid run-once flags and then recommends a module-level guard, which may confuse a reader, and its extra material dilutes the main point.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "Both are correct and lead with Strict Mode. B stays consistent and gives the one fix (cleanup) plus how to confirm the cause. A tells the reader to avoid run-once flags and then recommends a module-level guard, which may confuse a reader, and its extra material dilutes the main point.",
+        "answerFirst": {
+          "without": true,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 4378,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4099,
+          "cacheRead": 649,
+          "output": 156,
+          "total": 4906
+        },
+        "costUsd": 0.0180249,
+        "raw": {
+          "clearer": "A",
+          "reason": "A answers directly and accurately, defines its terms, and gives a clear sequence with two correct cleanup examples. B is also correct but its Next.js claim and the module-level guard suggestion add more to parse, and its fetch example rethrows errors in a way that can confuse; A is more likely to be read as intended in one pass.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "A answers directly and accurately, defines its terms, and gives a clear sequence with two correct cleanup examples. B is also correct but its Next.js claim and the module-level guard suggestion add more to parse, and its fetch example rethrows errors in a way that can confuse; A is more likely to be read as intended in one pass.",
+        "answerFirst": {
+          "with": true,
+          "without": true
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      }
+    },
+    {
+      "id": "en-cors",
+      "lang": "en",
+      "question": "Why do I get a CORS error when my React app on port 5173 calls my API on port 8080?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 17186,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8405,
+            "cacheRead": 9371,
+            "output": 1524,
+            "total": 19306
+          },
+          "costUsd": 0.09961819999999999,
+          "turns": 3,
+          "answer": "Your browser treats `http://localhost:5173` and `http://localhost:8080` as two different origins, because the port is different. Your API does not send the CORS headers that allow the 5173 origin, so the browser blocks your React code from reading the response.\n\n## Why a different port counts\n\nAn origin is the combination of scheme, host, and port, for example `http` + `localhost` + `5173`. If any one of the three differs, the browser treats the request as cross-origin.\n\nThe same-origin policy is a browser rule. It stops JavaScript on one origin from reading responses from another origin. CORS (Cross-Origin Resource Sharing) is how a server tells the browser which other origins are allowed to read its responses.\n\nWhat happens:\n\n1. Your React app calls `fetch(\"http://localhost:8080/api/...\")`.\n2. For a request with a JSON body or an `Authorization` header, the browser first sends an `OPTIONS` request. This request is called a preflight.\n3. The browser checks the response for `Access-Control-Allow-Origin: http://localhost:5173`.\n4. If the header is missing, the browser blocks the response and logs the CORS error.\n\nThe request often reaches your server, and your server might even run the handler. The browser blocks only your JavaScript from reading the result. This is why the same call works in curl or Postman: those tools do not enforce the same-origin policy.\n\n## Fix 1: Send CORS headers from the API\n\nUse this fix if the API will also be cross-origin in production.\n\nExpress:\n\n```js\nimport cors from \"cors\";\napp.use(cors({ origin: \"http://localhost:5173\", credentials: true }));\n```\n\nSpring Boot (port 8080 is its default, so I am guessing that is your stack):\n\n```java\n@Configuration\npublic class CorsConfig implements WebMvcConfigurer {\n  @Override\n  public void addCorsMappings(CorsRegistry registry) {\n    registry.addMapping(\"/api/**\")\n        .allowedOrigins(\"http://localhost:5173\")\n        .allowedMethods(\"GET\", \"POST\", \"PUT\", \"DELETE\", \"OPTIONS\")\n        .allowCredentials(true);\n  }\n}\n```\n\nIf you use Spring Security, also call `http.cors()`. Without it, the security filter can reject the `OPTIONS` preflight before your CORS config runs.\n\n## Fix 2: Proxy through the Vite dev server\n\nUse this fix if the frontend and the API will share one origin in production. It needs no change to the API.\n\n```js\n// vite.config.js\nexport default {\n  server: {\n    proxy: {\n      \"/api\": \"http://localhost:8080\",\n    },\n  },\n};\n```\n\nThen call `fetch(\"/api/users\")` with no host. The browser sends the request to 5173, which is the same origin, and Vite forwards it to 8080. The request is no longer cross-origin, so the browser does not need CORS headers.\n\n## Common mistakes\n\n- **`Access-Control-Allow-Origin: *` with cookies or `credentials: \"include\"`:** the browser rejects the wildcard in this case. Set the exact origin.\n- **Only `GET` works:** the server is probably not answering the `OPTIONS` preflight with the CORS headers.\n- **The headers appear only on successful responses:** if your API returns a 500 without CORS headers, the browser shows a CORS error that hides the real error. Look at the server logs.\n\nIf you share your backend framework and the exact error text from the console, I can tell you which of these causes applies.",
+          "score": {
+            "characters": 2412,
+            "issues": 1,
+            "issuesPer1000": 0.41,
+            "longSentences": 1,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 12164,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4653,
+            "cacheRead": 2293,
+            "output": 974,
+            "total": 7922
+          },
+          "costUsd": 0.0571706,
+          "turns": 1,
+          "answer": "Browsers treat a different port as a different **origin**. An origin is scheme + host + port, so `http://localhost:5173` and `http://localhost:8080` count as two separate sites. The browser's same-origin policy blocks your page from reading the response unless the API explicitly allows it with CORS headers.\n\nSome points that often confuse people:\n\n- **The request usually reaches the server.** The browser blocks your JavaScript from *reading the response*. Your API logs may show a normal 200 even though the browser reports an error.\n- **Preflight requests.** \"Non-simple\" requests send an `OPTIONS` request first, and the server has to answer it correctly. These include requests with `Content-Type: application/json`, an `Authorization` header, or methods like PUT and DELETE. Many APIs fail here because they return 404 or 401 for `OPTIONS`.\n- **It only happens in the browser.** curl and Postman don't enforce CORS, which is why the API seems fine when you test it there.\n\n## Fix options\n\n### 1. Use Vite's dev proxy (easiest for local development)\nThe browser then sees only one origin, so CORS never comes into play.\n\n```js\n// vite.config.js\nexport default {\n  server: {\n    proxy: {\n      '/api': 'http://localhost:8080',\n    },\n  },\n}\n```\nThen call `fetch('/api/users')` instead of `fetch('http://localhost:8080/api/users')`.\n\n### 2. Enable CORS on the API (needed if the origins also differ in production)\nThe server must return headers like:\n```\nAccess-Control-Allow-Origin: http://localhost:5173\nAccess-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\nAccess-Control-Allow-Headers: Content-Type, Authorization\n```\n\nExamples:\n- **Express:** `app.use(require('cors')({ origin: 'http://localhost:5173' }))`\n- **Spring Boot:** `@CrossOrigin(origins = \"http://localhost:5173\")` on the controller, or a global `WebMvcConfigurer` with `addCorsMappings`. If you use Spring Security, also call `http.cors()`, or Spring Security will reject the preflight first.\n- **Go (net/http):** set the headers in middleware, and return 204 for `OPTIONS`.\n\n### If you send cookies or credentials\nIf you use `credentials: 'include'` or axios `withCredentials: true`, the server must:\n- send `Access-Control-Allow-Credentials: true`\n- name the exact origin. `Access-Control-Allow-Origin: *` is **not allowed** with credentials.\n\n## Debugging tip\nOpen DevTools → Network, find the failed request (often the `OPTIONS` one), and read the console error. It usually tells you exactly which header is missing or wrong.\n\nIf you tell me your backend framework and paste the exact console error, I can give you the specific fix.",
+          "score": {
+            "characters": 1854,
+            "issues": 1,
+            "issuesPer1000": 0.54,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 4542,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4591,
+          "cacheRead": 649,
+          "output": 150,
+          "total": 5392
+        },
+        "costUsd": 0.019932899999999996,
+        "raw": {
+          "clearer": "B",
+          "reason": "B opens by directly stating the cause (different port means different origin and the API lacks CORS headers allowing 5173), then explains the mechanism step by step in an order a reader can follow. A is correct and useful, but its opening explains the concept without naming the missing API headers, and it is more of a scattered checklist.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "B opens by directly stating the cause (different port means different origin and the API lacks CORS headers allowing 5173), then explains the mechanism step by step in an order a reader can follow. A is correct and useful, but its opening explains the concept without naming the missing API headers, and it is more of a scattered checklist.",
+        "answerFirst": {
+          "without": true,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 9963,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4593,
+          "cacheRead": 649,
+          "output": 659,
+          "total": 5903
+        },
+        "costUsd": 0.0250309,
+        "raw": {
+          "clearer": "A",
+          "reason": "A's opening two sentences give the full cause: the ports differ, so the origins differ, and the API sends no CORS header allowing 5173. It then walks through the preflight sequence step by step. B is also correct, but its first two sentences only define origin, and the missing-header cause comes later.",
+          "answerFirst": {
+            "A": true,
+            "B": false
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "A's opening two sentences give the full cause: the ports differ, so the origins differ, and the API sends no CORS header allowing 5173. It then walks through the preflight sequence step by step. B is also correct, but its first two sentences only define origin, and the missing-header cause comes later.",
+        "answerFirst": {
+          "with": true,
+          "without": false
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      }
+    },
+    {
+      "id": "en-merge-rebase",
+      "lang": "en",
+      "question": "What is the difference between git merge and git rebase?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 11327,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8288,
+            "cacheRead": 9356,
+            "output": 710,
+            "total": 18360
+          },
+          "costUsd": 0.0823992,
+          "turns": 3,
+          "answer": "Both commands bring the commits from one branch into another, but they record history differently. `git merge` keeps both branches as they are and adds a new merge commit that joins them. `git rebase` copies your commits so they sit on top of the other branch, and the result is one straight line of history.\n\nA merge commit is a commit with two parents. It records the point where two branches joined.\n\n**Example.** You created `feature` from `main`. Since then, both branches have new commits:\n\n```\nmain:     A---B---C\n               \\\nfeature:        D---E\n```\n\nIf you run `git merge main` while on `feature`, Git adds merge commit M. Commits D and E stay unchanged:\n\n```\nmain:     A---B---C\n               \\   \\\nfeature:        D---E---M\n```\n\nIf you run `git rebase main` while on `feature`, Git creates new copies of D and E, called D' and E', on top of C. The copies have new commit IDs (hashes), and the original D and E are no longer part of `feature`:\n\n```\nmain:     A---B---C\n                   \\\nfeature:            D'---E'\n```\n\n| | `git merge` | `git rebase` |\n|---|---|---|\n| Changes existing commits | No | Yes (new copies with new hashes) |\n| Shape of history | Shows where branches split and joined | One straight line |\n| Extra commit | One merge commit | None |\n| Conflicts | You fix them once, in the merge commit | You might fix them once for each copied commit |\n| Safe on a branch other people use | Yes | No, unless everyone on the team coordinates |\n\n**Which one to use.** Rebase is good for tidying your own local commits before you share them. It is also a good way to update a private feature branch with the latest `main`. Use merge on any branch that other people have already pulled. A rebase rewrites commits that are already in their copies. After a rebase you must force-push (`git push --force-with-lease`), and their history then no longer matches the remote.",
+          "score": {
+            "characters": 1542,
+            "issues": 1,
+            "issuesPer1000": 0.65,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 10403,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4636,
+            "cacheRead": 2293,
+            "output": 786,
+            "total": 7717
+          },
+          "costUsd": 0.053274600000000005,
+          "turns": 1,
+          "answer": "Both commands bring changes from one branch into another. They differ in how the resulting history looks.\n\n## `git merge`\n\nMerge joins two branches by creating a new **merge commit** that has two parents.\n\n```\nBefore:                      After `git checkout feature && git merge main`:\n      A---B---C  feature           A---B---C---M  feature\n     /                            /           /\nD---E---F---G  main          D---E---F---G----  main\n```\n\n- **History is kept as it happened.** No existing commits change.\n- **It's non-destructive**, so it's safe on shared or public branches.\n- **The history isn't linear.** Frequent merges can clutter the log with merge commits.\n- **You resolve conflicts once**, in the merge commit.\n\n## `git rebase`\n\nRebase **replays your commits on top of** another branch, creating new commits with new hashes.\n\n```\nBefore:                      After `git checkout feature && git rebase main`:\n      A---B---C  feature                     A'--B'--C'  feature\n     /                                      /\nD---E---F---G  main          D---E---F---G  main\n```\n\n- **History becomes linear**, as if you had started the work from the latest `main`.\n- **It rewrites history.** A, B and C are replaced by A', B' and C'.\n- **You may resolve conflicts once per replayed commit.**\n- **It makes the log easier to read** and works well with `git bisect`.\n- **Interactive rebase** (`git rebase -i`) lets you squash, reorder, edit or drop commits.\n\n## Which to use\n\n| Situation | Use |\n|---|---|\n| Updating your **local, unpushed** feature branch with the latest `main` | `rebase` |\n| Cleaning up messy commits before opening a PR | `rebase -i` |\n| Bringing a finished feature into `main` | `merge` (or squash-merge, depending on team policy) |\n| A branch **other people have already pulled** | `merge` |\n| You want a record of when branches were joined | `merge` |\n\n**The main rule:** don't rebase commits that others have already based work on. Rebasing replaces those commits with new ones, so collaborators' history no longer matches yours. If you have to push after a rebase, use `git push --force-with-lease`, not `--force`.\n\nA common workflow: rebase your feature branch locally to keep it up to date and tidy, then merge it into `main` through a pull request.",
+          "score": {
+            "characters": 1614,
+            "issues": 1,
+            "issuesPer1000": 0.62,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 9296,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 3865,
+          "cacheRead": 649,
+          "output": 767,
+          "total": 5283
+        },
+        "costUsd": 0.023198899999999998,
+        "raw": {
+          "clearer": "B",
+          "reason": "B opens by stating the actual difference (merge adds a two-parent commit, rebase copies commits into a straight line) and backs it with consistent, correctly aligned diagrams. A is correct but its first two sentences stay generic, and its rebase diagram's branch point is visually misleading.",
+          "answerFirst": {
+            "A": false,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "B opens by stating the actual difference (merge adds a two-parent commit, rebase copies commits into a straight line) and backs it with consistent, correctly aligned diagrams. A is correct but its first two sentences stay generic, and its rebase diagram's branch point is visually misleading.",
+        "answerFirst": {
+          "without": false,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 9810,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 3865,
+          "cacheRead": 649,
+          "output": 762,
+          "total": 5278
+        },
+        "costUsd": 0.0231489,
+        "raw": {
+          "clearer": "A",
+          "reason": "A states the core difference in its first two sentences (merge adds a two-parent commit and keeps both lines; rebase copies commits into one straight line) and walks through one example with consistent labels. B's opening only says the two differ in how history looks, and its side-by-side diagrams use unusual labels and are harder to read.",
+          "answerFirst": {
+            "A": true,
+            "B": false
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "A states the core difference in its first two sentences (merge adds a two-parent commit and keeps both lines; rebase copies commits into one straight line) and walks through one example with consistent labels. B's opening only says the two differ in how history looks, and its side-by-side diagrams use unusual labels and are harder to read.",
+        "answerFirst": {
+          "with": true,
+          "without": false
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      }
+    },
+    {
+      "id": "en-await-loop",
+      "lang": "en",
+      "question": "Why is await inside a for loop slower than Promise.all?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 13942,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8320,
+            "cacheRead": 9360,
+            "output": 1035,
+            "total": 18721
+          },
+          "costUsd": 0.08915599999999999,
+          "turns": 3,
+          "answer": "`await` inside a `for` loop runs the operations one after another. `Promise.all` starts all of them first and then waits for all of them together. If each operation is a network request that takes 200 ms, five requests in a loop take about 1,000 ms. With `Promise.all`, the same five requests take about 200 ms.\n\nA Promise is an object that represents the result of an operation that has not finished yet. `await` pauses the async function until one Promise settles.\n\n### Why the loop is sequential\n\n```js\n// Sequential: about 5 × 200 ms = 1,000 ms\nfor (const id of ids) {\n  const user = await fetchUser(id);\n  users.push(user);\n}\n```\n\n1. The loop calls `fetchUser(1)`, and the request starts.\n2. `await` pauses the function until that request finishes.\n3. Only then does the loop move on and call `fetchUser(2)`.\n\nThe function never starts request 2 while request 1 is still running. The total time is the sum of all the request times.\n\n### Why `Promise.all` is concurrent\n\n```js\n// Concurrent: about max(200 ms) = 200 ms\nconst users = await Promise.all(ids.map(id => fetchUser(id)));\n```\n\n`ids.map` calls `fetchUser` five times right away, so all five requests start before anything waits. `Promise.all` returns one Promise. That Promise resolves when all five are done. The total time is roughly the time of the slowest request.\n\nThe speedup comes from when each request starts, not from `Promise.all` itself. Calling a function that returns a Promise starts the work. `await` controls only when your code waits. This version is just as fast as `Promise.all`:\n\n```js\nconst promises = ids.map(id => fetchUser(id)); // all start now\nfor (const p of promises) users.push(await p); // wait in order\n```\n\n### When to keep the loop\n\n| | `await` in a loop | `Promise.all` |\n|---|---|---|\n| Total time | Sum of all operations | About the slowest operation |\n| Order of execution | One finishes before the next starts | All run at the same time |\n| On first rejection | Stops; later operations never start | Rejects at once; the other operations keep running |\n| Use it when | Each step needs the previous result, or the server limits concurrent requests | The operations are independent |\n\nIf some operations might fail and you still want the other results, use `Promise.allSettled`. If you have thousands of items, run a limited number at a time (for example, with a library such as `p-limit`). Starting all of them at once can hit rate limits or use up connections.\n\nThe gain applies only to I/O work, such as network requests, timers, and file reads. CPU-bound JavaScript runs on one thread, so `Promise.all` does not make that kind of work run in parallel.",
+          "score": {
+            "characters": 2094,
+            "issues": 1,
+            "issuesPer1000": 0.48,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 11806,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4640,
+            "cacheRead": 2293,
+            "output": 860,
+            "total": 7795
+          },
+          "costUsd": 0.054786600000000005,
+          "turns": 1,
+          "answer": "Because `await` in a loop runs the operations **one after another**, while `Promise.all` lets them run **at the same time**.\n\n## Sequential: `await` in a loop\n\n```js\nfor (const id of ids) {\n  const user = await fetchUser(id); // waits here until this one finishes\n  results.push(user);\n}\n```\n\nEach iteration stops at `await` until that promise settles. The next request doesn't start until the previous one is done. With 5 requests at 200ms each:\n\n```\nreq1 ████\nreq2     ████\nreq3         ████\nreq4             ████\nreq5                 ████\ntotal ≈ 1000ms (sum of all)\n```\n\n## Concurrent: `Promise.all`\n\n```js\nconst results = await Promise.all(ids.map(id => fetchUser(id)));\n```\n\n`map` calls `fetchUser` for every id right away, so all the requests start before anything is awaited. Then you wait once, for all of them together:\n\n```\nreq1 ████\nreq2 ████\nreq3 ████\nreq4 ████\nreq5 ████\ntotal ≈ 200ms (the slowest one)\n```\n\n## Why this works\n- **The promise starts the work, not the `await`.** Calling `fetchUser(id)` sends the request right away. `await` only pauses your function until the result is ready. Promises you've created but haven't awaited yet are already running.\n- **I/O isn't CPU-bound.** While JS waits on the network, disk or a timer, the event loop is free, so many waits can overlap. This doesn't parallelize CPU-heavy JS: that still runs on one thread, so `Promise.all` won't speed up pure computation.\n\n## When the sequential loop is the right choice\n- **Each step depends on the previous result**, like pagination with cursors or chained operations.\n- **Rate limits or resource limits.** Starting 10,000 requests at once can overwhelm a server or exhaust connections. Use a concurrency limiter like `p-limit`, or process in batches.\n- **Order of side effects matters**, like writing rows in a strict order.\n\n## Gotchas with `Promise.all`\n- **It fails fast.** It rejects as soon as any promise rejects, and the other operations keep running in the background. Use `Promise.allSettled` if you want every result, successes and failures.\n- **Results stay in input order**, not the order they finished.\n- **`forEach` with an async callback doesn't await anything.** `ids.forEach(async id => await f(id))` starts everything concurrently but never waits, so you can't tell when it's done. Use `for...of` for sequential work or `Promise.all(map(...))` for concurrent work.",
+          "score": {
+            "characters": 1741,
+            "issues": 0,
+            "issuesPer1000": 0,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 7461,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4219,
+          "cacheRead": 649,
+          "output": 500,
+          "total": 5370
+        },
+        "costUsd": 0.021944899999999996,
+        "raw": {
+          "clearer": "B",
+          "reason": "Both are correct and lead with the sequential-versus-concurrent answer. B's timeline diagrams make the overlap easy to see in one read, and its forEach gotcha heads off a common mistake. A is equally accurate but denser, with a table and a definition of Promise that this asker likely doesn't need.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "without",
+        "reason": "Both are correct and lead with the sequential-versus-concurrent answer. B's timeline diagrams make the overlap easy to see in one read, and its forEach gotcha heads off a common mistake. A is equally accurate but denser, with a table and a definition of Promise that this asker likely doesn't need.",
+        "answerFirst": {
+          "with": true,
+          "without": true
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 8252,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4225,
+          "cacheRead": 649,
+          "output": 632,
+          "total": 5508
+        },
+        "costUsd": 0.023288899999999998,
+        "raw": {
+          "clearer": "B",
+          "reason": "Both answers are correct and open with the sequential-versus-concurrent answer. B adds concrete timings in its first paragraph and shows that the speedup comes from when requests start, using the 'create promises first, then await in order' example. A's diagrams and forEach gotcha are good, but B's version is a little more direct.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "Both answers are correct and open with the sequential-versus-concurrent answer. B adds concrete timings in its first paragraph and shows that the speedup comes from when requests start, using the 'create promises first, then await in order' example. A's diagrams and forEach gotcha are good, but B's version is a little more direct.",
+        "answerFirst": {
+          "without": true,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      }
+    },
+    {
+      "id": "en-auth",
+      "lang": "en",
+      "question": "What's the difference between authentication and authorization?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 11845,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8301,
+            "cacheRead": 9355,
+            "output": 694,
+            "total": 18356
+          },
+          "costUsd": 0.08218299999999999,
+          "turns": 3,
+          "answer": "Authentication checks who you are. Authorization checks what you're allowed to do. A system authenticates you first, and then it authorizes each action you try.\n\n**Authentication** (often shortened to AuthN) is the step where a system confirms your identity. You prove it with something you know (a password), something you have (a phone that receives a code), or something you are (a fingerprint).\n\n**Authorization** (often shortened to AuthZ) is the step where a system checks whether a confirmed identity has permission for a specific action or resource. The system compares your identity against rules, such as roles or access control lists.\n\n**Example:** You log in to a company wiki with your email and password. That is authentication. Then you try to edit the HR policy page, and the wiki refuses because only the HR group has edit permission for that page. That is authorization. The wiki knows exactly who you are, but you still can't edit the page.\n\n| | Authentication | Authorization |\n|---|---|---|\n| Question it answers | Who are you? | Are you allowed to do this? |\n| When it runs | Once, at login (or when a session starts) | On each request or action |\n| Typical inputs | Password, MFA code, passkey, certificate | Roles, permissions, policies |\n| HTTP status on failure | `401 Unauthorized` | `403 Forbidden` |\n| Common standards | OpenID Connect, SAML | OAuth 2.0 scopes, RBAC (Role-Based Access Control) |\n\nTwo of these names are misleading:\n- **`401 Unauthorized`** really means \"not authenticated.\" The server doesn't know who you are yet.\n- **OAuth 2.0** is an authorization protocol. It gives an app limited access to your data. It doesn't prove who you are. OpenID Connect adds authentication on top of OAuth 2.0.",
+          "score": {
+            "characters": 1661,
+            "issues": 1,
+            "issuesPer1000": 0.6,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 9552,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4633,
+            "cacheRead": 2293,
+            "output": 578,
+            "total": 7506
+          },
+          "costUsd": 0.0490906,
+          "turns": 1,
+          "answer": "**Authentication (AuthN)** checks *who you are*.\n**Authorization (AuthZ)** checks *what you're allowed to do*.\n\n| | Authentication | Authorization |\n|---|---|---|\n| Question | \"Are you who you claim to be?\" | \"Are you allowed to do this?\" |\n| Order | Happens first | Happens after authentication |\n| Based on | Credentials: passwords, keys, biometrics, OTPs, certificates | Policies: roles, permissions, ACLs, scopes, attributes |\n| Typical failure | **401 Unauthorized** (badly named; it really means \"unauthenticated\") | **403 Forbidden** |\n| Examples | Login form, MFA, SSO, OAuth/OIDC sign-in | RBAC/ABAC, file permissions, OAuth scopes, admin-only routes |\n| Can the user change it? | Yes: they can update their password or factors | No: an admin or the system sets it |\n\n**Analogy:** At an airport, showing your passport at security is authentication, because it proves your identity. Your boarding pass is authorization: it lets you onto one flight and one seat, not every plane.\n\n**Common points of confusion:**\n- **OAuth 2.0** is an *authorization* protocol. It grants delegated access through scopes. **OpenID Connect** adds *authentication* on top of it with the ID token.\n- A **JWT** can carry both. Its claims like `sub` say who you are, and claims like `roles` or `scope` say what you can do. The server still has to check those claims against each request.\n- A common security bug is getting authentication right but skipping authorization checks. IDOR is an example: a logged-in user changes `/invoices/123` to `/invoices/124` and sees someone else's data.",
+          "score": {
+            "characters": 1482,
+            "issues": 1,
+            "issuesPer1000": 0.67,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 5893,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 3643,
+          "cacheRead": 649,
+          "output": 427,
+          "total": 4721
+        },
+        "costUsd": 0.0189109,
+        "raw": {
+          "clearer": "B",
+          "reason": "B states the distinction in its first sentence, then explains each term plainly and gives a concrete wiki example, with less jargon. A is also correct, but its 'Can the user change it?' row is ambiguous, and its IDOR and ABAC asides add load for a reader after the basic definition.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "B states the distinction in its first sentence, then explains each term plainly and gives a concrete wiki example, with less jargon. A is also correct, but its 'Can the user change it?' row is ambiguous, and its IDOR and ABAC asides add load for a reader after the basic definition.",
+        "answerFirst": {
+          "without": true,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 6554,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 3645,
+          "cacheRead": 649,
+          "output": 446,
+          "total": 4742
+        },
+        "costUsd": 0.019108899999999998,
+        "raw": {
+          "clearer": "A",
+          "reason": "A states the distinction plainly in prose, gives a concrete wiki example showing both steps, and explains the misleading names (401, OAuth) clearly. B is also correct, but its 'Can the user change it?' row and the extra JWT and IDOR material are easier to misread on a single pass.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "A states the distinction plainly in prose, gives a concrete wiki example showing both steps, and explains the misleading names (401, OAuth) clearly. B is also correct, but its 'Can the user change it?' row and the extra JWT and IDOR material are easier to misread on a single pass.",
+        "answerFirst": {
+          "with": true,
+          "without": true
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      }
+    },
+    {
+      "id": "ko-event-loop",
+      "lang": "ko",
+      "question": "자바스크립트 이벤트 루프가 뭐야?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 23796,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8350,
+            "cacheRead": 9360,
+            "output": 2331,
+            "total": 20047
+          },
+          "costUsd": 0.115316,
+          "turns": 3,
+          "answer": "**event loop**는 JavaScript 런타임이 일하는 방식이에요. **call stack**이 비면 기다리던 작업을 하나씩 꺼내서 실행해요. JavaScript는 한 번에 코드 한 줄만 실행해요. 그래도 event loop가 있어서 타이머나 네트워크 응답을 기다리는 동안 다른 코드를 계속 실행할 수 있어요.\n\n- **call stack**은 지금 실행 중인 함수를 쌓아 두는 곳이에요. 함수를 호출하면 맨 위에 쌓이고, 함수가 끝나면 빠져요.\n- **task queue**는 실행을 기다리는 콜백이 서는 줄이에요. `setTimeout` 콜백이나 클릭 이벤트 콜백 같은 작업이 들어가요.\n- **microtask queue**는 task queue보다 먼저 비우는 별도의 줄이에요. `Promise`의 `.then` 콜백, `await` 다음 코드, `queueMicrotask` 콜백 같은 작업이 들어가요.\n\n## 실행 순서\n\n1. JavaScript 엔진이 스크립트 전체를 call stack에서 실행해요.\n2. 엔진이 `setTimeout`이나 `fetch`를 만나면 기다리는 일은 브라우저(또는 Node.js)에 맡겨요. 엔진은 기다리지 않고 다음 줄을 실행해요.\n3. 타이머가 끝나거나 응답이 오면 브라우저가 콜백을 queue에 넣어요.\n4. call stack이 비면 event loop가 microtask queue를 끝까지 비워요.\n5. 그다음 event loop가 task queue에서 작업을 **하나만** 꺼내 실행해요.\n6. 4번과 5번을 계속 반복해요. 브라우저는 이 반복 사이에 화면을 다시 그려요.\n\n## 예시\n\n```js\nconsole.log('1');\nsetTimeout(() => console.log('2'), 0);\nPromise.resolve().then(() => console.log('3'));\nconsole.log('4');\n// 출력: 1, 4, 3, 2\n```\n\n`1`과 `4`는 call stack에서 바로 실행돼요. 그다음 event loop가 microtask queue에 있는 `3`을 실행하고, task queue에 있는 `2`를 마지막에 실행해요. `setTimeout`의 지연 시간이 0이어도 콜백은 call stack과 microtask queue가 둘 다 빈 뒤에야 실행돼요.\n\n그래서 동기 코드가 call stack을 오래 차지하면 event loop는 다음 작업을 꺼내지 못해요. 반복문 하나가 2초 걸리면 그 2초 동안 클릭 콜백도 실행되지 않고 화면도 다시 그려지지 않아요.",
+          "score": {
+            "characters": 1033,
+            "issues": 2,
+            "issuesPer1000": 1.94,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 15677,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4642,
+            "cacheRead": 2293,
+            "output": 1445,
+            "total": 8382
+          },
+          "costUsd": 0.06650260000000001,
+          "turns": 1,
+          "answer": "# 자바스크립트 이벤트 루프 (Event Loop)\n\n자바스크립트는 **싱글 스레드**라서 한 번에 한 작업만 실행해요. 그런데도 타이머, 네트워크 요청, 클릭 이벤트 같은 비동기 작업을 막힘 없이 처리할 수 있어요. 이걸 가능하게 하는 구조가 **이벤트 루프**예요.\n\n## 구성 요소\n\n| 구성 요소 | 역할 |\n|---|---|\n| **콜 스택 (Call Stack)** | 지금 실행 중인 함수들이 쌓이는 곳 |\n| **Web API / 런타임 API** | `setTimeout`, `fetch`, DOM 이벤트 같은 비동기 작업을 브라우저나 Node.js가 대신 처리 |\n| **마이크로태스크 큐** | `Promise.then`, `queueMicrotask`, `await` 이후의 코드 |\n| **(매크로)태스크 큐** | `setTimeout`, `setInterval`, I/O, UI 이벤트 콜백 |\n\n## 동작 방식\n\n이벤트 루프는 다음 과정을 계속 반복해요.\n\n1. 콜 스택에 있는 동기 코드를 끝까지 실행해요.\n2. 스택이 비면 **마이크로태스크 큐를 전부** 처리해요. 처리 중에 새로 추가된 마이크로태스크도 같이 처리해요.\n3. 필요하면 화면을 렌더링해요. 브라우저에만 해당돼요.\n4. 태스크 큐에서 **하나만** 꺼내 실행해요.\n5. 다시 2번으로 돌아가요.\n\n## 예제\n\n```js\nconsole.log('1');\n\nsetTimeout(() => console.log('2'), 0);\n\nPromise.resolve().then(() => console.log('3'));\n\nconsole.log('4');\n```\n\n**출력:** `1 → 4 → 3 → 2`\n\n- `1`, `4`: 동기 코드라서 바로 실행돼요.\n- `3`: Promise 콜백은 마이크로태스크라서, 스택이 비자마자 실행돼요.\n- `2`: `setTimeout`은 지연 시간이 0이어도 태스크 큐로 가요. 그래서 마이크로태스크가 모두 끝난 뒤에 실행돼요.\n\n## async/await 예제\n\n```js\nasync function foo() {\n  console.log('A');\n  await null;\n  console.log('B'); // 마이크로태스크로 예약됨\n}\nfoo();\nconsole.log('C');\n// 출력: A → C → B\n```\n\n`await` 다음 코드는 `.then()` 안의 코드처럼 마이크로태스크로 처리돼요.\n\n## 주의할 점\n\n- **무거운 동기 작업은 화면을 멈추게 해요.** 콜 스택이 비지 않으면 이벤트 루프가 다음 단계로 넘어가지 못해요. 그래서 클릭 처리나 렌더링이 모두 멈춰요.\n- **마이크로태스크를 계속 만들면 문제가 생겨요.** 마이크로태스크 큐는 매번 끝까지 비워지기 때문에, 계속 추가하면 렌더링과 태스크가 영원히 실행되지 못해요(starvation).\n- **`setTimeout(fn, 0)`은 \"즉시\"라는 뜻이 아니에요.** \"현재 작업과 마이크로태스크가 모두 끝난 뒤\"라는 뜻이에요.\n- **Node.js는 조금 달라요.** 이벤트 루프가 timers, poll, check 같은 여러 단계(phase)로 나뉘어 있어요. 또 `process.nextTick`은 Promise보다도 먼저 실행돼요.\n\n**한 줄 요약:** 이벤트 루프는 \"콜 스택이 비면 → 마이크로태스크를 전부 처리 → 태스크를 하나 처리\"를 계속 반복하는 관리자예요. 덕분에 싱글 스레드인 자바스크립트도 비동기 작업을 처리할 수 있어요.",
+          "score": {
+            "characters": 1232,
+            "issues": 7,
+            "issuesPer1000": 5.68,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": false
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 5991,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4904,
+          "cacheRead": 649,
+          "output": 151,
+          "total": 5706
+        },
+        "costUsd": 0.021194900000000003,
+        "raw": {
+          "clearer": "B",
+          "reason": "B opens with a direct definition and gives a compact, accurate model with one example that a reader can follow in one pass. A is also correct but longer, and its Node.js remark, starvation note and extra async example add load. B's 'JavaScript runs one line at a time' is a slight simplification, but it does not mislead.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "B opens with a direct definition and gives a compact, accurate model with one example that a reader can follow in one pass. A is also correct but longer, and its Node.js remark, starvation note and extra async example add load. B's 'JavaScript runs one line at a time' is a slight simplification, but it does not mislead.",
+        "answerFirst": {
+          "without": true,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 9968,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4898,
+          "cacheRead": 649,
+          "output": 745,
+          "total": 6294
+        },
+        "costUsd": 0.027110899999999997,
+        "raw": {
+          "clearer": "B",
+          "reason": "Both are correct, but B opens by saying why the event loop exists (a single thread that still handles async work) and ends with a one-line summary of the cycle. A's opening, \"런타임이 일하는 방식\", is vaguer, and its \"한 번에 코드 한 줄만\" is a loose simplification.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "without",
+        "reason": "Both are correct, but B opens by saying why the event loop exists (a single thread that still handles async work) and ends with a one-line summary of the cycle. A's opening, \"런타임이 일하는 방식\", is vaguer, and its \"한 번에 코드 한 줄만\" is a loose simplification.",
+        "answerFirst": {
+          "with": true,
+          "without": true
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      }
+    },
+    {
+      "id": "ko-memo",
+      "lang": "ko",
+      "question": "useMemo랑 useCallback 차이가 뭐야?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 16795,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8359,
+            "cacheRead": 9362,
+            "output": 1247,
+            "total": 18974
+          },
+          "costUsd": 0.0937084,
+          "turns": 3,
+          "answer": "`useMemo`는 함수를 실행한 **결과 값**을 캐시하고, `useCallback`은 **함수 자체**를 캐시합니다. 그래서 `useCallback(fn, deps)`는 `useMemo(() => fn, deps)`와 같은 동작을 합니다.\n\n두 Hook은 모두 dependency array를 받습니다. dependency array는 React가 다시 계산할지 판단할 때 비교하는 값의 목록입니다. 리렌더링 때 이 목록의 값이 이전과 같으면 React는 캐시해 둔 것을 그대로 돌려줍니다. 값이 하나라도 바뀌면 React는 새로 만듭니다.\n\n```jsx\n// useMemo: filterTodos를 실행하고 그 결과 배열을 캐시합니다\nconst visibleTodos = useMemo(\n  () => filterTodos(todos, tab),\n  [todos, tab]\n);\n\n// useCallback: handleSubmit 함수 객체를 캐시합니다 (실행하지 않습니다)\nconst handleSubmit = useCallback(\n  (orderDetails) => post('/buy', { productId, orderDetails }),\n  [productId]\n);\n```\n\n| | `useMemo` | `useCallback` |\n|---|---|---|\n| 캐시하는 것 | 함수를 실행한 결과 값 | 함수 자체 |\n| 첫 번째 인자를 React가 실행하는지 | 실행함 | 실행하지 않음 |\n| 주로 쓰는 경우 | 계산 비용이 큰 값 (예: 수천 개 항목을 필터링한 배열) | `memo`로 감싼 자식 컴포넌트에 props로 넘기는 함수, 다른 Hook의 dependency array에 들어가는 함수 |\n\n`useCallback`이 필요한 이유는 다음과 같습니다. 컴포넌트 안에서 선언한 함수는 렌더링할 때마다 새 객체로 만들어집니다. 자식 컴포넌트를 `memo`로 감싸도 매번 새 함수가 props로 들어가면 React는 props가 바뀌었다고 판단하고 자식을 다시 렌더링합니다. `useCallback`을 쓰면 같은 함수 객체가 유지되므로 자식은 리렌더링을 건너뜁니다.\n\n`memo`를 쓰지 않는 자식에게 넘기는 함수라면 `useCallback`으로 얻는 효과는 없습니다. React Compiler를 쓰는 프로젝트에서는 컴파일러가 이 메모이제이션을 자동으로 적용하므로 두 Hook을 직접 쓸 일이 줄어듭니다.",
+          "score": {
+            "characters": 772,
+            "issues": 0,
+            "issuesPer1000": 0,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 10229,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4638,
+            "cacheRead": 2293,
+            "output": 752,
+            "total": 7685
+          },
+          "costUsd": 0.052610599999999993,
+          "turns": 1,
+          "answer": "## 핵심 차이\n\n| | `useMemo` | `useCallback` |\n|---|---|---|\n| 메모이제이션 대상 | 함수를 **실행한 결과값** | **함수 자체** |\n| 반환값 | 계산된 값 | 메모이즈된 함수 |\n\n```jsx\n// useMemo: 계산 결과를 캐싱\nconst sorted = useMemo(() => items.sort(compare), [items]);\n\n// useCallback: 함수 참조를 캐싱\nconst handleClick = useCallback(() => {\n  doSomething(id);\n}, [id]);\n```\n\n사실 `useCallback`은 `useMemo`로 똑같이 쓸 수 있어요.\n\n```jsx\nuseCallback(fn, deps) === useMemo(() => fn, deps)\n```\n\n## 언제 쓰나?\n\n**useMemo**\n- 비용이 큰 계산(대량 데이터 필터링\u00b7정렬 등)을 렌더링마다 다시 하지 않으려고 쓸 때\n- 객체나 배열의 참조를 유지해야 할 때. 예를 들어 `useEffect`의 의존성 배열에 넣거나 자식 컴포넌트에 props로 넘기는 경우예요.\n\n**useCallback**\n- `React.memo`로 감싼 자식 컴포넌트에 함수를 props로 넘길 때. 함수 참조가 매번 바뀌면 자식이 불필요하게 리렌더링돼요.\n- 함수를 `useEffect`의 의존성 배열에 넣어야 할 때\n\n## 주의할 점\n\n- 둘 다 **참조 동일성 유지**와 **불필요한 재계산 방지**를 위한 최적화 도구예요. 무조건 쓰면 오히려 메모리와 비교 비용만 늘어납니다.\n- `React.memo`가 없는 자식에게 `useCallback`으로 감싼 함수를 넘겨도 효과가 거의 없어요.\n- **React Compiler**를 쓰는 프로젝트라면 컴파일러가 자동으로 메모이제이션해 줘서 직접 쓸 일이 크게 줄어들어요.",
+          "score": {
+            "characters": 568,
+            "issues": 4,
+            "issuesPer1000": 7.04,
+            "longSentences": 0,
+            "mustFix": 1,
+            "opensWithAnswer": false
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 4042,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4165,
+          "cacheRead": 649,
+          "output": 159,
+          "total": 4975
+        },
+        "costUsd": 0.018318900000000003,
+        "raw": {
+          "clearer": "A",
+          "reason": "A states the core difference in its first sentence and its explanation of dependency arrays and why useCallback matters is accurate and clear. B has a factual slip: its useMemo example calls items.sort(), which mutates the array in place, a questionable pattern to show, and its useMemo section is less tight, though its overall difference is stated correctly.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": true
+          }
+        },
+        "winner": "with",
+        "reason": "A states the core difference in its first sentence and its explanation of dependency arrays and why useCallback matters is accurate and clear. B has a factual slip: its useMemo example calls items.sort(), which mutates the array in place, a questionable pattern to show, and its useMemo section is less tight, though its overall difference is stated correctly.",
+        "answerFirst": {
+          "with": true,
+          "without": true
+        },
+        "factualError": {
+          "with": false,
+          "without": true
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 6977,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4165,
+          "cacheRead": 649,
+          "output": 530,
+          "total": 5346
+        },
+        "costUsd": 0.0220289,
+        "raw": {
+          "clearer": "B",
+          "reason": "B opens with a direct two-sentence answer (what each hook caches, plus the equivalence), then explains the dependency array and why useCallback matters, and spells out that useCallback does not execute the function. A is also correct and scannable, but it leans on jargon like \"참조 동일성\" and uses a mutating `items.sort` in its example.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "B opens with a direct two-sentence answer (what each hook caches, plus the equivalence), then explains the dependency array and why useCallback matters, and spells out that useCallback does not execute the function. A is also correct and scannable, but it leans on jargon like \"참조 동일성\" and uses a mutating `items.sort` in its example.",
+        "answerFirst": {
+          "without": true,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      }
+    },
+    {
+      "id": "ko-isolation",
+      "lang": "ko",
+      "question": "트랜잭션 격리 수준은 왜 필요해?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 20998,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8382,
+            "cacheRead": 9364,
+            "output": 1831,
+            "total": 19583
+          },
+          "costUsd": 0.1055728,
+          "turns": 3,
+          "answer": "트랜잭션 격리 수준은 정확성과 성능 중 어느 쪽을 얼마나 우선할지 정하기 위해 필요합니다. 동시에 실행되는 트랜잭션을 완전히 격리하면 데이터는 정확하지만, 트랜잭션끼리 서로 기다리는 일이 많아져 처리량이 떨어집니다. 격리를 약하게 하면 처리량은 오르지만, 다른 트랜잭션이 바꾸는 중인 데이터를 읽는 문제가 생깁니다.\n\n## 용어\n\n- **transaction**: 여러 쿼리를 하나의 작업으로 묶은 단위입니다. 데이터베이스는 이 쿼리를 모두 반영하거나, 하나도 반영하지 않습니다.\n- **isolation level**: 한 트랜잭션이 다른 트랜잭션의 변경을 언제부터 볼 수 있는지 정하는 설정입니다.\n\n## 격리가 약할 때 생기는 문제\n\nSQL 표준은 세 가지 문제를 정의합니다.\n\n1. **dirty read**: 다른 트랜잭션이 아직 commit하지 않은 변경을 읽는 문제입니다. 그 트랜잭션이 rollback하면, 존재한 적 없는 데이터를 읽은 셈이 됩니다.\n2. **non-repeatable read**: 같은 행을 두 번 읽었는데 결과가 다른 문제입니다. 두 번의 읽기 사이에 다른 트랜잭션이 그 행을 수정하고 commit한 경우입니다.\n3. **phantom read**: 같은 조건으로 두 번 조회했는데 행의 개수가 다른 문제입니다. 그 사이에 다른 트랜잭션이 조건에 맞는 행을 추가하거나 삭제한 경우입니다.\n\n## 예시\n\n계좌 A의 잔액이 100,000원입니다.\n\n1. 트랜잭션 T1이 A에서 50,000원을 빼고, 아직 commit하지 않습니다.\n2. 트랜잭션 T2가 A의 잔액을 읽습니다. 격리 수준이 Read Uncommitted이면 T2는 50,000원을 읽습니다.\n3. T1이 에러로 rollback합니다. A의 실제 잔액은 100,000원으로 돌아갑니다.\n4. T2는 잘못된 잔액인 50,000원을 기준으로 계속 작업합니다.\n\n격리 수준이 Read Committed 이상이면 2단계에서 T2는 commit된 값인 100,000원을 읽습니다.\n\n## 네 가지 격리 수준\n\nSQL 표준이 정한 수준은 다음 네 가지입니다. 아래로 갈수록 막는 문제가 많고, 트랜잭션끼리 기다리는 시간이나 충돌로 인한 재시도는 늘어납니다.\n\n| 격리 수준 | dirty read | non-repeatable read | phantom read |\n|---|---|---|---|\n| Read Uncommitted | 발생 가능 | 발생 가능 | 발생 가능 |\n| Read Committed | 방지 | 발생 가능 | 발생 가능 |\n| Repeatable Read | 방지 | 방지 | 발생 가능 |\n| Serializable | 방지 | 방지 | 방지 |\n\n이 표는 표준의 정의입니다. 실제 동작은 데이터베이스마다 다릅니다. 기본 격리 수준을 보면 PostgreSQL은 Read Committed, MySQL InnoDB는 Repeatable Read입니다. 또 InnoDB의 Repeatable Read는 일반 조회에서 phantom read도 대부분 막습니다.\n\n그래서 모든 트랜잭션에 Serializable을 쓰지 않습니다. 보통은 기본값을 쓰고, 잔액 차감이나 재고 확인처럼 정확성이 중요한 작업에만 높은 격리 수준이나 명시적인 lock(`SELECT ... FOR UPDATE`)을 적용합니다.",
+          "score": {
+            "characters": 1551,
+            "issues": 3,
+            "issuesPer1000": 1.93,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 18254,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4642,
+            "cacheRead": 2293,
+            "output": 1506,
+            "total": 8443
+          },
+          "costUsd": 0.06772260000000001,
+          "turns": 1,
+          "answer": "## 트랜잭션 격리 수준이 필요한 이유\n\n핵심은 **정합성과 동시성(성능) 사이의 트레이드오프를 조절하기 위해서**입니다.\n\n### 1. 문제: 동시에 실행되는 트랜잭션은 서로 간섭한다\n\n트랜잭션을 하나씩 순서대로(완전 직렬로) 실행하면 데이터는 항상 정확합니다. 대신 처리량이 크게 떨어집니다. 그래서 DB는 여러 트랜잭션을 동시에 실행하는데, 이때 다음과 같은 **이상 현상(anomaly)**이 생길 수 있습니다.\n\n| 현상 | 설명 | 예시 |\n|---|---|---|\n| **Dirty Read** | 아직 커밋되지 않은 데이터를 읽음 | A가 잔액을 0으로 바꾼 뒤 롤백했는데, B는 이미 0을 읽고 처리함 |\n| **Non-Repeatable Read** | 같은 행을 두 번 읽었는데 값이 다름 | B가 잔액을 읽은 뒤 A가 수정하고 커밋하면, B가 다시 읽을 때 값이 바뀌어 있음 |\n| **Phantom Read** | 같은 조건으로 조회했는데 행의 개수가 달라짐 | `WHERE age > 20` 결과가 10건이었는데, 다른 트랜잭션이 INSERT한 뒤 다시 조회하면 11건 |\n| (참고) **Lost Update / Write Skew** | 동시 수정으로 한쪽의 갱신이 사라지거나, 각자는 규칙을 지켰는데 합치면 제약이 깨짐 | 당직 의사 두 명이 동시에 \"나 말고 한 명 남았으니 빠져도 되겠지\" 하고 둘 다 빠짐 |\n\n### 2. 해결: 이상 현상을 \"어디까지 허용할지\" 고르게 한다\n\n모든 현상을 막으려면 락을 많이 잡거나 충돌한 트랜잭션을 중단시켜야 해서 느려집니다. 그렇다고 아무것도 막지 않으면 데이터가 틀어집니다. 격리 수준은 **애플리케이션이 감당할 수 있는 만큼만 허용하고 나머지는 막도록** 단계를 나눠 둔 것입니다.\n\n| 격리 수준 | Dirty Read | Non-Repeatable Read | Phantom Read |\n|---|---|---|---|\n| READ UNCOMMITTED | 발생 | 발생 | 발생 |\n| READ COMMITTED | 방지 | 발생 | 발생 |\n| REPEATABLE READ | 방지 | 방지 | 발생 (표준 기준) |\n| SERIALIZABLE | 방지 | 방지 | 방지 |\n\n아래로 갈수록 정합성은 높아지고 동시성은 낮아집니다.\n\n### 3. 실무 포인트\n- **기본값이 DB마다 다릅니다.** PostgreSQL과 Oracle은 READ COMMITTED, MySQL InnoDB는 REPEATABLE READ입니다.\n- **실제 동작은 표준 표와 다를 수 있습니다.** 예를 들어 MySQL InnoDB의 REPEATABLE READ는 MVCC와 넥스트키 락 덕분에 팬텀을 상당 부분 막습니다. PostgreSQL의 REPEATABLE READ는 스냅샷 격리라서 팬텀은 막지만 Write Skew는 막지 못합니다.\n- **보통은 기본 수준에 필요한 곳만 보강합니다.** 재고 차감이나 잔액 이체처럼 중요한 구간에만 `SELECT ... FOR UPDATE`, 낙관적 락(버전 컬럼), 또는 SERIALIZABLE을 적용하는 방식이 일반적입니다.\n\n**한 줄 요약:** 동시 실행은 성능을 위해 필요하지만 데이터를 꼬이게 만들 수 있습니다. 격리 수준은 그 위험을 어디까지 받아들일지 상황에 맞게 고르는 손잡이입니다.",
+          "score": {
+            "characters": 1523,
+            "issues": 6,
+            "issuesPer1000": 3.94,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": false
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 8576,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 5396,
+          "cacheRead": 649,
+          "output": 777,
+          "total": 6824
+        },
+        "costUsd": 0.0294229,
+        "raw": {
+          "clearer": "B",
+          "reason": "Both are correct and lead with the accuracy-versus-performance trade-off. B walks through one concrete rollback example and defines its terms, so it reads cleanly in one pass. A packs in more (write skew, lost update, Postgres snapshot isolation, Oracle), which is accurate but denser for someone just asking why isolation levels exist.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "Both are correct and lead with the accuracy-versus-performance trade-off. B walks through one concrete rollback example and defines its terms, so it reads cleanly in one pass. A packs in more (write skew, lost update, Postgres snapshot isolation, Oracle), which is accurate but denser for someone just asking why isolation levels exist.",
+        "answerFirst": {
+          "without": true,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 8907,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 5394,
+          "cacheRead": 649,
+          "output": 740,
+          "total": 6785
+        },
+        "costUsd": 0.029044900000000002,
+        "raw": {
+          "clearer": "A",
+          "reason": "Both open with the correctness-versus-performance tradeoff and contain no factual errors. A defines its terms and walks through a step-by-step rollback example, so a reader takes it as intended on one pass. B is denser, adding write skew, snapshot isolation and next-key locks without explaining them.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "Both open with the correctness-versus-performance tradeoff and contain no factual errors. A defines its terms and walks through a step-by-step rollback example, so a reader takes it as intended on one pass. B is denser, adding write skew, snapshot isolation and next-key locks without explaining them.",
+        "answerFirst": {
+          "with": true,
+          "without": true
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      }
+    },
+    {
+      "id": "ko-unknown",
+      "lang": "ko",
+      "question": "TypeScript에서 any랑 unknown은 뭐가 달라?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 11806,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8311,
+            "cacheRead": 9366,
+            "output": 957,
+            "total": 18640
+          },
+          "costUsd": 0.0875252,
+          "turns": 3,
+          "answer": "둘 다 모든 값을 받을 수 있는 타입입니다. 차이는 사용할 때 나타납니다. `any`는 타입 검사를 끄고, `unknown`은 타입을 좁히기 전까지 값의 사용을 막습니다.\n\ntype narrowing은 `typeof`, `instanceof` 같은 검사로 컴파일러에게 값의 구체적인 타입을 알려 주는 과정입니다.\n\n```ts\nlet a: any = \"hello\";\na.toUpperCase();   // OK\na.foo.bar();       // OK (컴파일은 통과하고, 런타임에 에러가 납니다)\n\nlet u: unknown = \"hello\";\nu.toUpperCase();   // 컴파일 에러: 'u' is of type 'unknown'\n\nif (typeof u === \"string\") {\n  u.toUpperCase(); // OK: 이 블록 안에서 u는 string입니다\n}\n```\n\n`any`는 다른 타입의 변수에도 대입할 수 있습니다. 그래서 타입 검사가 꺼진 값이 코드의 다른 곳으로 퍼집니다. `unknown`은 `any`와 `unknown`에만 대입할 수 있습니다.\n\n```ts\nconst n1: number = a; // OK\nconst n2: number = u; // 컴파일 에러\n```\n\n| 항목 | `any` | `unknown` |\n|---|---|---|\n| 모든 값을 받을 수 있음 | 예 | 예 |\n| 속성 접근과 메서드 호출 | 검사 없이 허용 | 타입을 좁힌 뒤에만 허용 |\n| 다른 타입의 변수에 대입 | 허용 | `any`, `unknown`에만 허용 |\n| 타입 안전성 | 없음 | 있음 |\n\n외부 입력처럼 타입을 모르는 값에는 `unknown`을 쓰시는 편이 좋습니다. 예를 들면 `JSON.parse`의 결과나 `catch (e)`의 `e`가 있습니다. `unknown`을 쓰면 컴파일러가 타입 검사를 강제합니다. `any`는 JavaScript 코드를 점진적으로 옮길 때처럼 타입 검사를 잠시 꺼야 할 때만 쓰는 것을 권장합니다.",
+          "score": {
+            "characters": 576,
+            "issues": 3,
+            "issuesPer1000": 5.21,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 12576,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4642,
+            "cacheRead": 2293,
+            "output": 1076,
+            "total": 8013
+          },
+          "costUsd": 0.0591226,
+          "turns": 1,
+          "answer": "## 핵심 차이\n\n둘 다 **어떤 값이든 할당할 수 있는** 타입입니다. 차이는 **그 값을 꺼내 쓸 때** 생깁니다.\n\n- **`any`**: 타입 검사를 **아예 끕니다**. 무엇을 해도 컴파일러가 막지 않습니다.\n- **`unknown`**: \"무슨 타입인지 아직 모른다\"는 뜻입니다. **타입을 좁히기 전에는 거의 아무것도 할 수 없습니다.**\n\n```ts\nlet a: any = \"hello\";\na.foo.bar();        // ✅ 컴파일 OK → 런타임 에러\na.toUpperCase();    // ✅\nlet n: number = a;  // ✅ 다른 타입 변수에도 그냥 할당됨\n\nlet u: unknown = \"hello\";\nu.toUpperCase();    // ❌ 에러: 'u' is of type 'unknown'\nlet m: number = u;  // ❌ 에러: unknown은 any/unknown에만 할당 가능\n```\n\n## `unknown`을 쓰려면 타입을 좁혀야 합니다\n\n```ts\nfunction handle(u: unknown) {\n  if (typeof u === \"string\") {\n    u.toUpperCase();          // ✅ 여기서 u는 string\n  } else if (Array.isArray(u)) {\n    u.length;                 // ✅ any[]\n  } else if (u instanceof Error) {\n    u.message;                // ✅ Error\n  }\n}\n```\n\n사용자 정의 타입 가드(`(x: unknown): x is User`)나 zod 같은 검증 라이브러리를 써도 됩니다.\n\n## 비교 표\n\n| | `any` | `unknown` |\n|---|---|---|\n| 모든 값 할당 받기 | ✅ | ✅ |\n| 다른 타입 변수에 할당 | ✅ | ❌ (`any`, `unknown`에만 가능) |\n| 속성 접근 / 메서드 호출 | ✅ (검사 안 함) | ❌ (좁힌 뒤에만 가능) |\n| 타입 안전성 | 없음 | 있음 |\n| 주변 코드로 전염 | 됨 (`any`가 퍼져 나감) | 안 됨 |\n\n## 언제 무엇을 쓰나\n\n- **`unknown`을 기본으로 쓰세요.** 외부 입력(`JSON.parse` 결과, API 응답, `catch (e)`의 `e` 등)처럼 타입을 모르는 값에 적합합니다. 참고로 `strict` 모드에서는 `catch` 변수가 기본적으로 `unknown`입니다(`useUnknownInCatchVariables`).\n- **`any`는 정말 필요할 때만 쓰세요.** JS 코드를 점진적으로 마이그레이션할 때나, 타입을 표현하기 너무 어려운 경우에 임시로 쓰는 정도입니다.\n\n한 줄로 요약하면 **`any`는 \"검사하지 마\", `unknown`은 \"확인하고 써\"** 입니다.",
+          "score": {
+            "characters": 691,
+            "issues": 3,
+            "issuesPer1000": 4.34,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": false
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 69166,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4351,
+          "cacheRead": 649,
+          "output": 816,
+          "total": 5818
+        },
+        "costUsd": 0.0256329,
+        "raw": {
+          "clearer": "B",
+          "reason": "Both are factually correct, but B's first two sentences state the actual difference (any turns checking off, unknown blocks use until narrowed) and it defines type narrowing for a reader who may not know the term. A's second sentence only says the difference shows up at use time, and the real distinction comes after, so it is slightly less direct.",
+          "answerFirst": {
+            "A": false,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "Both are factually correct, but B's first two sentences state the actual difference (any turns checking off, unknown blocks use until narrowed) and it defines type narrowing for a reader who may not know the term. A's second sentence only says the difference shows up at use time, and the real distinction comes after, so it is slightly less direct.",
+        "answerFirst": {
+          "without": false,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 5924,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4347,
+          "cacheRead": 649,
+          "output": 187,
+          "total": 5185
+        },
+        "costUsd": 0.0193269,
+        "raw": {
+          "clearer": "B",
+          "reason": "Both are factually correct and answer directly in the first two sentences, but B is easier to grasp in one read: it puts any vs unknown side by side in one code block, shows narrowing with several concrete guards, adds the useful note that catch variables are unknown under strict, and ends with a memorable one-line summary. A is also accurate but defines narrowing in a separate paragraph and splits the examples, making it slightly less direct.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "without",
+        "reason": "Both are factually correct and answer directly in the first two sentences, but B is easier to grasp in one read: it puts any vs unknown side by side in one code block, shows narrowing with several concrete guards, adds the useful note that catch variables are unknown under strict, and ends with a memorable one-line summary. A is also accurate but defines narrowing in a separate paragraph and splits the examples, making it slightly less direct.",
+        "answerFirst": {
+          "with": true,
+          "without": true
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      }
+    },
+    {
+      "id": "ko-401-403",
+      "lang": "ko",
+      "question": "401이랑 403 차이 알려줘",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 16293,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8359,
+            "cacheRead": 9355,
+            "output": 1288,
+            "total": 19008
+          },
+          "costUsd": 0.094527,
+          "turns": 3,
+          "answer": "401은 서버가 요청한 사람이 누구인지 확인하지 못했다는 뜻이에요. 403은 서버가 요청한 사람을 알아도 이 리소스에 접근할 권한이 없어서 요청을 거절했다는 뜻이에요.\n\n여기서 두 용어를 구분해서 써요.\n\n- **authentication(인증)**: 요청한 사람이 누구인지 확인하는 과정이에요. 로그인이 여기에 해당해요.\n- **authorization(인가)**: 확인된 사람이 이 작업을 해도 되는지 판단하는 과정이에요.\n\n401은 authentication이 실패했을 때, 403은 authorization이 실패했을 때 서버가 보내요. 401의 공식 이름은 Unauthorized지만, 실제 의미는 인증되지 않음(unauthenticated)이에요. 이름 때문에 두 코드를 헷갈리기 쉬워요.\n\n## 예시\n\n관리자 페이지 `GET /admin/users`에 요청을 보내는 경우예요.\n\n1. 토큰 없이 요청을 보내면 서버는 **401**을 보내요. 요청한 사람이 누구인지 서버가 모르기 때문이에요.\n2. 만료된 토큰을 보내도 서버는 **401**을 보내요. 클라이언트가 토큰을 갱신하거나 다시 로그인하면 요청이 성공할 수 있어요.\n3. 일반 사용자의 유효한 토큰을 보내면 서버는 **403**을 보내요. 서버는 이 사용자가 누구인지 알지만, 이 사용자는 관리자 권한이 없어요. 같은 사용자가 다시 로그인해도 결과는 403 그대로예요.\n\n| | 401 Unauthorized | 403 Forbidden |\n|---|---|---|\n| 실패한 단계 | authentication | authorization |\n| 서버가 요청한 사람을 아는지 | 모름 | 앎 (또는 신원과 상관없이 거절) |\n| 다시 로그인하면 해결되는지 | 해결될 수 있음 | 해결되지 않음 |\n| 클라이언트가 할 일 | 토큰 갱신 또는 로그인 화면으로 이동 | 권한 없음 안내 |\n| 필수 응답 헤더 | `WWW-Authenticate` (RFC 9110 규정) | 없음 |\n\n권한이 없는 사용자에게 리소스가 있다는 사실 자체를 숨기고 싶으면 403 대신 404를 보내는 서버도 있어요. GitHub은 비공개 저장소에 대해 이렇게 동작해요.",
+          "score": {
+            "characters": 1005,
+            "issues": 1,
+            "issuesPer1000": 1,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 9484,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4637,
+            "cacheRead": 2293,
+            "output": 796,
+            "total": 7728
+          },
+          "costUsd": 0.0534826,
+          "turns": 1,
+          "answer": "## 401 Unauthorized vs 403 Forbidden\n\n### 401 Unauthorized: \"당신이 누구인지 모르겠다\"\n- **인증(Authentication)** 실패예요.\n- 서버가 요청한 사람이 누구인지 확인하지 못한 상태예요.\n- 원인 예시:\n  - 토큰이나 세션이 없음\n  - 토큰이 만료됨\n  - 비밀번호가 틀림\n- 다시 로그인하거나 올바른 자격 증명을 보내면 해결될 수 있어요.\n- 표준상 응답에 `WWW-Authenticate` 헤더를 넣어 인증 방식을 알려줘야 해요.\n\n### 403 Forbidden: \"누군지는 아는데, 권한이 없다\"\n- **인가(Authorization)** 실패예요.\n- 서버가 사용자가 누구인지는 알지만, 그 리소스에 접근할 권한이 없는 상태예요.\n- 원인 예시:\n  - 일반 사용자가 관리자 페이지에 접근함\n  - 다른 사람의 리소스를 수정하려고 함\n  - IP가 차단됨\n- 다시 로그인해도 해결되지 않아요. 권한 자체가 필요해요.\n\n### 한눈에 비교\n\n| | 401 | 403 |\n|---|---|---|\n| 의미 | 인증 안 됨 | 권한 없음 |\n| 질문 | \"누구세요?\" | \"당신은 안 돼요\" |\n| 재로그인하면? | 해결될 수 있음 | 해결 안 됨 |\n\n### 비유\n- **401**: 건물 입구에서 출입증을 안 보여줘서 막힌 경우\n- **403**: 출입증은 있는데, 그 출입증으로는 들어갈 수 없는 층인 경우\n\n### 실무 팁\n- 프론트엔드에서는 보통 401을 받으면 로그인 페이지로 보내거나 토큰을 갱신하고, 403을 받으면 \"권한이 없습니다\" 안내를 보여줘요.\n- 보안상 리소스가 있다는 사실 자체를 숨기고 싶으면 403 대신 **404**를 반환하기도 해요. GitHub의 private 저장소가 대표적인 예예요.",
+          "score": {
+            "characters": 812,
+            "issues": 1,
+            "issuesPer1000": 1.23,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": false
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 4381,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4191,
+          "cacheRead": 649,
+          "output": 183,
+          "total": 5025
+        },
+        "costUsd": 0.0186629,
+        "raw": {
+          "clearer": "B",
+          "reason": "B opens with a direct two-sentence answer, defines authentication/authorization, and gives a concrete walk-through plus an accurate table (including the nuance that 403 can apply regardless of identity). A is also correct and clear, but its header-first structure and loose 'IP blocked' and 'Unauthorized' wording are slightly less precise, and its first line is a heading rather than a sentence-level answer.",
+          "answerFirst": {
+            "A": false,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "B opens with a direct two-sentence answer, defines authentication/authorization, and gives a concrete walk-through plus an accurate table (including the nuance that 403 can apply regardless of identity). A is also correct and clear, but its header-first structure and loose 'IP blocked' and 'Unauthorized' wording are slightly less precise, and its first line is a heading rather than a sentence-level answer.",
+        "answerFirst": {
+          "without": false,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 7293,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4189,
+          "cacheRead": 649,
+          "output": 596,
+          "total": 5436
+        },
+        "costUsd": 0.0227849,
+        "raw": {
+          "clearer": "A",
+          "reason": "Both are accurate. A opens with a direct two-sentence definition and then gives a concrete /admin/users walkthrough (no token, expired token, valid non-admin token) that makes the distinction and the re-login behaviour clear. B is also clear, but its answer is spread across headings and bullets and it adds less worked detail.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "Both are accurate. A opens with a direct two-sentence definition and then gives a concrete /admin/users walkthrough (no token, expired token, valid non-admin token) that makes the distinction and the re-login behaviour clear. B is also clear, but its answer is spread across headings and bullets and it adds less worked detail.",
+        "answerFirst": {
+          "with": true,
+          "without": true
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      }
+    },
+    {
+      "id": "ko-key",
+      "lang": "ko",
+      "question": "React에서 리스트 렌더링할 때 key는 왜 넣어야 해?",
+      "answers": {
+        "with": {
+          "arm": "with",
+          "wallMs": 19917,
+          "skills": [
+            "clear-explain:clear-explain"
+          ],
+          "reads": [],
+          "tokens": {
+            "input": 6,
+            "cacheCreation": 8315,
+            "cacheRead": 9370,
+            "output": 1555,
+            "total": 19246
+          },
+          "costUsd": 0.099518,
+          "turns": 3,
+          "answer": "key는 React가 이전 렌더링과 다음 렌더링 사이에서 리스트 항목을 하나씩 맞춰 보는 데 쓰는 이름표예요. key가 없으면 React는 항목을 순서(index)로 맞춰 봐요. 그래서 항목이 추가되거나 삭제되거나 순서가 바뀌면 state와 DOM이 엉뚱한 항목에 붙을 수 있어요.\n\n## React가 key를 쓰는 과정\n\nreconciliation은 React가 새 렌더링 결과를 이전 결과와 비교해서 DOM에서 바꿀 부분만 찾는 과정이에요. 이 과정에서 React는 리스트를 다음 순서로 처리해요.\n\n1. React가 이전 리스트와 새 리스트에서 key가 같은 항목끼리 짝을 지어요.\n2. 짝이 있는 항목은 기존 DOM 노드와 state를 그대로 유지해요.\n3. 새 key가 생기면 React가 그 항목을 새로 만들고, 사라진 key의 항목은 제거해요.\n\nkey가 없으면 React는 1번 단계에서 첫 번째는 첫 번째끼리, 두 번째는 두 번째끼리 짝을 지어요. 그러다 보니 리스트 맨 앞에 항목 하나를 추가하면 React는 모든 항목이 바뀌었다고 판단해요.\n\n## index를 key로 쓸 때 생기는 문제\n\n```jsx\nfunction TodoList({ todos }) {\n  return (\n    <ul>\n      {todos.map((todo, index) => (\n        <li key={index}>\n          {todo.text} <input />\n        </li>\n      ))}\n    </ul>\n  );\n}\n```\n\n`todos`가 `[\"우유 사기\", \"운동\"]`이고, 사용자가 \"우유 사기\" 옆의 `<input>`에 \"2개\"라고 입력했다고 해 볼게요. 이 상태에서 맨 앞에 \"청소\"를 추가하면 다음 일이 일어나요.\n\n- 이전에 key `0`이던 항목은 \"우유 사기\"였어요. 지금 key `0`인 항목은 \"청소\"예요.\n- React는 key `0`의 `<input>` DOM 노드를 재사용해요.\n- 그래서 \"2개\"가 \"청소\" 옆에 표시돼요.\n\nkey를 `todo.id`처럼 항목마다 고정된 값으로 바꾸면 React가 \"우유 사기\"를 정확히 찾아내요. 그러면 \"2개\"도 \"우유 사기\" 옆에 그대로 남아요.\n\n## 좋은 key의 조건\n\n| 조건 | 좋은 예 | 나쁜 예 |\n|---|---|---|\n| 같은 리스트 안에서 겹치지 않아요 | DB의 `id` | 중복될 수 있는 `name` |\n| 렌더링이 다시 일어나도 바뀌지 않아요 | `todo.id` | `Math.random()`, `Date.now()` |\n| 항목 자체를 가리켜요 | `todo.id` | `index` (순서가 바뀌는 리스트에서) |\n\n`Math.random()`을 key로 쓰면 렌더링할 때마다 key가 달라져요. 그러면 React가 모든 항목을 매번 새로 만들어서 state를 잃고 렌더링도 느려져요. index는 리스트가 정적일 때만 괜찮아요. 정적이라는 건 항목의 추가, 삭제, 정렬이 전혀 없다는 뜻이에요.",
+          "score": {
+            "characters": 1175,
+            "issues": 3,
+            "issuesPer1000": 2.55,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        },
+        "without": {
+          "arm": "without",
+          "wallMs": 15742,
+          "skills": [],
+          "reads": [],
+          "tokens": {
+            "input": 2,
+            "cacheCreation": 4648,
+            "cacheRead": 2293,
+            "output": 1244,
+            "total": 8187
+          },
+          "costUsd": 0.0625306,
+          "turns": 1,
+          "answer": "React가 리스트를 다시 렌더링할 때 **이전 항목과 새 항목 중 어떤 것끼리 같은 것인지 구분하려고** key를 씁니다.\n\n## 1. 재조정(Reconciliation)의 기준\n\n상태가 바뀌면 React는 이전 가상 DOM과 새 가상 DOM을 비교해서 바뀐 부분만 실제 DOM에 반영합니다. 리스트에서 key가 없으면 React는 **순서(index)** 만 보고 항목을 짝짓습니다.\n\n```jsx\n// 이전: [A, B, C]\n// 새로: [X, A, B, C]  ← 맨 앞에 X 추가\n```\n\n- **key가 없거나 index를 key로 쓸 때**: 0번 A→X, 1번 B→A, 2번 C→B로 바뀐 것으로 보고 마지막 C는 새로 만든다고 판단합니다. 결국 **모든 항목을 업데이트**합니다.\n- **고유한 key가 있을 때**: A, B, C는 그대로 두고 X만 새로 넣으면 된다는 걸 압니다.\n\n## 2. 성능 문제보다 큰 버그: 상태가 엉뚱한 항목에 붙음\n\nkey는 **컴포넌트 인스턴스의 정체성**이기도 합니다. 컴포넌트 내부 state, input에 입력한 값, 포커스, 애니메이션 상태 같은 것들이 key에 묶여 있습니다.\n\n```jsx\n{todos.map((todo, index) => (\n  <li key={index}>\n    {todo.text} <input />   {/* 비제어 input */}\n  </li>\n))}\n```\n\n이 상태에서 맨 앞 항목을 삭제하면 텍스트는 한 칸씩 당겨지는데 **input에 입력된 값은 원래 자리에 남습니다.** React가 같은 index를 같은 컴포넌트로 보고 재사용하기 때문입니다. 그래서 다른 항목에 엉뚱한 입력값이 붙어 보이게 됩니다.\n\n## 3. 좋은 key 고르기\n\n```jsx\n{todos.map(todo => (\n  <TodoItem key={todo.id} todo={todo} />\n))}\n```\n\n- ✅ **데이터 고유 ID**: DB id, UUID 등\n- ⚠️ **index**: 리스트가 정렬, 삽입, 삭제되지 않는 정적인 경우에만 괜찮습니다.\n- ❌ **`Math.random()` 같은 렌더링마다 바뀌는 값**: 매번 모든 항목을 새로 만들어 state가 초기화되고 성능도 나빠집니다.\n\nkey는 **형제 사이에서만 고유하면** 되고, 전역에서 고유할 필요는 없습니다.\n\n## 덤: key로 컴포넌트를 일부러 초기화하기\n\nkey가 바뀌면 React는 그 컴포넌트를 새것으로 보고 다시 마운트합니다. 이 성질을 이용하면 state를 손쉽게 리셋할 수 있습니다.\n\n```jsx\n<ProfileForm key={userId} userId={userId} />\n// userId가 바뀌면 폼 state가 깨끗하게 초기화됨\n```\n\n**정리하면** key는 React가 리스트 항목의 정체성을 추적하는 이름표입니다. 이게 있어야 바뀐 부분만 효율적으로 업데이트할 수 있고, 상태가 올바른 항목에 붙어 있습니다.",
+          "score": {
+            "characters": 1019,
+            "issues": 5,
+            "issuesPer1000": 4.91,
+            "longSentences": 0,
+            "mustFix": 0,
+            "opensWithAnswer": true
+          }
+        }
+      },
+      "judge": {
+        "order": [
+          "without",
+          "with"
+        ],
+        "wallMs": 9973,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4958,
+          "cacheRead": 649,
+          "output": 706,
+          "total": 6315
+        },
+        "costUsd": 0.0269609,
+        "raw": {
+          "clearer": "B",
+          "reason": "Both are correct and open by answering the question. B walks through one concrete index-key bug step by step (key 0's input DOM node is reused, so \"2개\" shows up next to \"청소\"), which a reader would take as intended on one read. A is also accurate but adds a tangential key-reset tip and a looser deletion example.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "with",
+        "reason": "Both are correct and open by answering the question. B walks through one concrete index-key bug step by step (key 0's input DOM node is reused, so \"2개\" shows up next to \"청소\"), which a reader would take as intended on one read. A is also accurate but adds a tangential key-reset tip and a looser deletion example.",
+        "answerFirst": {
+          "without": true,
+          "with": true
+        },
+        "factualError": {
+          "without": false,
+          "with": false
+        }
+      },
+      "judgeSwapped": {
+        "order": [
+          "with",
+          "without"
+        ],
+        "wallMs": 10276,
+        "model": "claude-sonnet-5-5",
+        "tokens": {
+          "input": 2,
+          "cacheCreation": 4956,
+          "cacheRead": 649,
+          "output": 725,
+          "total": 6332
+        },
+        "costUsd": 0.0271429,
+        "raw": {
+          "clearer": "B",
+          "reason": "B opens with a direct answer to why key exists (telling old and new items apart), then explains the index-matching problem and the state-on-wrong-item bug with an accurate example. A is also correct, but its opening is an \"이름표\" metaphor and its procedure steps are slightly more roundabout.",
+          "answerFirst": {
+            "A": true,
+            "B": true
+          },
+          "factualError": {
+            "A": false,
+            "B": false
+          }
+        },
+        "winner": "without",
+        "reason": "B opens with a direct answer to why key exists (telling old and new items apart), then explains the index-matching problem and the state-on-wrong-item bug with an accurate example. A is also correct, but its opening is an \"이름표\" metaphor and its procedure steps are slightly more roundabout.",
+        "answerFirst": {
+          "with": true,
+          "without": true
+        },
+        "factualError": {
+          "with": false,
+          "without": false
+        }
+      }
+    }
+  ],
+  "rescoredAt": "2026-10-25T15:01:00.473Z",
+  "swappedJudge": {
+    "date": "2026-10-25T14:39:07.872Z",
+    "judgeModel": "sonnet",
+    "claudeVersion": "2.1.310 (Claude Code)",
+    "elapsedSeconds": 30,
+    "summary": {
+      "questions": 12,
+      "withWinsFirstPass": 10,
+      "withWinsSecondPass": 9,
+      "bothWith": 7,
+      "bothWithout": 0,
+      "bothTie": 0,
+      "split": 5,
+      "secondPassPickedSecond": 5,
+      "errors": 0,
+      "costUsd": 0.2739,
+      "tokens": 66582,
+      "wallSeconds": 96
+    }
+  }
+}

@@ -1,0 +1,31 @@
+# English patterns for check-clarity.mjs, matched without regard to case.
+# One rule per line: <regular expression> => <what to write instead>.
+# Each match is something to look at, not an error. Only forms that are almost always vague are listed.
+
+\b(?:simply|obviously|of course)\b => remove; it tells the reader nothing and can sound condescending
+\b(?:basically|actually|really|very|quite)\b => usually removable without changing the meaning
+\bjust\b => remove if the sentence means the same without it
+\beas(?:y|ily)\b => remove, or say what makes it short (one command, two lines)
+\bhandle[sd]?\b => name the action (catch and log, retry, return a default)
+\bmanage[sd]?\b => name the action (store, update, release)
+\b(?:appropriate(?:ly)?|proper(?:ly)?|suitabl[ey])\b => give the criterion or the number
+\b(?:various|numerous|a number of|a lot of|lots of)\b => give the items or the number
+\b(?:etc\.?|and so on)(?=\W|$) => list every item, or write "such as" with one or two examples
+\band/or\b => write "A or B", or "A, B, or both"
+\b(?:e\.g\.|i\.e\.)(?=\W|$) => write "for example" or "that is"
+\bvia\b => write through, by, or using
+\b(?:leverag|utiliz)(?:e|es|ed|ing)\b => write use
+\bin order to\b => write to
+\bdue to the fact that\b => write because
+\bprior to\b => write before
+\bfacilitat(?:e|es|ed|ing)\b => write help or let
+\b(?:commenc|initiat)(?:e|es|ed|ing)\b => write start
+\bperform(?:s|ed|ing)? (?:a|an|the) \w+ of\b => use the verb (perform an update of -> update)
+\bsince\b => if it means because, write because; since also reads as time
+\bmay\b => write can (ability), might (possibility), or "is allowed to" (permission)
+\bshould (?:work|be fine|fix)\b => say whether it is measured or inferred
+\b(?:it seems|seems like|I think|I believe)\b => state certainty: measured, inferred, or unknown
+\b(?:efficient(?:ly)?|robust|seamless(?:ly)?|intuitive|powerful)\b => say what is better and by how much
+\b(?:improve[sd]?|optimiz(?:e|es|ed))\b => say what changed and by how much
+\bthere (?:is|are)\b => name the real subject and give it a verb
+\bhit(?:s|ting)? (?:the |an? )?(?:api|server|endpoint)\b => write "send a request to" or "call"

@@ -1,0 +1,12 @@
+{
+  "name": "clear-explain",
+  "version": "0.1.0",
+  "description": "Explanations you read once and understand the same way: the answer first, one meaning per word, one idea per sentence, and technical terms in their official English names.",
+  "author": {
+    "name": "lee-eojin"
+  },
+  "homepage": "https://github.com/lee-eojin/lim",
+  "repository": "https://github.com/lee-eojin/lim",
+  "license": "MIT",
+  "keywords": ["explanation", "plain-language", "simplified-technical-english", "writing"]
+}

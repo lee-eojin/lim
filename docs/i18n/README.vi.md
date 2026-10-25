@@ -27,6 +27,7 @@ Hãy fork, chỉnh sửa và biến nó thành của bạn. Chúng tôi hoan ngh
 | Plugin | Trạng thái | Một việc |
 |---|---|---|
 | [review-loop](../../plugins/review-loop) | 0.5.0 | Review các thay đổi của bạn trước khi commit, sửa các phát hiện P1 và P2, review lại và giao phần còn lại cho bạn. |
+| [clear-explain](../../plugins/clear-explain) | 0.1.0 | Giải thích khái niệm, code và lỗi với câu trả lời đặt trước, mỗi từ một nghĩa, và thuật ngữ kỹ thuật giữ tên tiếng Anh chính thức. |
 
 ## Cài đặt
 
