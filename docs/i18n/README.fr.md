@@ -26,7 +26,7 @@ Forkez-le, modifiez-le, faites-en le vôtre. Les issues et les pull requests son
 
 | Plugin | Statut | Un travail |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.4.0 | Fait la revue de vos modifications avant le commit, corrige les constats P1 et P2, refait la revue et vous laisse le reste. |
+| [review-loop](../../plugins/review-loop) | 0.5.0 | Fait la revue de vos modifications avant le commit, corrige les constats P1 et P2, refait la revue et vous laisse le reste. |
 
 ## Installation
 

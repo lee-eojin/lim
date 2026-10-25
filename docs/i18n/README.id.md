@@ -26,7 +26,7 @@ Silakan fork, ubah, dan jadikan milikmu. Issue dan pull request dipersilakan.
 
 | Plugin | Status | Satu tugas |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.4.0 | Me-review perubahanmu sebelum kamu commit, memperbaiki temuan P1 dan P2, me-review ulang, dan menyerahkan sisanya kepadamu. |
+| [review-loop](../../plugins/review-loop) | 0.5.0 | Me-review perubahanmu sebelum kamu commit, memperbaiki temuan P1 dan P2, me-review ulang, dan menyerahkan sisanya kepadamu. |
 
 ## Pemasangan
 
