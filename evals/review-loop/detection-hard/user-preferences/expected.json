@@ -1,0 +1,16 @@
+{
+  "intent": "Return each user's preferences with the defaults filled in, ignoring saved keys we no longer support",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "mutation of shared state: defaultPreferences() returns the module's own object, so one user's saved theme becomes the default for every later user",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/preferences.js", "lines": [4, 8] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["mutates", "mutate", "mutating", "mutation", "shared object", "same object", "shared defaults", "DEFAULT_PREFERENCES", "another user", "other users", "next user", "later users", "previous user", "every user", "all users", "structuredClone"]
+    }
+  ],
+  "forbid": []
+}

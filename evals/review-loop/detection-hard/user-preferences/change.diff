@@ -1,0 +1,31 @@
+diff --git a/src/preferences.js b/src/preferences.js
+new file mode 100644
+index 0000000..5cdebdf
+--- /dev/null
++++ b/src/preferences.js
+@@ -0,0 +1,11 @@
++import { defaultPreferences } from './defaults.js';
++
++export function preferencesFor(user) {
++  const preferences = defaultPreferences();
++  for (const [key, value] of Object.entries(user.savedPreferences ?? {})) {
++    if (key in preferences) {
++      preferences[key] = value;
++    }
++  }
++  return preferences;
++}
+diff --git a/src/routes.js b/src/routes.js
+index b621a60..38fc3b4 100644
+--- a/src/routes.js
++++ b/src/routes.js
+@@ -1,7 +1,8 @@
++import { preferencesFor } from './preferences.js';
+ import { loadUser } from './users-store.js';
+ 
+ export function getUser(id) {
+   const user = loadUser(id);
+   if (!user) return { status: 404 };
+-  return { status: 200, body: { id: user.id, email: user.email } };
++  return { status: 200, body: { id: user.id, email: user.email, preferences: preferencesFor(user) } };
+ }

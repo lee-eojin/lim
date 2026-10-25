@@ -1,0 +1,6 @@
+{
+  "name": "status-probe",
+  "private": true,
+  "type": "module",
+  "bin": { "status-probe": "src/cli.js" }
+}

@@ -1,0 +1,43 @@
+diff --git a/spec/plans.spec.js b/spec/plans.spec.js
+index 9a502db..0261cad 100644
+--- a/spec/plans.spec.js
++++ b/spec/plans.spec.js
+@@ -12,6 +12,10 @@ test('team adds shared folders and the admin console', () => {
+   assert.deepEqual(sorted(featuresFor('team')), ['admin-console', 'notes', 'search', 'shared-folders']);
+ });
+ 
++test('enterprise has every team feature plus SSO and the audit log', () => {
++  assert.deepEqual(sorted(featuresFor('enterprise')), ['admin-console', 'audit-log', 'notes', 'search', 'shared-folders', 'sso']);
++});
++
+ test('an unknown plan throws', () => {
+   assert.throws(() => featuresFor('gold'), /unknown plan/);
+ });
+diff --git a/src/plans.js b/src/plans.js
+index 99f88bd..aaa4246 100644
+--- a/src/plans.js
++++ b/src/plans.js
+@@ -1,13 +1,17 @@
+-const FREE_FEATURES = ['notes', 'search'];
+-const TEAM_FEATURES = [...FREE_FEATURES, 'shared-folders', 'admin-console'];
+-
+ export function featuresFor(plan) {
++  const features = [];
+   switch (plan) {
+-    case 'free':
+-      return [...FREE_FEATURES];
++    case 'enterprise':
++      features.push('sso', 'audit-log');
++      // falls through
+     case 'team':
+-      return [...TEAM_FEATURES];
++      features.push('shared-folders', 'admin-console');
++      // falls through
++    case 'free':
++      features.push('notes', 'search');
++      break;
+     default:
+       throw new Error(`unknown plan: ${plan}`);
+   }
++  return features;
+ }

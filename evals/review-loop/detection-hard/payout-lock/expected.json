@@ -1,0 +1,16 @@
+{
+  "intent": "Mark a payout as failed with a clear error when it has no bank account, instead of sending it to the bank",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "leaked lock: the new check throws before the try, so finally never runs and the lock stays held, and the retry for that payout waits forever",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/payouts.js", "lines": [6, 11] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["never released", "not released", "isn't released", "is never released", "without releasing", "release()", "leaks the lock", "leaked lock", "lock leak", "lock is held", "lock stays held", "held forever", "deadlock", "deadlocks", "hangs", "hang forever", "waits forever", "wait forever", "blocks forever", "outside the try", "outside try", "before the try", "finally never runs", "skips the finally", "skips finally"]
+    }
+  ],
+  "forbid": []
+}

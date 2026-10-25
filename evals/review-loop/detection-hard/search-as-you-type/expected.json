@@ -1,0 +1,16 @@
+{
+  "intent": "Search products as the user types, after a short pause, instead of only when they press Enter",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "out-of-order responses: a slower response for an earlier term can arrive after a later one and replace the results for what the box now shows",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/search-box.js", "lines": [8, 16] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["out of order", "out-of-order", "stale", "race", "race condition", "older request", "older response", "earlier request", "earlier response", "earlier term", "slower response", "previous request", "previous response", "last response", "AbortController", "abort", "in flight", "in-flight", "arrives after", "arrives later", "resolves after", "overwrites the newer", "overwrite the newer", "overwrites newer", "overwrite newer", "newer results", "earlier search", "earlier fetch", "pending fetch", "comes back after"]
+    }
+  ],
+  "forbid": []
+}

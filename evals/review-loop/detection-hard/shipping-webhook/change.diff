@@ -1,0 +1,41 @@
+diff --git a/src/main.js b/src/main.js
+index c4834b4..8a1c9e9 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -1,6 +1,8 @@
+ import { healthCheck } from './health.js';
+ import { routes, startServer } from './server.js';
++import { handleShippingWebhook } from './webhooks.js';
+ 
+ routes.set('GET /health', healthCheck);
++routes.set('POST /webhooks/shipping', handleShippingWebhook);
+ 
+ startServer(Number(process.env.PORT ?? 3000));
+diff --git a/src/webhooks.js b/src/webhooks.js
+new file mode 100644
+index 0000000..c0fb5dc
+--- /dev/null
++++ b/src/webhooks.js
+@@ -0,0 +1,22 @@
++import { updateShipment } from './shipments.js';
++import { verifySignature } from './signature.js';
++
++export async function handleShippingWebhook({ headers, rawBody }) {
++  if (!verifySignature(headers['x-signature'], rawBody)) {
++    return { status: 401, body: { error: 'invalid signature' } };
++  }
++  let event;
++  try {
++    event = JSON.parse(rawBody);
++  } catch {
++    return { status: 400, body: { error: 'body is not JSON' } };
++  }
++  if (event.type === 'ping') {
++    return { status: 200, body: { ok: true } };
++  }
++  await updateShipment(event.data.shipmentId, {
++    status: event.data.status,
++    trackingNumber: event.data.tracking?.number ?? null,
++  });
++  return { status: 200, body: { ok: true } };
++}

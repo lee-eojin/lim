@@ -1,0 +1,10 @@
+{
+  "intent": "Remove the checks in createOrder that validateOrderBody already makes impossible, since the POST /orders route is its only caller",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

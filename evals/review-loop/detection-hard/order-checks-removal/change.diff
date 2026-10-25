@@ -1,0 +1,25 @@
+diff --git a/src/orders.js b/src/orders.js
+index 30c99c8..56a23dc 100644
+--- a/src/orders.js
++++ b/src/orders.js
+@@ -3,19 +3,7 @@ import { priceOf } from './catalog.js';
+ let nextId = 1;
+ 
+ export function createOrder(body) {
+-  if (!Array.isArray(body.items) || body.items.length === 0) {
+-    throw new Error('an order needs at least one item');
+-  }
+-  const lines = body.items.map((item) => {
+-    if (typeof item.quantity !== 'number' || item.quantity < 1) {
+-      throw new Error(`bad quantity for ${item.sku}`);
+-    }
+-    const priceCents = priceOf(item.sku);
+-    if (priceCents === undefined) {
+-      throw new Error(`unknown sku: ${item.sku}`);
+-    }
+-    return { sku: item.sku, quantity: item.quantity, priceCents };
+-  });
++  const lines = body.items.map((item) => ({ sku: item.sku, quantity: item.quantity, priceCents: priceOf(item.sku) }));
+   const totalCents = lines.reduce((sum, line) => sum + line.priceCents * line.quantity, 0);
+   return { id: `ord_${nextId++}`, lines, totalCents };
+ }

@@ -1,0 +1,10 @@
+{
+  "intent": "Add an enterprise plan that has every team feature plus SSO and the audit log",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "intent": "Accept shipment status webhooks from the shipping provider and update our shipments",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

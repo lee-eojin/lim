@@ -1,0 +1,20 @@
+diff --git a/src/payouts.js b/src/payouts.js
+index a168f03..c4f3f56 100644
+--- a/src/payouts.js
++++ b/src/payouts.js
+@@ -1,9 +1,14 @@
++import { PayoutError } from './errors.js';
+ import { acquire } from './locks.js';
+ 
+ export async function sendPayout(payoutId, { payouts, bank }) {
+   const release = await acquire(`payout:${payoutId}`);
++  const payout = await payouts.get(payoutId);
++  if (!payout.accountNumber) {
++    await payouts.update(payoutId, { status: 'failed', reason: 'missing bank account' });
++    throw new PayoutError(`payout ${payoutId} has no bank account`);
++  }
+   try {
+-    const payout = await payouts.get(payoutId);
+     if (payout.status === 'sent') {
+       return payout;
+     }

@@ -1,0 +1,29 @@
+diff --git a/src/search-box.js b/src/search-box.js
+index b451173..d93d200 100644
+--- a/src/search-box.js
++++ b/src/search-box.js
+@@ -1,10 +1,20 @@
+ import { searchProducts } from './api.js';
++import { debounce } from './debounce.js';
+ import { renderResults } from './render.js';
+ 
++const MIN_TERM_LENGTH = 2;
++
+ export function attachSearch(form, input, list) {
+-  form.addEventListener('submit', async (event) => {
+-    event.preventDefault();
+-    const products = await searchProducts(input.value.trim());
++  const search = debounce(async () => {
++    const term = input.value.trim();
++    if (term.length < MIN_TERM_LENGTH) {
++      renderResults(list, []);
++      return;
++    }
++    const products = await searchProducts(term);
+     renderResults(list, products);
+-  });
++  }, 200);
++
++  form.addEventListener('submit', (event) => event.preventDefault());
++  input.addEventListener('input', search);
+ }

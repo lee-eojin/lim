@@ -1,0 +1,26 @@
+diff --git a/src/refunds.js b/src/refunds.js
+new file mode 100644
+index 0000000..2dd8b1f
+--- /dev/null
++++ b/src/refunds.js
+@@ -0,0 +1,8 @@
++import { STORE_ACCOUNT, transfer } from './ledger.js';
++
++export function refundOrder(order, amountCents = order.totalCents) {
++  if (amountCents > order.totalCents) {
++    throw new RangeError(`refund of ${amountCents} is more than the order total of ${order.totalCents}`);
++  }
++  return transfer(STORE_ACCOUNT, order.customerAccountId, amountCents);
++}
+diff --git a/src/routes.js b/src/routes.js
+index 749ac7c..94198fc 100644
+--- a/src/routes.js
++++ b/src/routes.js
+@@ -1,5 +1,7 @@
+ import { payOutSeller } from './payouts.js';
++import { refundOrder } from './refunds.js';
+ 
+ export const routes = {
+   'POST /payouts': ({ seller, amountCents }) => payOutSeller(seller, amountCents),
++  'POST /refunds': ({ order, amountCents }) => refundOrder(order, amountCents),
+ };

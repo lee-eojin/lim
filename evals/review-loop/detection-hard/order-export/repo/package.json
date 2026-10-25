@@ -1,0 +1,8 @@
+{
+  "name": "orders-backoffice",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test 'spec/*.spec.js'"
+  }
+}

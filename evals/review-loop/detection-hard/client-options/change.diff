@@ -1,0 +1,38 @@
+diff --git a/src/cli.js b/src/cli.js
+index fbec8a5..fd533b8 100644
+--- a/src/cli.js
++++ b/src/cli.js
+@@ -5,9 +5,18 @@ import { createClient } from './client.js';
+ const { values } = parseArgs({
+   options: {
+     path: { type: 'string', default: '/status' },
++    'base-url': { type: 'string' },
++    retries: { type: 'string' },
++    timeout: { type: 'string' },
+   },
+ });
+ 
+-const client = createClient();
++const toNumber = (text) => (text === undefined ? undefined : Number(text));
++
++const client = createClient({
++  baseUrl: values['base-url'],
++  retries: toNumber(values.retries),
++  timeoutMs: toNumber(values.timeout),
++});
+ const response = await client.get(values.path);
+ console.log(response.status);
+diff --git a/src/client.js b/src/client.js
+index 2c92e27..88a6ef0 100644
+--- a/src/client.js
++++ b/src/client.js
+@@ -1,7 +1,7 @@
+ const DEFAULTS = { baseUrl: 'http://localhost:8080', retries: 2, timeoutMs: 5000 };
+ 
+-export function createClient(fetchImpl = fetch) {
+-  const config = DEFAULTS;
++export function createClient(options = {}, fetchImpl = fetch) {
++  const config = { ...DEFAULTS, ...options };
+   return {
+     async get(path) {
+       let lastError;
