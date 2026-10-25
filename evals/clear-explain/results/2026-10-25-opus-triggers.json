@@ -1,0 +1,332 @@
+{
+  "date": "2026-10-25T14:49:06.891Z",
+  "model": "opus",
+  "claudeVersion": "2.1.310 (Claude Code)",
+  "skill": {
+    "path": "plugins/clear-explain/skills/clear-explain/SKILL.md",
+    "sha256": "493fa99277a2df79e37c0d9f3ee986c9d32fcae5f669a26bb99a10bdadff9d2e"
+  },
+  "maxTurns": 6,
+  "elapsedSeconds": 68,
+  "summary": {
+    "explain": {
+      "prompts": 12,
+      "started": 12
+    },
+    "other": {
+      "prompts": 8,
+      "started": 0
+    },
+    "trueTriggerRate": 1,
+    "falseTriggerRate": 0,
+    "errors": 0,
+    "costUsd": 1.8023,
+    "wallSeconds": 250
+  },
+  "items": [
+    {
+      "id": "en-closure",
+      "lang": "en",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "What is a closure in JavaScript?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 14036,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0973462
+    },
+    {
+      "id": "en-effect-twice",
+      "lang": "en",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "Why does my useEffect run twice when I start the app in development?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 14720,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.101128
+    },
+    {
+      "id": "en-cors",
+      "lang": "en",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "Why do I get a CORS error when my React app on port 5173 calls my API on port 8080?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 14893,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.10141420000000001
+    },
+    {
+      "id": "en-merge-rebase",
+      "lang": "en",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "What is the difference between git merge and git rebase?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 10289,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.09557080000000001
+    },
+    {
+      "id": "en-await-loop",
+      "lang": "en",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "Why is await inside a for loop slower than Promise.all?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 12286,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.099652
+    },
+    {
+      "id": "en-auth",
+      "lang": "en",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "What's the difference between authentication and authorization?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 13725,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.09761020000000001
+    },
+    {
+      "id": "ko-event-loop",
+      "lang": "ko",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "자바스크립트 이벤트 루프가 뭐야?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 22202,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.12337200000000001
+    },
+    {
+      "id": "ko-memo",
+      "lang": "ko",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "useMemo랑 useCallback 차이가 뭐야?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 17317,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.107852
+    },
+    {
+      "id": "ko-isolation",
+      "lang": "ko",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "트랜잭션 격리 수준은 왜 필요해?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 19876,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.12021599999999999
+    },
+    {
+      "id": "ko-unknown",
+      "lang": "ko",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "TypeScript에서 any랑 unknown은 뭐가 달라?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 12148,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.1036524
+    },
+    {
+      "id": "ko-401-403",
+      "lang": "ko",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "401이랑 403 차이 알려줘",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 13236,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.10568659999999999
+    },
+    {
+      "id": "ko-key",
+      "lang": "ko",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "React에서 리스트 렌더링할 때 key는 왜 넣어야 해?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 21516,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.1179576
+    },
+    {
+      "id": "en-fix-test",
+      "lang": "en",
+      "kind": "fix",
+      "explain": false,
+      "prompt": "Why does this test fail? Fix it.\n\n```js\nfunction sum(items) {\n  let total = 0;\n  for (let index = 1; index < items.length; index++) total += items[index];\n  return total;\n}\n\ntest('sum', () => expect(sum([1, 2, 3])).toBe(6));\n```",
+      "skills": [],
+      "started": false,
+      "wallMs": 5657,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0557318
+    },
+    {
+      "id": "en-lookup-version",
+      "lang": "en",
+      "kind": "lookup",
+      "explain": false,
+      "prompt": "What is the latest version of zod?",
+      "skills": [],
+      "started": false,
+      "wallMs": 9929,
+      "stop": "success",
+      "turns": 5,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0924972
+    },
+    {
+      "id": "en-task-dedupe",
+      "lang": "en",
+      "kind": "task",
+      "explain": false,
+      "prompt": "Write a JavaScript function that removes duplicate items from an array and keeps the order of first appearance.",
+      "skills": [],
+      "started": false,
+      "wallMs": 5601,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0579238
+    },
+    {
+      "id": "en-rewrite",
+      "lang": "en",
+      "kind": "rewrite",
+      "explain": false,
+      "prompt": "Rewrite this commit message so it is shorter: \"Fixed the issue where the login button would not respond when the user clicked it twice very quickly.\"",
+      "skills": [],
+      "started": false,
+      "wallMs": 4046,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.050083800000000005
+    },
+    {
+      "id": "ko-fix-error",
+      "lang": "ko",
+      "kind": "fix",
+      "explain": false,
+      "prompt": "이 코드에서 TypeError: Cannot read properties of undefined (reading 'name') 에러가 나. 고쳐줘.\n\n```js\nconst users = [];\nconsole.log(users[0].name);\n```",
+      "skills": [],
+      "started": false,
+      "wallMs": 6610,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.059803800000000004
+    },
+    {
+      "id": "ko-lookup-lts",
+      "lang": "ko",
+      "kind": "lookup",
+      "explain": false,
+      "prompt": "Node.js 최신 LTS 버전이 뭐야?",
+      "skills": [],
+      "started": false,
+      "wallMs": 17112,
+      "stop": "success",
+      "turns": 4,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0946632
+    },
+    {
+      "id": "ko-task-sort",
+      "lang": "ko",
+      "kind": "task",
+      "explain": false,
+      "prompt": "날짜 문자열 배열을 최신순으로 정렬하는 TypeScript 함수 만들어줘.",
+      "skills": [],
+      "started": false,
+      "wallMs": 9488,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.06796379999999999
+    },
+    {
+      "id": "ko-translate",
+      "lang": "ko",
+      "kind": "translate",
+      "explain": false,
+      "prompt": "이 문장 영어로 번역해줘: 결제가 끝나면 주문 상태를 완료로 바꾼다.",
+      "skills": [],
+      "started": false,
+      "wallMs": 5731,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0521638
+    }
+  ]
+}

@@ -15,6 +15,7 @@ function behaviorCounts(csv) {
 const readmes = [
   ['README.md', 'evals/review-loop/behaviors.csv'],
   ['plugins/review-loop/README.md', 'evals/review-loop/behaviors.csv'],
+  ['plugins/clear-explain/README.md', 'evals/clear-explain/behaviors.csv'],
   ['plugins/verify/README.md', 'evals/verify/behaviors.csv'],
 ];
 

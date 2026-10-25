@@ -1,0 +1,14 @@
+[
+  { "id": "en-closure", "lang": "en", "question": "What is a closure in JavaScript?" },
+  { "id": "en-effect-twice", "lang": "en", "question": "Why does my useEffect run twice when I start the app in development?" },
+  { "id": "en-cors", "lang": "en", "question": "Why do I get a CORS error when my React app on port 5173 calls my API on port 8080?" },
+  { "id": "en-merge-rebase", "lang": "en", "question": "What is the difference between git merge and git rebase?" },
+  { "id": "en-await-loop", "lang": "en", "question": "Why is await inside a for loop slower than Promise.all?" },
+  { "id": "en-auth", "lang": "en", "question": "What's the difference between authentication and authorization?" },
+  { "id": "ko-event-loop", "lang": "ko", "question": "자바스크립트 이벤트 루프가 뭐야?" },
+  { "id": "ko-memo", "lang": "ko", "question": "useMemo랑 useCallback 차이가 뭐야?" },
+  { "id": "ko-isolation", "lang": "ko", "question": "트랜잭션 격리 수준은 왜 필요해?" },
+  { "id": "ko-unknown", "lang": "ko", "question": "TypeScript에서 any랑 unknown은 뭐가 달라?" },
+  { "id": "ko-401-403", "lang": "ko", "question": "401이랑 403 차이 알려줘" },
+  { "id": "ko-key", "lang": "ko", "question": "React에서 리스트 렌더링할 때 key는 왜 넣어야 해?" }
+]
