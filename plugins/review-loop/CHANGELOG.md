@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.5.0 (2026-10-25)
 
 - Added: An unattended mode for runs nobody is watching, such as overnight. Ask for an unattended run, or turn it on for the repository with `loop unattended --on`. Claude then asks nothing: findings that need your call are not fixed and wait for you with the reason, P3 to P5 stay pending, each choice Claude makes is written to the decision ledger with `loop note`, commits follow the delegation and gate rules, and nothing is pushed. `loop summary` lists what happened since the run started and everything waiting for you. (#40)
 - Fixed: Claude writes each review to a file under `.lim-review/` and records it with `loop record --file`, so Claude Code's permission check no longer refuses the step as a heredoc with JSON. The file write needs the same file-edit permission as Claude's fixes, so a headless run needs `acceptEdits` or an allow rule for Write. `loop start` and `loop next` add `.lim-review/` to `.git/info/exclude` once, so git ignores the file, and review-loop deletes it after reading it. (#55)
