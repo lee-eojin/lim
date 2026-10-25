@@ -208,7 +208,7 @@ run unattended:         /review-loop:review-loop run unattended. I will read the
 
 ## 測量結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 142 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 132 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 10 個行為需要實際執行模型：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、為每個發現項目標明 measured、inferred 或 guessed、說明如何確認修正有效、在你提出異議時重新查證發現項目、為反覆出現的同類發現項目建議設為規則、在無人值守執行中不提出任何問題、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture，前兩個行為在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手動執行紀錄。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 149 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 139 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 10 個行為需要實際執行模型：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、為每個發現項目標明 measured、inferred 或 guessed、說明如何確認修正有效、在你提出異議時重新查證發現項目、為反覆出現的同類發現項目建議設為規則、在無人值守執行中不提出任何問題、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture，前兩個行為在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手動執行紀錄。
 
 [`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中的偵測基準測試給審查者 12 個各植入一個 bug 的變更和 6 個乾淨的變更，這些變更放在名稱看不出是測試的暫存儲存庫中。2026-10-25，使用 claude-opus-5-5、每個案例執行 1 次，審查者把全部 12 個 bug 都回報為 P1 或 P2，而且沒有對乾淨的變更提出任何 P1 或 P2。這次執行使用了約 390,000 個 token（$0.89），每次同時執行 4 個案例，耗時 74 秒。滿分也代表這些案例太簡單，無法顯示出小的迴歸，所以接下來會加入更難的案例。可以用 `node evals/review-loop/run-detection.mjs` 再次執行。
 
@@ -267,7 +267,7 @@ review-loop 審查 LIM 自己的 pull request。[#8](https://github.com/lee-eoji
 
 ## 資料
 
-狀態、diff、檢查日誌和決策紀錄存放在你的儲存庫內的 `.git/lim/review-loop/` 資料夾中。review-loop 不會在你的工作目錄寫入任何內容。為了檢查規則，review-loop 會把修正之前的程式碼寫入儲存庫之外的暫存資料夾，並在之後刪除它。如果要重設，請刪除 `.git/lim/review-loop/`。
+狀態、diff、檢查日誌和決策紀錄存放在你的儲存庫內的 `.git/lim/review-loop/` 資料夾中。Claude 會把每次審查短暫寫入工作目錄中的 `.lim-review/`；git 透過 `.git/info/exclude` 忽略這個資料夾，review-loop 讀取後會刪除該檔案。為了檢查規則，review-loop 會把修正之前的程式碼寫入儲存庫之外的暫存資料夾，並在之後刪除它。如果要重設，請刪除 `.git/lim/review-loop/`。
 
 review-loop 本身不會發出任何網路請求。Claude 和審查者讀取 diff、發現項目和檢查輸出的方式，與讀取你工作階段中其他檔案的方式相同。因此，這些內容會和你的 Claude Code 工作階段的其餘內容一樣傳送給模型供應商。
 
@@ -302,7 +302,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-接著，在每個執行過 review-loop 的儲存庫中刪除 `.git/lim/review-loop/`。
+接著，在每個執行過 review-loop 的儲存庫中刪除 `.git/lim/review-loop/`，以及 `.git/info/exclude` 中的 `.lim-review/` 這一行。
 
 ## 打造你自己的版本
 

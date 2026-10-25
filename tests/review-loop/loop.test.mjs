@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
+} from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, test } from 'node:test';
@@ -1841,5 +1843,94 @@ describe('unattended runs', () => {
     const { waiting } = loop(root, ['summary']);
     assert.deepEqual(waiting.deferred.map((item) => [item.id, item.severity]), [['F-2', 'P2']]);
     assert.deepEqual(waiting.pendingDecisions.map((item) => [item.id, item.severity]), [['F-3', 'P3']]);
+  });
+});
+
+describe('review file', () => {
+  const excludeLines = (root) => readFileSync(path.join(root, '.git', 'info', 'exclude'), 'utf8').split('\n');
+  const gitOutput = (root, ...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+  const writeReview = (reviewPath, text) => {
+    mkdirSync(path.dirname(reviewPath), { recursive: true });
+    writeFileSync(reviewPath, text);
+  };
+
+  function startedRepository() {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    return { root, reviewPath: loop(root, ['start']).reviewPath };
+  }
+
+  test('start and next return a reviewPath in the worktree and list .lim-review/ in info/exclude once', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFileSync(path.join(root, '.git', 'info', 'exclude'), '# local\n*.log');
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const reviewFolder = path.join(realpathSync(root), '.lim-review');
+    assert.equal(loop(root, ['start']).reviewPath, path.join(reviewFolder, 'round-1.json'));
+    assert.equal(loop(root, ['start']).reviewPath, path.join(reviewFolder, 'round-1.json'));
+    loop(root, ['record'], { findings: [doubledPrice] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    assert.equal(loop(root, ['next']).reviewPath, path.join(reviewFolder, 'round-2.json'));
+
+    const worktree = `${root}-worktree`;
+    execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
+    writeFiles(worktree, { 'src/cart.js': brokenCart });
+    const worktreeReview = loop(worktree, ['start']).reviewPath;
+    assert.equal(worktreeReview, path.join(realpathSync(worktree), '.lim-review', 'round-1.json'));
+    writeReview(worktreeReview, '{"findings": []}');
+    assert.equal(gitOutput(worktree, 'check-ignore', '.lim-review/round-1.json'), '.lim-review/round-1.json');
+    assert.deepEqual(excludeLines(root), ['# local', '*.log', '.lim-review/', '']);
+  });
+
+  test('start creates info/exclude with .lim-review/ when the file is missing', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    rmSync(path.join(root, '.git', 'info'), { recursive: true, force: true });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    assert.deepEqual(excludeLines(root), ['.lim-review/', '']);
+  });
+
+  test('record --file records the review and deletes the file and its empty folder', () => {
+    const { root, reviewPath } = startedRepository();
+    writeReview(reviewPath, JSON.stringify({ findings: [doubledPrice] }));
+    const result = loop(root, ['record', '--file', reviewPath]);
+    assert.deepEqual([result.decision, result.fix[0].id], ['continue', 'F-1']);
+    assert.equal(existsSync(path.dirname(reviewPath)), false);
+  });
+
+  test('record --file keeps the file when the JSON is invalid', () => {
+    const { root, reviewPath } = startedRepository();
+    writeReview(reviewPath, '{"findings": [');
+    assert.throws(() => loop(root, ['record', '--file', reviewPath]), /reviewer output is not JSON/);
+    assert.equal(readFileSync(reviewPath, 'utf8'), '{"findings": [');
+    assert.equal(loop(root, ['status']).review.awaiting, 'review');
+  });
+
+  test('a review file left from an earlier session is cleared when a review starts', () => {
+    const { root, reviewPath } = startedRepository();
+    writeReview(reviewPath, '{"findings": [');
+    assert.equal(loop(root, ['start']).reviewPath, reviewPath);
+    assert.equal(existsSync(reviewPath), false);
+  });
+
+  test('a review file is left out of the review diff even before .lim-review/ is excluded', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart, '.lim-review/round-1.json': '{"findings": []}' });
+    const { diffPath } = loop(root, ['start']);
+    assert.doesNotMatch(readFileSync(diffPath, 'utf8'), /lim-review/);
+    assert.deepEqual(JSON.parse(readFileSync(path.join(root, '.git/lim/review-loop/state.json'), 'utf8')).files, ['src/cart.js']);
+  });
+
+  test('a review file is not staged by git add -A and does not make the commit gate block', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const { reviewPath } = loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    writeReview(reviewPath, '{"findings": []}');
+    const result = gateDecision({ cwd: root, command: 'git commit -m "feat: coupon"' });
+    assert.equal(result.decision, 'ask');
+    assert.match(result.reason, /review passed/);
+    execFileSync('git', ['add', '-A'], { cwd: root });
+    assert.equal(gitOutput(root, 'diff', '--cached', '--name-only'), 'src/cart.js');
   });
 });

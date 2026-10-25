@@ -208,7 +208,7 @@ Los cuatro primeros ajustes se aplican a un repositorio. Para cambiar uno, escri
 
 ## Mediciones
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) enumera 142 comportamientos en seis ejes: `do`, `tell`, `ask`, `silence`, `stop` y `evidence`. Los tests unitarios en CI cubren 132 de estos comportamientos, incluidas ejecuciones contra repositorios git temporales reales y el hook de commit gate. Los otros 10 necesitan una ejecución del modelo: preguntar una sola vez sobre P3 a P5, mostrar el informe antes de cualquier pregunta, mantener cada paso en la lista de tareas con un motivo para cada paso omitido, escribir un test de regresión para cada P1 o P2 corregido, etiquetar cada hallazgo como measured, inferred o guessed, decir cómo se sabe que una corrección funciona, volver a comprobar un hallazgo que cuestionas, recomendar una regla para un tipo de hallazgo que se repite, no preguntar nada en una ejecución sin supervisión e informar del código añadido sin una causa conocida. El último tiene un fixture en [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), y los dos primeros tienen una ejecución manual en [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) enumera 149 comportamientos en seis ejes: `do`, `tell`, `ask`, `silence`, `stop` y `evidence`. Los tests unitarios en CI cubren 139 de estos comportamientos, incluidas ejecuciones contra repositorios git temporales reales y el hook de commit gate. Los otros 10 necesitan una ejecución del modelo: preguntar una sola vez sobre P3 a P5, mostrar el informe antes de cualquier pregunta, mantener cada paso en la lista de tareas con un motivo para cada paso omitido, escribir un test de regresión para cada P1 o P2 corregido, etiquetar cada hallazgo como measured, inferred o guessed, decir cómo se sabe que una corrección funciona, volver a comprobar un hallazgo que cuestionas, recomendar una regla para un tipo de hallazgo que se repite, no preguntar nada en una ejecución sin supervisión e informar del código añadido sin una causa conocida. El último tiene un fixture en [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), y los dos primeros tienen una ejecución manual en [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Un benchmark de detección en [`evals/review-loop/detection/`](../../evals/review-loop/detection/) le da al revisor 12 cambios con un bug sembrado en cada uno y 6 cambios limpios, en repositorios temporales cuyos nombres no indican que son una prueba. El 2026-10-25, con claude-opus-5-5 y una ejecución por caso, el revisor informó de los 12 bugs como P1 o P2 y no marcó ningún P1 o P2 en los cambios limpios. La ejecución usó unos 390 000 tokens (0,89 USD) y tardó 74 segundos con 4 casos a la vez. Una puntuación perfecta también significa que estos casos son demasiado fáciles para mostrar una regresión pequeña, así que lo siguiente son casos más difíciles. Vuelve a ejecutarlo con `node evals/review-loop/run-detection.mjs`.
 
@@ -267,7 +267,7 @@ Un commit es local y fácil de deshacer. Un push no. review-loop se detiene en e
 
 ## Datos
 
-El estado, los diffs, los logs de las comprobaciones y un registro de decisiones se guardan en `.git/lim/review-loop/` dentro de tu repositorio. No se escribe nada en tu working tree. Para comprobar una regla, review-loop escribe el código de antes de la corrección en una carpeta temporal fuera de tu repositorio y después la elimina. Para reiniciar, elimina `.git/lim/review-loop/`.
+El estado, los diffs, los logs de las comprobaciones y un registro de decisiones se guardan en `.git/lim/review-loop/` dentro de tu repositorio. Claude escribe cada revisión por un momento en `.lim-review/` dentro de tu working tree; git ignora esa carpeta mediante `.git/info/exclude`, y review-loop elimina el archivo después de leerlo. Para comprobar una regla, review-loop escribe el código de antes de la corrección en una carpeta temporal fuera de tu repositorio y después la elimina. Para reiniciar, elimina `.git/lim/review-loop/`.
 
 review-loop no hace llamadas de red propias. Claude y el revisor leen el diff, los hallazgos y la salida de las comprobaciones como cualquier otro archivo de tu sesión. Por eso ese contenido llega al proveedor del modelo de la misma forma que el resto de tu sesión de Claude Code.
 
@@ -302,7 +302,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Después, elimina `.git/lim/review-loop/` en cada repositorio donde lo ejecutaste.
+Después, elimina `.git/lim/review-loop/` en cada repositorio donde lo ejecutaste, y la línea `.lim-review/` de su `.git/info/exclude`.
 
 ## Hazlo tuyo
 

@@ -7,7 +7,7 @@ B05 (P3 to P5 are asked once at the end with keep / once / rule) and B31 (Claude
 Tried with Claude Code 2.1.310:
 
 - `claude plugin eval`: the eval sandbox stops `loop.mjs` from starting git (`spawnSync git EPERM`), and AskUserQuestion is not among the run's tools.
-- `claude -p --output-format stream-json`: AskUserQuestion is not available without a person, and the permission check refuses the `loop record <<'JSON'` heredoc ("Contains brace with quote character").
+- `claude -p --output-format stream-json`: AskUserQuestion is not available without a person.
 
 Try again when either changes.
 

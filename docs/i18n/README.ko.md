@@ -208,7 +208,7 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 
 ## 측정 결과
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 142개 동작이 있습니다. CI의 단위 테스트가 그중 132개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 10개는 모델 실행이 필요합니다. 그 10개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 같은 종류로 되풀이되는 지적 사항에 규칙 만들기 권하기, 무인 실행에서는 아무것도 묻지 않기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있고, 처음 두 동작은 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)에 수동 실행 기록이 있습니다.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 149개 동작이 있습니다. CI의 단위 테스트가 그중 139개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 10개는 모델 실행이 필요합니다. 그 10개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 같은 종류로 되풀이되는 지적 사항에 규칙 만들기 권하기, 무인 실행에서는 아무것도 묻지 않기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있고, 처음 두 동작은 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)에 수동 실행 기록이 있습니다.
 
 [`evals/review-loop/detection/`](../../evals/review-loop/detection/)의 탐지 벤치마크는 리뷰어에게 버그를 하나씩 심은 변경 12개와 깨끗한 변경 6개를 줍니다. 이 변경들은 이름만 봐서는 테스트인지 알 수 없는 임시 저장소에 있습니다. 2026-10-25에 claude-opus-5-5로 케이스마다 한 번씩 실행했을 때, 리뷰어는 버그 12개를 모두 P1이나 P2로 보고했고, 깨끗한 변경에는 P1이나 P2를 하나도 내지 않았습니다. 이 실행에는 약 390,000 토큰($0.89)이 들었고, 케이스 4개를 동시에 돌려 74초가 걸렸습니다. 만점이라는 결과는 이 케이스들이 작은 회귀를 드러내기에는 너무 쉽다는 뜻이기도 합니다. 그래서 다음에는 더 어려운 케이스를 추가합니다. 다시 실행하려면 `node evals/review-loop/run-detection.mjs`를 쓰세요.
 
@@ -267,7 +267,7 @@ review-loop는 LIM 자체의 pull request를 리뷰합니다. [#8](https://githu
 
 ## 데이터
 
-상태, diff, 검사 로그, 결정 기록(decision ledger)은 저장소 안의 `.git/lim/review-loop/`에 저장됩니다. review-loop는 작업 트리에 아무것도 쓰지 않습니다. 규칙을 확인할 때 review-loop는 수정 전 코드를 저장소 밖의 임시 폴더에 쓰고, 확인이 끝나면 삭제합니다. 초기화하려면 `.git/lim/review-loop/`를 삭제합니다.
+상태, diff, 검사 로그, 결정 기록(decision ledger)은 저장소 안의 `.git/lim/review-loop/`에 저장됩니다. Claude는 각 리뷰를 작업 트리의 `.lim-review/`에 잠깐 씁니다. git은 `.git/info/exclude`로 이 폴더를 무시하고, review-loop는 파일을 읽은 뒤 삭제합니다. 규칙을 확인할 때 review-loop는 수정 전 코드를 저장소 밖의 임시 폴더에 쓰고, 확인이 끝나면 삭제합니다. 초기화하려면 `.git/lim/review-loop/`를 삭제합니다.
 
 review-loop는 자체적으로 네트워크 요청을 보내지 않습니다. Claude와 리뷰어는 diff, 지적 사항, 검사 출력을 세션의 다른 파일과 같은 방식으로 읽습니다. 그래서 이 내용은 Claude Code 세션의 나머지 내용과 같은 방식으로 모델 제공자에게 전달됩니다.
 
@@ -302,7 +302,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-그다음 review-loop를 실행한 각 저장소에서 `.git/lim/review-loop/`를 삭제합니다.
+그다음 review-loop를 실행한 각 저장소에서 `.git/lim/review-loop/`와 `.git/info/exclude`의 `.lim-review/` 줄을 삭제합니다.
 
 ## 내 것으로 만들기
 

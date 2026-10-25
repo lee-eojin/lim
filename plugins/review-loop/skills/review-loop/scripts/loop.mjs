@@ -2,8 +2,8 @@
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
-  appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync,
-  symlinkSync, utimesSync, writeFileSync,
+  appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmdirSync,
+  rmSync, statSync, symlinkSync, utimesSync, writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
@@ -28,6 +28,7 @@ const REVIEWER_FIELDS = [
   'severity', 'file', 'line', 'category', 'title', ...EVIDENCE_FIELDS, 'basis', 'measuredBy', ...ASK_FLAGS, 'ruleCandidate',
 ];
 const DECISION_CHOICES = ['keep', 'once', 'rule'];
+const REVIEW_FOLDER = '.lim-review';
 const DIFF_COMMAND = ['-c', 'core.quotePath=false', 'diff', '--no-color', '--no-ext-diff', '--src-prefix=a/', '--dst-prefix=b/'];
 const CHECK_SCRIPTS = [
   ['typecheck', ['typecheck', 'type-check', 'tsc']],
@@ -490,7 +491,42 @@ function snapshotTree(repository) {
     git(['read-tree', ...(baseTree === EMPTY_TREE ? ['--empty'] : [baseTree])], { cwd: repository.root, env });
   }
   git(['add', '-A'], { cwd: repository.root, env });
+  git(['rm', '-r', '--cached', '--ignore-unmatch', '-q', '--', REVIEW_FOLDER], { cwd: repository.root, env });
   return git(['write-tree'], { cwd: repository.root, env }).trim();
+}
+
+function excludeReviewFolder(repository) {
+  const line = `${REVIEW_FOLDER}/`;
+  const excludePath = path.resolve(repository.root, git(['rev-parse', '--git-path', 'info/exclude'], { cwd: repository.root }).trim());
+  const current = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : '';
+  if (current.split(/\r?\n/).some((entry) => entry.trim() === line)) return;
+  mkdirSync(path.dirname(excludePath), { recursive: true });
+  appendFileSync(excludePath, `${current && !current.endsWith('\n') ? '\n' : ''}${line}\n`);
+}
+
+function reviewPathFor(repository, round) {
+  excludeReviewFolder(repository);
+  const file = path.join(repository.root, REVIEW_FOLDER, `round-${round}.json`);
+  // A file left by an earlier session would make Claude's Write tool refuse to overwrite it unread.
+  rmSync(file, { force: true });
+  return file;
+}
+
+function readReviewFile(cwd, file) {
+  if (typeof file !== 'string') throw new Error('give the path after --file');
+  try {
+    return readFileSync(path.resolve(cwd, file), 'utf8');
+  } catch (error) {
+    throw new Error(`could not read ${file}: ${error.code ?? error.message}`);
+  }
+}
+
+function removeReviewFile(repository, cwd, file) {
+  const folder = path.join(repository.root, REVIEW_FOLDER);
+  const target = realpathSync(path.resolve(cwd, file));
+  if (!existsSync(folder) || path.dirname(target) !== realpathSync(folder)) return;
+  rmSync(target, { force: true });
+  if (!readdirSync(folder).length) rmdirSync(folder);
 }
 
 function diffTrees(repository, fromTree, toTree, ...options) {
@@ -667,6 +703,7 @@ function resumeView(repository, state) {
     unattended: state.unattended === true,
     diffPath: repository.file(`round-${state.round}.diff`),
     openPath: existsSync(openPath) ? openPath : null,
+    reviewPath: state.awaiting === 'review' ? reviewPathFor(repository, state.round) : null,
     checksFinished: state.checks !== null,
     fix: fixing ? state.open.filter((item) => routeOf(item) === 'fix') : [],
     ask: fixing ? state.open.filter((item) => routeOf(item) === 'ask') : [],
@@ -707,11 +744,21 @@ function start(cwd, options) {
   logEvent(repository, {
     event: 'start', reviewedTree, unattended, checks: checks.map(({ name, exitCode }) => ({ name, exitCode })),
   });
-  return { status: 'review', round: 1, maxRounds, unattended, diffPath: repository.file('round-1.diff'), checks };
+  return {
+    status: 'review', round: 1, maxRounds, unattended, diffPath: repository.file('round-1.diff'),
+    reviewPath: reviewPathFor(repository, 1), checks,
+  };
 }
 
 function record(cwd, options, input) {
   const repository = openRepository(cwd);
+  if (options.file === undefined) return recordReview(repository, input);
+  const result = recordReview(repository, readReviewFile(cwd, options.file));
+  removeReviewFile(repository, cwd, options.file);
+  return result;
+}
+
+function recordReview(repository, input) {
   const state = loadState(repository);
   if (state.awaiting !== 'review') throw new Error(`expected ${state.awaiting}, not a review`);
   if (state.checks === null) throw new Error('checks did not finish, run the checks command, then record again');
@@ -855,7 +902,10 @@ function next(cwd) {
   saveState(repository, state);
   const checks = runRoundChecks(repository, state);
   logEvent(repository, { event: 'next', round: state.round, fixedTree, changedFiles: state.files });
-  return { status: 'review', round: state.round, maxRounds: state.maxRounds, diffPath, openPath, checks };
+  return {
+    status: 'review', round: state.round, maxRounds: state.maxRounds, diffPath, openPath,
+    reviewPath: reviewPathFor(repository, state.round), checks,
+  };
 }
 
 function decide(cwd, options) {
@@ -1602,8 +1652,9 @@ function main() {
     process.exit(2);
   }
   try {
-    const input = command === 'record' ? readFileSync(0, 'utf8') : '';
-    console.log(JSON.stringify(handler(process.cwd(), parseOptions(args), input), null, 2));
+    const options = parseOptions(args);
+    const input = command === 'record' && options.file === undefined ? readFileSync(0, 'utf8') : '';
+    console.log(JSON.stringify(handler(process.cwd(), options, input), null, 2));
   } catch (error) {
     console.error(JSON.stringify({ error: error.message }));
     process.exit(1);

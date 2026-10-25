@@ -208,7 +208,7 @@ Bốn thiết lập đầu tiên áp dụng cho một repository. Để thay đ�
 
 ## Số đo
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 142 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 132 hành vi trong số đó, bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 10 hành vi còn lại cần một lần chạy với mô hình: hỏi về P3 đến P5 một lần, hiển thị báo cáo trước mọi câu hỏi, giữ mọi bước trong danh sách việc cần làm kèm lý do cho mỗi bước bị bỏ qua, viết regression test cho mỗi P1 hoặc P2 đã sửa, gắn nhãn measured, inferred hoặc guessed cho mỗi phát hiện, nói rõ làm sao biết một bản sửa đã hiệu quả, kiểm tra lại một phát hiện khi bạn phản bác, đề xuất một quy tắc cho loại phát hiện cứ lặp lại, không hỏi gì trong một lần chạy không giám sát, và báo cáo code được thêm vào mà không rõ nguyên nhân. Hành vi cuối cùng có một fixture trong [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), và hai hành vi đầu tiên có một lần chạy thủ công trong [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liệt kê 149 hành vi trên sáu trục: do, tell, ask, silence, stop và evidence. Unit test trong CI bao phủ 139 hành vi trong số đó, bao gồm cả các lần chạy trên git repository tạm thời thật và hook commit gate. 10 hành vi còn lại cần một lần chạy với mô hình: hỏi về P3 đến P5 một lần, hiển thị báo cáo trước mọi câu hỏi, giữ mọi bước trong danh sách việc cần làm kèm lý do cho mỗi bước bị bỏ qua, viết regression test cho mỗi P1 hoặc P2 đã sửa, gắn nhãn measured, inferred hoặc guessed cho mỗi phát hiện, nói rõ làm sao biết một bản sửa đã hiệu quả, kiểm tra lại một phát hiện khi bạn phản bác, đề xuất một quy tắc cho loại phát hiện cứ lặp lại, không hỏi gì trong một lần chạy không giám sát, và báo cáo code được thêm vào mà không rõ nguyên nhân. Hành vi cuối cùng có một fixture trong [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), và hai hành vi đầu tiên có một lần chạy thủ công trong [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Một benchmark phát hiện lỗi trong [`evals/review-loop/detection/`](../../evals/review-loop/detection/) đưa cho reviewer 12 thay đổi, mỗi thay đổi được cài sẵn một bug, cùng 6 thay đổi sạch, trong các repository tạm thời có tên không cho biết đó là một bài test. Vào ngày 2026-10-25, với claude-opus-5-5 và một lần chạy cho mỗi trường hợp, reviewer đã báo cáo cả 12 bug ở mức P1 hoặc P2 và không nêu P1 hoặc P2 nào trên các thay đổi sạch. Lần chạy này dùng khoảng 390.000 token (0,89 USD) và mất 74 giây với 4 trường hợp chạy cùng lúc. Điểm tuyệt đối cũng có nghĩa là các trường hợp này quá dễ để cho thấy một regression nhỏ, nên các trường hợp khó hơn sẽ là bước tiếp theo. Chạy lại bằng `node evals/review-loop/run-detection.mjs`.
 
@@ -267,7 +267,7 @@ Một commit nằm ở máy cục bộ và dễ hoàn tác. Một lần push th�
 
 ## Dữ liệu
 
-Trạng thái, diff, log của check và một sổ ghi quyết định nằm trong `.git/lim/review-loop/` bên trong repository của bạn. Không có gì được ghi vào working tree của bạn. Để kiểm tra một quy tắc, review-loop ghi code từ trước bản sửa vào một thư mục tạm bên ngoài repository của bạn và xóa thư mục đó sau khi xong. Xóa `.git/lim/review-loop/` để đặt lại.
+Trạng thái, diff, log của check và một sổ ghi quyết định nằm trong `.git/lim/review-loop/` bên trong repository của bạn. Claude ghi mỗi review vào `.lim-review/` trong working tree của bạn trong chốc lát; git bỏ qua thư mục này nhờ `.git/info/exclude`, và review-loop xóa file sau khi đọc. Để kiểm tra một quy tắc, review-loop ghi code từ trước bản sửa vào một thư mục tạm bên ngoài repository của bạn và xóa thư mục đó sau khi xong. Xóa `.git/lim/review-loop/` để đặt lại.
 
 review-loop không tự thực hiện lệnh gọi mạng nào. Claude và reviewer đọc diff, các phát hiện và output của check giống như mọi file khác trong session của bạn. Vì vậy, nội dung đó được gửi đến nhà cung cấp mô hình theo cùng cách với phần còn lại của session Claude Code của bạn.
 
@@ -302,7 +302,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Sau đó, xóa `.git/lim/review-loop/` trong mỗi repository mà bạn đã chạy review-loop.
+Sau đó, xóa `.git/lim/review-loop/` trong mỗi repository mà bạn đã chạy review-loop, cùng dòng `.lim-review/` trong `.git/info/exclude` của repository đó.
 
 ## Biến nó thành của bạn
 

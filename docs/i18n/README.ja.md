@@ -208,7 +208,7 @@ Banksaladが公開しているPnルールに基づきます。
 
 ## 測定結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる142個の動作が記載されています。CIの単体テストが、そのうち132個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行と、コミットゲートhookのテストも含まれます。残りの10個はモデルの実行が必要です。その10個は、P3からP5について1回だけ確認すること、質問より先にレポートを表示すること、すべての手順をtodoリストに残し、飛ばす手順には理由を書くこと、修正したP1とP2ごとに回帰テストを書くこと、各指摘にmeasured、inferred、guessedのラベルを付けること、修正をどう確かめたかを伝えること、ユーザーが反論したら指摘をもう一度確かめること、何度も繰り返される種類の指摘にルール化を勧めること、無人実行では何も質問しないこと、原因が分からないまま追加されたコードを報告することです。最後の1個には、[`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)にfixtureがあり、最初の二つには[`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)に手動で実行した記録があります。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる149個の動作が記載されています。CIの単体テストが、そのうち139個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行と、コミットゲートhookのテストも含まれます。残りの10個はモデルの実行が必要です。その10個は、P3からP5について1回だけ確認すること、質問より先にレポートを表示すること、すべての手順をtodoリストに残し、飛ばす手順には理由を書くこと、修正したP1とP2ごとに回帰テストを書くこと、各指摘にmeasured、inferred、guessedのラベルを付けること、修正をどう確かめたかを伝えること、ユーザーが反論したら指摘をもう一度確かめること、何度も繰り返される種類の指摘にルール化を勧めること、無人実行では何も質問しないこと、原因が分からないまま追加されたコードを報告することです。最後の1個には、[`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)にfixtureがあり、最初の二つには[`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)に手動で実行した記録があります。
 
 [`evals/review-loop/detection/`](../../evals/review-loop/detection/)の検出ベンチマークは、バグを一つずつ仕込んだ12個の変更と、問題のない6個の変更をレビュアーに渡します。これらの変更は、名前からはテストだと分からない一時的なリポジトリに置かれます。2026-10-25にclaude-opus-5-5で各ケースを1回ずつ実行したところ、レビュアーは12個のバグをすべてP1またはP2として報告し、問題のない変更にはP1もP2も出しませんでした。この実行では約390,000トークン($0.89)を使い、4ケースずつ同時に実行して74秒かかりました。満点ということは、これらのケースが小さな回帰を示すには簡単すぎるということでもあります。そのため、次はより難しいケースを追加します。`node evals/review-loop/run-detection.mjs`で再実行できます。
 
@@ -267,7 +267,7 @@ review-loopは、LIM自身のpull requestをレビューしています。[#8](h
 
 ## データ
 
-状態、diff、チェックのログ、判断の記録(decision ledger)は、リポジトリ内の`.git/lim/review-loop/`に保存されます。作業ツリーには何も書き込みません。ルールを確認するとき、review-loopは修正前のコードをリポジトリ外の一時フォルダーに書き込み、終わったら削除します。リセットするには、`.git/lim/review-loop/`を削除します。
+状態、diff、チェックのログ、判断の記録(decision ledger)は、リポジトリ内の`.git/lim/review-loop/`に保存されます。Claudeは各レビューを作業ツリーの`.lim-review/`に一時的に書き込みます。gitは`.git/info/exclude`によってこのフォルダーを無視し、review-loopはファイルを読み込んだ後に削除します。ルールを確認するとき、review-loopは修正前のコードをリポジトリ外の一時フォルダーに書き込み、終わったら削除します。リセットするには、`.git/lim/review-loop/`を削除します。
 
 review-loop自体はネットワーク通信を行いません。Claudeとレビュアーは、diff、指摘、チェックの出力を、セッション内の他のファイルと同じように読みます。そのため、これらの内容は、Claude Codeセッションの他の内容と同じように、モデルの提供元に送信されます。
 
@@ -302,7 +302,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-その後、review-loopを実行した各リポジトリで`.git/lim/review-loop/`を削除します。
+その後、review-loopを実行した各リポジトリで`.git/lim/review-loop/`と、`.git/info/exclude`の`.lim-review/`の行を削除します。
 
 ## 自分のものにする
 

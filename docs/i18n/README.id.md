@@ -208,7 +208,7 @@ Empat pengaturan pertama berlaku untuk satu repository. Untuk mengubahnya, ketik
 
 ## Terukur
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 142 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 132 di antaranya, termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 10 perilaku lainnya membutuhkan eksekusi dengan model: bertanya tentang P3 sampai P5 satu kali, menampilkan laporan sebelum pertanyaan apa pun, menyimpan setiap langkah di daftar tugas dengan alasan untuk setiap langkah yang dilewati, menulis regression test untuk setiap P1 atau P2 yang diperbaiki, memberi label measured, inferred, atau guessed pada setiap temuan, menyebutkan bagaimana sebuah perbaikan diketahui berhasil, memeriksa ulang sebuah temuan saat kamu membantahnya, merekomendasikan aturan untuk jenis temuan yang terus muncul kembali, tidak bertanya apa pun dalam eksekusi tanpa pengawasan, dan melaporkan kode yang ditambahkan tanpa penyebab yang diketahui. Perilaku terakhir memiliki fixture di [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), dan dua perilaku pertama memiliki eksekusi manual di [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) mencantumkan 149 perilaku pada enam sumbu: do, tell, ask, silence, stop, dan evidence. Unit test di CI mencakup 139 di antaranya, termasuk eksekusi pada git repository sementara yang nyata dan pada hook commit gate. 10 perilaku lainnya membutuhkan eksekusi dengan model: bertanya tentang P3 sampai P5 satu kali, menampilkan laporan sebelum pertanyaan apa pun, menyimpan setiap langkah di daftar tugas dengan alasan untuk setiap langkah yang dilewati, menulis regression test untuk setiap P1 atau P2 yang diperbaiki, memberi label measured, inferred, atau guessed pada setiap temuan, menyebutkan bagaimana sebuah perbaikan diketahui berhasil, memeriksa ulang sebuah temuan saat kamu membantahnya, merekomendasikan aturan untuk jenis temuan yang terus muncul kembali, tidak bertanya apa pun dalam eksekusi tanpa pengawasan, dan melaporkan kode yang ditambahkan tanpa penyebab yang diketahui. Perilaku terakhir memiliki fixture di [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), dan dua perilaku pertama memiliki eksekusi manual di [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Sebuah benchmark deteksi di [`evals/review-loop/detection/`](../../evals/review-loop/detection/) memberi reviewer 12 perubahan yang masing-masing berisi satu bug yang sengaja ditanam dan 6 perubahan yang bersih, di repository sementara yang namanya tidak menunjukkan bahwa itu adalah sebuah test. Pada 2026-10-25, dengan claude-opus-5-5 dan satu eksekusi per kasus, reviewer melaporkan ke-12 bug sebagai P1 atau P2 dan tidak memunculkan P1 atau P2 pada perubahan yang bersih. Eksekusi ini memakai sekitar 390.000 token ($0,89) dan berlangsung 74 detik dengan 4 kasus sekaligus. Skor sempurna juga berarti kasus-kasus ini terlalu mudah untuk menunjukkan regression kecil, jadi kasus yang lebih sulit akan menyusul. Jalankan lagi dengan `node evals/review-loop/run-detection.mjs`.
 
@@ -267,7 +267,7 @@ Commit bersifat lokal dan mudah dibatalkan. Push tidak. review-loop berhenti di 
 
 ## Data
 
-State, diff, log pemeriksaan, dan catatan keputusan disimpan di `.git/lim/review-loop/` di dalam repository milikmu. Tidak ada yang ditulis ke working tree milikmu. Untuk memeriksa aturan, review-loop menulis kode dari sebelum perbaikan ke folder sementara di luar repository milikmu, lalu menghapusnya setelah selesai. Hapus `.git/lim/review-loop/` untuk mengatur ulang.
+State, diff, log pemeriksaan, dan catatan keputusan disimpan di `.git/lim/review-loop/` di dalam repository milikmu. Claude menulis setiap review ke `.lim-review/` di working tree milikmu untuk sesaat; git mengabaikan folder itu melalui `.git/info/exclude`, dan review-loop menghapus file tersebut setelah membacanya. Untuk memeriksa aturan, review-loop menulis kode dari sebelum perbaikan ke folder sementara di luar repository milikmu, lalu menghapusnya setelah selesai. Hapus `.git/lim/review-loop/` untuk mengatur ulang.
 
 review-loop tidak melakukan panggilan jaringan sendiri. Claude dan reviewer membaca diff, temuan, dan output pemeriksaan seperti file lain di sesimu. Karena itu, konten tersebut dikirim ke penyedia model dengan cara yang sama seperti bagian lain dari sesi Claude Code milikmu.
 
@@ -302,7 +302,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Lalu hapus `.git/lim/review-loop/` di setiap repository tempat kamu menjalankan review-loop.
+Lalu hapus `.git/lim/review-loop/` di setiap repository tempat kamu menjalankan review-loop, beserta baris `.lim-review/` di `.git/info/exclude` miliknya.
 
 ## Jadikan milikmu
 

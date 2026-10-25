@@ -28,7 +28,7 @@ Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs <command>` from 
 Run `loop start`. If `status` is `nothing-to-review`, tell the user and stop.
 
 If `status` is `in-progress`, a loop from an earlier session is unfinished. Show `report` if there is one, say which round it is in and what it is waiting for, and ask once whether to continue or start over. To start over, run `loop start --fresh`. To continue:
-- `awaiting: review`: if `treeMatchesReview` is false, the diff is out of date, so start over. Otherwise, if `checksFinished` is false, run `loop checks`. Then go to section 2 (Review) with `diffPath` and `openPath`.
+- `awaiting: review`: if `treeMatchesReview` is false, the diff is out of date, so start over. Otherwise, if `checksFinished` is false, run `loop checks`. Then go to section 2 (Review) with `diffPath`, `openPath`, and `reviewPath`.
 - `awaiting: fix`: go to section 4 (Continue or stop) with `fix` and `ask`.
 - `awaiting: decisions`: go to section 5 (Decide) with `stillOpen` and `cards`.
 
@@ -41,19 +41,13 @@ Start `review-loop:reviewer` with:
 - from round 2, `openPath` (the open findings it must check)
 - one line about what the user wanted from this change
 
-Ask it for JSON only.
+Ask it for JSON only. Keep `reviewPath` from the same command for section 3; the reviewer does not need it.
 
 ## 3. Record
 
-Pass the reviewer's JSON to the script:
+Write the reviewer's JSON to `reviewPath` with the Write tool, exactly as returned, then run `loop record --file <reviewPath>`. The script deletes the file once it has recorded the review. Do not pass the JSON in a heredoc: Claude Code's permission check refuses a heredoc with JSON in it.
 
-```bash
-node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs record <<'JSON'
-<the reviewer's JSON>
-JSON
-```
-
-If the script says the JSON is invalid, ask the reviewer once to fix only the format. If it fails again, stop and report what happened.
+If the script says the JSON is invalid, the file stays. Ask the reviewer once to fix only the format, read the file and write the new JSON over it, and record again. If it fails again, stop and report what happened.
 
 Show `report` first, as the Rules say.
 
@@ -146,4 +140,4 @@ If the user asks to see every P2 (or every P1 and P2) before anything is fixed, 
 
 ## Files
 
-State, diffs, check logs, and a decision ledger are kept in `.git/lim/review-loop/`. The kinds of findings each review saw go to `kinds.jsonl` in the main checkout's `.git/lim/review-loop/`, shared by every worktree. Nothing is written to the working tree. `loop rule` writes the code from before the fix to a temporary folder outside the repository, links the root `node_modules` there, and deletes the folder when it is done. Deleting `.git/lim/review-loop/` resets everything.
+State, diffs, check logs, and a decision ledger are kept in `.git/lim/review-loop/`. The kinds of findings each review saw go to `kinds.jsonl` in the main checkout's `.git/lim/review-loop/`, shared by every worktree. Each review's JSON is written to `.lim-review/` in the working tree and deleted once `loop record` reads it; `loop start` and `loop next` add `.lim-review/` to the repository's `.git/info/exclude`, so git ignores it in every worktree. `loop rule` writes the code from before the fix to a temporary folder outside the repository, links the root `node_modules` there, and deletes the folder when it is done. Deleting `.git/lim/review-loop/` resets everything.
