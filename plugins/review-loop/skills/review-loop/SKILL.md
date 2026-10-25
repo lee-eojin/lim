@@ -138,6 +138,10 @@ If the user asks for every review in this repository to run unattended, run `loo
 
 If the user asks to see every P2 (or every P1 and P2) before anything is fixed, run `loop confirm --severity P2` (or `--severity all`). `loop confirm --off` turns it off. The setting applies to the whole repository. If a round is waiting for fixes, the command also moves findings at that severity from the fix list to the ask list and returns their ids in `rerouted`; ask about those before fixing anything.
 
+If the user asks to turn the commit gate on or off, run `loop gate --on` or `loop gate --off`. A request like this is not a review: do not run `loop start`.
+
+If the user asks to stop being asked before commits in this repository, run `loop delegate --scope repo`. This also needs no review.
+
 If the user asks for the reviewer to run on another model, run `loop reviewer --model opus|sonnet|haiku|fable`; `--model inherit` goes back to the session's model. It applies from the next round the script hands out.
 
 ## Files

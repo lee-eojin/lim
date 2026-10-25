@@ -50,6 +50,8 @@ Two steps:
 
 That is all. review-loop runs your checks, reviews the change, fixes what must be fixed, and asks you about the rest. At the end it asks once whether to turn on the commit gate for this repository, and then whether to commit.
 
+New here? The [guide](docs/guide/README.md) walks through a first review, deciding, the commit gate, cost, and pitfalls, with real output.
+
 ## Usage
 
 ### Just use `/review-loop:review-loop`
@@ -229,7 +231,7 @@ The table above is the basis for the reviewer's default model. On the harder set
 
 | Part | Always on, every session | Each time it runs |
 |---|---|---|
-| review-loop skill | about 140 tokens | about 5,500 tokens |
+| review-loop skill | about 140 tokens | about 5,600 tokens |
 | reviewer agent | about 70 tokens | about 1,700 tokens, plus the diff and the code it reads |
 
 The skill's cost is paid once per run. The reviewer's cost is paid once per round, and a loop runs at most 3 rounds. The reviewer model changes that cost; the benchmark table above shows it for each model. Your checks run on your machine and cost no tokens.
@@ -333,7 +335,6 @@ review-loop works with the checks you already have. The better your `typecheck`,
 ## Roadmap
 
 - Model-level evals with `claude plugin eval` for the behaviors unit tests cannot cover, and a blind comparison of review quality and cost
-- A short guide with copy-ready prompts, real output, and cost
 
 ## Contributing
 

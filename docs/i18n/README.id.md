@@ -52,6 +52,8 @@ Dua langkah:
 
 Hanya itu. review-loop menjalankan pemeriksaanmu, me-review perubahan, memperbaiki yang harus diperbaiki, dan menanyakan sisanya kepadamu. Di akhir, review-loop bertanya satu kali apakah commit gate perlu dinyalakan untuk repository ini, lalu apakah perubahan perlu di-commit.
 
+Baru mulai? [Panduan](../../docs/guide/README.md) (dalam bahasa Inggris) membahas review pertama, cara memutuskan, commit gate, biaya, dan jebakan umum, dengan output asli.
+
 ## Penggunaan
 
 ### Cukup gunakan `/review-loop:review-loop`
@@ -231,7 +233,7 @@ Tabel di atas menjadi dasar model default reviewer. Pada set lebih sulit, Opus m
 
 | Bagian | Selalu aktif, setiap sesi | Setiap kali berjalan |
 |---|---|---|
-| skill review-loop | sekitar 140 token | sekitar 5.500 token |
+| skill review-loop | sekitar 140 token | sekitar 5.600 token |
 | reviewer agent | sekitar 70 token | sekitar 1.700 token, ditambah diff dan kode yang dibacanya |
 
 Biaya skill dibayar satu kali per eksekusi. Biaya reviewer dibayar satu kali per putaran, dan satu loop berjalan maksimal 3 putaran. Model reviewer mengubah biaya itu; tabel benchmark di atas menunjukkannya untuk tiap model. Pemeriksaanmu berjalan di mesinmu sendiri dan tidak memakan token.
@@ -335,7 +337,6 @@ review-loop bekerja dengan pemeriksaan yang sudah kamu punya. Semakin baik scrip
 ## Roadmap
 
 - Eval tingkat model dengan `claude plugin eval` untuk perilaku yang tidak dapat dicakup oleh unit test, serta perbandingan buta atas kualitas dan biaya review
-- Panduan singkat dengan prompt siap salin, output nyata, dan biaya
 
 ## Berkontribusi
 

@@ -52,6 +52,8 @@ Deux étapes :
 
 C'est tout. review-loop exécute vos vérifications, fait la revue de la modification, corrige ce qui doit l'être et vous interroge sur le reste. À la fin, il demande une fois s'il doit activer le commit gate dans ce dépôt, puis s'il doit faire le commit.
 
+Vous débutez ? Le [guide](../../docs/guide/README.md), en anglais, présente une première revue, les décisions, le commit gate, le coût et les pièges courants, avec une sortie réelle.
+
 ## Utilisation
 
 ### Il suffit de `/review-loop:review-loop`
@@ -231,7 +233,7 @@ Le tableau ci-dessus fonde le modèle par défaut du réviseur. Sur le jeu diffi
 
 | Partie | Toujours actif, à chaque session | À chaque exécution |
 |---|---|---|
-| skill review-loop | environ 140 tokens | environ 5500 tokens |
+| skill review-loop | environ 140 tokens | environ 5600 tokens |
 | agent réviseur | environ 70 tokens | environ 1700 tokens, plus le diff et le code qu'il lit |
 
 Le coût de la skill est payé une fois par exécution. Celui du réviseur est payé une fois par tour, et une boucle compte au maximum 3 tours. Le modèle du réviseur change ce coût ; le tableau du benchmark ci-dessus le montre pour chaque modèle. Vos vérifications s'exécutent sur votre machine et ne coûtent aucun token.
@@ -335,7 +337,6 @@ review-loop fonctionne avec les vérifications que vous avez déjà. Plus vos sc
 ## Feuille de route
 
 - Des evals au niveau du modèle avec `claude plugin eval` pour les comportements que les tests unitaires ne peuvent pas couvrir, et une comparaison à l'aveugle de la qualité et du coût des revues
-- Un guide court avec des prompts prêts à copier, de vraies sorties et le coût
 
 ## Contribuer
 

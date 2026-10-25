@@ -52,6 +52,8 @@ Hai bước:
 
 Vậy là xong. review-loop chạy các check của bạn, review thay đổi, sửa những gì phải sửa và hỏi bạn về phần còn lại. Ở cuối, nó hỏi một lần xem có bật commit gate cho repository này không, rồi hỏi có commit không.
 
+Mới bắt đầu? [Hướng dẫn](../../docs/guide/README.md) (bằng tiếng Anh) đi qua lần review đầu tiên, cách quyết định, commit gate, chi phí và các lỗi thường gặp, với output thật.
+
 ## Cách dùng
 
 ### Chỉ cần dùng `/review-loop:review-loop`
@@ -231,7 +233,7 @@ Bảng ở trên là cơ sở cho model mặc định của reviewer. Trên bộ
 
 | Thành phần | Luôn bật, trong mọi session | Mỗi lần chạy |
 |---|---|---|
-| skill review-loop | khoảng 140 token | khoảng 5.500 token |
+| skill review-loop | khoảng 140 token | khoảng 5.600 token |
 | reviewer agent | khoảng 70 token | khoảng 1.700 token, cộng với diff và code mà nó đọc |
 
 Chi phí của skill được tính một lần cho mỗi lần chạy. Chi phí của reviewer được tính một lần cho mỗi vòng, và một vòng lặp chạy tối đa 3 vòng. Model của reviewer làm thay đổi chi phí đó; bảng benchmark ở trên cho thấy chi phí của từng model. Các check của bạn chạy trên máy của bạn và không tốn token.
@@ -335,7 +337,6 @@ review-loop làm việc với các check bạn đã có. Script `typecheck`, `li
 ## Lộ trình
 
 - Eval ở cấp mô hình với `claude plugin eval` cho các hành vi mà unit test không bao phủ được, và một phép so sánh mù về chất lượng và chi phí review
-- Một hướng dẫn ngắn với các prompt sẵn sàng sao chép, output thực tế và chi phí
 
 ## Đóng góp
 
