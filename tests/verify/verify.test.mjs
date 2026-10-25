@@ -498,7 +498,8 @@ describe('only the project\'s own scripts and executables run', () => {
       assert.match(problemsFor({ run })[0], /, which resolves to [^;]+, not a file in the repository outside node_modules and \.git; a check runs only/, run.join(' '));
     }
     assert.match(problemsFor({ run: ['node', 'node_modules/eslint/bin/eslint.js'] })[0], /on "node_modules\/eslint\/bin\/eslint\.js", which resolves to node_modules\/eslint\/bin\/eslint\.js, not a file/);
-    assert.match(problemsFor({ run: ['verify-checks/shell', '-c', 'exit 0'] })[0], /starts "verify-checks\/shell", which resolves to verify-checks\/shell, a link to \/bin\/sh, not a file/);
+    assert.ok(problemsFor({ run: ['verify-checks/shell', '-c', 'exit 0'] })[0]
+      .includes(`starts "verify-checks/shell", which resolves to verify-checks/shell, a link to ${realpathSync('/bin/sh')}, not a file`));
   });
 
   test('env names that change how a program loads or runs code are refused', () => {
