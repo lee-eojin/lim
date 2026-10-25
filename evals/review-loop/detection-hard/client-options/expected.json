@@ -1,0 +1,17 @@
+{
+  "intent": "Let the status probe take --base-url, --retries, and --timeout, and keep the current defaults when a flag is not given",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "spread copies undefined: a flag that is not given passes undefined, which overwrites the default, so a plain run makes no request and throws undefined",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/client.js", "lines": [4, 4] },
+        { "file": "src/cli.js", "lines": [14, 20] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["undefined overrides", "undefined overwrites", "undefined replaces", "set to undefined", "explicit undefined", "explicitly undefined", "undefined values", "undefined properties", "undefined keys", "baseUrl: undefined", "retries: undefined", "timeoutMs: undefined", "overrides the default", "overrides the defaults", "overwrites the default", "overwrites the defaults", "replaces the default", "replaces the defaults", "clobbers", "never runs", "no request", "throws undefined", "undefined/status"]
+    }
+  ],
+  "forbid": []
+}

@@ -1,0 +1,16 @@
+{
+  "intent": "Let support refund an order, in full or in part, back to the customer's account",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "swapped arguments: transfer() takes the receiving account first, so the refund moves money from the customer to the store",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/refunds.js", "lines": [7, 7] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["swapped", "reversed", "backwards", "argument order", "parameter order", "opposite direction", "wrong direction", "toAccountId", "fromAccountId", "debits the customer", "from the customer", "charges the customer"]
+    }
+  ],
+  "forbid": []
+}

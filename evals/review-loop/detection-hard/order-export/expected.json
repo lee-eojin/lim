@@ -1,0 +1,16 @@
+{
+  "intent": "Add a CSV export of orders for a date range, and move the money and date helpers into src/format.js so the export can share them",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "zero-based month: the rewritten formatDate drops the + 1 after getUTCMonth(), so every invoice, receipt, email, and CSV date shows the previous month",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/format.js", "lines": [7, 7] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["zero-based", "0-based", "zero-indexed", "0-indexed", "+ 1", "one month", "wrong month", "previous month", "month early", "month behind", "month off", "January", "December", "one lower", "off-by-one", "off by one"]
+    }
+  ],
+  "forbid": []
+}

@@ -37,10 +37,11 @@ All four must pass. CI runs `node --test`, `scripts/check.sh`, and `node scripts
 These files are instructions to a model, so unit tests cannot tell whether a change made reviews better or worse. Before and after the change, run the detection benchmark and put both sets of numbers in the pull request:
 
 ```bash
-node evals/review-loop/run-detection.mjs -j 4
+node evals/review-loop/run-detection.mjs --runs 3 -j 4 --label detection
+node evals/review-loop/run-detection.mjs --cases evals/review-loop/detection-hard --runs 3 -j 4 --label detection-hard
 ```
 
-It runs the reviewer once on each case in `evals/review-loop/detection/` (seeded bugs and clean changes) and saves found, missed, false P1 or P2, tokens, and time to `evals/review-loop/results/`. To test removing an instruction, copy `reviewer.md`, remove it, and run again with `--reviewer <copy> --label without-<name>`. It uses your Claude account and costs real tokens; the results file shows how many. After changing a case's `expected.json`, score saved results again with `--rescore <results file>`, which calls no model; `--note <text>` records what changed.
+There are two sets of seeded bugs and clean changes. `evals/review-loop/detection/` has bugs the diff shows on its own. `evals/review-loop/detection-hard/` has bugs that need a second file to see, a bug hidden in a long diff, async ordering, a leaked lock, and clean changes that look suspicious. Comparisons use 3 runs per case, because one run cannot separate a real change from noise; report each set's totals and the cases whose result differs between runs. Each run saves found, missed, false P1 or P2, tokens, and time to `evals/review-loop/results/`, with the cases folder it used. To test removing an instruction, copy `reviewer.md`, remove it, and run again with `--reviewer <copy> --label without-<name>`. It uses your Claude account and costs real tokens; the results file shows how many. After changing a case's `expected.json`, score saved results again with `--rescore <results file>`, which calls no model and uses the cases folder stored in the file; `--note <text>` records what changed.
 
 For a change to `SKILL.md`, also do the manual B05 and B31 run in [`evals/review-loop/manual-behaviors.md`](evals/review-loop/manual-behaviors.md) and report the result.
 

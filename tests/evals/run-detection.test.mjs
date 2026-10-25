@@ -4,11 +4,20 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { locationsOf, parseAgentFile, parseReviewerOutput, pool, prepareCase, rescoreResults, runOne, scoreCase, summarize } from '../../evals/review-loop/run-detection.mjs';
+import { casesDirFor, locationsOf, parseAgentFile, parseReviewerOutput, pool, prepareCase, rescoreResults, rescoreRuns, runOne, scoreCase, summarize } from '../../evals/review-loop/run-detection.mjs';
 
-const casesDir = fileURLToPath(new URL('../../evals/review-loop/detection/', import.meta.url));
-const caseNames = readdirSync(casesDir).filter((name) => existsSync(path.join(casesDir, name, 'expected.json')));
-const readExpected = (name) => JSON.parse(readFileSync(path.join(casesDir, name, 'expected.json'), 'utf8'));
+const evalsDir = fileURLToPath(new URL('../../evals/review-loop/', import.meta.url));
+const casesDir = path.join(evalsDir, 'detection');
+const caseSets = [
+  { folder: 'detection', minBugs: 10, minClean: 5 },
+  { folder: 'detection-hard', minBugs: 5, minClean: 3 },
+].map((set) => {
+  const dir = path.join(evalsDir, set.folder);
+  const names = readdirSync(dir).filter((name) => existsSync(path.join(dir, name, 'expected.json')));
+  return { ...set, dir, names };
+});
+const readCase = (dir, name) => JSON.parse(readFileSync(path.join(dir, name, 'expected.json'), 'utf8'));
+const readExpected = (name) => readCase(casesDir, name);
 
 const seeded = {
   seeded: 'off-by-one',
@@ -90,10 +99,10 @@ function addedLines(diff) {
   return added;
 }
 
-test('every detection case has an intent and a diff that applies, and seeded ranges cover lines the change adds', () => {
+for (const { folder, dir, names, minBugs, minClean } of caseSets) test(`${folder}: every case has an intent and a diff that applies, and seeded ranges cover lines the change adds`, () => {
   const kinds = { bug: 0, clean: 0 };
-  for (const name of caseNames) {
-    const expected = readExpected(name);
+  for (const name of names) {
+    const expected = readCase(dir, name);
     assert.ok(expected.intent, `${name} has an intent`);
     if (expected.seeded) {
       kinds.bug += 1;
@@ -102,7 +111,7 @@ test('every detection case has an intent and a diff that applies, and seeded ran
       kinds.clean += 1;
       assert.deepEqual(expected.forbid, [{ severity: ['P1', 'P2'] }], `${name} forbids any P1 or P2`);
     }
-    const { workDir, diffPath } = prepareCase(path.join(casesDir, name), expected);
+    const { workDir, diffPath } = prepareCase(path.join(dir, name), expected);
     try {
       if (!expected.seeded) continue;
       const added = addedLines(readFileSync(diffPath, 'utf8'));
@@ -119,7 +128,7 @@ test('every detection case has an intent and a diff that applies, and seeded ran
       rmSync(workDir, { recursive: true, force: true });
     }
   }
-  assert.ok(kinds.bug >= 10 && kinds.clean >= 5, `at least 10 seeded bugs and 5 clean changes, got ${kinds.bug} and ${kinds.clean}`);
+  assert.ok(kinds.bug >= minBugs && kinds.clean >= minClean, `at least ${minBugs} seeded bugs and ${minClean} clean changes, got ${kinds.bug} and ${kinds.clean}`);
 });
 
 test('the file and lines shorthand is read as one location', () => {
@@ -142,9 +151,9 @@ const GENERIC_MENTIONS = new Set([
   'first', 'last', 'wrong', 'default', 'zero', 'null', 'time', 'unit', 'second', 'seconds', 'ms',
 ]);
 
-test('every case names keywords that only a finding about the seeded bug would use', () => {
-  for (const name of caseNames) {
-    for (const entry of readExpected(name).expect) {
+for (const { folder, dir, names } of caseSets) test(`${folder}: every case names keywords that only a finding about the seeded bug would use`, () => {
+  for (const name of names) {
+    for (const entry of readCase(dir, name).expect) {
       assert.ok(entry.mentions?.length, `${name} lists mention keywords`);
       for (const keyword of entry.mentions) {
         assert.ok(keyword.trim().length >= 3, `${name}: "${keyword}" is shorter than 3 characters`);
@@ -202,6 +211,26 @@ test('rescoring a stored run applies the current expected.json and keeps the raw
   assert.deepEqual(rescored.scoredWith.originalSummary, { found: 1, missed: 0 });
   assert.equal(rescored.scoredWith.note, 'keywords changed');
   assert.deepEqual(rescoreResults(rescored, casesDir, 'again').scoredWith.originalSummary, { found: 1, missed: 0 });
+});
+
+test('rescoring uses the cases folder stored in the results file unless --cases is given', () => {
+  const hardDir = caseSets.find((set) => set.folder === 'detection-hard').dir;
+  assert.equal(casesDirFor(undefined, { cases: 'evals/review-loop/detection-hard' }), hardDir);
+  assert.equal(casesDirFor(undefined, {}), casesDir);
+  assert.equal(casesDirFor(undefined), casesDir);
+  assert.equal(casesDirFor(hardDir, { cases: 'evals/review-loop/detection' }), hardDir);
+});
+
+const resultsDir = path.join(evalsDir, 'results');
+const resultFiles = readdirSync(resultsDir).filter((name) => name.endsWith('.json')).sort();
+
+test('every saved results file is scored with the current expected.json files', () => {
+  assert.ok(resultFiles.length, 'there are saved results');
+  for (const name of resultFiles) {
+    const results = JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8'));
+    const rescored = summarize(rescoreRuns(results.runs, casesDirFor(undefined, results)));
+    assert.deepEqual(results.summary, rescored, `${name} differs from a rescore; run node evals/review-loop/run-detection.mjs --rescore on it`);
+  }
 });
 
 test('the round diff does not depend on the git config of the person running it', () => {

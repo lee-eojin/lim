@@ -1,0 +1,183 @@
+diff --git a/spec/format.spec.js b/spec/format.spec.js
+new file mode 100644
+index 0000000..a70940c
+--- /dev/null
++++ b/spec/format.spec.js
+@@ -0,0 +1,23 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { ordersToCsv } from '../src/export-csv.js';
++import { formatMoney } from '../src/format.js';
++
++test('formatMoney shows dollars with two decimals', () => {
++  assert.equal(formatMoney(1999), '$19.99');
++  assert.equal(formatMoney(5), '$0.05');
++});
++
++test('ordersToCsv quotes cells that hold a comma or a quote', () => {
++  const csv = ordersToCsv([{
++    id: 'A-1',
++    createdAt: new Date('2026-03-05T10:00:00Z'),
++    customerName: 'Corner Shop, "North"',
++    items: [{ quantity: 2 }, { quantity: 1 }],
++    totalCents: 4500,
++  }]);
++  const [header, row] = csv.split('\n');
++  assert.equal(header, 'order,date,customer,items,total');
++  assert.ok(row.includes('"Corner Shop, ""North"""'));
++  assert.ok(row.endsWith(',3,$45.00'));
++});
+diff --git a/spec/invoice.spec.js b/spec/invoice.spec.js
+deleted file mode 100644
+index 25c400a..0000000
+--- a/spec/invoice.spec.js
++++ /dev/null
+@@ -1,8 +0,0 @@
+-import assert from 'node:assert/strict';
+-import { test } from 'node:test';
+-import { formatMoney } from '../src/invoice.js';
+-
+-test('formatMoney shows dollars with two decimals', () => {
+-  assert.equal(formatMoney(1999), '$19.99');
+-  assert.equal(formatMoney(5), '$0.05');
+-});
+diff --git a/src/emails.js b/src/emails.js
+index 91030fe..d708770 100644
+--- a/src/emails.js
++++ b/src/emails.js
+@@ -1,13 +1,13 @@
+-import { formatDate, formatMoney } from './invoice.js';
++import { formatDate, formatMoney } from './format.js';
+ import { renderReceipt } from './receipt.js';
+ 
+ export function shippedEmail(order) {
+   return {
+-    subject: `Order ${order.id} has shipped`,
++    subject: `Order #${order.id} has shipped`,
+     text: `Your order of ${formatMoney(order.totalCents)} shipped on ${formatDate(order.shippedAt)}.`,
+   };
+ }
+ 
+ export function receiptEmail(order, payment) {
+-  return { subject: `Receipt for order ${order.id}`, text: renderReceipt(order, payment) };
++  return { subject: `Receipt for order #${order.id}`, text: renderReceipt(order, payment) };
+ }
+diff --git a/src/export-csv.js b/src/export-csv.js
+new file mode 100644
+index 0000000..aa65c76
+--- /dev/null
++++ b/src/export-csv.js
+@@ -0,0 +1,19 @@
++import { formatDate, formatMoney } from './format.js';
++
++const COLUMNS = ['order', 'date', 'customer', 'items', 'total'];
++
++function escapeCell(value) {
++  const text = String(value);
++  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
++}
++
++export function ordersToCsv(orders) {
++  const rows = orders.map((order) => [
++    order.id,
++    formatDate(order.createdAt, '/'),
++    order.customerName,
++    order.items.reduce((count, item) => count + item.quantity, 0),
++    formatMoney(order.totalCents),
++  ]);
++  return [COLUMNS, ...rows].map((row) => row.map(escapeCell).join(',')).join('\n');
++}
+diff --git a/src/format.js b/src/format.js
+new file mode 100644
+index 0000000..d19eea8
+--- /dev/null
++++ b/src/format.js
+@@ -0,0 +1,10 @@
++export function formatMoney(cents) {
++  return `$${(cents / 100).toFixed(2)}`;
++}
++
++export function formatDate(date, separator = '-') {
++  const year = date.getUTCFullYear();
++  const month = String(date.getUTCMonth()).padStart(2, '0');
++  const day = String(date.getUTCDate()).padStart(2, '0');
++  return [year, month, day].join(separator);
++}
+diff --git a/src/invoice.js b/src/invoice.js
+index ceb5bb1..69c3c50 100644
+--- a/src/invoice.js
++++ b/src/invoice.js
+@@ -1,17 +1,14 @@
+-export function formatMoney(cents) {
+-  return `$${(cents / 100).toFixed(2)}`;
+-}
++import { formatDate, formatMoney } from './format.js';
+ 
+-export function formatDate(date) {
+-  return date.toISOString().slice(0, 10);
++function invoiceLine(item) {
++  return `${item.name} x${item.quantity}  ${formatMoney(item.priceCents * item.quantity)}`;
+ }
+ 
+ export function renderInvoice(order) {
+-  const lines = order.items.map((item) => `${item.name} x${item.quantity}  ${formatMoney(item.priceCents * item.quantity)}`);
+   return [
+-    `Invoice ${order.id}`,
++    `Invoice #${order.id}`,
+     `Date: ${formatDate(order.createdAt)}`,
+-    ...lines,
++    ...order.items.map(invoiceLine),
+     `Total: ${formatMoney(order.totalCents)}`,
+   ].join('\n');
+ }
+diff --git a/src/receipt.js b/src/receipt.js
+index 3beb573..639fda8 100644
+--- a/src/receipt.js
++++ b/src/receipt.js
+@@ -1,8 +1,8 @@
+-import { formatDate, formatMoney } from './invoice.js';
++import { formatDate, formatMoney } from './format.js';
+ 
+ export function renderReceipt(order, payment) {
+   return [
+-    `Receipt for order ${order.id}`,
++    `Receipt for order #${order.id}`,
+     `Paid ${formatMoney(payment.amountCents)} on ${formatDate(payment.paidAt)}`,
+     `Card ending ${payment.cardLast4}`,
+   ].join('\n');
+diff --git a/src/routes.js b/src/routes.js
+index e9b8834..cfe6503 100644
+--- a/src/routes.js
++++ b/src/routes.js
+@@ -1,5 +1,12 @@
++import { ordersToCsv } from './export-csv.js';
+ import { renderInvoice } from './invoice.js';
+-import { findOrder } from './orders-store.js';
++import { findOrder, listOrders } from './orders-store.js';
++
++function parseDay(text) {
++  if (!/^\d{4}-\d{2}-\d{2}$/.test(text ?? '')) return null;
++  const day = new Date(`${text}T00:00:00Z`);
++  return Number.isNaN(day.getTime()) ? null : day;
++}
+ 
+ export const routes = {
+   'GET /orders/:id/invoice': ({ params }) => {
+@@ -7,4 +14,17 @@ export const routes = {
+     if (!order) return { status: 404 };
+     return { status: 200, headers: { 'content-type': 'text/plain' }, body: renderInvoice(order) };
+   },
++  'GET /orders.csv': ({ query }) => {
++    const from = parseDay(query.from);
++    const to = parseDay(query.to);
++    if (!from || !to || to < from) {
++      return { status: 400, body: 'from and to must be dates as YYYY-MM-DD, with to on or after from' };
++    }
++    const end = new Date(to.getTime() + 24 * 60 * 60 * 1000);
++    return {
++      status: 200,
++      headers: { 'content-type': 'text/csv', 'content-disposition': 'attachment; filename="orders.csv"' },
++      body: ordersToCsv(listOrders({ from, to: end })),
++    };
++  },
+ };

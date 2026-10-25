@@ -16,7 +16,8 @@ const usage = `Usage: node evals/review-loop/run-detection.mjs [options]
 Runs the review-loop reviewer once per case on a copy of each case repository and scores
 its findings against expected.json.
 
-  --cases <dir>        folder of cases (default: evals/review-loop/detection)
+  --cases <dir>        folder of cases (default: evals/review-loop/detection; the harder set
+                       is evals/review-loop/detection-hard)
   --case <name>        run only this case (repeatable)
   --reviewer <file>    reviewer definition (default: plugins/review-loop/agents/reviewer.md)
   --model <name>       model for the reviewer (default: the reviewer's own setting)
@@ -29,7 +30,8 @@ its findings against expected.json.
   --keep               keep the temporary repositories
   --rescore <file>     score the reviewer output stored in a results file again against the
                        current expected.json files, without a model, and write it back
-                       (or to --out)
+                       (or to --out), using the cases folder stored in that file unless
+                       --cases is given
   --note <text>        with --rescore, what changed, recorded in scoredWith.note
 `;
 
@@ -350,6 +352,11 @@ export function rescoreRuns(runs, casesDir) {
   }
 }
 
+export function casesDirFor(option, results) {
+  if (option) return path.resolve(option);
+  return results?.cases ? path.resolve(repoRoot, results.cases) : path.join(here, 'detection');
+}
+
 export function rescoreResults(results, casesDir, note) {
   const { runs, scoredWith, ...rest } = results;
   const rescored = rescoreRuns(runs, casesDir);
@@ -397,7 +404,7 @@ function report(runs, summary, out) {
 async function main() {
   const { values } = parseArgs({
     options: {
-      cases: { type: 'string', default: path.join(here, 'detection') },
+      cases: { type: 'string' },
       case: { type: 'string', multiple: true },
       reviewer: { type: 'string', default: path.join(repoRoot, 'plugins/review-loop/agents/reviewer.md') },
       model: { type: 'string' },
@@ -419,7 +426,8 @@ async function main() {
   }
   if (values.rescore) {
     const source = path.resolve(values.rescore);
-    const results = rescoreResults(JSON.parse(readFileSync(source, 'utf8')), path.resolve(values.cases), values.note);
+    const stored = JSON.parse(readFileSync(source, 'utf8'));
+    const results = rescoreResults(stored, casesDirFor(values.cases, stored), values.note);
     const out = values.out ? path.resolve(values.out) : source;
     writeFileSync(out, `${JSON.stringify(results, null, 2)}\n`);
     report(results.runs, results.summary, out);
@@ -433,7 +441,7 @@ async function main() {
   };
   const reviewerText = readFileSync(values.reviewer, 'utf8');
   const agent = parseAgentFile(reviewerText);
-  const casesDir = path.resolve(values.cases);
+  const casesDir = casesDirFor(values.cases);
   const names = readdirSync(casesDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && existsSync(path.join(casesDir, entry.name, 'expected.json')))
     .map((entry) => entry.name)
@@ -470,6 +478,7 @@ async function main() {
       sha256: createHash('sha256').update(reviewerText).digest('hex'),
     },
     label: values.label ?? null,
+    cases: path.relative(repoRoot, casesDir),
     runsPerCase: Number(values.runs),
     concurrency: Number(values.concurrency),
     elapsedSeconds: Math.round((Date.now() - started) / 1000),

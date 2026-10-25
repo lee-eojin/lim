@@ -210,7 +210,15 @@ run unattended:         /review-loop:review-loop run unattended. I will read the
 
 [`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 149 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 139 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 10 個行為需要實際執行模型：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、為每個發現項目標明 measured、inferred 或 guessed、說明如何確認修正有效、在你提出異議時重新查證發現項目、為反覆出現的同類發現項目建議設為規則、在無人值守執行中不提出任何問題、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture，前兩個行為在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手動執行紀錄。
 
-[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中的偵測基準測試給審查者 12 個各植入一個 bug 的變更和 6 個乾淨的變更，這些變更放在名稱看不出是測試的暫存儲存庫中。2026-10-25，使用 claude-opus-5-5、每個案例執行 1 次，審查者把全部 12 個 bug 都回報為 P1 或 P2，而且沒有對乾淨的變更提出任何 P1 或 P2。這次執行使用了約 390,000 個 token（$0.89），每次同時執行 4 個案例，耗時 74 秒。滿分也代表這些案例太簡單，無法顯示出小的迴歸，所以接下來會加入更難的案例。可以用 `node evals/review-loop/run-detection.mjs` 再次執行。
+偵測基準測試給審查者一些變更，這些變更放在名稱看不出是測試的暫存儲存庫中。[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中有 12 個各植入一個 bug 的變更和 6 個乾淨的變更。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) 中有 6 個更難的 bug，以及 4 個看起來可疑的乾淨變更。這些更難的 bug 包括：只有查看 diff 沒有改動的檔案才能發現的 bug、藏在 183 行 diff 中的 bug、兩次搜尋之間的競態，以及在錯誤路徑上沒有釋放的鎖。2026-10-25 的結果如下，每個案例執行 3 次：
+
+| 審查者模型 | 一般組：以 P1 或 P2 找出的 bug | 一般組：對乾淨變更誤報的 P1 或 P2 | 困難組：以 P1 或 P2 找出的 bug | 困難組：對乾淨變更誤報的 P1 或 P2 | 困難組的費用（30 次執行） |
+|---|---|---|---|---|---|
+| claude-opus-5-5 | 36 個中 36 個 | 18 個中 0 個 | 18 個中 18 個 | 12 個中 0 個 | $1.77 |
+| claude-sonnet-5-5 | 未執行 | 未執行 | 18 個中 18 個 | 12 個中 1 個 | $0.76 |
+| claude-haiku-5-5 | 未執行 | 未執行 | 18 個中 17 個 | 12 個中 3 個 | $0.06（Claude Code 回報的數值） |
+
+審查者使用你工作階段中的模型執行。Opus 在兩組案例中找出了所有植入的 bug，所以這個基準測試目前還無法顯示它的小幅下降。較弱的模型的結果顯示，這個基準測試確實能抓出漏掉的 bug 和誤報。Haiku 漏掉的一個案例指出了 bug，但給出的行超出了它所指檔案的結尾，引用的又是另一個檔案中的程式碼，review-loop 同樣會把這類發現項目顯示為未驗證。第一批執行之後，有三個案例的審查者用評分不接受的措辭指出了植入的 bug，於是為這三個案例補充了關鍵字，並用它們重新為所有已儲存的執行評分。在一次只修改 fixture 的變更之前，Opus 曾在困難組上執行過一次，當時在一個乾淨案例上誤報了一個 P2（與 Sonnet 和 Haiku 誤報的是同一個案例），所以在 Opus 的 6 次執行中，這個案例誤報了 1 次。可以用 `node evals/review-loop/run-detection.mjs --runs 3` 再次執行，加上 `--cases evals/review-loop/detection-hard` 可執行困難組。
 
 <details>
 <summary>成本</summary>

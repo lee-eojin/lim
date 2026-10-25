@@ -210,7 +210,15 @@ run unattended:         /review-loop:review-loop run unattended. I will read the
 
 [`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 149 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 139 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 10 个行为需要实际运行模型：对 P3 到 P5 只询问一次、在任何提问之前先展示报告、把每个步骤都留在待办清单中并为每个跳过的步骤写下原因、为每个修复的 P1 和 P2 编写回归测试、为每个发现项标明 measured、inferred 或 guessed、说明如何确认修复有效、在你提出异议时重新核实发现项、为反复出现的同类发现项建议设为规则、在无人值守运行中不提任何问题、报告在原因不明时添加的代码。最后一个行为在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一个 fixture，前两个行为在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手动运行记录。
 
-[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中的检测基准测试给审查者 12 个各植入一个 bug 的改动和 6 个干净的改动，这些改动放在名称看不出是测试的临时仓库中。2026-10-25，使用 claude-opus-5-5、每个用例运行 1 次，审查者把全部 12 个 bug 都报告为 P1 或 P2，并且没有对干净的改动提出任何 P1 或 P2。这次运行使用了约 390,000 个 token（$0.89），每次并行运行 4 个用例，耗时 74 秒。满分也意味着这些用例太简单，无法显示出小的回归，所以接下来会加入更难的用例。可以用 `node evals/review-loop/run-detection.mjs` 再次运行。
+检测基准测试给审查者一些改动，这些改动放在名称看不出是测试的临时仓库中。[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中有 12 个各植入一个 bug 的改动和 6 个干净的改动。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) 中有 6 个更难的 bug，以及 4 个看起来可疑的干净改动。这些更难的 bug 包括：只有查看 diff 没有改动的文件才能发现的 bug、藏在 183 行 diff 中的 bug、两次搜索之间的竞态，以及在错误路径上没有释放的锁。2026-10-25 的结果如下，每个用例运行 3 次：
+
+| 审查者模型 | 常规组：作为 P1 或 P2 找出的 bug | 常规组：对干净改动误报的 P1 或 P2 | 困难组：作为 P1 或 P2 找出的 bug | 困难组：对干净改动误报的 P1 或 P2 | 困难组的费用（30 次运行） |
+|---|---|---|---|---|---|
+| claude-opus-5-5 | 36 个中 36 个 | 18 个中 0 个 | 18 个中 18 个 | 12 个中 0 个 | $1.77 |
+| claude-sonnet-5-5 | 未运行 | 未运行 | 18 个中 18 个 | 12 个中 1 个 | $0.76 |
+| claude-haiku-5-5 | 未运行 | 未运行 | 18 个中 17 个 | 12 个中 3 个 | $0.06（Claude Code 报告的数值） |
+
+审查者使用你会话中的模型运行。Opus 在两组用例中找出了所有植入的 bug，所以这个基准测试目前还无法显示它的小幅下降。较弱的模型的结果说明，这个基准测试确实能发现漏掉的 bug 和误报。Haiku 漏掉的一个用例指出了 bug，但给出的行超出了它所指文件的末尾，引用的又是另一个文件中的代码，review-loop 同样会把这类发现项显示为未验证。第一批运行之后，有三个用例的审查者用评分不接受的措辞指出了植入的 bug，于是为这三个用例补充了关键词，并用它们重新给所有已保存的运行评分。在一次只修改 fixture 的改动之前，Opus 曾在困难组上运行过一次，当时在一个干净用例上误报了一个 P2（与 Sonnet 和 Haiku 误报的是同一个用例），所以在 Opus 的 6 次运行中，这个用例误报了 1 次。可以用 `node evals/review-loop/run-detection.mjs --runs 3` 再次运行，加上 `--cases evals/review-loop/detection-hard` 可运行困难组。
 
 <details>
 <summary>成本</summary>

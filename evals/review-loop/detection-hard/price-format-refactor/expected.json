@@ -1,0 +1,10 @@
+{
+  "intent": "Move the three copies of the price formatter into one shared src/money.js, with no change in output",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

@@ -10,7 +10,7 @@
         { "file": "src/routes.js", "lines": [7, 9] }
       ],
       "severity": ["P1", "P2"],
-      "mentions": ["SQL injection", "injection", "injectable", "interpolated", "interpolates", "interpolation", "parameterized", "parameterised", "placeholder", "unescaped"]
+      "mentions": ["SQL injection", "injection", "injectable", "injected", "interpolated", "interpolates", "interpolation", "parameterized", "parameterised", "placeholder", "unescaped"]
     }
   ],
   "forbid": []

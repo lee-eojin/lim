@@ -29,8 +29,8 @@
     "averageWallSeconds": 15
   },
   "scoredWith": {
-    "date": "2026-10-24T18:03:52.370Z",
-    "note": "Scored again from the stored reviewer output by run-detection.mjs --rescore, without new model runs. Mention keywords now match whole words or exact phrases and name only the seeded bug. The summary from the run itself is in originalSummary.",
+    "date": "2026-10-25T07:07:05.078Z",
+    "note": "Scored again from the stored reviewer output by run-detection.mjs --rescore, without new model runs. Mention keywords now match whole words or exact phrases and name only the seeded bug. The summary from the run itself is in originalSummary. Then order-export also accepted \"one lower\", \"off-by-one\", and \"off by one\": a reviewer named the seeded month bug as \"formatDate prints the month one lower than the real month\" and an off-by-one, which no keyword matched. Keywords were widened for wording a reviewer used for the seeded bug, and the widened keywords were applied to every saved run with --rescore.",
     "originalSummary": {
       "runs": 18,
       "errors": 0,

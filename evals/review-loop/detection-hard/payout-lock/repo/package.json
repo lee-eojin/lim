@@ -1,0 +1,5 @@
+{
+  "name": "payouts-worker",
+  "private": true,
+  "type": "module"
+}
