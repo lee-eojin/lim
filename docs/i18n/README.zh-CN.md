@@ -208,7 +208,9 @@ run unattended:         /review-loop:review-loop run unattended. I will read the
 
 ## 测量结果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 142 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 132 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 10 个行为需要实际运行模型，计划使用 `claude plugin eval` 测试：对 P3 到 P5 只询问一次、在任何提问之前先展示报告、把每个步骤都留在待办清单中并为每个跳过的步骤写下原因、为每个修复的 P1 和 P2 编写回归测试、为每个发现项标明 measured、inferred 或 guessed、说明如何确认修复有效、在你提出异议时重新核实发现项、为反复出现的同类发现项建议设为规则、在无人值守运行中不提任何问题、报告在原因不明时添加的代码。最后一个行为在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一个 fixture。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 142 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 132 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 10 个行为需要实际运行模型：对 P3 到 P5 只询问一次、在任何提问之前先展示报告、把每个步骤都留在待办清单中并为每个跳过的步骤写下原因、为每个修复的 P1 和 P2 编写回归测试、为每个发现项标明 measured、inferred 或 guessed、说明如何确认修复有效、在你提出异议时重新核实发现项、为反复出现的同类发现项建议设为规则、在无人值守运行中不提任何问题、报告在原因不明时添加的代码。最后一个行为在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一个 fixture，前两个行为在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手动运行记录。
+
+[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中的检测基准测试给审查者 12 个各植入一个 bug 的改动和 6 个干净的改动，这些改动放在名称看不出是测试的临时仓库中。2026-10-25，使用 claude-opus-5-5、每个用例运行 1 次，审查者把全部 12 个 bug 都报告为 P1 或 P2，并且没有对干净的改动提出任何 P1 或 P2。这次运行使用了约 390,000 个 token（$0.89），每次并行运行 4 个用例，耗时 74 秒。满分也意味着这些用例太简单，无法显示出小的回归，所以接下来会加入更难的用例。可以用 `node evals/review-loop/run-detection.mjs` 再次运行。
 
 <details>
 <summary>成本</summary>

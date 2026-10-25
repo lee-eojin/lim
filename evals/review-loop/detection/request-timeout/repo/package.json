@@ -1,0 +1,5 @@
+{
+  "name": "reports-worker",
+  "private": true,
+  "type": "module"
+}

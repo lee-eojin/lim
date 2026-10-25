@@ -1,0 +1,29 @@
+diff --git a/src/pagination.js b/src/pagination.js
+index 729780a..1b8ab42 100644
+--- a/src/pagination.js
++++ b/src/pagination.js
+@@ -1,8 +1,10 @@
+ export function paginate(items, page, size) {
+-  const start = page * size;
++  const start = (page - 1) * size;
++  const end = Math.min(start + size, items.length - 1);
+   return {
+-    items: items.slice(start, start + size),
++    items: items.slice(start, end),
+     page,
+     pages: Math.ceil(items.length / size),
++    range: `Showing ${start + 1} to ${end} of ${items.length}`,
+   };
+ }
+diff --git a/src/routes.js b/src/routes.js
+index 1f896e0..af5774e 100644
+--- a/src/routes.js
++++ b/src/routes.js
+@@ -4,6 +4,6 @@ import { listProducts } from './products.js';
+ const PAGE_SIZE = 20;
+ 
+ export function productsHandler(query) {
+-  const page = Number.parseInt(query.page ?? '0', 10);
++  const page = Number.parseInt(query.page ?? '1', 10);
+   return paginate(listProducts(), page, PAGE_SIZE);
+ }

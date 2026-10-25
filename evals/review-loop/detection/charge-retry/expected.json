@@ -1,0 +1,16 @@
+{
+  "intent": "Retry a failed card charge once before giving up",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "swallowed error: a failed retry is only logged and the order is still marked paid and shipped",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/payments.js", "lines": [4, 12] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["swallowed", "swallows", "swallowing", "marked paid", "still paid", "nobody paid", "unpaid", "status: 'paid'", "rethrow", "rethrows", "rethrown", "shipped", "ships"]
+    }
+  ],
+  "forbid": []
+}

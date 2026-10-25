@@ -1,0 +1,19 @@
+diff --git a/src/payments.js b/src/payments.js
+index 6f45650..c217c51 100644
+--- a/src/payments.js
++++ b/src/payments.js
+@@ -1,4 +1,13 @@
+ export async function chargeOrder(order, gateway) {
+-  await gateway.charge(order.id, order.total);
++  try {
++    await gateway.charge(order.id, order.total);
++  } catch (error) {
++    console.warn(`charge failed for ${order.id}, retrying once`, error);
++    try {
++      await gateway.charge(order.id, order.total);
++    } catch (retryError) {
++      console.warn(`retry failed for ${order.id}`, retryError);
++    }
++  }
+   return { ...order, status: 'paid' };
+ }

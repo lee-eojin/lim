@@ -1,0 +1,16 @@
+{
+  "intent": "Cache converted prices to cut calls to the rates service",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "stale cache key: the key is the product id without the currency, so the first currency is returned for every currency",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/prices.js", "lines": [3, 12] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["leaves out currency", "without the currency", "missing currency", "include the currency", "includes the currency", "every currency", "wrong currency", "other currencies", "keyed only by product"]
+    }
+  ],
+  "forbid": []
+}

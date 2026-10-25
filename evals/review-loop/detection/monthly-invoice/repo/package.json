@@ -1,0 +1,5 @@
+{
+  "name": "billing-jobs",
+  "private": true,
+  "type": "module"
+}

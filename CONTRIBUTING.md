@@ -32,6 +32,18 @@ node scripts/check-i18n.mjs
 
 All four must pass. CI runs `node --test`, `scripts/check.sh`, and `node scripts/check-i18n.mjs` on every pull request.
 
+### Changing review-loop's SKILL.md or reviewer.md
+
+These files are instructions to a model, so unit tests cannot tell whether a change made reviews better or worse. Before and after the change, run the detection benchmark and put both sets of numbers in the pull request:
+
+```bash
+node evals/review-loop/run-detection.mjs -j 4
+```
+
+It runs the reviewer once on each case in `evals/review-loop/detection/` (seeded bugs and clean changes) and saves found, missed, false P1 or P2, tokens, and time to `evals/review-loop/results/`. To test removing an instruction, copy `reviewer.md`, remove it, and run again with `--reviewer <copy> --label without-<name>`. It uses your Claude account and costs real tokens; the results file shows how many. After changing a case's `expected.json`, score saved results again with `--rescore <results file>`, which calls no model; `--note <text>` records what changed.
+
+For a change to `SKILL.md`, also do the manual B05 and B31 run in [`evals/review-loop/manual-behaviors.md`](evals/review-loop/manual-behaviors.md) and report the result.
+
 ## Commit messages
 
 Use `<type>: <summary>` with one of `feat`, `fix`, `refactor`, `test`, `docs`, `chore`.

@@ -1,0 +1,26 @@
+diff --git a/src/catalog.js b/src/catalog.js
+index 532a6df..6e0c6e9 100644
+--- a/src/catalog.js
++++ b/src/catalog.js
+@@ -10,3 +10,8 @@ export async function loadCatalog(fetchItems) {
+ export function listProducts(catalog, category) {
+   return catalog.items.filter((item) => !category || item.category === category);
+ }
++
++export function sortByPrice(items, direction = 'asc') {
++  const sign = direction === 'desc' ? -1 : 1;
++  return [...items].sort((a, b) => sign * (a.priceCents - b.priceCents));
++}
+diff --git a/src/routes.js b/src/routes.js
+index d52d9ef..7dc18c4 100644
+--- a/src/routes.js
++++ b/src/routes.js
+@@ -1,5 +1,6 @@
+-import { listProducts } from './catalog.js';
++import { listProducts, sortByPrice } from './catalog.js';
+ 
+ export function productsHandler(catalog, query) {
+-  return listProducts(catalog, query.category);
++  const products = listProducts(catalog, query.category);
++  return query.sort === 'price' ? sortByPrice(products, query.order) : products;
+ }

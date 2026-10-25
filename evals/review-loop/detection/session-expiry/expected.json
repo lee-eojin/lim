@@ -1,0 +1,17 @@
+{
+  "intent": "Expire sessions after the configured time to live",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "wrong unit: seconds are added to Date.now() milliseconds, so sessions expire after 1.8 seconds",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/sessions.js", "lines": [7, 9] },
+        { "file": "src/sessions.js", "lines": [14, 15] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["milliseconds", "millisecond", "unit mismatch", "wrong unit", "units", "1.8 seconds", "1800 ms", "* 1000", "1000x", "seconds to milliseconds"]
+    }
+  ],
+  "forbid": []
+}

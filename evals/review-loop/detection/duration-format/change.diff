@@ -1,0 +1,29 @@
+diff --git a/src/format.js b/src/format.js
+index f7bc72c..269ce5f 100644
+--- a/src/format.js
++++ b/src/format.js
+@@ -8,3 +8,9 @@ export function formatBytes(bytes) {
+   }
+   return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+ }
++
++export function formatDuration(ms) {
++  const seconds = Math.round(ms / 1000);
++  const minutes = Math.floor(seconds / 60);
++  return minutes > 0 ? `${minutes}m ${seconds % 60}s` : `${seconds}s`;
++}
+diff --git a/src/jobs.js b/src/jobs.js
+index 56a2e14..3b4961c 100644
+--- a/src/jobs.js
++++ b/src/jobs.js
+@@ -1,8 +1,8 @@
+-import { formatBytes } from './format.js';
++import { formatBytes, formatDuration } from './format.js';
+ 
+ export async function runJob(job, log) {
+   const startedAt = Date.now();
+   const result = await job.run();
+-  log(`${job.name} wrote ${formatBytes(result.bytes)} in ${Date.now() - startedAt} ms`);
++  log(`${job.name} wrote ${formatBytes(result.bytes)} in ${formatDuration(Date.now() - startedAt)}`);
+   return result;
+ }

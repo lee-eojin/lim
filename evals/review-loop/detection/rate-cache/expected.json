@@ -1,0 +1,10 @@
+{
+  "intent": "Cache exchange rates for ten minutes to cut calls to the rates service",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

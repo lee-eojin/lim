@@ -1,0 +1,10 @@
+{
+  "intent": "Let clients choose how many products to list with ?limit=, up to 100",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

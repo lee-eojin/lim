@@ -1,0 +1,17 @@
+{
+  "intent": "Let staff search customers by name",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "SQL injection: the search term is put into the query text instead of a parameter",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/customers.js", "lines": [10, 15] },
+        { "file": "src/routes.js", "lines": [7, 9] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["SQL injection", "injection", "injectable", "interpolated", "interpolates", "interpolation", "parameterized", "parameterised", "placeholder", "unescaped"]
+    }
+  ],
+  "forbid": []
+}

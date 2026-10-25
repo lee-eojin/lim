@@ -1,0 +1,5 @@
+{
+  "name": "orders-service",
+  "private": true,
+  "type": "module"
+}

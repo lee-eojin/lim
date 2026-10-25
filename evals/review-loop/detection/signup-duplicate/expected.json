@@ -1,0 +1,16 @@
+{
+  "intent": "Reject a sign-up when the email is already registered",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "missing await: repo.exists returns a Promise, which is always truthy, so every sign-up is rejected",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/signup.js", "lines": [4, 6] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["missing await", "not awaited", "without await", "unawaited", "Promise", "always truthy", "await repo.exists"]
+    }
+  ],
+  "forbid": []
+}

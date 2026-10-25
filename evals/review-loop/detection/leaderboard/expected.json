@@ -1,0 +1,16 @@
+{
+  "intent": "Show the players with the most points on the leaderboard",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "wrong comparator: the sort callback returns a boolean, so the order is not by points",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/leaderboard.js", "lines": [11, 13] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["boolean", "true or false", "comparator", "b.points - a.points", "negative number"]
+    }
+  ],
+  "forbid": []
+}

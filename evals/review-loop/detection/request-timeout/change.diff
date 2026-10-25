@@ -1,0 +1,31 @@
+diff --git a/src/export.js b/src/export.js
+index 969f593..9244be2 100644
+--- a/src/export.js
++++ b/src/export.js
+@@ -1,6 +1,6 @@
+ import { request } from './http.js';
+ 
+ export async function downloadExport(fetchImpl, baseUrl, exportId) {
+-  const response = await request(fetchImpl, `${baseUrl}/exports/${exportId}`);
++  const response = await request(fetchImpl, `${baseUrl}/exports/${exportId}`, { timeoutMs: 0 });
+   return response.arrayBuffer();
+ }
+diff --git a/src/http.js b/src/http.js
+index 04206e1..7a290ee 100644
+--- a/src/http.js
++++ b/src/http.js
+@@ -1,10 +1,12 @@
+ const DEFAULT_TIMEOUT_MS = 5000;
+ 
+ export async function request(fetchImpl, url, options = {}) {
++  const { timeoutMs, ...fetchOptions } = options;
++  const timeout = timeoutMs || DEFAULT_TIMEOUT_MS;
+   const controller = new AbortController();
+-  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
++  const timer = timeout === 0 ? null : setTimeout(() => controller.abort(), timeout);
+   try {
+-    return await fetchImpl(url, { ...options, signal: controller.signal });
++    return await fetchImpl(url, { ...fetchOptions, signal: controller.signal });
+   } finally {
+     clearTimeout(timer);
+   }

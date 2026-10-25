@@ -1,0 +1,23 @@
+diff --git a/src/routes.js b/src/routes.js
+index 08a3634..c0b5c10 100644
+--- a/src/routes.js
++++ b/src/routes.js
+@@ -1,7 +1,16 @@
+ import { listProducts } from './products.js';
+ 
+ const DEFAULT_LIMIT = 20;
++const MAX_LIMIT = 100;
+ 
+-export function productsHandler() {
+-  return listProducts(DEFAULT_LIMIT);
++export function parseLimit(value) {
++  const limit = Number(value);
++  if (!Number.isInteger(limit) || limit < 1) {
++    return DEFAULT_LIMIT;
++  }
++  return Math.min(limit, MAX_LIMIT);
++}
++
++export function productsHandler(query) {
++  return listProducts(parseLimit(query.limit));
+ }

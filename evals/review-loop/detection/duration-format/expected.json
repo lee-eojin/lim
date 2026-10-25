@@ -1,0 +1,10 @@
+{
+  "intent": "Log job durations in a readable form such as 1m 5s",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

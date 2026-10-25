@@ -1,0 +1,17 @@
+{
+  "intent": "Show the coupons a shopper can still use on the checkout page",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "wrong operator: the filter keeps coupons that already expired",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/coupons.js", "lines": [11, 12] },
+        { "file": "src/checkout.js", "lines": [11, 13] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["expired", "unexpired", "already expired", "inverted", "reversed", "expiresAt > now", "expiresAt >= now"]
+    }
+  ],
+  "forbid": []
+}

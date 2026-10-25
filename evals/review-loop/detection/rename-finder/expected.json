@@ -1,0 +1,10 @@
+{
+  "intent": "Rename getUsr to findUser",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

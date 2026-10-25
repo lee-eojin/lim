@@ -1,0 +1,25 @@
+diff --git a/src/featured.js b/src/featured.js
+new file mode 100644
+index 0000000..caf9f2f
+--- /dev/null
++++ b/src/featured.js
+@@ -0,0 +1,7 @@
++export function cheapestFirst(items) {
++  return items.sort((a, b) => a.priceCents - b.priceCents);
++}
++
++export function featuredDeals(catalog, count = 3) {
++  return cheapestFirst(catalog.items).slice(0, count);
++}
+diff --git a/src/home.js b/src/home.js
+index a828f08..e6c0707 100644
+--- a/src/home.js
++++ b/src/home.js
+@@ -1,5 +1,6 @@
+ import { listProducts } from './catalog.js';
++import { featuredDeals } from './featured.js';
+ 
+ export function homePage(catalog) {
+-  return { newest: listProducts(catalog).slice(-4) };
++  return { newest: listProducts(catalog).slice(-4), deals: featuredDeals(catalog) };
+ }

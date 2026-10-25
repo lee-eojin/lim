@@ -1,0 +1,28 @@
+diff --git a/src/sessions.js b/src/sessions.js
+index 9795797..4c55a95 100644
+--- a/src/sessions.js
++++ b/src/sessions.js
+@@ -1,13 +1,19 @@
+ import { randomUUID } from 'node:crypto';
++import { config } from './config.js';
+ 
+ const sessions = new Map();
+ 
+-export function createSession(userId) {
++export function createSession(userId, now = Date.now()) {
+   const id = randomUUID();
+-  sessions.set(id, { userId });
++  sessions.set(id, { userId, expiresAt: now + config.sessionTtlSeconds });
+   return id;
+ }
+ 
+-export function getSession(id) {
+-  return sessions.get(id) ?? null;
++export function getSession(id, now = Date.now()) {
++  const session = sessions.get(id);
++  if (!session || session.expiresAt <= now) {
++    sessions.delete(id);
++    return null;
++  }
++  return session;
+ }

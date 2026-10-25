@@ -1,0 +1,17 @@
+{
+  "intent": "Free shipping for orders of $50 or more, with a banner that says how much is left",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "wrong boundary: > instead of >= charges shipping on exactly $50 while the banner says it ships free",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/shipping.js", "lines": [6, 9] },
+        { "file": "src/shipping.js", "lines": [13, 15] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["> instead of >=", "use >=", ">= FREE_SHIPPING_FROM_CENTS", "exactly $50", "exactly 5000", "$50.00", "5000 cents", "off-by-one", "off by one"]
+    }
+  ],
+  "forbid": []
+}

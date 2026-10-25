@@ -1,0 +1,15 @@
+diff --git a/src/signup.js b/src/signup.js
+index 1227208..e8b29c6 100644
+--- a/src/signup.js
++++ b/src/signup.js
+@@ -1,5 +1,10 @@
++export class DuplicateEmailError extends Error {}
++
+ export async function signUp(repo, input) {
+   const email = input.email.trim().toLowerCase();
++  if (repo.exists(email)) {
++    throw new DuplicateEmailError(`${email} is already registered`);
++  }
+   await repo.insert({ email, name: input.name });
+   return { email };
+ }
