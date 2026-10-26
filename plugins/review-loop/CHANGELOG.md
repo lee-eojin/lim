@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: With the commit gate on, a commit or push made through a git alias such as `git ci` is checked like `git commit` or `git push`, and a shell alias that commits is asked about before it runs. Before, an alias went around the gate. (#80)
+
 ## 0.7.0 (2026-10-26)
 
 - Added: Checks are detected in Go, Rust, Python, and Makefile projects, not only from `package.json` scripts: Makefile `typecheck`, `lint`, and `test` targets, `go vet` and `go test` for `go.mod`, `cargo check` and `cargo test` for `Cargo.toml`, and pytest, ruff, and mypy when the project configures them (through `uv run --frozen --no-sync` with `uv.lock`). The report names each check's command, and a check whose program is not installed is reported as not verified instead of failing. (#77)

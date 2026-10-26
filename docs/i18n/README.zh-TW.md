@@ -214,7 +214,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 ## 測量結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 182 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 171 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 11 個行為需要實際執行模型：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、為每個發現項目標明 measured、inferred 或 guessed、說明如何確認修正有效、在你提出異議時重新查證發現項目、為反覆出現的同類發現項目建議設為規則、在無人值守執行中不提出任何問題、用你選擇的模型啟動審查者、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture，前兩個行為在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手動執行紀錄。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 186 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 175 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 11 個行為需要實際執行模型：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、為每個發現項目標明 measured、inferred 或 guessed、說明如何確認修正有效、在你提出異議時重新查證發現項目、為反覆出現的同類發現項目建議設為規則、在無人值守執行中不提出任何問題、用你選擇的模型啟動審查者、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture，前兩個行為在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手動執行紀錄。
 
 偵測基準測試給審查者一些變更，這些變更放在名稱看不出是測試的暫存儲存庫中。[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中有 12 個各植入一個 bug 的變更和 6 個乾淨的變更。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) 中有 10 個更難的 bug，以及 6 個看起來可疑的乾淨變更。這些更難的 bug 包括：只有查看 diff 沒有改動的檔案才能發現的 bug、只有順著四個檔案追下去才能發現的 bug、藏在 183 行 diff 中的 bug、兩次搜尋之間的競態、在非同步寫入讀取之前就被清空的緩衝區，以及在錯誤路徑上沒有釋放的鎖。結果如下，每個案例執行 3 次，一般組於 2026-10-25 執行，困難組於 2026-10-26 執行：
 
@@ -270,7 +270,7 @@ review-loop 審查 LIM 自己的 pull request。[#8](https://github.com/lee-eoji
 <details>
 <summary>為什麼提交關卡需要主動啟用？</summary>
 
-阻擋提交的 hook 會改變你的工作方式，所以應該由你依儲存庫來選擇。沒有關卡時，「提交前詢問」是 Claude 遵循的一條指示。有了關卡，hook 會阻擋 Claude 在未通過審查時執行的 `git commit`。但它並不能看到一切。[限制](#限制)列出了它會漏掉的情況，例如 git 別名。
+阻擋提交的 hook 會改變你的工作方式，所以應該由你依儲存庫來選擇。沒有關卡時，「提交前詢問」是 Claude 遵循的一條指示。有了關卡，hook 會阻擋 Claude 在未通過審查時執行的 `git commit`。但它並不能看到一切。[限制](#限制)列出了它會漏掉的情況，例如你在自己的終端機中輸入的提交。
 
 </details>
 
@@ -292,7 +292,7 @@ review-loop 本身不會發出任何網路請求。Claude 和審查者讀取 dif
 - review-loop 依序從 `package.json` 的 scripts、Makefile 的目標、Go、Rust 和已設定的 Python 工具（pytest、ruff、mypy）中偵測檢查，而且只看儲存庫根目錄。
 - 每個檢查最多執行 5 分鐘，所有檢查合計最多執行 9 分鐘。
 - 如果沒有啟用提交關卡，提交前詢問只是給 Claude 的指示，而不是保證。
-- 提交關卡只檢查 Claude 透過它的 Bash 工具執行的指令。你在自己的終端機中輸入的提交不會被檢查。`git ci` 這類 git 別名也不會被辨識。
+- 提交關卡只檢查 Claude 透過它的 Bash 工具執行的指令。你在自己的終端機中輸入的提交不會被檢查。透過 `git ci` 這類 git 別名進行的提交會像 `git commit` 一樣被檢查。會提交的 shell 別名（`!...`）會先詢問你，因為關卡看不到它的內部。用 `git -c alias.ci=commit` 在指令中臨時設定的別名不會被辨識。
 - 如果你在不是儲存庫的資料夾中啟動 Claude Code，關卡無法檢查它辨識不出儲存庫的提交，例如 `cd "$(...)"` 之後的提交。
 - review-loop 審查 `git add -A` 會包含的所有內容，而不是你手動挑選的一組已暫存變更。
 - 規則和回歸測試在一個暫存副本中檢查。該副本包含你已追蹤的檔案，以及一個指向根目錄 `node_modules` 的連結。其他被忽略的檔案（例如 `.env` 或巢狀的 `node_modules`）不在其中，因此依賴這些檔案的檢查會把規則或測試回報為未證實，或因錯誤的原因被抓到。Claude 會讀取失敗訊息來判斷是哪一種。

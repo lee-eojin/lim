@@ -19,6 +19,7 @@ import {
   parseReview,
   renderReport,
   missingProgram,
+  expandAlias,
 } from '../../plugins/review-loop/skills/review-loop/scripts/loop.mjs';
 
 const script = fileURLToPath(new URL('../../plugins/review-loop/skills/review-loop/scripts/loop.mjs', import.meta.url));
@@ -1207,6 +1208,54 @@ describe('commit gate', () => {
     loop(root, ['record'], { findings: [] });
     return root;
   }
+
+  test('gate checks a commit or push made through a git alias like the command it stands for', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    execFileSync('git', ['config', 'alias.ci', 'commit'], { cwd: root });
+    execFileSync('git', ['config', 'alias.save', 'ci -a'], { cwd: root });
+    execFileSync('git', ['config', 'alias.st', 'status'], { cwd: root });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    for (const command of ['git ci -m "feat: coupon"', 'git save -m "feat: coupon"']) {
+      const result = commit(root, command);
+      assert.equal(result?.decision, 'deny', command);
+      assert.match(result.reason, /\/review-loop:review-loop/);
+    }
+    assert.equal(commit(root, 'git st'), null);
+    execFileSync('git', ['config', 'alias.as', '-c user.name=someone commit'], { cwd: root });
+    assert.equal(commit(root, 'git as -m "feat: coupon"')?.decision, 'deny');
+  });
+
+  test('gate asks before a shell alias that runs a commit and ignores aliases when the gate is off', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    execFileSync('git', ['config', 'alias.ship', '!git add -A && git commit -m wip'], { cwd: root });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    assert.equal(commit(root, 'git ship'), null);
+    loop(root, ['gate', '--on']);
+    const result = commit(root, 'git ship');
+    assert.equal(result.decision, 'ask');
+    assert.match(result.reason, /git ship is a shell alias that runs git commit/);
+    execFileSync('git', ['config', 'alias.ci', 'commit'], { cwd: root });
+    execFileSync('git', ['config', 'alias.quick', '!git add -A && git ci -m wip'], { cwd: root });
+    assert.match(commit(root, 'git quick')?.reason ?? '', /git quick is a shell alias that runs git commit/);
+  });
+
+  test('a delegated commit through an alias is allowed like git commit', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    execFileSync('git', ['config', 'alias.ci', 'commit'], { cwd: root });
+    assert.equal(commit(root, 'git ci -m "feat: coupon"').decision, 'allow');
+  });
+
+  test('alias expansion follows an alias of an alias and stops at a loop and an alias that moves to another repository is unknown', () => {
+    const aliases = { ci: 'commit', save: 'ci -a', loopy: 'loopy2', loopy2: 'loopy' };
+    const lookup = (name) => aliases[name] ?? null;
+    assert.deepEqual(expandAlias({ subcommand: 'save', args: ['-m', 'x'], directories: ['.'] }, lookup),
+      { subcommand: 'commit', args: ['-a', '-m', 'x'], directories: ['.'], alias: 'save' });
+    assert.equal(expandAlias({ subcommand: 'loopy', args: [], directories: ['.'] }, lookup).subcommand, 'loopy');
+    const elsewhere = expandAlias({ subcommand: 'oc', args: [], directories: ['/repo'] }, (name) => (name === 'oc' ? '-C ../other commit' : null));
+    assert.deepEqual([elsewhere.subcommand, elsewhere.directories], ['commit', [null]]);
+  });
 
   test('gate off leaves commits alone', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
