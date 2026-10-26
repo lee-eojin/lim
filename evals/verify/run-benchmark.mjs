@@ -42,11 +42,15 @@ const git = (cwd, ...args) => execFileSync('git', [
   '-c', 'user.name=dev', '-c', 'user.email=dev@localhost', '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', ...args,
 ], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 
-function projectNameOf(repo) {
+export function projectNameOf(repo) {
   try {
     return JSON.parse(readFileSync(path.join(repo, 'package.json'), 'utf8')).name || 'app';
   } catch {
-    return 'app';
+    try {
+      return /^name\s*=\s*"([^"]+)"/m.exec(readFileSync(path.join(repo, 'pyproject.toml'), 'utf8'))?.[1] ?? 'app';
+    } catch {
+      return 'app';
+    }
   }
 }
 

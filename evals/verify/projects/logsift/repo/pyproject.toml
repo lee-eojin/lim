@@ -1,0 +1,6 @@
+[project]
+name = "logsift"
+version = "0.2.0"
+description = "Filter and count the lines of a log file by level"
+requires-python = ">=3.9"
+license = { text = "MIT" }

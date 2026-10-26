@@ -1,0 +1,17 @@
+{
+  "kind": "Python command-line tool",
+  "features": [
+    "prints every log line and leaves out lines without a level",
+    "--min keeps lines at that level or higher",
+    "--grep keeps lines whose message contains the text, ignoring case",
+    "--levels prints how many lines each level has, lowest first",
+    "exit code 1 when no line is left",
+    "unknown level error",
+    "missing file error",
+    "usage error"
+  ],
+  "broken": {
+    "feature": "--min keeps lines at that level or higher",
+    "how": "--min drops the level it names and keeps only higher ones, so --min wrn prints the ERR line alone with exit code 0; a check passes anyway if it looks only at the exit code or the higher lines (such as --levels --min wrn including \"ERR 1\"), or runs on a log with no line at exactly the named level"
+  }
+}

@@ -4,5 +4,8 @@
   { "case": "jot-broken", "project": "jot", "broken": true },
   { "case": "durations-broken", "project": "durations", "broken": true },
   { "case": "tally-working", "project": "tally", "broken": false },
-  { "case": "jot-working", "project": "jot", "broken": false }
+  { "case": "jot-working", "project": "jot", "broken": false },
+  { "case": "logsift-broken", "project": "logsift", "broken": true },
+  { "case": "centshare-broken", "project": "centshare", "broken": true },
+  { "case": "logsift-working", "project": "logsift", "broken": false }
 ]

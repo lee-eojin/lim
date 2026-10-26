@@ -1,0 +1,49 @@
+{
+  "features": [
+    {
+      "id": "logsift-all",
+      "feature": "Prints every log line and leaves out lines without a level",
+      "run": ["python3", "logsift.py", "examples/oven.log"],
+      "expect": {
+        "exitCode": 0,
+        "stdout": { "equals": "2026-03-02 05:00:01 INF oven 2 preheated to 220\n2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:13:02 INF batch 14 in\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\n2026-03-02 05:41:20 DBG fan speed 2" }
+      }
+    },
+    {
+      "id": "logsift-min-level",
+      "feature": "Keeps lines at the given level or higher",
+      "run": ["./logsift.py", "--min", "wrn", "examples/oven.log"],
+      "expect": {
+        "exitCode": 0,
+        "stdout": { "equals": "2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1" }
+      }
+    },
+    {
+      "id": "logsift-grep",
+      "feature": "Keeps lines whose message contains the text, ignoring case",
+      "run": ["python3", "logsift.py", "--grep", "FAN", "examples/oven.log"],
+      "expect": {
+        "exitCode": 0,
+        "stdout": { "equals": "2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:41:20 DBG fan speed 2" }
+      }
+    },
+    {
+      "id": "logsift-levels",
+      "feature": "Counts lines per level, lowest level first",
+      "run": ["python3", "logsift.py", "--levels", "examples/oven.log"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "DBG 2\nINF 2\nWRN 2\nERR 1" } }
+    },
+    {
+      "id": "logsift-unknown-level",
+      "feature": "Rejects a level that is not one of the four",
+      "run": ["python3", "logsift.py", "--min", "loud", "examples/oven.log"],
+      "expect": { "exitCode": 2, "stderr": { "includes": "Unknown level: loud (use DBG, INF, WRN, or ERR)" } }
+    },
+    {
+      "id": "logsift-missing-file",
+      "feature": "Reports a file that does not exist",
+      "run": ["python3", "logsift.py", "examples/none.log"],
+      "expect": { "exitCode": 2, "stderr": { "includes": "No such file: examples/none.log" } }
+    }
+  ]
+}

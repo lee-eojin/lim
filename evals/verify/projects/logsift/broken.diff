@@ -1,0 +1,13 @@
+diff --git a/logfilter.py b/logfilter.py
+index 1e90dea..37bfec0 100644
+--- a/logfilter.py
++++ b/logfilter.py
+@@ -23,7 +23,7 @@ def select(lines, floor=None, text=None):
+         if not match:
+             continue
+         level, message = match.groups()
+-        if floor is not None and LEVELS.index(level) < floor:
++        if floor is not None and LEVELS.index(level) <= floor:
+             continue
+         if needle is not None and needle not in message.lower():
+             continue

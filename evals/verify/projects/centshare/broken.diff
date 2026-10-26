@@ -1,0 +1,10 @@
+diff --git a/centshare/amounts.py b/centshare/amounts.py
+index 61b709b..a3db37e 100644
+--- a/centshare/amounts.py
++++ b/centshare/amounts.py
+@@ -25,4 +25,4 @@ def allocate(amount, parts):
+     if total < 0:
+         raise ValueError(f"Cannot allocate a negative amount: {amount!r}")
+     share, extra = divmod(total, parts)
+-    return [from_cents(share + 1 if index < extra else share) for index in range(parts)]
++    return [from_cents(share + 1 if index >= parts - extra else share) for index in range(parts)]
