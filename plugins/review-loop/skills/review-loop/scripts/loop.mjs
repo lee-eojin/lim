@@ -437,6 +437,57 @@ function rustChecks(root) {
   return [{ name: 'typecheck', command: ['cargo', 'check'] }, { name: 'test', command: ['cargo', 'test'] }];
 }
 
+const GRADLE_FILES = ['build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts'];
+const GRADLE_SETTINGS = ['settings.gradle', 'settings.gradle.kts'];
+const JVM_TOOLS = new Set(['gradle', 'mvn', './gradlew', './mvnw', 'sh']);
+
+function ancestorsOf(folder, repositoryRoot) {
+  const ancestors = [];
+  for (let parent = path.dirname(folder); parent.length >= repositoryRoot.length; parent = path.dirname(parent)) {
+    ancestors.push(parent);
+    if (parent === repositoryRoot) break;
+  }
+  return ancestors;
+}
+
+// A Gradle subproject has build files but no settings file of its own, under a folder that has one; that build runs its tests.
+function isGradleSubproject(folder, repositoryRoot) {
+  if (GRADLE_SETTINGS.some((file) => existsSync(path.join(folder, file)))) return false;
+  return ancestorsOf(folder, repositoryRoot).some((parent) => GRADLE_SETTINGS.some((file) => existsSync(path.join(parent, file))));
+}
+
+// A Maven module is listed in a parent pom's <module> entries outside comments and profiles; that parent's build runs its tests.
+function listedModules(pom) {
+  const active = pom.replace(/<!--[\s\S]*?-->/g, '').replace(/<profiles>[\s\S]*?<\/profiles>/g, '');
+  return [...active.matchAll(/<module>\s*([^<]+?)\s*<\/module>/g)].map(([, module]) => module);
+}
+
+function isMavenModule(folder, repositoryRoot) {
+  return ancestorsOf(folder, repositoryRoot).some((parent) => listedModules(readProjectFile(parent, 'pom.xml'))
+    .some((module) => path.resolve(parent, module) === path.resolve(folder)));
+}
+
+function wrapperCommand(folder, wrapper) {
+  try {
+    return (statSync(path.join(folder, wrapper)).mode & 0o111) ? [`./${wrapper}`] : ['sh', wrapper];
+  } catch {
+    return null;
+  }
+}
+
+function jvmChecks(folder, repositoryRoot = folder) {
+  const has = (file) => existsSync(path.join(folder, file));
+  if (GRADLE_FILES.some(has)) {
+    if (isGradleSubproject(folder, repositoryRoot)) return [];
+    return [{ name: 'test', command: [...(wrapperCommand(folder, 'gradlew') ?? ['gradle']), 'test'] }];
+  }
+  if (has('pom.xml')) {
+    if (isMavenModule(folder, repositoryRoot)) return [];
+    return [{ name: 'test', command: [...(wrapperCommand(folder, 'mvnw') ?? ['mvn']), '-B', '-q', 'test'] }];
+  }
+  return [];
+}
+
 function sectionLines(lines, header) {
   const start = lines.indexOf(header);
   if (start === -1) return [];
@@ -468,7 +519,7 @@ function pythonChecks(root) {
   return checks;
 }
 
-const CHECK_SOURCES = [packageScripts, makeTargets, goChecks, rustChecks, pythonChecks];
+const CHECK_SOURCES = [packageScripts, makeTargets, goChecks, rustChecks, pythonChecks, jvmChecks];
 
 function declaredChecks(root, folder) {
   return CHECK_SOURCES.flatMap((source) => source(path.join(root, folder), root));
@@ -524,6 +575,7 @@ function selectChecks(root, files) {
 }
 
 export function missingProgram(command, stderr) {
+  if (JVM_TOOLS.has(command[0]) && /JAVA_HOME is not set and no 'java' command could be found|Unable to locate a Java Runtime|JAVA_HOME (?:environment variable )?is not defined correctly|java\/javac command does not exist in PATH nor is JAVA_HOME set/.test(stderr)) return 'java';
   if (command[0] === 'uv') return /Failed to spawn: `([^`]+)`[\s\S]*No such file or directory/.exec(stderr)?.[1] ?? null;
   if (command[1] === '-m') return new RegExp(`No module named '?${command[2]}'?\\s*$`, 'm').test(stderr) ? command[2] : null;
   return null;
@@ -550,7 +602,7 @@ function runCommand(root, { command, problem, folder }, timeout) {
     });
     return { command: label, exitCode: 0, timedOut: false, output };
   } catch (error) {
-    const missing = error.code === 'ENOENT' ? command[0] : missingProgram(command, `${error.stderr ?? ''}`);
+    const missing = error.code === 'ENOENT' ? command[0] : missingProgram(command, `${error.stdout ?? ''}${error.stderr ?? ''}`);
     if (missing) {
       return { command: label, exitCode: null, timedOut: false, notInstalled: true, output: `not run: ${missing} is not installed` };
     }
