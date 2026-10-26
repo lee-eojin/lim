@@ -1,0 +1,5 @@
+{
+  "name": "report-archiver",
+  "private": true,
+  "type": "module"
+}

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { casesDirFor, locationsOf, parseAgentFile, parseReviewerOutput, pool, prepareCase, rescoreResults, rescoreRuns, runOne, scoreCase, summarize } from '../../evals/review-loop/run-detection.mjs';
+import { casesDirFor, locationsOf, parseAgentFile, parseReviewerOutput, pool, prepareCase, rescoreResults, rescoreRuns, runOne, scoreCase, serializeResults, summarize } from '../../evals/review-loop/run-detection.mjs';
 
 const evalsDir = fileURLToPath(new URL('../../evals/review-loop/', import.meta.url));
 const casesDir = path.join(evalsDir, 'detection');
@@ -117,13 +117,15 @@ for (const { folder, dir, names, minBugs, minClean } of caseSets) test(`${folder
       const added = addedLines(readFileSync(diffPath, 'utf8'));
       const locations = locationsOf(expected.expect[0]);
       assert.ok(locations.length, `${name} names where the bug is`);
-      for (const { file, lines: [from, to] } of locations) {
+      for (const { file, lines: [from, to], context } of locations) {
         const where = `${name}: ${file}:${from}-${to}`;
         const fileLines = readFileSync(path.join(workDir, file), 'utf8').replace(/\n$/, '').split('\n');
         assert.ok(from >= 1 && from <= to && to <= fileLines.length, `${where} exists in the changed file (${fileLines.length} lines)`);
+        if (context) continue;
         const changed = added.get(file) ?? new Set();
         assert.ok([...changed].some((line) => line >= from && line <= to), `${where} covers a line the change adds or changes`);
       }
+      assert.ok(locations.some((location) => !location.context), `${name} names a line the change adds or changes`);
     } finally {
       rmSync(workDir, { recursive: true, force: true });
     }
@@ -281,4 +283,11 @@ test('a case whose preparation fails becomes an error entry and the other cases 
   } finally {
     rmSync(fixtureDir, { recursive: true, force: true });
   }
+});
+
+test('saved results escape the long dash and the middle dot and parse back to the same text', () => {
+  const results = { runs: [{ review: { findings: [{ measuredBy: 'Grep: no tests \u2014 none \u00b7 found' }] } }] };
+  const text = serializeResults(results);
+  assert.doesNotMatch(text, /[\u2014\u00b7]/);
+  assert.deepEqual(JSON.parse(text), results);
 });

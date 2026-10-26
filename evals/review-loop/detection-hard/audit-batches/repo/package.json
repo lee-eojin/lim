@@ -1,0 +1,5 @@
+{
+  "name": "audit-service",
+  "private": true,
+  "type": "module"
+}

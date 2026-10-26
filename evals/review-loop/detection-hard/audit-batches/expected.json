@@ -1,0 +1,18 @@
+{
+  "intent": "Write audit batches to the file in the background, in order, so a request no longer waits on the disk",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "reused batch array: EventBuffer.flush() passes its own items array and then empties it with length = 0, and the new writer only reads events inside a later .then(), so every batch is written empty and no audit event reaches the file",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/audit-writer.js", "lines": [8, 11] },
+        { "file": "src/audit.js", "lines": [5, 6] },
+        { "file": "src/event-buffer.js", "lines": [13, 17], "context": true }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["emptied", "empties", "cleared", "clears the", "written empty", "writes empty", "already flushed", "EventBuffer.flush", "flush()", "live array", "live items", "items array", "same array", "the array is cleared", "array is emptied", "cleared before", "emptied before", "emptied after", "empties the array", "empties it", "clears the array", "length = 0", "items.length", "this.items", "by reference", "reference to the array", "reference to the buffer", "array reference", "same reference", "reused array", "reuses the array", "reuses its array", "copy of the batch", "copy the batch", "copy the events", "copy the array", "slice()", "[...events]", "events.slice", "snapshot", "empty batch", "empty batches", "empty array", "empty string", "nothing is written", "nothing gets written", "writes nothing", "never written", "events are lost", "events lost", "lost events", "loses events", "loses audit", "audit events are lost", "drops events", "dropped events", "drops every", "mutated after", "mutated before", "deferred", "by the time the", "before the write runs", "before the callback runs", "before the then", "after flush", "written twice", "duplicate"]
+    }
+  ],
+  "forbid": []
+}

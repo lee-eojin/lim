@@ -216,17 +216,17 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 [`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 173 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 162 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 11 個行為需要實際執行模型：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、為每個發現項目標明 measured、inferred 或 guessed、說明如何確認修正有效、在你提出異議時重新查證發現項目、為反覆出現的同類發現項目建議設為規則、在無人值守執行中不提出任何問題、用你選擇的模型啟動審查者、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture，前兩個行為在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手動執行紀錄。
 
-偵測基準測試給審查者一些變更，這些變更放在名稱看不出是測試的暫存儲存庫中。[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中有 12 個各植入一個 bug 的變更和 6 個乾淨的變更。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) 中有 6 個更難的 bug，以及 4 個看起來可疑的乾淨變更。這些更難的 bug 包括：只有查看 diff 沒有改動的檔案才能發現的 bug、藏在 183 行 diff 中的 bug、兩次搜尋之間的競態，以及在錯誤路徑上沒有釋放的鎖。2026-10-25 的結果如下，每個案例執行 3 次：
+偵測基準測試給審查者一些變更，這些變更放在名稱看不出是測試的暫存儲存庫中。[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中有 12 個各植入一個 bug 的變更和 6 個乾淨的變更。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) 中有 10 個更難的 bug，以及 6 個看起來可疑的乾淨變更。這些更難的 bug 包括：只有查看 diff 沒有改動的檔案才能發現的 bug、只有順著四個檔案追下去才能發現的 bug、藏在 183 行 diff 中的 bug、兩次搜尋之間的競態、在非同步寫入讀取之前就被清空的緩衝區，以及在錯誤路徑上沒有釋放的鎖。結果如下，每個案例執行 3 次，一般組於 2026-10-25 執行，困難組於 2026-10-26 執行：
 
-| 審查者模型 | 一般組：以 P1 或 P2 找出的 bug | 一般組：對乾淨變更誤報的 P1 或 P2 | 困難組：以 P1 或 P2 找出的 bug | 困難組：對乾淨變更誤報的 P1 或 P2 | 困難組的費用（30 次執行） |
+| 審查者模型 | 一般組：以 P1 或 P2 找出的 bug | 一般組：對乾淨變更誤報的 P1 或 P2 | 困難組：以 P1 或 P2 找出的 bug | 困難組：對乾淨變更誤報的 P1 或 P2 | 困難組的費用（48 次執行） |
 |---|---|---|---|---|---|
-| claude-opus-5-5 | 36 個中 36 個 | 18 個中 0 個 | 18 個中 18 個 | 12 個中 0 個 | $1.77 |
-| claude-sonnet-5-5 | 未執行 | 未執行 | 18 個中 18 個 | 12 個中 1 個 | $0.76 |
-| claude-haiku-5-5 | 未執行 | 未執行 | 18 個中 17 個 | 12 個中 3 個 | $0.06（Claude Code 回報的數值） |
+| claude-opus-5-5 | 36 個中 36 個 | 18 個中 0 個 | 30 個中 30 個 | 18 個中 0 個 | $3.11 |
+| claude-sonnet-5-5 | 未執行 | 未執行 | 30 個中 29 個 | 18 個中 0 個 | $1.14 |
+| claude-haiku-5-5 | 未執行 | 未執行 | 30 個中 30 個 | 18 個中 3 個 | $0.09（Claude Code 回報的數值） |
 
-預設情況下，審查者使用你工作階段中的模型執行。Opus 在兩組案例中找出了所有植入的 bug，所以這個基準測試目前還無法顯示它的小幅下降。較弱的模型的結果顯示，這個基準測試確實能抓出漏掉的 bug 和誤報。Haiku 漏掉的一個案例指出了 bug，但給出的行超出了它所指檔案的結尾，引用的又是另一個檔案中的程式碼，review-loop 同樣會把這類發現項目顯示為未驗證。第一批執行之後，有三個案例的審查者用評分不接受的措辭指出了植入的 bug，於是為這三個案例補充了關鍵字，並用它們重新為所有已儲存的執行評分。在一次只修改 fixture 的變更之前，Opus 曾在困難組上執行過一次，當時在一個乾淨案例上誤報了一個 P2（與 Sonnet 和 Haiku 誤報的是同一個案例），所以在 Opus 的 6 次執行中，這個案例誤報了 1 次。可以用 `node evals/review-loop/run-detection.mjs --runs 3` 再次執行，加上 `--cases evals/review-loop/detection-hard` 可執行困難組。
+預設情況下，審查者使用你工作階段中的模型執行。Opus 在兩組案例中找出了所有植入的 bug，所以這個基準測試目前還無法顯示它找出的 bug 有所減少。為了看看這個基準測試到底能不能顯示出更差的 `reviewer.md`，Opus 還用一個刪減到只剩輸出格式的 `reviewer.md` 執行了困難組：它仍然找出了 30 個中 30 個，在 18 次乾淨執行中誤報了 1 個 P2，並提出了 83 個 P3 到 P5 的發現項目，而完整的審查者提出的是 55 個。對 Opus 來說，能否找出這些 bug 更多取決於模型而不是指令，更差的 `reviewer.md` 會表現為誤報和雜訊。Sonnet 漏掉的那一個，對在非同步寫入之前被清空的緩衝區沒有給出任何發現項目。Haiku 的 3 個誤報都出現在同一個乾淨案例上，這個案例在兩天內用完整審查者進行的 9 次 Opus 執行中也誤報了 1 個 P2。發現項目在改動過的行上指出植入的 bug 時才算數；對於只有在另一個檔案中才能發現的 bug，則要在那個檔案中標記的行上指出。第一批執行之後，有四個案例的審查者用評分不接受的措辭指出了植入的 bug，於是為這四個案例補充了關鍵字，並用它們重新為所有已儲存的執行評分。可以用 `node evals/review-loop/run-detection.mjs --runs 3` 再次執行，加上 `--cases evals/review-loop/detection-hard` 可執行困難組。
 
-上表就是審查者預設模型的依據。在困難組中，Opus 找出了 18 個中 18 個，沒有誤報的 P1 或 P2；Sonnet 找出了 18 個中 18 個，在 12 次乾淨執行中誤報了 1 個 P1 或 P2，費用約為 Opus 的 43%；Haiku 找出了 18 個中 17 個，12 個中 3 個有誤報。因此預設仍然是工作階段的模型，而當你希望審查者使用與撰寫變更的模型不同的模型時，Sonnet 是更便宜的選擇。
+上表就是審查者預設模型的依據。在困難組中，Opus 找出了 30 個中 30 個，沒有誤報的 P1 或 P2；Sonnet 找出了 30 個中 29 個，也沒有誤報，費用約為 Opus 的 37%；Haiku 找出了 30 個中 30 個，在 18 次乾淨執行中誤報了 3 個 P1 或 P2。因此預設仍然是工作階段的模型，而當你希望審查者使用與撰寫變更的模型不同的模型時，Sonnet 是更便宜的選擇。
 
 <details>
 <summary>成本</summary>

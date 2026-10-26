@@ -1,0 +1,16 @@
+diff --git a/src/workspaces.js b/src/workspaces.js
+index a3c5086..8829bae 100644
+--- a/src/workspaces.js
++++ b/src/workspaces.js
+@@ -1,7 +1,10 @@
+ import { planDefaults } from './plans.js';
+ 
+ export function effectiveSettings(workspace) {
+-  return planDefaults(workspace.plan);
++  const settings = planDefaults(workspace.plan);
++  settings.limits.seats += workspace.extraSeats ?? 0;
++  settings.features.push(...(workspace.betaFeatures ?? []));
++  return settings;
+ }
+ 
+ export function canAddMember(workspace, memberCount) {

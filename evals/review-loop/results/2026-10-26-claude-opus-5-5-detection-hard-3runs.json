@@ -1,0 +1,4044 @@
+{
+  "date": "2026-10-26T05:07:13.171Z",
+  "model": "claude-opus-5-5",
+  "claudeVersion": "2.1.310 (Claude Code)",
+  "reviewer": {
+    "path": "plugins/review-loop/agents/reviewer.md",
+    "sha256": "ea21d338ee14615cbf78ccd73995164e4a37db151821abdde816236ff42599bc"
+  },
+  "label": "detection-hard-3runs",
+  "cases": "evals/review-loop/detection-hard",
+  "runsPerCase": 3,
+  "concurrency": 4,
+  "elapsedSeconds": 265,
+  "summary": {
+    "runs": 48,
+    "errors": 0,
+    "bugRuns": 30,
+    "found": 30,
+    "lowSeverity": 0,
+    "missed": 0,
+    "cleanRuns": 18,
+    "cleanWithFalseHigh": 0,
+    "falseHighFindings": 0,
+    "otherHighOnBugRuns": 11,
+    "otherLowFindings": 55,
+    "totalTokens": 1516448,
+    "averageTokens": 31593,
+    "totalCostUsd": 3.1144,
+    "totalWallSeconds": 1024,
+    "averageWallSeconds": 21
+  },
+  "scoredWith": {
+    "date": "2026-10-26T05:16:05.627Z",
+    "note": "locations in files the diff does not change count when marked context",
+    "originalSummary": {
+      "runs": 48,
+      "errors": 0,
+      "bugRuns": 30,
+      "found": 30,
+      "lowSeverity": 0,
+      "missed": 0,
+      "cleanRuns": 18,
+      "cleanWithFalseHigh": 0,
+      "falseHighFindings": 0,
+      "otherHighOnBugRuns": 11,
+      "otherLowFindings": 55,
+      "totalTokens": 1516448,
+      "averageTokens": 31593,
+      "totalCostUsd": 3.1144,
+      "totalWallSeconds": 1024,
+      "averageWallSeconds": 21
+    }
+  },
+  "runs": [
+    {
+      "case": "audit-batches",
+      "wallMs": 27260,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 6952,
+        "cacheRead": 17893,
+        "output": 1590,
+        "total": 26443
+      },
+      "costUsd": 0.0910266,
+      "apiMs": 26279,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/audit-writer.js",
+            "line": 19,
+            "category": "correctness",
+            "title": "Batch is serialized after EventBuffer clears the array, so every audit batch is written empty"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/audit-writer.js",
+          "line": 14,
+          "category": "correctness",
+          "title": "Write failures are now only logged, and flushAudit always resolves"
+        },
+        {
+          "severity": "P3",
+          "file": "src/audit.js",
+          "line": 42,
+          "category": "missing-test",
+          "title": "No test covers the new async ordering or the flush-then-idle path"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/audit-writer.js",
+            "line": 19,
+            "category": "correctness",
+            "title": "Batch is serialized after EventBuffer clears the array, so every audit batch is written empty",
+            "quote": "        .then(() => appendFile(file, events.map(toLine).join('')))",
+            "scenario": "With auditBatchSize 2, recordAudit is called twice. EventBuffer.flush calls this.write(this.items) and then runs `this.items.length = 0` synchronously (src/event-buffer.js:16). The `.then` callback runs on a later microtask, so `events` is already the emptied array and appendFile writes ''. No audit events reach the file. flushAudit at shutdown hits the same problem.",
+            "whyNotPrevented": "The old writer serialized synchronously inside write(), before the buffer was cleared. The new code delays reading `events` until a later microtask but still receives the shared mutable array. No tests cover the audit path.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/audit-writer.js",
+            "line": 14,
+            "category": "correctness",
+            "title": "Write failures are now only logged, and flushAudit always resolves",
+            "quote": "export function createAuditWriter(file, { onError = console.error } = {}) {",
+            "scenario": "If the disk is full or the audit file cannot be written, the batch is dropped and console.error logs it. flushAudit() in onClose still resolves normally, so shutdown reports success even though audit records were lost. Before this change, appendFileSync threw to the caller.",
+            "whyNotPrevented": "The catch handler swallows the rejection to keep the chain alive, and no caller can see whether writes failed.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/audit.js",
+            "line": 42,
+            "category": "missing-test",
+            "title": "No test covers the new async ordering or the flush-then-idle path",
+            "quote": "export async function flushAudit() {",
+            "scenario": "A test that records a full batch and then awaits flushAudit() would catch both the empty-write bug and any ordering regression.",
+            "whyNotPrevented": "There are no audit tests.",
+            "basis": "measured",
+            "measuredBy": "Grep \"audit|EventBuffer\" in **/*.test.*: no match",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "audit-batches",
+      "wallMs": 21626,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 7118,
+        "cacheRead": 17935,
+        "output": 1614,
+        "total": 26675
+      },
+      "costUsd": 0.09284300000000001,
+      "apiMs": 20522,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/audit-writer.js",
+            "line": 19,
+            "category": "correctness",
+            "title": "Batch is read after the buffer empties it, so every audit event is lost"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/audit-writer.js",
+          "line": 20,
+          "category": "error-handling",
+          "title": "Write failures are only logged; flushAudit resolves successfully even when audit data was not written"
+        },
+        {
+          "severity": "P3",
+          "file": "src/audit-writer.js",
+          "line": 17,
+          "category": "testing",
+          "title": "No tests for the new async, ordered writer"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/audit-writer.js",
+            "line": 19,
+            "category": "correctness",
+            "title": "Batch is read after the buffer empties it, so every audit event is lost",
+            "quote": "        .then(() => appendFile(file, events.map(toLine).join('')))",
+            "scenario": "EventBuffer.flush calls this.write(this.items) and then runs this.items.length = 0 right away. The `.then` callback runs later, on a microtask, and maps the same array, which is now empty by then. appendFile writes '' and nothing reaches the audit file. When add() is called again before the callback runs, the callback instead sees events from the next batch.",
+            "whyNotPrevented": "The old appendFileSync serialized the events before write() returned, so reusing the array was safe. No test covers the writer or the buffer (Glob for test files: none found).",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/audit-writer.js",
+            "line": 20,
+            "category": "error-handling",
+            "title": "Write failures are only logged; flushAudit resolves successfully even when audit data was not written",
+            "quote": "        .catch(onError);",
+            "scenario": "The disk is full or the file is not writable during shutdown. appendFile rejects, console.error logs it, idle() resolves, and onClose finishes as if the audit log had been saved. Before this change, appendFileSync threw to the caller.",
+            "whyNotPrevented": "No test checks failure behavior. idle() always resolves.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/audit-writer.js",
+            "line": 17,
+            "category": "testing",
+            "title": "No tests for the new async, ordered writer",
+            "quote": "    write(events) {",
+            "scenario": "A test that writes two batches, awaits idle(), and reads the file would have caught the empty-batch bug and would check ordering.",
+            "whyNotPrevented": "The repository has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob **/*test* matching 'audit': no files found",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "audit-batches",
+      "wallMs": 26691,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 7528,
+        "cacheRead": 25139,
+        "output": 1614,
+        "total": 34291
+      },
+      "costUsd": 0.0975718,
+      "apiMs": 25546,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/audit-writer.js",
+            "line": 19,
+            "category": "correctness",
+            "title": "Deferred write reads the buffer's array after EventBuffer has emptied it, so every batch is written as nothing"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/audit-writer.js",
+          "line": 20,
+          "category": "error-handling",
+          "title": "Write failures are logged and dropped, so flushAudit reports success even when the disk write fails"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/audit-writer.js",
+            "line": 19,
+            "category": "correctness",
+            "title": "Deferred write reads the buffer's array after EventBuffer has emptied it, so every batch is written as nothing",
+            "quote": ".then(() => appendFile(file, events.map(toLine).join('')))",
+            "scenario": "With auditBatchSize 2, recordAudit runs twice. EventBuffer.flush calls write(this.items) and then sets this.items.length = 0 right away (src/event-buffer.js:16). The .then callback runs on a later microtask, so events is already empty. appendFile writes '' and both audit events are lost. The same happens on flushAudit at shutdown.",
+            "whyNotPrevented": "The old synchronous appendFileSync used the array before it was cleared. The new code keeps a reference to the same array instead of copying it, and there are no tests for the audit writer or EventBuffer.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/audit-writer.js",
+            "line": 20,
+            "category": "error-handling",
+            "title": "Write failures are logged and dropped, so flushAudit reports success even when the disk write fails",
+            "quote": ".catch(onError);",
+            "scenario": "If appendFile rejects (for example EACCES or ENOSPC), the error goes to console.error and pending resolves. At shutdown, await writer.idle() resolves normally, so the caller can't tell the audit events were lost. Before this change the failure was thrown to the caller.",
+            "whyNotPrevented": "No test covers a failing write. The catch is needed to keep the chain going after one failure, but it also hides the failure from idle().",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "client-options",
+      "wallMs": 18000,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 6918,
+        "cacheRead": 17685,
+        "output": 1486,
+        "total": 26097
+      },
+      "costUsd": 0.088633,
+      "apiMs": 16912,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/client.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Flags left out pass undefined, which overwrites the defaults"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/client.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Flags left out pass undefined, which overwrites the defaults",
+            "quote": "  const config = { ...DEFAULTS, ...options };",
+            "scenario": "Run the CLI with no flags. cli.js passes { baseUrl: undefined, retries: undefined, timeoutMs: undefined }. Object spread copies keys whose value is undefined, so all three defaults are replaced. Then `0 <= undefined` is false, so the retry loop never runs and get() does `throw undefined`. Before this change, the plain probe worked.",
+            "whyNotPrevented": "No tests exist. The spread treats a key that is present with the value undefined as an override, and cli.js always sets all three keys.",
+            "basis": "measured",
+            "measuredBy": "Read src/client.js:4-15 and src/cli.js diff lines 18-22. Glob **/*.{test,spec}.js: no files found",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/cli.js",
+            "line": 16,
+            "category": "correctness",
+            "title": "Non-numeric --retries or --timeout becomes NaN without any error",
+            "quote": "const toNumber = (text) => (text === undefined ? undefined : Number(text));",
+            "scenario": "With --retries abc, retries is NaN. `0 <= NaN` is false, so no request is sent and get() throws undefined. With --timeout abc, timeoutMs is NaN, and AbortSignal.timeout(NaN) throws a TypeError inside the try. Every attempt fails that way, so the user sees a confusing error instead of a message about the bad flag.",
+            "whyNotPrevented": "parseArgs reads these flags as strings and does not check them. toNumber does not check for NaN, and no tests cover CLI parsing.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "client-options",
+      "wallMs": 18697,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2344,
+        "cacheRead": 22000,
+        "output": 1542,
+        "total": 25894
+      },
+      "costUsd": 0.054024,
+      "apiMs": 17698,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/client.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Flags that are not given set config to undefined and erase the defaults"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/cli.js",
+          "line": 18,
+          "category": "missing-test",
+          "title": "No tests for the new flags or the default behavior"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/client.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Flags that are not given set config to undefined and erase the defaults",
+            "quote": "  const config = { ...DEFAULTS, ...options };",
+            "scenario": "Running the CLI with no flags makes cli.js pass { baseUrl: undefined, retries: undefined, timeoutMs: undefined }. Object spread copies keys whose value is undefined, so config.retries is undefined. Then `0 <= undefined` is false, the loop never runs, and get() throws undefined without making any request. The default run, which worked before this change, now fails. Even if only one flag is left out (say --base-url), the fetch URL becomes 'undefined/status'.",
+            "whyNotPrevented": "The merge keeps undefined values. No test file exists (Glob **/*.{test,spec}.js: no match), so nothing checks the no-flag path.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/cli.js",
+            "line": 16,
+            "category": "correctness",
+            "title": "Non-numeric --retries or --timeout becomes NaN with no validation",
+            "quote": "const toNumber = (text) => (text === undefined ? undefined : Number(text));",
+            "scenario": "With --retries abc, retries is NaN, so the loop runs zero times and get() throws undefined. With --timeout 5s, timeoutMs is NaN, and AbortSignal.timeout(NaN) throws a TypeError on every attempt. In both cases the user gets a confusing failure instead of a message that the value is invalid.",
+            "whyNotPrevented": "parseArgs reads these options as strings. Number() returns NaN instead of throwing, and no code checks Number.isFinite.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/cli.js",
+            "line": 18,
+            "category": "missing-test",
+            "title": "No tests for the new flags or the default behavior",
+            "quote": "const client = createClient({",
+            "scenario": "Nothing checks that leaving out the flags keeps the defaults, or that each flag overrides its own value. A test would have caught the undefined-override bug above.",
+            "whyNotPrevented": "The repo has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob **/*.{test,spec}.js: No files found",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "client-options",
+      "wallMs": 16777,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2487,
+        "cacheRead": 22106,
+        "output": 1648,
+        "total": 26249
+      },
+      "costUsd": 0.05730919999999999,
+      "apiMs": 15782,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/client.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Flags left out pass explicit undefined, which overwrites DEFAULTS"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/client.js",
+          "line": 3,
+          "category": "testing",
+          "title": "No tests for the new flags or for keeping defaults"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/client.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Flags left out pass explicit undefined, which overwrites DEFAULTS",
+            "quote": "  const config = { ...DEFAULTS, ...options };",
+            "scenario": "Run the CLI with no flags. cli.js passes { baseUrl: undefined, retries: undefined, timeoutMs: undefined }. Object spread copies keys whose value is undefined, so config.baseUrl becomes undefined and the request goes to 'undefined/status'. config.retries becomes undefined, so the loop test `0 <= undefined` is false, no attempt runs, and the call ends in `throw undefined`. The default behavior the author wanted to keep is broken.",
+            "whyNotPrevented": "The project has no tests, and nothing removes undefined keys before the spread, either in cli.js (toNumber returns undefined) or in createClient.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/cli.js",
+            "line": 16,
+            "category": "correctness",
+            "title": "Values that are not numbers become NaN with no error",
+            "quote": "const toNumber = (text) => (text === undefined ? undefined : Number(text));",
+            "scenario": "With `--retries abc`, retries is NaN. `0 <= NaN` is false, so the probe makes no request and throws undefined. With `--timeout abc`, AbortSignal.timeout(NaN) throws a TypeError. Neither case gives a clear message about the bad flag.",
+            "whyNotPrevented": "parseArgs uses type 'string' and does no number check, and no test covers bad input.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/client.js",
+            "line": 3,
+            "category": "testing",
+            "title": "No tests for the new flags or for keeping defaults",
+            "quote": "export function createClient(options = {}, fetchImpl = fetch) {",
+            "scenario": "A test of createClient with options omitted or set to undefined would have caught the bug where defaults are overwritten.",
+            "whyNotPrevented": "The repository has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*.{test,spec}.js\": no files found",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "daily-revenue",
+      "wallMs": 30513,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3295,
+        "cacheRead": 22108,
+        "output": 2936,
+        "total": 28347
+      },
+      "costUsd": 0.08953359999999999,
+      "apiMs": 29466,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/revenue-report.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Midnight entries fall in two daily windows, so renewals are counted twice"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/routes.js",
+          "line": 40,
+          "category": "correctness",
+          "title": "Date range has no upper limit, so one request can tie up the server"
+        },
+        {
+          "severity": "P3",
+          "file": "src/routes.js",
+          "line": 40,
+          "category": "correctness",
+          "title": "`to` is exclusive, so a single-day report is rejected"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/revenue-report.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Midnight entries fall in two daily windows, so renewals are counted twice",
+            "quote": "    const entries = ledger.entriesBetween(day, addDays(day, 1));",
+            "scenario": "Ledger.entriesBetween keeps entries where at >= from && at <= to, so both ends are included. chargeRenewal always records at startOfDay(periodStart), which is exactly midnight. Take a renewal on 2026-01-02 with from=2026-01-01 and to=2026-01-03. It is counted in the 2026-01-01 row and again in the 2026-01-02 row, so the range total is twice the real amount. A renewal on the `to` date is outside the range but still gets added to the last day.",
+            "whyNotPrevented": "dayStatement avoids this by using endOfDay (start + DAY_MS - 1). The new code uses addDays(day, 1) as an included upper bound instead. The repo has no tests.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/routes.js",
+            "line": 40,
+            "category": "correctness",
+            "title": "Date range has no upper limit, so one request can tie up the server",
+            "quote": "    if (Number.isNaN(from) || Number.isNaN(to) || from >= to) {",
+            "scenario": "GET /reports/revenue?from=0001-01-01&to=9999-12-31 runs the loop about 3.65 million times. Each pass calls entriesBetween, which filters the whole ledger array. That blocks the event loop for a very long time.",
+            "whyNotPrevented": "The only check is from >= to. Nothing caps the number of days or paginates.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/routes.js",
+            "line": 40,
+            "category": "correctness",
+            "title": "`to` is exclusive, so a single-day report is rejected",
+            "quote": "    if (Number.isNaN(from) || Number.isNaN(to) || from >= to) {",
+            "scenario": "from=2026-01-01&to=2026-01-01 returns 400. from=2026-01-01&to=2026-01-31 leaves out January 31. Callers who expect an inclusive range will get reports that are missing their last day.",
+            "whyNotPrevented": "No docs or tests define whether the range end is inclusive or exclusive.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/revenue-report.js",
+            "line": 13,
+            "category": "second-way",
+            "title": "Daily total is a copy of the logic in dayStatement",
+            "quote": "    const totalCents = entries.reduce((sum, entry) => sum + entry.amountCents, 0);",
+            "scenario": "src/statement.js:5-6 already computes one day's entries and total, using the correct endOfDay bound. The copy here uses a different window and that difference causes the double count. Calling dayStatement(ledger, day).totalCents would keep the two consistent.",
+            "whyNotPrevented": "Nothing requires reuse, and no tests compare the two code paths.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/revenue-report.js",
+            "line": 3,
+            "category": "testing",
+            "title": "No tests for the revenue report or the new route",
+            "quote": "export function dailyRevenue(ledger, from, to) {",
+            "scenario": "A test with a renewal recorded at midnight would have caught the double count.",
+            "whyNotPrevented": "The repo has no test files and package.json has no test script.",
+            "basis": "measured",
+            "measuredBy": "Glob **/*.{js,json,md}: only package.json and src/*.js, no test files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "daily-revenue",
+      "wallMs": 21606,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2907,
+        "cacheRead": 22061,
+        "output": 2049,
+        "total": 27025
+      },
+      "costUsd": 0.0686802,
+      "apiMs": 20507,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/revenue-report.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "An entry at exactly UTC midnight is counted in two days and twice in the range total"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/routes.js",
+          "line": 40,
+          "category": "correctness",
+          "title": "The `to` date is left out of the report, so a one-day report is impossible"
+        },
+        {
+          "severity": "P3",
+          "file": "src/revenue-report.js",
+          "line": 3,
+          "category": "correctness",
+          "title": "No limit on range length; a wide range runs one ledger scan per day"
+        },
+        {
+          "severity": "P3",
+          "file": "src/revenue-report.js",
+          "line": 1,
+          "category": "missing-test",
+          "title": "No tests for the new report or the route's validation"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 3,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/revenue-report.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "An entry at exactly UTC midnight is counted in two days and twice in the range total",
+            "quote": "    const entries = ledger.entriesBetween(day, addDays(day, 1));",
+            "scenario": "An entry with at = Date.parse('2026-03-02T00:00:00Z') and a request with from=2026-03-01, to=2026-03-03. The entry is counted in both the 2026-03-01 row and the 2026-03-02 row. totalCents then includes its amount twice.",
+            "whyNotPrevented": "Ledger.entriesBetween includes both ends (`entry.at >= from && entry.at <= to`, src/ledger.js:11). statement.js avoids this by passing endOfDay(day), which is the next midnight minus 1 ms. The new code passes the next midnight itself. No tests exist in the repo.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/routes.js",
+            "line": 40,
+            "category": "correctness",
+            "title": "The `to` date is left out of the report, so a one-day report is impossible",
+            "quote": "    if (Number.isNaN(from) || Number.isNaN(to) || from >= to) {",
+            "scenario": "from=2026-03-01&to=2026-03-31 returns rows only up to 2026-03-30, because the loop runs while `day < to`. from=2026-03-01&to=2026-03-01 returns 400. A caller who reads the range as inclusive gets an incomplete month, and nothing in the response says the end date is left out.",
+            "whyNotPrevented": "The intent does not say whether `to` is inclusive, and nothing documents or tests the choice.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/revenue-report.js",
+            "line": 3,
+            "category": "correctness",
+            "title": "No limit on range length; a wide range runs one ledger scan per day",
+            "quote": "export function dailyRevenue(ledger, from, to) {",
+            "scenario": "from=1970-01-01&to=2026-01-01 creates about 20,000 rows. Each row runs entriesBetween, which filters the whole ledger, so one request can block the server for a long time.",
+            "whyNotPrevented": "The route only checks that from < to. It sets no maximum span.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/revenue-report.js",
+            "line": 1,
+            "category": "missing-test",
+            "title": "No tests for the new report or the route's validation",
+            "quote": "import { addDays, isoDate, startOfDay } from './dates.js';",
+            "scenario": "Nothing would catch the midnight double count or the range-boundary handling.",
+            "whyNotPrevented": "The repo has no test files and package.json has no test script.",
+            "basis": "measured",
+            "measuredBy": "Glob **/*.{js,md,json}: only package.json and src/*.js; no test files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "daily-revenue",
+      "wallMs": 25094,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 3450,
+        "cacheRead": 29339,
+        "output": 1929,
+        "total": 34728
+      },
+      "costUsd": 0.07208780000000001,
+      "apiMs": 23973,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/revenue-report.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Entries at exactly UTC midnight are counted in two days and twice in the range total"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/routes.js",
+          "line": 40,
+          "category": "correctness",
+          "title": "The `to` date is left out of the report, so a single-day report is impossible"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/revenue-report.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Entries at exactly UTC midnight are counted in two days and twice in the range total",
+            "quote": "    const entries = ledger.entriesBetween(day, addDays(day, 1));",
+            "scenario": "chargeRenewal records a renewal at startOfDay(periodStart), which is exactly midnight. Take a renewal at 2026-01-02T00:00Z, from=2026-01-01 and to=2026-01-03. The renewal shows up in the 2026-01-01 row and again in the 2026-01-02 row, so the range total counts it twice. Every renewal inside the range except one on the first day is counted twice, which makes both the daily rows and the overall total wrong.",
+            "whyNotPrevented": "Ledger.entriesBetween includes both ends (`entry.at >= from && entry.at <= to`). The existing dayStatement avoids this by passing endOfDay(day), which is the next midnight minus 1 ms. This new code passes the next midnight itself. The repo has no tests.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/routes.js",
+            "line": 40,
+            "category": "correctness",
+            "title": "The `to` date is left out of the report, so a single-day report is impossible",
+            "quote": "    if (Number.isNaN(from) || Number.isNaN(to) || from >= to) {",
+            "scenario": "from=2026-01-01 and to=2026-01-31 returns rows only up to 2026-01-30. from=2026-01-01 and to=2026-01-01 returns 400. Callers who expect a date range to include its end date will get totals missing the last day, and neither the route nor the error message says that `to` is excluded.",
+            "whyNotPrevented": "No test or doc defines whether the range includes its end date. The error message only says 'from before to'.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "login-attempts",
+      "wallMs": 21069,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 3166,
+        "cacheRead": 29980,
+        "output": 1658,
+        "total": 34814
+      },
+      "costUsd": 0.064524,
+      "apiMs": 19945,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/login.js",
+            "line": 8,
+            "category": "security",
+            "title": "Attempt key uses the raw email, so changing its case or adding spaces gets around the 5-attempt limit"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/login.js",
+            "line": 8,
+            "category": "security",
+            "title": "Attempt key uses the raw email, so changing its case or adding spaces gets around the 5-attempt limit",
+            "quote": "  const key = `login:${body.email}`;",
+            "scenario": "An attacker tries 5 passwords against 'victim@x.com', then 5 more against 'Victim@x.com', 'VICTIM@x.com', ' victim@x.com' and so on. Every variant gets its own RateLimiter key and a fresh count of 5. But users.findByEmail normalizes all of them to the same account, so the attacker gets unlimited guesses against one account.",
+            "whyNotPrevented": "UserStore.findByEmail calls normalizeEmail (src/users.js:13), but the limiter key is built from body.email before any normalization. No test covers login rate limiting.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/login.js",
+            "line": 9,
+            "category": "missing-test",
+            "title": "No tests for the login attempt limit or for the reset after a successful login",
+            "quote": "  if (!attempts.allow(key)) return LOCKED;",
+            "scenario": "Nothing checks that the 6th attempt in 15 minutes returns 429, that a successful login clears the count, or that email variants share one count.",
+            "whyNotPrevented": "The repository has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob \"{test,tests,src}/**/*.test.js\": no files found; Grep \"login\" outside src: no match",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "login-attempts",
+      "wallMs": 29781,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 3148,
+        "cacheRead": 29673,
+        "output": 1891,
+        "total": 34722
+      },
+      "costUsd": 0.0689786,
+      "apiMs": 28710,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/login.js",
+            "line": 8,
+            "category": "security",
+            "title": "Attempt key uses the raw email, so changing the email's case or spacing gets around the per-account limit"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/login.js",
+          "line": 9,
+          "category": "testing",
+          "title": "No tests for login lockout or for the reset on success"
+        },
+        {
+          "severity": "P3",
+          "file": "src/routes.js",
+          "line": 6,
+          "category": "resource",
+          "title": "The login limiter keeps an entry for every email string ever sent"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/login.js",
+            "line": 8,
+            "category": "security",
+            "title": "Attempt key uses the raw email, so changing the email's case or spacing gets around the per-account limit",
+            "quote": "  const key = `login:${body.email}`;",
+            "scenario": "An attacker guessing passwords for alice@x.com uses 5 tries on 'alice@x.com', 5 more on 'Alice@x.com', 5 on 'ALICE@x.com', 5 on ' alice@x.com', and so on. Each spelling gets its own limiter window. users.findByEmail normalizes every spelling to the same account, so the attacker gets unlimited guesses on one account.",
+            "whyNotPrevented": "UserStore.findByEmail normalizes with normalizeEmail (trim + toLowerCase), but the limiter key is built from body.email before any normalization. No tests exist for login.",
+            "basis": "measured",
+            "measuredBy": "Read src/users.js: findByEmail calls normalizeEmail(email); src/emails.js:1 normalizeEmail = String(email).trim().toLowerCase(); Glob **/*.{test,spec}.*: no files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/login.js",
+            "line": 9,
+            "category": "testing",
+            "title": "No tests for login lockout or for the reset on success",
+            "quote": "  if (!attempts.allow(key)) return LOCKED;",
+            "scenario": "Nothing checks that the 6th failed attempt within 15 minutes returns 429, or that a successful login clears the count. A regression in either would ship unnoticed.",
+            "whyNotPrevented": "The repository has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob **/*.{test,spec}.*: no files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/routes.js",
+            "line": 6,
+            "category": "resource",
+            "title": "The login limiter keeps an entry for every email string ever sent",
+            "quote": "  const loginAttempts = new RateLimiter({ limit: 5, windowMs: 15 * 60 * 1000 });",
+            "scenario": "An attacker posts /login with millions of distinct made-up emails. RateLimiter.windows never removes expired entries, and reset only runs after a successful login, so memory grows without limit.",
+            "whyNotPrevented": "RateLimiter has no cleanup step. Before this change, the only limiter's keys were client IPs; now anyone can create a new key just by sending a different email string.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "login-attempts",
+      "wallMs": 23121,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 12,
+        "cacheCreation": 3230,
+        "cacheRead": 35710,
+        "output": 1589,
+        "total": 40541
+      },
+      "costUsd": 0.06481,
+      "apiMs": 21950,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/login.js",
+            "line": 13,
+            "category": "security",
+            "title": "Attempt key uses the raw email, so changing case or adding spaces gets around the limit"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/login.js",
+            "line": 13,
+            "category": "security",
+            "title": "Attempt key uses the raw email, so changing case or adding spaces gets around the limit",
+            "quote": "  const key = `login:${body.email}`;",
+            "scenario": "An attacker targeting alice@x.com makes 5 guesses as 'alice@x.com', then 5 more as 'Alice@x.com', 'ALICE@x.com', ' alice@x.com' and so on. Every variant gets its own counter, but UserStore.findByEmail normalizes them all to the same account. That gives unlimited password guesses against one account, and stopping that was the point of the change.",
+            "whyNotPrevented": "normalizeEmail (src/emails.js:1, trim + toLowerCase) runs only inside UserStore, not when the attempt key is built. No tests exist for login or the rate limiter.",
+            "basis": "measured",
+            "measuredBy": "Read src/users.js: findByEmail calls normalizeEmail(email); Read src/login.js diff: key built from body.email directly",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/login.js",
+            "line": 14,
+            "category": "test-coverage",
+            "title": "No tests for the new login lockout or the reset on success",
+            "quote": "  if (!attempts.allow(key)) return LOCKED;",
+            "scenario": "Nothing checks that the 6th attempt within 15 minutes gets a 429, that a successful login clears the count, or that email variants share one counter. A regression like the normalization bypass above would ship unnoticed.",
+            "whyNotPrevented": "The repository has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob {src,test,tests}/**/*: only src files; Grep \"RateLimiter|login\\(\": matches only in src",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-checks-removal",
+      "wallMs": 13834,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 2860,
+        "cacheRead": 28668,
+        "output": 717,
+        "total": 32255
+      },
+      "costUsd": 0.0429936,
+      "apiMs": 12608,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-checks-removal",
+      "wallMs": 14705,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 2994,
+        "cacheRead": 28716,
+        "output": 838,
+        "total": 32558
+      },
+      "costUsd": 0.0464952,
+      "apiMs": 13499,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-checks-removal",
+      "wallMs": 10984,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 3017,
+        "cacheRead": 28864,
+        "output": 860,
+        "total": 32751
+      },
+      "costUsd": 0.047148800000000005,
+      "apiMs": 9667,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-export",
+      "wallMs": 24389,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 5508,
+        "cacheRead": 37368,
+        "output": 2205,
+        "total": 45091
+      },
+      "costUsd": 0.0956776,
+      "apiMs": 23240,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/format.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "formatDate shows the previous month on every invoice, receipt, email and CSV row"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/emails.js",
+          "line": 6,
+          "category": "scope",
+          "title": "Unrequested user-visible text changes: '#' added before order ids"
+        },
+        {
+          "severity": "P3",
+          "file": "src/export-csv.js",
+          "line": 77,
+          "category": "security",
+          "title": "CSV cells are not protected against formula injection"
+        },
+        {
+          "severity": "P3",
+          "file": "spec/format.spec.js",
+          "line": 17,
+          "category": "testing",
+          "title": "The new spec does not test formatDate, the date column, or the /orders.csv route"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 3,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/format.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "formatDate shows the previous month on every invoice, receipt, email and CSV row",
+            "quote": "  const month = String(date.getUTCMonth()).padStart(2, '0');",
+            "scenario": "An order created on 2026-03-05T10:00:00Z now prints 'Date: 2026-02-05' on its invoice, and the CSV export shows 2026/02/05. A January date prints month '00'. Before this change, invoice.js used date.toISOString().slice(0, 10), which gave 2026-03-05.",
+            "whyNotPrevented": "getUTCMonth() counts from 0 and nothing adds 1. The deleted spec/invoice.spec.js only tested formatMoney, and the new spec/format.spec.js never checks a date. The CSV test only checks the end of the row (',3,$45.00'), so it misses the wrong date in the middle.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/emails.js",
+            "line": 6,
+            "category": "scope",
+            "title": "Unrequested user-visible text changes: '#' added before order ids",
+            "quote": "    subject: `Order #${order.id} has shipped`,",
+            "scenario": "The shipped email subject, the receipt email subject, the receipt header and the invoice header now read 'Order #A-1' where they used to read 'Order A-1'. Customers will see this, and any mail filters or downstream parsers that match the old text will stop matching. The stated goal was only a CSV export and moving the helpers.",
+            "whyNotPrevented": "No spec covers these strings.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Receipt for order|has shipped|Invoice \" in repo: only src matches, no spec matches",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/export-csv.js",
+            "line": 77,
+            "category": "security",
+            "title": "CSV cells are not protected against formula injection",
+            "quote": "  return /[\",\\n]/.test(text) ? `\"${text.replaceAll('\"', '\"\"')}\"` : text;",
+            "scenario": "A customer name of '=HYPERLINK(\"http://evil\",\"x\")' is written to the cell unchanged. When a back-office user opens orders.csv in Excel or Sheets, it runs as a formula.",
+            "whyNotPrevented": "escapeCell only handles quotes, commas and newlines. Cells that start with =, +, - or @ get no prefix.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "spec/format.spec.js",
+            "line": 17,
+            "category": "testing",
+            "title": "The new spec does not test formatDate, the date column, or the /orders.csv route",
+            "quote": "  assert.ok(row.endsWith(',3,$45.00'));",
+            "scenario": "The month bug in formatDate passes this test. Nothing tests the route's 400 response for bad dates, or that orders created on the 'to' day are included.",
+            "whyNotPrevented": "The spec only asserts on the money and the quoting.",
+            "basis": "measured",
+            "measuredBy": "Grep \"formatDate|orders.csv\" in spec/: no match",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-export",
+      "wallMs": 26405,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 5483,
+        "cacheRead": 37344,
+        "output": 2011,
+        "total": 44848
+      },
+      "costUsd": 0.0915928,
+      "apiMs": 25237,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/format.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "formatDate prints the month one too low because getUTCMonth counts from 0"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/emails.js",
+          "line": 6,
+          "category": "scope",
+          "title": "Customer-facing order IDs gain an unrequested '#' prefix"
+        },
+        {
+          "severity": "P3",
+          "file": "spec/format.spec.js",
+          "line": 28,
+          "category": "test-coverage",
+          "title": "Tests skip formatDate and the CSV date column, and the date-range route has no tests"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/format.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "formatDate prints the month one too low because getUTCMonth counts from 0",
+            "quote": "  const month = String(date.getUTCMonth()).padStart(2, '0');",
+            "scenario": "formatDate(new Date('2026-03-05T10:00:00Z')) returns '2026-02-05' instead of '2026-03-05'. January dates come out as month '00'. The old version used toISOString().slice(0, 10), so every date on invoices, receipts and shipped emails is now wrong, and so is the new CSV date column ('2026/02/05').",
+            "whyNotPrevented": "The spec has no formatDate test. The CSV test checks only the customer cell and the end of the row, not the date. The old invoice spec tested only formatMoney.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/emails.js",
+            "line": 6,
+            "category": "scope",
+            "title": "Customer-facing order IDs gain an unrequested '#' prefix",
+            "quote": "    subject: `Order #${order.id} has shipped`,",
+            "scenario": "Shipped and receipt email subjects, the receipt body (src/receipt.js:5) and the invoice header (src/invoice.js:9) now read 'Order #A-1' instead of 'Order A-1'. The stated goal was a CSV export plus moving the helpers, so this is an unrelated text change mixed into a refactor.",
+            "whyNotPrevented": "No test checks email subjects, receipt text or invoice text.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Invoice |Receipt for order|has shipped\": only the changed source lines match, with no spec files",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "spec/format.spec.js",
+            "line": 28,
+            "category": "test-coverage",
+            "title": "Tests skip formatDate and the CSV date column, and the date-range route has no tests",
+            "quote": "  assert.ok(row.endsWith(',3,$45.00'));",
+            "scenario": "The month bug in formatDate passes these tests. The 'GET /orders.csv' handler's 400 response and its end-of-day boundary are also untested.",
+            "whyNotPrevented": "spec/format.spec.js is the only spec file, and it does not import formatDate or routes.",
+            "basis": "measured",
+            "measuredBy": "Glob spec/**: only spec/format.spec.js; Grep formatDate: no match under spec/",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-export",
+      "wallMs": 26503,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 5719,
+        "cacheRead": 37096,
+        "output": 2203,
+        "total": 45028
+      },
+      "costUsd": 0.0972712,
+      "apiMs": 25420,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/format.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "formatDate prints the month one too low, so every date on invoices, receipts, emails and the CSV is wrong"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "spec/format.spec.js",
+          "line": 28,
+          "category": "missing-test",
+          "title": "No test checks formatDate or the CSV date column"
+        },
+        {
+          "severity": "P3",
+          "file": "src/emails.js",
+          "line": 56,
+          "category": "scope",
+          "title": "Unrequested change adds '#' to the order id in email subjects, receipts and invoices"
+        },
+        {
+          "severity": "P3",
+          "file": "src/export-csv.js",
+          "line": 77,
+          "category": "security",
+          "title": "Customer names go into the CSV without formula-injection escaping"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 3,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/format.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "formatDate prints the month one too low, so every date on invoices, receipts, emails and the CSV is wrong",
+            "quote": "  const month = String(date.getUTCMonth()).padStart(2, '0');",
+            "scenario": "For an order created 2026-03-05T10:00:00Z, the invoice now prints 'Date: 2026-02-05' and the CSV prints '2026/02/05'. A January date prints month '00'. Before this change, invoice.js used toISOString().slice(0, 10) and printed 2026-03-05.",
+            "whyNotPrevented": "getUTCMonth() counts months from 0 and nothing adds 1. The only date check was deleted with spec/invoice.spec.js, and the new CSV test checks the customer cell and the row ending but never the date cell.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "spec/format.spec.js",
+            "line": 28,
+            "category": "missing-test",
+            "title": "No test checks formatDate or the CSV date column",
+            "quote": "  assert.ok(row.endsWith(',3,$45.00'));",
+            "scenario": "The month bug in format.js passes the whole suite, because no assertion looks at the date output. The default '-' separator that invoices, receipts and emails rely on is not tested either.",
+            "whyNotPrevented": "The test for the old helper was deleted, and the new spec asserts only money and quoting.",
+            "basis": "measured",
+            "measuredBy": "Grep \"formatDate\" in spec: no match",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/emails.js",
+            "line": 56,
+            "category": "scope",
+            "title": "Unrequested change adds '#' to the order id in email subjects, receipts and invoices",
+            "quote": "    subject: `Order #${order.id} has shipped`,",
+            "scenario": "Customers now get 'Order #A-1 has shipped' instead of 'Order A-1 has shipped'. The same change was made to the receipt and invoice headers. This was not part of the CSV export or the helper move, and any filter or parser that matches the old subject stops matching.",
+            "whyNotPrevented": "No test covers email subjects or the receipt and invoice headers.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/export-csv.js",
+            "line": 77,
+            "category": "security",
+            "title": "Customer names go into the CSV without formula-injection escaping",
+            "quote": "  return /[\",\\n]/.test(text) ? `\"${text.replaceAll('\"', '\"\"')}\"` : text;",
+            "scenario": "A customer named '=HYPERLINK(\"http://evil\",\"x\")' is written as-is. When a back-office user opens orders.csv in Excel or Sheets, it runs as a formula. A bare '\\r' in a value is also not quoted.",
+            "whyNotPrevented": "escapeCell only handles quotes, commas and '\\n'. It does not prefix cells that start with =, +, - or @.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-stock",
+      "wallMs": 29883,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 4507,
+        "cacheRead": 30838,
+        "output": 2050,
+        "total": 37405
+      },
+      "costUsd": 0.0832636,
+      "apiMs": 28881,
+      "turns": 9,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/inventory.js",
+          "line": 8,
+          "category": "correctness",
+          "title": "Reading and writing stock happen in separate steps, so this only stays correct while one worker runs"
+        },
+        {
+          "severity": "P3",
+          "file": "src/orders.js",
+          "line": 17,
+          "category": "correctness",
+          "title": "Stock is taken before the order status is saved, and a failed save is never retried"
+        },
+        {
+          "severity": "P3",
+          "file": "src/inventory.js",
+          "line": 9,
+          "category": "testing",
+          "title": "No tests cover reserving stock or rejecting an order"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 3,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/inventory.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "Reading and writing stock happen in separate steps, so this only stays correct while one worker runs",
+            "quote": "const items = await Promise.all(lines.map((line) => stock.get(line.sku)));",
+            "scenario": "Two processOrder calls running at the same time could both read available=1 for sku_mug, both pass the check, and both write available=0, which oversells. Today main.js starts one worker that handles jobs one at a time, so this cannot happen yet.",
+            "whyNotPrevented": "KeyValueStore has no compare-and-set or lock. Only the single sequential worker loop in worker.js keeps the reservation correct, and nothing in the code states or enforces that.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/orders.js",
+            "line": 17,
+            "category": "correctness",
+            "title": "Stock is taken before the order status is saved, and a failed save is never retried",
+            "quote": "const reservation = await reserveStock(stock, order.lines);",
+            "scenario": "If orders.set throws after reserveStock has lowered the stock, the order stays 'pending' and the worker only logs the error. The stock stays reserved for an order that never gets confirmed. The in-memory store does not throw today.",
+            "whyNotPrevented": "The two writes are not in one transaction, and the catch in runOrderWorker only logs.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/inventory.js",
+            "line": 9,
+            "category": "testing",
+            "title": "No tests cover reserving stock or rejecting an order",
+            "quote": "const short = lines.find((line, index) => !items[index] || items[index].available < line.quantity);",
+            "scenario": "These paths have no tests: an unknown SKU, a line asking for more than is available, a mix of in-stock and short lines (stock must not be partly lowered), and a quantity exactly equal to what is available.",
+            "whyNotPrevented": "The repository has no test files and no test script.",
+            "basis": "measured",
+            "measuredBy": "Grep \"\\\"test\\\"|reserveStock|processOrder\": only matches in src/inventory.js, src/orders.js, src/worker.js; Glob {src,test,tests}/**/*: no test files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-stock",
+      "wallMs": 13261,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3994,
+        "cacheRead": 23398,
+        "output": 1111,
+        "total": 28511
+      },
+      "costUsd": 0.058883599999999994,
+      "apiMs": 12086,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-stock",
+      "wallMs": 25728,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 4238,
+        "cacheRead": 30583,
+        "output": 2030,
+        "total": 36861
+      },
+      "costUsd": 0.0806606,
+      "apiMs": 24663,
+      "turns": 9,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/orders.js",
+          "line": 20,
+          "category": "correctness",
+          "title": "Orders for unknown SKUs are rejected with a 'not enough stock' reason"
+        },
+        {
+          "severity": "P3",
+          "file": "src/inventory.js",
+          "line": 9,
+          "category": "correctness",
+          "title": "Reservation is a non-atomic read-check-write that only works because the single worker runs jobs one at a time"
+        },
+        {
+          "severity": "P3",
+          "file": "src/inventory.js",
+          "line": 7,
+          "category": "testing",
+          "title": "No tests for stock reservation or rejection"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 3,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/orders.js",
+            "line": 20,
+            "category": "correctness",
+            "title": "Orders for unknown SKUs are rejected with a 'not enough stock' reason",
+            "quote": "    : { ...order, status: 'rejected', reason: `not enough stock for ${reservation.sku}` };",
+            "scenario": "POST /orders with sku 'sku_hat', which is not in the stock store: reserveStock treats the missing item as short (`!items[index]`), so the order is rejected with reason 'not enough stock for sku_hat'. The real problem is that the SKU does not exist, which the client cannot tell from this reason.",
+            "whyNotPrevented": "routes.js only checks that sku is a string. reserveStock returns the same result shape for a missing item and for a short one.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/inventory.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Reservation is a non-atomic read-check-write that only works because the single worker runs jobs one at a time",
+            "quote": "  const items = await Promise.all(lines.map((line) => stock.get(line.sku)));",
+            "scenario": "If processOrder is ever called concurrently, for example by a second worker or by running jobs in parallel, two orders can both read available: 1 for sku_tee. Both pass the check and both write 0, so the item is oversold.",
+            "whyNotPrevented": "Nothing in the code or its comments states that processOrder must run serially. Today runOrderWorker awaits each job in turn, which is the only thing preventing this.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/inventory.js",
+            "line": 7,
+            "category": "testing",
+            "title": "No tests for stock reservation or rejection",
+            "quote": "export async function reserveStock(stock, lines) {",
+            "scenario": "Nothing checks that a short order is rejected without changing any stock, or that a confirmed order decrements every line.",
+            "whyNotPrevented": "The repository has no test files and package.json has no test script.",
+            "basis": "measured",
+            "measuredBy": "Glob **/*.{js,json,md}: only package.json and src/*.js; package.json has no scripts",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "payout-lock",
+      "wallMs": 21325,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2294,
+        "cacheRead": 21461,
+        "output": 1788,
+        "total": 25551
+      },
+      "costUsd": 0.0584362,
+      "apiMs": 20308,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/payouts.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Missing-account path throws before the try, so the payout lock is never released"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/payouts.js",
+          "line": 8,
+          "category": "correctness",
+          "title": "Already-sent payouts with no account are overwritten to failed"
+        },
+        {
+          "severity": "P3",
+          "file": "src/payouts.js",
+          "line": 7,
+          "category": "testing",
+          "title": "No test for the new missing-account failure path"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/payouts.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Missing-account path throws before the try, so the payout lock is never released",
+            "quote": "    throw new PayoutError(`payout ${payoutId} has no bank account`);",
+            "scenario": "Call sendPayout('p1') for a payout with no accountNumber. It throws PayoutError, but release() never runs, so held still contains 'payout:p1'. Any later sendPayout('p1') call, such as a retry after the account is added, waits forever in acquire().",
+            "whyNotPrevented": "The new get and check are placed between acquire() and the try/finally that calls release(). locks.js has no timeout, and no tests exist in the repo.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/payouts.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "payouts.get was moved out of the try, so a failed read also leaks the lock",
+            "quote": "  const payout = await payouts.get(payoutId);",
+            "scenario": "payouts.get rejects, for example on a store/network error or an unknown id. Before this change, finally released the lock. Now the lock for that payout is held forever and every later call for that payout hangs.",
+            "whyNotPrevented": "The read used to be inside the try/finally. The diff moved it above the try, and no test covers a get failure.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/payouts.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "Already-sent payouts with no account are overwritten to failed",
+            "quote": "    await payouts.update(payoutId, { status: 'failed', reason: 'missing bank account' });",
+            "scenario": "A payout has status 'sent' and a transferId, and its accountNumber was later cleared. Before, sendPayout returned it unchanged. Now the missing-account check runs before the 'sent' check, so the record is set to status 'failed' even though the bank already moved the money.",
+            "whyNotPrevented": "The new check comes before the existing idempotency check `payout.status === 'sent'`, and no test covers this.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/payouts.js",
+            "line": 7,
+            "category": "testing",
+            "title": "No test for the new missing-account failure path",
+            "quote": "  if (!payout.accountNumber) {",
+            "scenario": "Nothing checks that the payout is marked failed, that bank.send is not called, or that the lock is released.",
+            "whyNotPrevented": "The repository has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob test/**, tests/**, **/*.test.js: no match",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "payout-lock",
+      "wallMs": 23744,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 3061,
+        "cacheRead": 28464,
+        "output": 2282,
+        "total": 33817
+      },
+      "costUsd": 0.0758608,
+      "apiMs": 22716,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/payouts.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Lock never released when payout has no bank account (or when payouts.get throws)"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/worker.js",
+          "line": 10,
+          "category": "correctness",
+          "title": "Missing bank account is a permanent failure but the worker retries it forever"
+        },
+        {
+          "severity": "P3",
+          "file": "src/payouts.js",
+          "line": 12,
+          "category": "correctness",
+          "title": "Already-sent payouts are now failed if accountNumber is missing"
+        },
+        {
+          "severity": "P3",
+          "file": "src/payouts.js",
+          "line": 12,
+          "category": "testing",
+          "title": "No test for the new missing-account path"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/payouts.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Lock never released when payout has no bank account (or when payouts.get throws)",
+            "quote": "    throw new PayoutError(`payout ${payoutId} has no bank account`);",
+            "scenario": "A payout with accountNumber null: the lock is acquired at line 5, then line 9 throws before the try/finally starts, so release() never runs. The worker catches the error and calls job.retryLater(). Any later sendPayout for the same id waits forever at acquire() on line 5 ('while (held.has(key)) await held.get(key).promise'). Because runPayouts handles jobs one at a time in a single for-await loop, that hang stops the whole worker. Moving payouts.get above the try has the same effect: if the get rejects, the lock also leaks.",
+            "whyNotPrevented": "The only release() call is in the finally block (line 18), and the new code runs before the try opens. locks.js has no timeout, and the repo has no tests (Grep for sendPayout finds only src/payouts.js and src/worker.js).",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/worker.js",
+            "line": 10,
+            "category": "correctness",
+            "title": "Missing bank account is a permanent failure but the worker retries it forever",
+            "quote": "      await job.retryLater();",
+            "scenario": "A payout with no accountNumber is marked 'failed' and throws PayoutError. runPayouts catches every error the same way and calls job.retryLater(). Each retry marks the payout failed again and throws again, so the job is never acked and keeps retrying. The author wanted the payout to end in the failed state.",
+            "whyNotPrevented": "worker.js does not tell PayoutError apart from transient errors. The diff added a new error class but did not change the worker's catch block.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/payouts.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Already-sent payouts are now failed if accountNumber is missing",
+            "quote": "  if (!payout.accountNumber) {",
+            "scenario": "The account check now runs before the status === 'sent' check. A payout that was already sent, whose account was removed later, would be overwritten to status 'failed', and its transferId would be left next to a failed status.",
+            "whyNotPrevented": "No test covers the order of these checks.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/payouts.js",
+            "line": 12,
+            "category": "testing",
+            "title": "No test for the new missing-account path",
+            "quote": "  if (!payout.accountNumber) {",
+            "scenario": "Nothing checks that the payout is marked failed, that bank.send is not called, or that the lock is released.",
+            "whyNotPrevented": "The repository has no tests.",
+            "basis": "measured",
+            "measuredBy": "Grep \"sendPayout|accountNumber\" outside .git: only src/payouts.js and src/worker.js",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "payout-lock",
+      "wallMs": 20996,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2553,
+        "cacheRead": 21436,
+        "output": 2001,
+        "total": 25998
+      },
+      "costUsd": 0.06476319999999999,
+      "apiMs": 19910,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/payouts.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Missing-account path throws before the try/finally, so the payout lock is never released"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/payouts.js",
+          "line": 7,
+          "category": "correctness",
+          "title": "Account check runs before the already-sent check and can overwrite a 'sent' payout with 'failed'"
+        },
+        {
+          "severity": "P2",
+          "file": "src/worker.js",
+          "line": 10,
+          "category": "correctness",
+          "title": "A permanent PayoutError is retried like a temporary failure"
+        }
+      ],
+      "otherHigh": 2,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/payouts.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Missing-account path throws before the try/finally, so the payout lock is never released",
+            "quote": "    throw new PayoutError(`payout ${payoutId} has no bank account`);",
+            "scenario": "A payout with no accountNumber: the lock `payout:<id>` is acquired at line 5, then the code throws at line 9, outside the try whose finally calls release(). worker.js catches the error and calls job.retryLater(). On the retry, acquire() waits forever on held.get(key).promise. runPayouts handles jobs one at a time in a `for await` loop, so the whole worker stops and no more payouts go out. The same leak now happens if payouts.get() rejects, because the diff moved that call out of the try.",
+            "whyNotPrevented": "locks.js has no timeout and holds keys in a module-level Map. The only release() call is in the finally block, which this path never reaches. No tests exist under the repo.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/payouts.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Account check runs before the already-sent check and can overwrite a 'sent' payout with 'failed'",
+            "quote": "  if (!payout.accountNumber) {",
+            "scenario": "A payout with status 'sent' and a transferId has its accountNumber cleared later, for example when the account is removed, and the job is delivered again. Before this change the function returned early because the status was 'sent'. Now it calls payouts.update(id, { status: 'failed', reason: 'missing bank account' }), so a payout the bank already processed is recorded as failed.",
+            "whyNotPrevented": "The idempotency check `payout.status === 'sent'` now runs after the new branch, and no test covers redelivery of a sent payout.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/worker.js",
+            "line": 10,
+            "category": "correctness",
+            "title": "A permanent PayoutError is retried like a temporary failure",
+            "quote": "      await job.retryLater();",
+            "scenario": "A payout with no bank account is marked failed, but worker.js catches the PayoutError and calls job.retryLater(). The job comes back again and again, rewriting 'failed' each time and logging an error, and it is never acked. The intended outcome is a clean terminal failure.",
+            "whyNotPrevented": "runPayouts treats every error the same way. It does not check `error instanceof PayoutError` or error.name.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "plan-features",
+      "wallMs": 19169,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2441,
+        "cacheRead": 22196,
+        "output": 1052,
+        "total": 25697
+      },
+      "costUsd": 0.0450392,
+      "apiMs": 18100,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P4",
+          "file": "src/plans.js",
+          "line": 29,
+          "category": "maintainability",
+          "title": "Plan inheritance now depends on case order and fall-through instead of named feature lists"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P4",
+            "file": "src/plans.js",
+            "line": 29,
+            "category": "maintainability",
+            "title": "Plan inheritance now depends on case order and fall-through instead of named feature lists",
+            "quote": "      // falls through",
+            "scenario": "Someone later adds a plan, such as a 'pro' case placed between 'team' and 'free', or reorders the cases. Enterprise and team then silently pick up or lose features. The old FREE_FEATURES/TEAM_FEATURES spreads made each plan's inheritance explicit. The output is correct today: enterprise gives the team features plus sso and audit-log.",
+            "whyNotPrevented": "eslint no-fallthrough accepts the '// falls through' comment, so lint does not catch a reordering. The spec only checks the four current plans.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "plan-features",
+      "wallMs": 17280,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3648,
+        "cacheRead": 23157,
+        "output": 1446,
+        "total": 28259
+      },
+      "costUsd": 0.0627674,
+      "apiMs": 16200,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/plans.js",
+          "line": 31,
+          "category": "maintainability",
+          "title": "Plan inheritance now relies on case order and fall-through comments the lint config otherwise forbids"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/plans.js",
+            "line": 31,
+            "category": "maintainability",
+            "title": "Plan inheritance now relies on case order and fall-through comments the lint config otherwise forbids",
+            "quote": "      // falls through",
+            "scenario": "Someone later adds a case (for example 'business') between 'team' and 'free', or reorders the cases. Each plan above it then silently gains or loses features. If a `// falls through` comment is deleted, lint fails instead of the code. The old FREE_FEATURES/TEAM_FEATURES spread constants stated the inheritance directly and needed no fall-through.",
+            "whyNotPrevented": "eslint.config.js sets 'no-fallthrough': 'error', but the `// falls through` comment matches the rule's default exemption pattern, so lint passes. The specs pin each plan's current feature set but do not guard against reordering.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "plan-features",
+      "wallMs": 9650,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2398,
+        "cacheRead": 15574,
+        "output": 531,
+        "total": 18509
+      },
+      "costUsd": 0.0329428,
+      "apiMs": 8334,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "price-format-refactor",
+      "wallMs": 12297,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3064,
+        "cacheRead": 23430,
+        "output": 604,
+        "total": 27106
+      },
+      "costUsd": 0.04131,
+      "apiMs": 11052,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "price-format-refactor",
+      "wallMs": 9817,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3065,
+        "cacheRead": 23423,
+        "output": 556,
+        "total": 27052
+      },
+      "costUsd": 0.0403566,
+      "apiMs": 8668,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "price-format-refactor",
+      "wallMs": 15183,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3264,
+        "cacheRead": 23629,
+        "output": 797,
+        "total": 27698
+      },
+      "costUsd": 0.0468098,
+      "apiMs": 13922,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "refund-transfer",
+      "wallMs": 17760,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2302,
+        "cacheRead": 21252,
+        "output": 1682,
+        "total": 25244
+      },
+      "costUsd": 0.0563384,
+      "apiMs": 16695,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/refunds.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Refund moves money from the customer to the store"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/refunds.js",
+          "line": 4,
+          "category": "correctness",
+          "title": "Repeated partial refunds can exceed the order total"
+        },
+        {
+          "severity": "P2",
+          "file": "src/routes.js",
+          "line": 25,
+          "category": "security",
+          "title": "Refund cap and target account come from the request body"
+        }
+      ],
+      "otherHigh": 2,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/refunds.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Refund moves money from the customer to the store",
+            "quote": "  return transfer(STORE_ACCOUNT, order.customerAccountId, amountCents);",
+            "scenario": "The signature is transfer(toAccountId, fromAccountId, amountCents) (src/ledger.js:9). So refundOrder({customerAccountId:'c1', totalCents:500}) takes 500 from c1 and credits 'store'. That charges the customer again instead of refunding them. payOutSeller calls transfer(seller.accountId, STORE_ACCOUNT, ...), which is the right order for paying someone out.",
+            "whyNotPrevented": "Both account arguments are plain strings, so swapping them is not a type error. The repo has no tests at all.",
+            "basis": "measured",
+            "measuredBy": "Read src/ledger.js:9 `transfer(toAccountId, fromAccountId, amountCents)`; Glob **/*.js: no test files",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/refunds.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Repeated partial refunds can exceed the order total",
+            "quote": "  if (amountCents > order.totalCents) {",
+            "scenario": "On an order with totalCents 1000, POST /refunds with amountCents 800 twice refunds 1600. Each call passes the check because the code never records or subtracts earlier refunds.",
+            "whyNotPrevented": "The code stores nothing about refunds per order, and the ledger only tracks balances per account.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/routes.js",
+            "line": 25,
+            "category": "security",
+            "title": "Refund cap and target account come from the request body",
+            "quote": "  'POST /refunds': ({ order, amountCents }) => refundOrder(order, amountCents),",
+            "scenario": "A caller sends order {customerAccountId:'attacker', totalCents:99999999}. The over-refund check passes, and the money goes to any account the caller names. Nothing looks up a real order.",
+            "whyNotPrevented": "refundOrder trusts the order object it is given, and no order store or lookup exists in the codebase.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "refund-transfer",
+      "wallMs": 22722,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2048,
+        "cacheRead": 15310,
+        "output": 1866,
+        "total": 19230
+      },
+      "costUsd": 0.05679000000000001,
+      "apiMs": 21462,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/refunds.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Refund moves money from the customer to the store instead of the other way"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/refunds.js",
+          "line": 4,
+          "category": "correctness",
+          "title": "Repeated partial refunds can go over the order total"
+        },
+        {
+          "severity": "P2",
+          "file": "src/routes.js",
+          "line": 25,
+          "category": "security",
+          "title": "Refund route trusts an order object sent by the client, including its total and account"
+        },
+        {
+          "severity": "P3",
+          "file": "src/refunds.js",
+          "line": 3,
+          "category": "testing",
+          "title": "No tests for full refunds, partial refunds, or refunds over the total"
+        }
+      ],
+      "otherHigh": 2,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/refunds.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Refund moves money from the customer to the store instead of the other way",
+            "quote": "  return transfer(STORE_ACCOUNT, order.customerAccountId, amountCents);",
+            "scenario": "The signature in src/ledger.js:9 is `transfer(toAccountId, fromAccountId, amountCents)`, so the store is the receiver here. Refunding a 5000-cent order to customer 'c1' lowers c1's balance by 5000 and raises the store's by 5000. The customer is charged again instead of refunded.",
+            "whyNotPrevented": "Both account arguments are plain strings, so swapping them is not a type error. No test checks the balances after a refund. payouts.js:4 passes the receiver first, and this call does not.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/refunds.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Repeated partial refunds can go over the order total",
+            "quote": "  if (amountCents > order.totalCents) {",
+            "scenario": "On a 1000-cent order, two calls to POST /refunds with amountCents 800 both pass the check, because each is compared with the full total. The customer gets 1600 cents back.",
+            "whyNotPrevented": "Nothing records how much of an order has already been refunded. The ledger only keeps balances per account, not per order.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/routes.js",
+            "line": 25,
+            "category": "security",
+            "title": "Refund route trusts an order object sent by the client, including its total and account",
+            "quote": "  'POST /refunds': ({ order, amountCents }) => refundOrder(order, amountCents),",
+            "scenario": "A caller posts { order: { totalCents: 1000000, customerAccountId: 'attacker' }, amountCents: 1000000 }. The route accepts it, so it can refund any amount to any account, with no stored order behind it.",
+            "whyNotPrevented": "The order is never looked up on the server, and refunds.js has no check on who is calling. The only limit is the totalCents value the client sent.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/refunds.js",
+            "line": 3,
+            "category": "testing",
+            "title": "No tests for full refunds, partial refunds, or refunds over the total",
+            "quote": "export function refundOrder(order, amountCents = order.totalCents) {",
+            "scenario": "A test that checked balances after a refund would have caught the reversed transfer.",
+            "whyNotPrevented": "The repository has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob src/**/*: only payouts.js, ledger.js, refunds.js, routes.js; no test files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "refund-transfer",
+      "wallMs": 25972,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2412,
+        "cacheRead": 21825,
+        "output": 1857,
+        "total": 26102
+      },
+      "costUsd": 0.060833,
+      "apiMs": 24875,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/refunds.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Refund moves money from the customer to the store, the opposite of what a refund should do"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P1",
+          "file": "src/routes.js",
+          "line": 7,
+          "category": "security",
+          "title": "Order total and customer account come from the request body, so the refund cap and the recipient can be set by the caller"
+        },
+        {
+          "severity": "P2",
+          "file": "src/refunds.js",
+          "line": 4,
+          "category": "correctness",
+          "title": "Earlier refunds are not counted, so repeated partial refunds can add up to more than the order total"
+        },
+        {
+          "severity": "P3",
+          "file": "src/refunds.js",
+          "line": 3,
+          "category": "testing",
+          "title": "New refund feature has no tests"
+        }
+      ],
+      "otherHigh": 2,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/refunds.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Refund moves money from the customer to the store, the opposite of what a refund should do",
+            "quote": "  return transfer(STORE_ACCOUNT, order.customerAccountId, amountCents);",
+            "scenario": "The ledger's signature is transfer(toAccountId, fromAccountId, amountCents) (src/ledger.js:9), and payouts.js:4 calls it as transfer(seller.accountId, STORE_ACCOUNT, ...). A full refund of a 5000-cent order therefore takes 5000 from the customer's balance and adds it to 'store'. The customer is charged a second time instead of being refunded.",
+            "whyNotPrevented": "Both account ids are plain strings, so swapping them is not a type error. The project has no tests: package.json has no test script and there are no test files.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P1",
+            "file": "src/routes.js",
+            "line": 7,
+            "category": "security",
+            "title": "Order total and customer account come from the request body, so the refund cap and the recipient can be set by the caller",
+            "quote": "  'POST /refunds': ({ order, amountCents }) => refundOrder(order, amountCents),",
+            "scenario": "A caller POSTs { order: { totalCents: 99999999, customerAccountId: 'attacker' }, amountCents: 99999999 }. The cap check compares against the totalCents the caller supplied and passes, and the money goes to whatever account the caller named. Nothing looks up a real order.",
+            "whyNotPrevented": "refundOrder trusts order.totalCents and order.customerAccountId as given. The route does no lookup and no validation, and the diff adds no authorization check.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/refunds.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Earlier refunds are not counted, so repeated partial refunds can add up to more than the order total",
+            "quote": "  if (amountCents > order.totalCents) {",
+            "scenario": "On a 1000-cent order, three partial refunds of 600 each pass the check one at a time, for 1800 refunded against a 1000 total.",
+            "whyNotPrevented": "Nothing records refunds per order, and the check compares only the current amount against the total.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/refunds.js",
+            "line": 3,
+            "category": "testing",
+            "title": "New refund feature has no tests",
+            "quote": "export function refundOrder(order, amountCents = order.totalCents) {",
+            "scenario": "No test checks refund direction, the partial-refund cap or the default full amount. A test for any one of these would have caught the reversed transfer.",
+            "whyNotPrevented": "The repository has no test setup.",
+            "basis": "measured",
+            "measuredBy": "Glob **/*.{js,json,md}: only package.json and src/*.js, no test files; package.json has no scripts",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "report-archive",
+      "wallMs": 19524,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 3006,
+        "cacheRead": 28382,
+        "output": 1711,
+        "total": 33109
+      },
+      "costUsd": 0.0639844,
+      "apiMs": 18468,
+      "turns": 9,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/storage.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Upload failure is swallowed after the last retry, so archiveDay deletes the local file that was never uploaded"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/storage.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Upload failure is swallowed after the last retry, so archiveDay deletes the local file that was never uploaded",
+            "quote": "  await retry(() => bucket.put(key, body, { contentType: 'application/x-ndjson' }), { attempts: 3, label: `upload ${key}` });",
+            "scenario": "Storage is down for longer than the retries take (3 attempts with 200ms then 400ms waits). On the last attempt, retry.js line 10 runs `return report(error, ...)`, which logs the error and returns undefined instead of throwing. uploadArchive then returns the key as if the upload worked, and archive.js line 9 runs `await unlink(file)`. The day's report file is deleted while no copy exists in the bucket, so the data is lost. runNightly also counts that day in `reports.archived`. Before this change, the error from bucket.put propagated up, unlink never ran, and nightly.js logged the failure.",
+            "whyNotPrevented": "retry() in src/retry.js catches the error on the final attempt instead of rethrowing it. That is fine for its existing caller (metrics.js, which can afford to lose a push), but not for an upload whose success decides whether the source file gets deleted. The project has no tests, so nothing checks that uploadArchive still throws when every attempt fails.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/storage.js",
+            "line": 4,
+            "category": "testing",
+            "title": "No test covers uploadArchive retrying or failing for good",
+            "quote": "  await retry(() => bucket.put(key, body, { contentType: 'application/x-ndjson' }), { attempts: 3, label: `upload ${key}` });",
+            "scenario": "Nothing checks that a put which fails once then succeeds returns the key, or that a put which fails all 3 times rejects. That second case is what would have caught the data loss above.",
+            "whyNotPrevented": "The repository has no test directory.",
+            "basis": "measured",
+            "measuredBy": "Glob \"{test,tests,__tests__}/**/*\": no files found",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "report-archive",
+      "wallMs": 14476,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 2847,
+        "cacheRead": 28043,
+        "output": 1238,
+        "total": 32138
+      },
+      "costUsd": 0.0531846,
+      "apiMs": 13243,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/storage.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "retry() swallows the final upload failure, so the local report is deleted even though it was never uploaded"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/storage.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "retry() swallows the final upload failure, so the local report is deleted even though it was never uploaded",
+            "quote": "  await retry(() => bucket.put(key, body, { contentType: 'application/x-ndjson' }), { attempts: 3, label: `upload ${key}` });",
+            "scenario": "Storage is down for longer than the 3 attempts (about 600ms of backoff in total). On the last attempt, retry() calls report() at src/retry.js:10, which logs the error and returns undefined instead of throwing. uploadArchive then returns the key as if the upload worked. archiveDay runs unlink(file) at src/archive.js:9, which deletes the only copy of the day's report. runNightly also counts that day as archived in the metrics. Before this change, bucket.put threw, so the unlink never ran and the file stayed on disk.",
+            "whyNotPrevented": "retry.js turns the final error into a logged report instead of throwing it again. Its only other caller (metrics.js) is fire-and-forget, so nothing depended on it throwing until now. No test covers an upload that fails on every attempt.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "report-archive",
+      "wallMs": 28392,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 12,
+        "cacheCreation": 2967,
+        "cacheRead": 35391,
+        "output": 1884,
+        "total": 40254
+      },
+      "costUsd": 0.0685422,
+      "apiMs": 27303,
+      "turns": 9,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/storage.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Upload failure after 3 attempts is swallowed, so the local report file is deleted even though it never reached storage"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/storage.js",
+          "line": 4,
+          "category": "correctness",
+          "title": "Every failed put is retried, including permanent errors"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/storage.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Upload failure after 3 attempts is swallowed, so the local report file is deleted even though it never reached storage",
+            "quote": "  await retry(() => bucket.put(key, body, { contentType: 'application/x-ndjson' }), { attempts: 3, label: `upload ${key}` });",
+            "scenario": "Storage is down for longer than the retry window (about 600 ms in total). All three bucket.put calls reject. On the last attempt, retry() runs `return report(error, ...)` (src/retry.js:10). report() only logs and returns undefined, so retry resolves instead of rejecting. uploadArchive then returns the key. archiveDay calls unlink(file) (src/archive.js:9) and deletes the only copy of the day's report. runNightly counts the day as archived, and the reports.archived metric is too high. Before this change, the rejected put propagated, the unlink was skipped, and nightly.js logged 'archive for ${day} failed'.",
+            "whyNotPrevented": "retry.js turns the final error into a log line instead of rethrowing it. The only other caller (metrics.js) is fire-and-forget, so this never mattered before. No tests exist (Glob for test/tests/__tests__ found no files).",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/storage.js",
+            "line": 4,
+            "category": "correctness",
+            "title": "Every failed put is retried, including permanent errors",
+            "quote": "  await retry(() => bucket.put(key, body, { contentType: 'application/x-ndjson' }), { attempts: 3, label: `upload ${key}` });",
+            "scenario": "An auth or permission error, or a missing bucket, is retried 3 times with backoff before failing. That only adds delay, but the retries cannot succeed, and they make transient and permanent failures look the same in the logs.",
+            "whyNotPrevented": "retry() takes no predicate for which errors are retryable.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/storage.js",
+            "line": 4,
+            "category": "testing",
+            "title": "No test covers upload retry or the case where all attempts fail",
+            "quote": "  await retry(() => bucket.put(key, body, { contentType: 'application/x-ndjson' }), { attempts: 3, label: `upload ${key}` });",
+            "scenario": "With no tests, the bug where the final failure is swallowed and the file deleted could ship unnoticed.",
+            "whyNotPrevented": "The repository has no test directory.",
+            "basis": "measured",
+            "measuredBy": "Glob \"{test,tests,__tests__}/**\": No files found",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "search-as-you-type",
+      "wallMs": 20525,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2111,
+        "cacheRead": 21356,
+        "output": 1730,
+        "total": 25205
+      },
+      "costUsd": 0.055791200000000006,
+      "apiMs": 19372,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/search-box.js",
+            "line": 22,
+            "category": "correctness",
+            "title": "Slow older responses can overwrite newer results"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/search-box.js",
+          "line": 27,
+          "category": "behavior-change",
+          "title": "Enter no longer runs a search, and 1-character terms can never be searched"
+        },
+        {
+          "severity": "P3",
+          "file": "src/search-box.js",
+          "line": 16,
+          "category": "error-handling",
+          "title": "A failed search becomes an unhandled promise rejection on every pause in typing"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/search-box.js",
+            "line": 22,
+            "category": "correctness",
+            "title": "Slow older responses can overwrite newer results",
+            "quote": "    const products = await searchProducts(term);",
+            "scenario": "The user types \"sho\", pauses, then types \"shoes\" and pauses again. Two requests are now in flight. If the \"sho\" request returns after the \"shoes\" request, renderResults shows the \"sho\" results while the box says \"shoes\". The same thing happens when the user deletes back to 1 character: the list is cleared, then the late response from the longer term fills it again.",
+            "whyNotPrevented": "debounce only delays when requests start. Nothing cancels an earlier request (no AbortController) or checks that a response matches the current input before rendering. Before this change a search only ran on Enter, so this race came up far less often. No tests exist in src.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/search-box.js",
+            "line": 27,
+            "category": "behavior-change",
+            "title": "Enter no longer runs a search, and 1-character terms can never be searched",
+            "quote": "  form.addEventListener('submit', (event) => event.preventDefault());",
+            "scenario": "Before, Enter searched right away with any term, including 1 character. Now Enter does nothing. Results only come from the 200ms debounce, and terms shorter than MIN_TERM_LENGTH always show an empty list. The goal was to add search-as-you-type, not to remove searching on Enter or short terms.",
+            "whyNotPrevented": "No tests cover the submit path.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/search-box.js",
+            "line": 16,
+            "category": "error-handling",
+            "title": "A failed search becomes an unhandled promise rejection on every pause in typing",
+            "quote": "  const search = debounce(async () => {",
+            "scenario": "If /api/products returns 500, searchProducts throws inside the debounced async callback. Nothing catches it, so the rejection goes unhandled and the old results stay on screen. This now happens on every pause in typing, not once per Enter.",
+            "whyNotPrevented": "The submit handler before this change had the same gap, but the new trigger makes it happen much more often.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "search-as-you-type",
+      "wallMs": 23995,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 2628,
+        "cacheRead": 27912,
+        "output": 1895,
+        "total": 32445
+      },
+      "costUsd": 0.06454639999999999,
+      "apiMs": 22955,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/search-box.js",
+            "line": 22,
+            "category": "correctness",
+            "title": "Slow earlier responses can overwrite results for the current term"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/search-box.js",
+          "line": 22,
+          "category": "error-handling",
+          "title": "Failed searches become unhandled promise rejections, now on every pause while typing"
+        },
+        {
+          "severity": "P3",
+          "file": "src/search-box.js",
+          "line": 27,
+          "category": "behavior-change",
+          "title": "Enter no longer searches, and 1-character terms can't be searched at all"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/search-box.js",
+            "line": 22,
+            "category": "correctness",
+            "title": "Slow earlier responses can overwrite results for the current term",
+            "quote": "    const products = await searchProducts(term);",
+            "scenario": "User types 'sho', pauses 200ms (request A goes out), then types 'shoes' (request B goes out). If B comes back first and A comes back second, the list shows results for 'sho' while the input reads 'shoes'. Clearing the input below 2 chars also renders [], but a request still in flight can then fill the list again.",
+            "whyNotPrevented": "debounce only cancels timers that have not fired yet. It cannot cancel a request already started. Nothing checks that the response matches the current input.value: no request id, no AbortController, no comparison against the term. No tests reference attachSearch.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/search-box.js",
+            "line": 22,
+            "category": "error-handling",
+            "title": "Failed searches become unhandled promise rejections, now on every pause while typing",
+            "quote": "    const products = await searchProducts(term);",
+            "scenario": "When /api/products returns 500, searchProducts throws inside the debounced async callback. Nothing catches the rejection, and the list keeps showing results for an older term. This was already true for Enter, but it now happens on every typing pause.",
+            "whyNotPrevented": "api.js throws when the response is not ok, and neither debounce nor the callback has a catch.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/search-box.js",
+            "line": 27,
+            "category": "behavior-change",
+            "title": "Enter no longer searches, and 1-character terms can't be searched at all",
+            "quote": "  form.addEventListener('submit', (event) => event.preventDefault());",
+            "scenario": "The intent says 'instead of only when they press Enter', which suggests Enter should still work. Now Enter does nothing right away, and a 1-character term like 'a' clears the list with no way to search it, where before Enter would search it.",
+            "whyNotPrevented": "No tests cover attachSearch, and the MIN_TERM_LENGTH rule applies to every search path.",
+            "basis": "measured",
+            "measuredBy": "Grep \"attachSearch|debounce\" in repo: only src/search-box.js and src/debounce.js match, no tests",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "search-as-you-type",
+      "wallMs": 22498,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 2341,
+        "cacheRead": 27917,
+        "output": 1961,
+        "total": 32229
+      },
+      "costUsd": 0.0635714,
+      "apiMs": 21150,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/search-box.js",
+            "line": 22,
+            "category": "correctness",
+            "title": "A slow earlier response can overwrite the results for a newer term"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/search-box.js",
+          "line": 28,
+          "category": "correctness",
+          "title": "Typing now triggers failed searches with no handling, so they become unhandled promise rejections"
+        },
+        {
+          "severity": "P3",
+          "file": "src/search-box.js",
+          "line": 27,
+          "category": "correctness",
+          "title": "Pressing Enter no longer searches right away"
+        },
+        {
+          "severity": "P3",
+          "file": "src/search-box.js",
+          "line": 1,
+          "category": "testing",
+          "title": "No tests cover the new search-as-you-type behaviour"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 3,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/search-box.js",
+            "line": 22,
+            "category": "correctness",
+            "title": "A slow earlier response can overwrite the results for a newer term",
+            "quote": "    const products = await searchProducts(term);",
+            "scenario": "The user types 'sho', pauses past 200 ms so the request for 'sho' starts, then types 'shoes'. If the 'sho' response comes back after the 'shoes' response, renderResults draws the 'sho' results while the box says 'shoes'. The same thing happens after clearing: the user deletes back to 's', the list is emptied, and then the in-flight 'sh…' response fills it again with stale results.",
+            "whyNotPrevented": "debounce.js only delays the start of each call. It cannot cancel a call that has already started. searchProducts takes no AbortSignal, and the callback never checks whether `term` still matches input.value before rendering. Running searches while the user types makes overlapping requests normal, where before they only happened on repeated Enter presses. The repo has no tests.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/search-box.js",
+            "line": 28,
+            "category": "correctness",
+            "title": "Typing now triggers failed searches with no handling, so they become unhandled promise rejections",
+            "quote": "  input.addEventListener('input', search);",
+            "scenario": "When /api/products returns a 5xx, searchProducts throws. The async callback that debounce starts with setTimeout rejects and nothing catches it. The user gets no feedback and the old results stay on screen. This now happens on every pause in typing, not only on submit.",
+            "whyNotPrevented": "The old submit handler had the same gap, but the change makes it fire on ordinary typing. No error path exists in search-box.js or render.js, and there are no tests.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/search-box.js",
+            "line": 27,
+            "category": "correctness",
+            "title": "Pressing Enter no longer searches right away",
+            "quote": "  form.addEventListener('submit', (event) => event.preventDefault());",
+            "scenario": "The user pastes a term and presses Enter at once. Nothing happens until the 200 ms debounce runs out. If the term was set without an 'input' event (autofill in some browsers, or a script setting the value), Enter never searches at all.",
+            "whyNotPrevented": "The submit handler now only blocks the page reload. It does not flush or call the search.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/search-box.js",
+            "line": 1,
+            "category": "testing",
+            "title": "No tests cover the new search-as-you-type behaviour",
+            "quote": "export function attachSearch(form, input, list) {",
+            "scenario": "Nothing checks the debounce timing, the minimum term length, or the order in which responses are rendered.",
+            "whyNotPrevented": "The repository has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*.{test,spec}.js\": no files found",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "shipping-webhook",
+      "wallMs": 32596,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 14,
+        "cacheCreation": 3975,
+        "cacheRead": 45669,
+        "output": 1787,
+        "total": 51445
+      },
+      "costUsd": 0.0767298,
+      "apiMs": 31528,
+      "turns": 10,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/webhooks.js",
+          "line": 36,
+          "category": "correctness",
+          "title": "Events for unknown shipments are acknowledged with 200 and silently dropped"
+        },
+        {
+          "severity": "P3",
+          "file": "src/webhooks.js",
+          "line": 4,
+          "category": "missing-test",
+          "title": "New webhook handler has no tests"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/webhooks.js",
+            "line": 36,
+            "category": "correctness",
+            "title": "Events for unknown shipments are acknowledged with 200 and silently dropped",
+            "quote": "await updateShipment(event.data.shipmentId, {",
+            "scenario": "If the provider sends in_transit for a shipmentId that is not in the shipments map, updateShipment returns null, but the handler still returns 200 {ok:true}. The provider stops retrying and nothing records that the event was dropped.",
+            "whyNotPrevented": "The handler ignores the return value of updateShipment (src/shipments.js:12 returns null when the id is missing). The repo has no tests.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/webhooks.js",
+            "line": 4,
+            "category": "missing-test",
+            "title": "New webhook handler has no tests",
+            "quote": "export async function handleShippingWebhook({ headers, rawBody }) {",
+            "scenario": "None of these paths is tested: a bad signature (401), a body that is not JSON (400), ping, label_created with no tracking, and a duplicate or late event.",
+            "whyNotPrevented": "The repo has no test directory, and package.json has no test script.",
+            "basis": "measured",
+            "measuredBy": "Glob \"{test,tests,__tests__}/**/*\": no files; package.json has no scripts",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "shipping-webhook",
+      "wallMs": 21232,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3547,
+        "cacheRead": 21705,
+        "output": 1825,
+        "total": 27085
+      },
+      "costUsd": 0.069249,
+      "apiMs": 20215,
+      "turns": 9,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/webhooks.js",
+          "line": 36,
+          "category": "correctness",
+          "title": "Events for unknown shipments get a 200 and are dropped without any trace"
+        },
+        {
+          "severity": "P3",
+          "file": "src/webhooks.js",
+          "line": 4,
+          "category": "testing",
+          "title": "New webhook handler has no tests"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/webhooks.js",
+            "line": 36,
+            "category": "correctness",
+            "title": "Events for unknown shipments get a 200 and are dropped without any trace",
+            "quote": "  await updateShipment(event.data.shipmentId, {",
+            "scenario": "A signed in_transit event arrives for a shipmentId that is not in the map yet, for example because createShipment has not run. updateShipment returns null, the handler still answers 200 { ok: true }, and the provider stops retrying, so that status update is lost and nothing is logged.",
+            "whyNotPrevented": "The handler ignores updateShipment's null return (src/shipments.js:12). No test covers an unknown shipment.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/webhooks.js",
+            "line": 4,
+            "category": "testing",
+            "title": "New webhook handler has no tests",
+            "quote": "export async function handleShippingWebhook({ headers, rawBody }) {",
+            "scenario": "Nothing tests the bad-signature 401, the non-JSON 400, the ping response, a label_created event with no tracking, or a duplicate or out-of-order delivery. A regression in any of these would ship unnoticed.",
+            "whyNotPrevented": "package.json has no test script and the repo has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob \"{test/**/*,tests/**/*}\" and package.json: no tests and no test script",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "shipping-webhook",
+      "wallMs": 19887,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 12,
+        "cacheCreation": 3918,
+        "cacheRead": 37427,
+        "output": 1790,
+        "total": 43147
+      },
+      "costUsd": 0.0746774,
+      "apiMs": 18868,
+      "turns": 10,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/webhooks.js",
+          "line": 36,
+          "category": "correctness",
+          "title": "Events for unknown shipments get a 200 and are silently dropped"
+        },
+        {
+          "severity": "P3",
+          "file": "src/webhooks.js",
+          "line": 4,
+          "category": "missing-test",
+          "title": "No tests for the new webhook handler"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/webhooks.js",
+            "line": 36,
+            "category": "correctness",
+            "title": "Events for unknown shipments get a 200 and are silently dropped",
+            "quote": "  await updateShipment(event.data.shipmentId, {",
+            "scenario": "The provider posts in_transit for shipmentId 'abc', which is not in the shipments map. updateShipment returns null, but the handler still replies 200 { ok: true }. The provider stops retrying and nothing records that the event was lost.",
+            "whyNotPrevented": "The handler ignores updateShipment's null return, and the repo has no tests for the webhook.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/webhooks.js",
+            "line": 4,
+            "category": "missing-test",
+            "title": "No tests for the new webhook handler",
+            "quote": "export async function handleShippingWebhook({ headers, rawBody }) {",
+            "scenario": "Nothing checks the bad-signature, bad-JSON, ping, or label_created-without-tracking paths, so a later edit could break any of them unnoticed.",
+            "whyNotPrevented": "The repo has no test directory, and package.json has no test script.",
+            "basis": "measured",
+            "measuredBy": "Glob \"{test,tests,__tests__}/**/*\": no files found; package.json has no scripts",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "user-preferences",
+      "wallMs": 17109,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2167,
+        "cacheRead": 15342,
+        "output": 1322,
+        "total": 18837
+      },
+      "costUsd": 0.046868400000000005,
+      "apiMs": 16159,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/preferences.js",
+            "line": 10,
+            "category": "correctness",
+            "title": "preferencesFor overwrites the shared defaults object, so one user's preferences show up for other users"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/preferences.js",
+            "line": 10,
+            "category": "correctness",
+            "title": "preferencesFor overwrites the shared defaults object, so one user's preferences show up for other users",
+            "quote": "  const preferences = defaultPreferences();",
+            "scenario": "User A has saved {theme:'dark'}. User B has no saved preferences. GET user A sets DEFAULT_PREFERENCES.theme to 'dark'. A later GET for user B returns theme 'dark' instead of 'light'. The defaults stay changed for every later request until the process restarts.",
+            "whyNotPrevented": "defaultPreferences() in src/defaults.js:8 returns the module-level DEFAULT_PREFERENCES object itself, not a copy, and the object is not frozen. No tests exist.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/preferences.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "The `in` check accepts inherited keys like constructor, toString and __proto__, so some unsupported keys are not ignored",
+            "quote": "    if (key in preferences) {",
+            "scenario": "Saved preferences JSON {\"toString\":\"x\"} or {\"constructor\":1} passes the check, because `in` also looks at Object.prototype. The key is then returned as a preference, even though the goal is to drop unsupported keys. {\"__proto__\":{...}} comes out of JSON.parse as an own key. Assigning it changes the prototype of the preferences object, which is also the shared defaults object (see the P1 above).",
+            "whyNotPrevented": "The check uses `in` instead of Object.hasOwn. Nothing validates saved keys when users-store.js saves or loads them.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "user-preferences",
+      "wallMs": 28379,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2472,
+        "cacheRead": 21945,
+        "output": 1514,
+        "total": 25939
+      },
+      "costUsd": 0.054477000000000005,
+      "apiMs": 27299,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/preferences.js",
+            "line": 13,
+            "category": "correctness",
+            "title": "Saved preferences overwrite the shared DEFAULT_PREFERENCES object, so one user's values leak to every user after them"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/preferences.js",
+            "line": 13,
+            "category": "correctness",
+            "title": "Saved preferences overwrite the shared DEFAULT_PREFERENCES object, so one user's values leak to every user after them",
+            "quote": "    preferences[key] = value;",
+            "scenario": "User A has savedPreferences {theme:'dark'}. GET user A writes theme='dark' into the module-level DEFAULT_PREFERENCES. Then GET user B, who has savedPreferences null, returns theme 'dark' instead of the default 'light'. The defaults stay corrupted for the rest of the process, so any user without a saved value gets whatever the last user saved.",
+            "whyNotPrevented": "defaultPreferences() in src/defaults.js:8 returns the DEFAULT_PREFERENCES object itself, not a copy. Nothing freezes or clones it, and the project has no tests (package.json has no test script and there are no test files).",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/preferences.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "The `in` check also accepts inherited Object.prototype keys, so some unsupported saved keys get through",
+            "quote": "    if (key in preferences) {",
+            "scenario": "A saved key such as 'toString', 'constructor' or 'hasOwnProperty' passes the check because `in` also looks at inherited properties. It is copied into the response even though it is not a supported preference. A saved '__proto__' key (JSON.parse creates it as a normal key of the object) also passes, and assigning it replaces the prototype of the shared defaults object. This breaks the goal of ignoring keys we no longer support.",
+            "whyNotPrevented": "The `in` operator checks inherited properties too. Nothing checks own keys only, for example with Object.hasOwn(DEFAULT_PREFERENCES, key), and no test covers this.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "user-preferences",
+      "wallMs": 28268,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2433,
+        "cacheRead": 21609,
+        "output": 1742,
+        "total": 25792
+      },
+      "costUsd": 0.058657799999999996,
+      "apiMs": 27313,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/preferences.js",
+            "line": 13,
+            "category": "correctness",
+            "title": "Saved preferences overwrite the shared default object, so one user's values show up for other users"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/preferences.js",
+          "line": 3,
+          "category": "test-coverage",
+          "title": "No tests for preference merging"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/preferences.js",
+            "line": 13,
+            "category": "correctness",
+            "title": "Saved preferences overwrite the shared default object, so one user's values show up for other users",
+            "quote": "    preferences[key] = value;",
+            "scenario": "User A has savedPreferences {theme:'dark'}. Calling getUser(A) writes 'dark' into DEFAULT_PREFERENCES. A later getUser(B) for a user with no saved preferences returns theme 'dark' instead of 'light'. Every request after that inherits the values of whichever users were loaded before it.",
+            "whyNotPrevented": "src/defaults.js:8 `return DEFAULT_PREFERENCES;` returns the same module-level object every time, not a copy. Nothing freezes or clones it, and the repo has no tests.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/preferences.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "The `in` check accepts inherited keys, so some unsupported saved keys still reach the response",
+            "quote": "    if (key in preferences) {",
+            "scenario": "A stored preferences_json of {\"toString\":\"x\",\"constructor\":1} passes the `in` check, because both names exist on Object.prototype. Both keys then appear in the response body. A saved \"__proto__\" key (JSON.parse makes it an own property) changes the prototype of the shared defaults object instead of being ignored.",
+            "whyNotPrevented": "`in` looks through the prototype chain. Use Object.hasOwn(defaults, key) instead. Nothing validates keys between users-store.js JSON.parse and this loop.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/preferences.js",
+            "line": 3,
+            "category": "test-coverage",
+            "title": "No tests for preference merging",
+            "quote": "export function preferencesFor(user) {",
+            "scenario": "No test covers defaults filling, dropping unsupported keys, or users with null savedPreferences. Both bugs above went unnoticed because of this.",
+            "whyNotPrevented": "The project has no test files or test script",
+            "basis": "measured",
+            "measuredBy": "Glob **/*.{js,json,md}: only package.json and 4 src files; package.json has no scripts",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "workspace-limits",
+      "wallMs": 19137,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 12,
+        "cacheCreation": 2998,
+        "cacheRead": 35182,
+        "output": 1423,
+        "total": 39615
+      },
+      "costUsd": 0.059528399999999995,
+      "apiMs": 17831,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/workspaces.js",
+          "line": 6,
+          "category": "correctness",
+          "title": "A beta feature the plan already includes is listed twice"
+        },
+        {
+          "severity": "P3",
+          "file": "src/workspaces.js",
+          "line": 5,
+          "category": "testing",
+          "title": "No tests for applying extra seats and beta features"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/workspaces.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "A beta feature the plan already includes is listed twice",
+            "quote": "  settings.features.push(...(workspace.betaFeatures ?? []));",
+            "scenario": "A team workspace with betaFeatures ['timeline'] gets features ['boards','timeline','timeline'] from GET /workspaces/:id/settings. Code that counts or renders the list shows the duplicate.",
+            "whyNotPrevented": "push does not remove duplicates. No current store record overlaps with its plan, so the problem does not show up today.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/workspaces.js",
+            "line": 5,
+            "category": "testing",
+            "title": "No tests for applying extra seats and beta features",
+            "quote": "  settings.limits.seats += workspace.extraSeats ?? 0;",
+            "scenario": "Nothing checks that ws_2 gets 70 seats, that ws_3 gets 'automations', or that canAddMember respects the higher seat limit.",
+            "whyNotPrevented": "The repository has no test files.",
+            "basis": "measured",
+            "measuredBy": "Glob \"{test,tests,src}/**/*.{js,mjs}\": only src/routes.js, plans.js, workspaces-store.js, workspaces.js",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "workspace-limits",
+      "wallMs": 25548,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 12,
+        "cacheCreation": 2797,
+        "cacheRead": 35078,
+        "output": 1380,
+        "total": 39267
+      },
+      "costUsd": 0.057039599999999996,
+      "apiMs": 24494,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/workspaces.js",
+          "line": 5,
+          "category": "missing-test",
+          "title": "No test covers the new extra-seat and beta-feature handling"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/workspaces.js",
+            "line": 5,
+            "category": "missing-test",
+            "title": "No test covers the new extra-seat and beta-feature handling",
+            "quote": "settings.limits.seats += workspace.extraSeats ?? 0;",
+            "scenario": "Suppose a later change replaces the copy in planDefaults (plans.js:10) with a return of the shared PLANS object. The `+=` and `push` here would then change the plan defaults for every workspace, and nothing would catch it.",
+            "whyNotPrevented": "The repository has no test files. The only files are src/routes.js, plans.js, workspaces-store.js and workspaces.js.",
+            "basis": "measured",
+            "measuredBy": "Glob {test,tests,src}/**/*.{js,mjs}: only 4 src files, no tests",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "workspace-limits",
+      "wallMs": 20399,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 12,
+        "cacheCreation": 2463,
+        "cacheRead": 34841,
+        "output": 1228,
+        "total": 38544
+      },
+      "costUsd": 0.0512802,
+      "apiMs": 19106,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/workspaces.js",
+          "line": 5,
+          "category": "missing-test",
+          "title": "No tests cover extra seats or beta features in effectiveSettings"
+        },
+        {
+          "severity": "P4",
+          "file": "src/workspaces.js",
+          "line": 6,
+          "category": "correctness",
+          "title": "A beta feature the plan already has is listed twice"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/workspaces.js",
+            "line": 5,
+            "category": "missing-test",
+            "title": "No tests cover extra seats or beta features in effectiveSettings",
+            "quote": "settings.limits.seats += workspace.extraSeats ?? 0;",
+            "scenario": "If someone later changes planDefaults to return the shared PLANS object instead of a copy, these += and push calls would quietly change every workspace's plan defaults, and no test would catch it",
+            "whyNotPrevented": "The repo has no test files",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*.test.*\" and \"{test,tests,__tests__,spec}/**/*\": no files found",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P4",
+            "file": "src/workspaces.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "A beta feature the plan already has is listed twice",
+            "quote": "settings.features.push(...(workspace.betaFeatures ?? []));",
+            "scenario": "A team workspace with betaFeatures ['timeline'] gets features ['boards','timeline','timeline']",
+            "whyNotPrevented": "Nothing removes duplicates. No current data in src/workspaces-store.js has this overlap",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    }
+  ]
+}
