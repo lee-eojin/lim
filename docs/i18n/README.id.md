@@ -26,7 +26,7 @@ Silakan fork, ubah, dan jadikan milikmu. Issue dan pull request dipersilakan.
 
 | Plugin | Status | Satu tugas |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.6.1 | Me-review perubahanmu sebelum kamu commit, memperbaiki temuan P1 dan P2, me-review ulang, dan menyerahkan sisanya kepadamu. |
+| [review-loop](../../plugins/review-loop) | 0.7.0 | Me-review perubahanmu sebelum kamu commit, memperbaiki temuan P1 dan P2, me-review ulang, dan menyerahkan sisanya kepadamu. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.0 | Menjelaskan konsep, kode, dan error dengan jawaban di awal, satu makna untuk setiap kata, dan istilah teknis dengan nama resmi berbahasa Inggris. |
 | [verify](../../plugins/verify) | 0.2.0 | Membuktikan fitur-fiturmu berjalan dengan menjalankannya, lalu menyimpan perintah dan output-nya sebagai bukti. |
 

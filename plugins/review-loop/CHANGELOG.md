@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.7.0 (2026-10-26)
 
 - Added: Checks are detected in Go, Rust, Python, and Makefile projects, not only from `package.json` scripts: Makefile `typecheck`, `lint`, and `test` targets, `go vet` and `go test` for `go.mod`, `cargo check` and `cargo test` for `Cargo.toml`, and pytest, ruff, and mypy when the project configures them (through `uv run --frozen --no-sync` with `uv.lock`). The report names each check's command, and a check whose program is not installed is reported as not verified instead of failing. (#77)
 
