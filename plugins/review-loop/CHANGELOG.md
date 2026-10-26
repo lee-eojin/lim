@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.7.1 (2026-10-26)
 
 - Fixed: With the commit gate on, a commit or push made through a git alias such as `git ci` is checked like `git commit` or `git push`, and a shell alias that commits is asked about before it runs. Before, an alias went around the gate. (#80)
 
