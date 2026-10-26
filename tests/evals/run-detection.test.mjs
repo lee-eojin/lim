@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { casesDirFor, locationsOf, parseAgentFile, parseReviewerOutput, pool, prepareCase, rescoreResults, rescoreRuns, runOne, scoreCase, serializeResults, summarize } from '../../evals/review-loop/run-detection.mjs';
+import { casesDirFor, compareResults, locationsOf, parseAgentFile, parseReviewerOutput, pool, prepareCase, rescoreResults, rescoreRuns, runOne, scoreCase, serializeResults, summarize } from '../../evals/review-loop/run-detection.mjs';
 
 const evalsDir = fileURLToPath(new URL('../../evals/review-loop/', import.meta.url));
 const casesDir = path.join(evalsDir, 'detection');
@@ -290,4 +291,46 @@ test('saved results escape the long dash and the middle dot and parse back to th
   const text = serializeResults(results);
   assert.doesNotMatch(text, /[\u2014\u00b7]/);
   assert.deepEqual(JSON.parse(text), results);
+});
+
+test('compare marks fewer bugs found and more false alarms as worse on the cases both files ran', () => {
+  const run = (name, kind, result, otherLow = 0) => ({ case: name, kind, result, otherHigh: 0, otherLow, forbidden: result === 'false-alarm' ? [{ severity: 'P2' }] : [] });
+  const before = { cases: 'evals/review-loop/detection-hard', reviewer: { path: 'reviewer.md', sha256: 'aa' }, runs: [run('cache', 'bug', 'found'), run('cache', 'bug', 'found'), run('guard', 'clean', 'clean'), run('gone', 'bug', 'found')] };
+  const after = { runs: [run('cache', 'bug', 'missed', 2), run('cache', 'bug', 'found'), run('guard', 'clean', 'false-alarm'), run('new', 'bug', 'found')] };
+  const comparison = compareResults(before, after);
+  assert.deepEqual([comparison.cases, comparison.onlyBefore, comparison.onlyAfter], [['cache', 'guard'], ['gone'], ['new']]);
+  assert.deepEqual([comparison.before, comparison.after], [{ cases: 'evals/review-loop/detection-hard', reviewer: { path: 'reviewer.md', sha256: 'aa' } }, { cases: null, reviewer: null }]);
+  const byName = Object.fromEntries(comparison.metrics.map((metric) => [metric.name, metric]));
+  assert.deepEqual(byName['bugs found as P1 or P2'], { name: 'bugs found as P1 or P2', before: '2/2', after: '1/2', worse: true });
+  assert.equal(byName['clean runs with a false P1 or P2'].worse, true);
+  assert.deepEqual([byName['P3 to P5 findings per run'].before, byName['P3 to P5 findings per run'].after], ['0.00', '0.67']);
+  assert.deepEqual(comparison.differing.map((entry) => entry.case), ['cache', 'guard']);
+});
+
+test('compare reports no change for the same results in a different order', () => {
+  const run = (name, result) => ({ case: name, kind: 'bug', result, otherHigh: 0, otherLow: 0, forbidden: [] });
+  const before = { runs: [run('cache', 'found'), run('cache', 'missed')] };
+  const comparison = compareResults(before, { runs: [run('cache', 'missed'), run('cache', 'found')] });
+  assert.deepEqual([comparison.differing, comparison.metrics.some((metric) => metric.worse)], [[], false]);
+});
+
+test('compare refuses files with no shared cases and other modes refuse stray arguments', () => {
+  const script = fileURLToPath(new URL('../../evals/review-loop/run-detection.mjs', import.meta.url));
+  const folder = mkdtempSync(path.join(tmpdir(), 'compare-'));
+  try {
+    const write = (name, caseName) => {
+      const file = path.join(folder, name);
+      writeFileSync(file, JSON.stringify({ runs: [{ case: caseName, kind: 'bug', result: 'found', otherHigh: 0, otherLow: 0, forbidden: [] }] }));
+      return file;
+    };
+    const run = (...args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
+    const disjoint = run('--compare', write('a.json', 'cache'), write('b.json', 'guard'));
+    assert.notEqual(disjoint.status, 0);
+    assert.match(disjoint.stderr, /share no cases/);
+    const stray = run('--dry-run', 'stray');
+    assert.notEqual(stray.status, 0);
+    assert.match(stray.stderr, /unexpected argument: stray/);
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
 });
