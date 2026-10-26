@@ -33,6 +33,10 @@ its findings against expected.json.
                        (or to --out), using the cases folder stored in that file unless
                        --cases is given
   --note <text>        with --rescore, what changed, recorded in scoredWith.note
+  --compare <before> <after>
+                       compare two results files on the cases both ran, without a model:
+                       bugs found, false P1/P2 on clean changes, other findings, and tokens,
+                       and the cases whose results differ
 `;
 
 const DEFAULT_RESCORE_NOTE = 'Scored again from the stored reviewer output with --rescore, without new model runs.';
@@ -383,6 +387,57 @@ function table(runs) {
   return rows.map((row) => row.map((cell, column) => cell.padEnd(widths[column])).join('  ').trimEnd()).join('\n');
 }
 
+const rate = (count, total) => (total ? count / total : 0);
+
+function perCase(runs) {
+  const cases = new Map();
+  for (const run of runs) cases.set(run.case, [...(cases.get(run.case) ?? []), run.result]);
+  return cases;
+}
+
+export function compareResults(before, after) {
+  const beforeCases = perCase(before.runs);
+  const afterCases = perCase(after.runs);
+  const shared = [...beforeCases.keys()].filter((name) => afterCases.has(name)).sort();
+  const sharedRuns = (results) => results.runs.filter((run) => shared.includes(run.case));
+  const [was, now] = [summarize(sharedRuns(before)), summarize(sharedRuns(after))];
+  const metric = (name, beforeValue, afterValue, worse) => ({ name, before: beforeValue, after: afterValue, worse });
+  const found = [rate(was.found, was.bugRuns), rate(now.found, now.bugRuns)];
+  const falseAlarms = [rate(was.cleanWithFalseHigh, was.cleanRuns), rate(now.cleanWithFalseHigh, now.cleanRuns)];
+  const lowPerRun = [rate(was.otherLowFindings, was.runs - was.errors), rate(now.otherLowFindings, now.runs - now.errors)];
+  const source = (results) => ({ cases: results.cases ?? null, reviewer: results.reviewer ?? null });
+  return {
+    before: source(before),
+    after: source(after),
+    cases: shared,
+    onlyBefore: [...beforeCases.keys()].filter((name) => !afterCases.has(name)).sort(),
+    onlyAfter: [...afterCases.keys()].filter((name) => !beforeCases.has(name)).sort(),
+    metrics: [
+      metric('bugs found as P1 or P2', `${was.found}/${was.bugRuns}`, `${now.found}/${now.bugRuns}`, found[1] < found[0]),
+      metric('clean runs with a false P1 or P2', `${was.cleanWithFalseHigh}/${was.cleanRuns}`, `${now.cleanWithFalseHigh}/${now.cleanRuns}`, falseAlarms[1] > falseAlarms[0]),
+      metric('other P1 or P2 on bug runs', was.otherHighOnBugRuns, now.otherHighOnBugRuns, null),
+      metric('P3 to P5 findings per run', lowPerRun[0].toFixed(2), lowPerRun[1].toFixed(2), null),
+      metric('tokens per run', was.averageTokens, now.averageTokens, null),
+    ],
+    differing: shared
+      .map((name) => ({ case: name, before: beforeCases.get(name), after: afterCases.get(name) }))
+      .filter((entry) => entry.before.slice().sort().join() !== entry.after.slice().sort().join()),
+  };
+}
+
+function reportComparison(comparison) {
+  const describe = ({ cases, reviewer }) => `${cases ?? 'unknown cases'}, ${reviewer ? `${reviewer.path} (sha256 ${reviewer.sha256.slice(0, 12)})` : 'unknown reviewer'}`;
+  const lines = [`before: ${describe(comparison.before)}`, `after: ${describe(comparison.after)}`, `cases compared: ${comparison.cases.length}`];
+  if (comparison.onlyBefore.length) lines.push(`only in before: ${comparison.onlyBefore.join(', ')}`);
+  if (comparison.onlyAfter.length) lines.push(`only in after: ${comparison.onlyAfter.join(', ')}`);
+  for (const { name, before, after, worse } of comparison.metrics) {
+    lines.push(`${name}: ${before} -> ${after}${worse ? ' (worse)' : ''}`);
+  }
+  lines.push(comparison.differing.length ? 'cases whose results differ:' : 'no case results differ');
+  for (const entry of comparison.differing) lines.push(`  ${entry.case}: ${entry.before.join(',')} -> ${entry.after.join(',')}`);
+  process.stdout.write(`${lines.join('\n')}\n`);
+}
+
 export function serializeResults(results) {
   return `${JSON.stringify(results, null, 2).replace(/[\u2014\u00b7]/g, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`)}\n`;
 }
@@ -406,7 +461,8 @@ function report(runs, summary, out) {
 }
 
 async function main() {
-  const { values } = parseArgs({
+  const { values, positionals } = parseArgs({
+    allowPositionals: true,
     options: {
       cases: { type: 'string' },
       case: { type: 'string', multiple: true },
@@ -420,6 +476,7 @@ async function main() {
       'dry-run': { type: 'boolean', default: false },
       keep: { type: 'boolean', default: false },
       rescore: { type: 'string' },
+      compare: { type: 'boolean', default: false },
       note: { type: 'string', default: DEFAULT_RESCORE_NOTE },
       help: { type: 'boolean', short: 'h', default: false },
     },
@@ -428,6 +485,15 @@ async function main() {
     process.stdout.write(usage);
     return;
   }
+  if (values.compare) {
+    if (positionals.length !== 2) throw new Error('--compare needs two results files: before and after');
+    const [before, after] = positionals.map((file) => JSON.parse(readFileSync(path.resolve(file), 'utf8')));
+    const comparison = compareResults(before, after);
+    if (!comparison.cases.length) throw new Error('the two results files share no cases, so there is nothing to compare');
+    reportComparison(comparison);
+    return;
+  }
+  if (positionals.length) throw new Error(`unexpected argument: ${positionals[0]}`);
   if (values.rescore) {
     const source = path.resolve(values.rescore);
     const stored = JSON.parse(readFileSync(source, 'utf8'));
