@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
-  existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
+  chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  changedProjects,
   classify,
   decideNext,
   detectChecks,
+  detectFolderChecks,
   findWeakening,
   gateDecision,
   gitInvocations,
@@ -1194,6 +1196,145 @@ describe('regression tests', () => {
     assert.equal(commit().decision, 'ask');
     writeFiles(root, { 'checks/cart.cjs': `${totalTest}// edited after the check\n` });
     assert.match(commit().reason, /checks\/cart\.cjs changed after the last review/);
+  });
+});
+
+describe('subfolder projects', () => {
+  const manifest = (test) => JSON.stringify({ scripts: { test } });
+  const passing = manifest('node -e "process.exit(0)"');
+  const failing = manifest('node -e "process.exit(1)"');
+  const labels = (checks) => checks.map((check) => [check.folder ?? '', check.name, check.exitCode]);
+
+  test('a change in a subfolder project runs its checks in that folder and a failure is a P1 named with the folder', () => {
+    const failsInWeb = manifest('node -e "process.exit(require(\'path\').basename(process.cwd()) === \'web\' ? 1 : 0)"');
+    const root = createRepository({ 'web/package.json': failsInWeb, 'web/src/cart.js': correctCart });
+    writeFiles(root, { 'web/src/cart.js': brokenCart });
+    assert.deepEqual(labels(loop(root, ['start']).checks), [['web', 'test', 1]]);
+    const result = loop(root, ['record'], { findings: [] });
+    assert.deepEqual([result.fix[0].severity, result.fix[0].file, result.fix[0].title], ['P1', 'web: npm run test', 'web: test fails']);
+    assert.match(result.report, /Checks: web: test \(npm run test\) failed\n/);
+    assert.match(result.report, /- F-1 \[P1\] web: npm run test web: test fails/);
+  });
+
+  test('a change only at the root runs only the root checks', () => {
+    const root = createRepository({ 'package.json': passing, 'web/package.json': failing, 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    assert.deepEqual(labels(loop(root, ['start']).checks), [['', 'test', 0]]);
+    assert.match(loop(root, ['record'], { findings: [] }).report, /Checks: test \(npm run test\) passed\n/);
+  });
+
+  test('two subfolder projects with the same check name do not collide', () => {
+    const root = createRepository({
+      'api/package.json': passing, 'api/index.js': '', 'web/package.json': failing, 'web/index.js': '',
+    });
+    writeFiles(root, { 'api/index.js': 'export {};\n', 'web/index.js': 'export {};\n' });
+    assert.deepEqual(labels(loop(root, ['start']).checks), [['api', 'test', 0], ['web', 'test', 1]]);
+    const first = loop(root, ['record'], { findings: [] });
+    assert.deepEqual(first.fix.map((item) => item.file), ['web: npm run test']);
+    writeFiles(root, { 'web/package.json': passing });
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { findings: [] });
+    assert.equal(second.reason, 'clean');
+    assert.match(second.report, /- F-1 \[P1\] web: test fails \(fixed, measured: web: npm run test no longer fails\)/);
+  });
+
+  test('later rounds run only the subfolder projects the fixes touched', () => {
+    const root = createRepository({
+      'api/package.json': failing, 'api/index.js': '', 'web/package.json': failing, 'web/index.js': '',
+    });
+    writeFiles(root, { 'api/index.js': 'export {};\n', 'web/index.js': 'export {};\n' });
+    loop(root, ['start']);
+    assert.equal(loop(root, ['record'], { findings: [] }).fix.length, 2);
+    writeFiles(root, { 'web/package.json': passing });
+    assert.deepEqual(labels(loop(root, ['next']).checks), [['web', 'test', 0]]);
+    const second = loop(root, ['record'], { findings: [] });
+    assert.deepEqual(second.ask.map((item) => [item.file, item.note]), [['api: npm run test', 'its check did not run, so the fix is not verified']]);
+  });
+
+  test('at most four subfolder projects run per round and the report names the ones left out', () => {
+    const folders = ['a', 'b', 'c', 'd', 'e', 'f'];
+    const root = createRepository(Object.fromEntries(folders.flatMap((folder) => [
+      [`${folder}/package.json`, passing], [`${folder}/index.js`, ''],
+    ])));
+    writeFiles(root, Object.fromEntries(folders.map((folder) => [`${folder}/index.js`, 'export {};\n'])));
+    const started = loop(root, ['start']);
+    assert.deepEqual(started.checks.map((check) => check.folder), ['a', 'b', 'c', 'd']);
+    assert.deepEqual(started.checksLeftOut, ['e', 'f']);
+    assert.match(loop(root, ['record'], { findings: [] }).report, /d: test \(npm run test\) passed; not run: more than 4 projects changed \(e, f\)\n/);
+    assert.deepEqual(loop(root, ['checks']).checksLeftOut, ['e', 'f']);
+  });
+
+  test('folders inside node_modules are not subfolder projects', () => {
+    const root = createRepository({
+      'node_modules/cart/package.json': failing, 'node_modules/cart/index.js': '',
+      'web/node_modules/cart/package.json': failing, 'web/node_modules/cart/index.js': '',
+    });
+    writeFiles(root, { 'node_modules/cart/index.js': 'export {};\n', 'web/node_modules/cart/index.js': 'export {};\n' });
+    assert.deepEqual(changedProjects(root, ['node_modules/cart/index.js', 'web/node_modules/cart/index.js']), []);
+    assert.deepEqual(loop(root, ['start']).checks, []);
+  });
+
+  test('a subfolder project uses the lockfile at the repository root', () => {
+    const root = createRepository({ 'pnpm-lock.yaml': '', 'web/package.json': passing });
+    assert.deepEqual(detectFolderChecks(root, 'web'), [{ name: 'test', command: ['pnpm', 'run', 'test'], folder: 'web' }]);
+    writeFiles(root, { 'web/yarn.lock': '' });
+    assert.deepEqual(detectFolderChecks(root, 'web')[0].command, ['yarn', 'run', 'test']);
+  });
+
+  test('a regression test in a subfolder project is checked with that project on the code before the fix', () => {
+    const runEveryCheck = 'node -e "for (const file of require(\'fs\').readdirSync(\'checks\')) require(\'./checks/\' + file)"';
+    const totalTest = [
+      "const source = require('fs').readFileSync('src/cart.js', 'utf8');",
+      "if (source.includes('* 2')) { console.error('one item priced 10 should total 10'); process.exit(1); }",
+      '',
+    ].join('\n');
+    const root = createRepository({
+      'web/package.json': manifest(runEveryCheck), 'web/checks/existing.cjs': '', 'web/src/cart.js': correctCart,
+    });
+    writeFiles(root, { 'web/src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [{ ...doubledPrice, file: 'web/src/cart.js' }] });
+    writeFiles(root, { 'web/src/cart.js': correctCart, 'web/checks/cart.cjs': totalTest });
+    const result = loop(root, ['rule', '--id', 'F-1', '--draft', 'web/checks/cart.cjs']);
+    assert.deepEqual([result.kind, result.proof, result.caughtBy], ['regression', 'caught', ['web:test']]);
+    assert.match(result.withDrafts[0].tail, /one item priced 10 should total 10/);
+    loop(root, ['next']);
+    const { report } = loop(root, ['record'], { resolved: ['F-1'], findings: [] });
+    assert.match(report, /test: web\/checks\/cart\.cjs \(before the fix: caught, after: passed\)/);
+  });
+
+  test('a rule in a subfolder project can use the dependencies in that project folder', () => {
+    const runner = [
+      '#!/usr/bin/env node',
+      "for (const file of require('fs').readdirSync('checks')) require(require('path').resolve('checks', file));",
+      '',
+    ].join('\n');
+    const totalTest = "if (require('fs').readFileSync('src/cart.js', 'utf8').includes('* 2')) { console.error('one item priced 10 should total 10'); process.exit(1); }\n";
+    const root = createRepository({
+      '.gitignore': 'node_modules/\n', 'web/package.json': manifest('runchecks'), 'web/checks/existing.cjs': '', 'web/src/cart.js': correctCart,
+    });
+    writeFiles(root, { 'web/node_modules/.bin/runchecks': runner });
+    chmodSync(path.join(root, 'web/node_modules/.bin/runchecks'), 0o755);
+    writeFiles(root, { 'web/src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [{ ...doubledPrice, file: 'web/src/cart.js' }] });
+    writeFiles(root, { 'web/src/cart.js': correctCart, 'web/checks/cart.cjs': totalTest });
+    const result = loop(root, ['rule', '--id', 'F-1', '--draft', 'web/checks/cart.cjs']);
+    assert.deepEqual([result.proof, result.caughtBy], ['caught', ['web:test']]);
+  });
+
+  test('a failing check in a subfolder project can be made a rule when only that project has checks', () => {
+    const root = createRepository({ 'web/package.json': manifest('node -e "process.exit(1)"'), 'web/src/cart.js': correctCart });
+    writeFiles(root, { 'web/src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    const stateFile = path.join(root, '.git/lim/review-loop/state.json');
+    const checkFinding = (state) => [...state.cards, ...state.open].find((item) => item.fromChecks);
+    assert.equal(checkFinding(JSON.parse(readFileSync(stateFile, 'utf8'))).folder, 'web');
+    const { id } = checkFinding(JSON.parse(readFileSync(stateFile, 'utf8')));
+    loop(root, ['decide', '--id', id, '--choice', 'rule']);
+    const state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    assert.equal([...state.cards, ...state.open].find((item) => item.id === id).decision, 'rule');
   });
 });
 

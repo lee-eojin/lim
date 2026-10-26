@@ -18,6 +18,8 @@ const MOST_REPEATED_LIMIT = 5;
 export const NAMED_KINDS = new Set(['speculative-guard', 'history-comment', 'shortcut-marker', 'second-way']);
 const CHECK_TIMEOUT_MS = Number(process.env.LIM_CHECK_TIMEOUT_MS) || 5 * 60 * 1000;
 const CHECKS_BUDGET_MS = 9 * 60 * 1000;
+const MAX_PROJECTS = 4;
+const SKIPPED_FOLDERS = new Set(['node_modules', '.git', '.venv', 'venv', 'vendor', 'target', 'dist', 'build']);
 const SEVERITIES = ['P1', 'P2', 'P3', 'P4', 'P5'];
 const BLOCKING = new Set(['P1', 'P2']);
 const EVIDENCE_FIELDS = ['quote', 'scenario', 'whyNotPrevented'];
@@ -93,6 +95,8 @@ const summarize = ({ id, severity, file, line, title }) => ({ id, severity, file
 const severityOf = (finding) => (SEVERITIES.includes(finding.severity) ? finding.severity : 'P3');
 const programOf = (check) => check.command.split(' ')[0];
 const isNotVerified = (check) => Boolean(check.timedOut || check.notInstalled);
+const checkId = (check) => (check.folder ? `${check.folder}:${check.name}` : check.name);
+const checkTarget = (check) => (check.folder ? `${check.folder}: ${check.command}` : check.command);
 
 export function fingerprint(finding) {
   const anchor = normalize(finding.quote) || normalize(finding.title);
@@ -249,11 +253,14 @@ export function parseReview(input) {
 
 export function renderReport(view) {
   const {
-    round, maxRounds, checks = [], resolved = [], fix = [], ask = [], stillOpen = [], regressions = [],
+    round, maxRounds, checks = [], checksLeftOut = [], resolved = [], fix = [], ask = [], stillOpen = [], regressions = [],
     integrity = [], cards = [], kept = [], counts = [], looped = [], deferred = [], decision, reason, reviewerModel, featureMap,
   } = view;
   const reviewerLabel = reviewerModel ? ` (reviewer: ${reviewerModel === 'inherit' ? 'session model' : reviewerModel})` : '';
-  const lines = [`Review round ${round} of ${maxRounds}${reviewerLabel}`, `Checks: ${describeChecks(checks)}`];
+  const leftOut = checksLeftOut.length
+    ? `; not run: more than ${MAX_PROJECTS} projects changed (${checksLeftOut.join(', ')})`
+    : '';
+  const lines = [`Review round ${round} of ${maxRounds}${reviewerLabel}`, `Checks: ${describeChecks(checks)}${leftOut}`];
   if (featureMap) {
     lines.push(`Feature map: ${FEATURE_MAP} (${featureMap.ids.length} ${featureMap.ids.length === 1 ? 'entry' : 'entries'})`);
   }
@@ -352,7 +359,7 @@ function fixBasis(item) {
 function describeChecks(checks) {
   if (checks === null) return 'not run';
   if (!checks.length) return 'none detected, reviewing the diff only';
-  return checks.map((check) => `${check.name} (${check.command}) ${checkOutcome(check)}`).join(', ');
+  return checks.map((check) => `${check.folder ? `${check.folder}: ` : ''}${check.name} (${check.command}) ${checkOutcome(check)}`).join(', ');
 }
 
 function checkOutcome(check) {
@@ -385,8 +392,16 @@ function readProjectFile(root, file) {
   return existsSync(filePath) && statSync(filePath).isFile() ? readFileSync(filePath, 'utf8') : '';
 }
 
-function packageScripts(root) {
-  const manifestPath = path.join(root, 'package.json');
+function lockfileRunner(directory, root) {
+  for (let folder = directory; ; folder = path.dirname(folder)) {
+    const runner = LOCKFILE_RUNNERS.find(([lockfile]) => existsSync(path.join(folder, lockfile)))?.[1];
+    if (runner) return runner;
+    if (folder === root || path.dirname(folder) === folder) return 'npm';
+  }
+}
+
+function packageScripts(directory, root = directory) {
+  const manifestPath = path.join(directory, 'package.json');
   if (!existsSync(manifestPath)) return [];
   let manifest;
   try {
@@ -395,7 +410,7 @@ function packageScripts(root) {
     return [{ name: 'package.json', problem: `package.json is not valid JSON: ${error.message}` }];
   }
   const scripts = manifest.scripts ?? {};
-  const runner = LOCKFILE_RUNNERS.find(([lockfile]) => existsSync(path.join(root, lockfile)))?.[1] ?? 'npm';
+  const runner = lockfileRunner(directory, root);
   return CHECK_SCRIPTS.flatMap(([name, candidates]) => {
     const script = candidates.find((candidate) => scripts[candidate] && !scripts[candidate].includes('no test specified'));
     return script ? [{ name, command: [runner, 'run', script] }] : [];
@@ -455,11 +470,57 @@ function pythonChecks(root) {
 
 const CHECK_SOURCES = [packageScripts, makeTargets, goChecks, rustChecks, pythonChecks];
 
-export function detectChecks(root) {
-  const declared = CHECK_SOURCES.flatMap((source) => source(root));
+function declaredChecks(root, folder) {
+  return CHECK_SOURCES.flatMap((source) => source(path.join(root, folder), root));
+}
+
+export function detectFolderChecks(root, folder) {
+  const declared = declaredChecks(root, folder);
   const problems = declared.filter((check) => check.problem);
   const chosen = CHECK_NAMES.flatMap((name) => declared.find((check) => check.name === name) ?? []);
-  return [...problems, ...chosen];
+  return [...problems, ...chosen].map((check) => (folder ? { ...check, folder } : check));
+}
+
+export function detectChecks(root) {
+  return detectFolderChecks(root, '');
+}
+
+export function changedProjects(root, files) {
+  const declares = new Map();
+  const declaresChecks = (folder) => {
+    if (!declares.has(folder)) declares.set(folder, declaredChecks(root, folder).length > 0);
+    return declares.get(folder);
+  };
+  const projects = new Set();
+  for (const file of files) {
+    for (let folder = path.posix.dirname(file); folder !== '.'; folder = path.posix.dirname(folder)) {
+      if (folder.split('/').some((part) => SKIPPED_FOLDERS.has(part))) continue;
+      if (declaresChecks(folder)) {
+        projects.add(folder);
+        break;
+      }
+    }
+  }
+  return [...projects].sort();
+}
+
+// A check finding's file is a label such as "web: npm run test", so its project is the folder it ran in.
+const projectFileOf = (item) => (item.fromChecks ? `${item.folder || '.'}/.` : item.file);
+
+function checkedFolders(root, files) {
+  return ['', ...changedProjects(root, files).slice(0, MAX_PROJECTS)];
+}
+
+function selectChecks(root, files) {
+  const seen = new Set();
+  const checks = checkedFolders(root, files).flatMap((folder) => detectFolderChecks(root, folder)).filter((check) => {
+    if (!check.command) return true;
+    const key = `${realpathSync(path.join(root, check.folder ?? ''))}\0${check.command.join(' ')}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return { checks, leftOut: changedProjects(root, files).slice(MAX_PROJECTS) };
 }
 
 export function missingProgram(command, stderr) {
@@ -468,29 +529,34 @@ export function missingProgram(command, stderr) {
   return null;
 }
 
-function runCheck(root, { name, command, problem }, timeout) {
-  if (problem) return { name, command: MANIFEST_READ, exitCode: 1, timedOut: false, output: problem };
+function runCheck(root, check, timeout) {
+  const { name, folder } = check;
+  const result = runCommand(root, check, timeout);
+  return folder ? { name, folder, ...result } : { name, ...result };
+}
+
+function runCommand(root, { command, problem, folder }, timeout) {
+  if (problem) return { command: MANIFEST_READ, exitCode: 1, timedOut: false, output: problem };
   const label = command.join(' ');
-  if (timeout <= 0) return { name, command: label, exitCode: null, timedOut: true, output: 'not run: the time budget for checks was used up' };
+  if (timeout <= 0) return { command: label, exitCode: null, timedOut: true, output: 'not run: the time budget for checks was used up' };
   try {
     const output = execFileSync(command[0], command.slice(1), {
-      cwd: root,
+      cwd: path.join(root, folder ?? ''),
       env: { ...process.env, CI: '1' },
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout,
       maxBuffer: 64 * 1024 * 1024,
     });
-    return { name, command: label, exitCode: 0, timedOut: false, output };
+    return { command: label, exitCode: 0, timedOut: false, output };
   } catch (error) {
     const missing = error.code === 'ENOENT' ? command[0] : missingProgram(command, `${error.stderr ?? ''}`);
     if (missing) {
-      return { name, command: label, exitCode: null, timedOut: false, notInstalled: true, output: `not run: ${missing} is not installed` };
+      return { command: label, exitCode: null, timedOut: false, notInstalled: true, output: `not run: ${missing} is not installed` };
     }
     const timedOut = error.code === 'ETIMEDOUT';
     const cause = typeof error.status === 'number' ? '' : `\n${error.message}`;
     return {
-      name,
       command: label,
       exitCode: timedOut ? null : (error.status ?? 1),
       timedOut,
@@ -499,23 +565,25 @@ function runCheck(root, { name, command, problem }, timeout) {
   }
 }
 
-function runChecks(root, logPath, { deadline = Date.now() + CHECKS_BUDGET_MS, only } = {}) {
-  const selected = detectChecks(root).filter((check) => !only || only.includes(check.name));
+function runChecks(root, logPath, selected, deadline = Date.now() + CHECKS_BUDGET_MS) {
   const results = selected.map((check) => (
     runCheck(root, check, Math.min(CHECK_TIMEOUT_MS, deadline - Date.now()))
   ));
-  writeFileSync(logPath, results.map((result) => `$ ${result.command}\n${result.output}`).join('\n\n'));
+  writeFileSync(logPath, results.map((result) => `$ ${checkTarget(result)}\n${result.output}`).join('\n\n'));
   return results.map(({ output, ...result }) => ({ ...result, tail: output.split('\n').slice(-15).join('\n') }));
 }
 
 function checkFingerprint(check) {
-  return fingerprint({ file: check.command, category: 'checks', quote: check.command });
+  return fingerprint({ file: checkTarget(check), category: 'checks', quote: checkTarget(check) });
 }
 
-function passedCheckPrints(root, checks) {
+function passedCheckPrints(root, checks, files) {
   const passed = checks.filter((check) => check.exitCode === 0);
-  const manifestRead = existsSync(path.join(root, 'package.json')) && !checks.some((check) => check.command === MANIFEST_READ);
-  return new Set([...passed, ...(manifestRead ? [{ command: MANIFEST_READ }] : [])].map(checkFingerprint));
+  const manifestReads = checkedFolders(root, files)
+    .filter((folder) => existsSync(path.join(root, folder, 'package.json')))
+    .filter((folder) => !checks.some((check) => check.command === MANIFEST_READ && (check.folder ?? '') === folder))
+    .map((folder) => (folder ? { folder, command: MANIFEST_READ } : { command: MANIFEST_READ }));
+  return new Set([...passed, ...manifestReads].map(checkFingerprint));
 }
 
 function rerunBlocks(item) {
@@ -541,13 +609,14 @@ function checkFindings(checks) {
     .map((check) => ({
       severity: 'P1',
       category: 'checks',
-      file: check.command,
-      title: `${check.name} fails`,
-      quote: check.command,
+      file: checkTarget(check),
+      title: `${check.folder ? `${check.folder}: ` : ''}${check.name} fails`,
+      quote: checkTarget(check),
       scenario: `exit code ${check.exitCode}: ${normalize(check.tail).slice(-200)}`,
       whyNotPrevented: 'the check fails on the current tree',
       basis: 'measured',
       fromChecks: true,
+      ...(check.folder ? { folder: check.folder } : {}),
     }));
 }
 
@@ -849,10 +918,20 @@ function clampRounds(value) {
 }
 
 function runRoundChecks(repository, state) {
-  state.checks = runChecks(repository.root, repository.file(`round-${state.round}.checks.log`));
+  const { checks, leftOut } = selectChecks(repository.root, state.files ?? []);
+  state.checks = runChecks(repository.root, repository.file(`round-${state.round}.checks.log`), checks);
+  state.checksLeftOut = leftOut;
   state.latestChecks = state.checks;
   saveState(repository, state);
   return state.checks;
+}
+
+function leftOutField(leftOut) {
+  return leftOut?.length ? { checksLeftOut: leftOut } : {};
+}
+
+function checkEvents(checks) {
+  return checks.map(({ name, folder, exitCode }) => ({ name, folder, exitCode }));
 }
 
 function decidableFindings(state) {
@@ -962,12 +1041,10 @@ function start(cwd, options) {
   };
   saveState(repository, state);
   const checks = runRoundChecks(repository, state);
-  logEvent(repository, {
-    event: 'start', reviewedTree, unattended, checks: checks.map(({ name, exitCode }) => ({ name, exitCode })),
-  });
+  logEvent(repository, { event: 'start', reviewedTree, unattended, checks: checkEvents(checks) });
   return {
     status: 'review', round: 1, maxRounds, unattended, reviewerModel, diffPath: repository.file('round-1.diff'),
-    reviewPath: reviewPathFor(repository, 1), checks, ...featureMapFields(repository.root),
+    reviewPath: reviewPathFor(repository, 1), checks, ...leftOutField(state.checksLeftOut), ...featureMapFields(repository.root),
   };
 }
 
@@ -987,7 +1064,7 @@ function recordReview(repository, input) {
   const diffText = readFileSync(repository.file(`round-${state.round}.diff`), 'utf8');
   const filesInRound = new Set(state.files);
   const failingChecks = checkFindings(state.checks);
-  const passedPrints = passedCheckPrints(repository.root, state.checks);
+  const passedPrints = passedCheckPrints(repository.root, state.checks, state.files ?? []);
   const unverified = new Map(state.checks.filter(isNotVerified).map((check) => [checkFingerprint(check), check]));
   const resolvedIds = new Set(review.resolved ?? []);
 
@@ -1054,7 +1131,7 @@ function recordReview(repository, input) {
   const allCards = [...state.cards, ...cards];
   const reviewerModel = state.reviewerModel ?? 'inherit';
   const view = {
-    round: state.round, maxRounds: state.maxRounds, reviewerModel, checks: state.checks, resolved,
+    round: state.round, maxRounds: state.maxRounds, reviewerModel, checks: state.checks, checksLeftOut: state.checksLeftOut, resolved,
     fix: stopped ? [] : fix, ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
     deferred: stopped ? allDeferred : deferred,
     regressions, cards: allCards, kept: allKept, counts, decision, reason,
@@ -1136,7 +1213,8 @@ function next(cwd) {
   logEvent(repository, { event: 'next', round: state.round, fixedTree, changedFiles: state.files });
   return {
     status: 'review', round: state.round, maxRounds: state.maxRounds, reviewerModel: state.reviewerModel, diffPath, openPath,
-    reviewPath: reviewPathFor(repository, state.round), checks, ...featureMapFields(repository.root),
+    reviewPath: reviewPathFor(repository, state.round), checks, ...leftOutField(state.checksLeftOut),
+    ...featureMapFields(repository.root),
   };
 }
 
@@ -1146,7 +1224,8 @@ function decide(cwd, options) {
   const item = decidableFindings(state).find((candidate) => candidate.id === options.id);
   if (!item) throw new Error(`no finding with id ${options.id}`);
   if (!DECISION_CHOICES.includes(options.choice)) throw new Error(`choice must be one of ${DECISION_CHOICES.join(', ')}`);
-  const nothingRunsRules = options.choice === 'rule' && !detectChecks(repository.root).some((check) => check.command);
+  const nothingRunsRules = options.choice === 'rule'
+    && !selectChecks(repository.root, [projectFileOf(item)]).checks.some((check) => check.command);
   const choice = nothingRunsRules ? 'once' : options.choice;
   item.decision = choice;
   if (choice === 'rule') item.rule = { beforeTree: state.reviewedTree };
@@ -1247,25 +1326,27 @@ function checkedRuleDrafts(repository, state) {
     .map(([draft]) => draft);
 }
 
-function checkRule(repository, beforeTree, drafts) {
+function checkRule(repository, beforeTree, drafts, files) {
   const folder = mkdtempSync(path.join(tmpdir(), 'review-loop-rule-'));
   const deadline = Date.now() + CHECKS_BUDGET_MS;
   try {
     checkoutTree(repository, beforeTree, folder);
-    const modules = path.join(repository.root, 'node_modules');
-    if (existsSync(modules) && !existsSync(path.join(folder, 'node_modules'))) {
-      symlinkSync(modules, path.join(folder, 'node_modules'), 'dir');
+    for (const project of checkedFolders(repository.root, files)) {
+      const modules = path.join(repository.root, project, 'node_modules');
+      const target = path.join(folder, project, 'node_modules');
+      if (existsSync(modules) && existsSync(path.dirname(target)) && !existsSync(target)) symlinkSync(modules, target, 'dir');
     }
     copyDrafts(repository.root, folder, drafts);
-    const withDrafts = runChecks(folder, repository.file('rule.checks.log'), { deadline });
-    const failing = withDrafts.filter((check) => !isNotVerified(check) && check.exitCode !== 0).map((check) => check.name);
+    const withDrafts = runChecks(folder, repository.file('rule.checks.log'), selectChecks(folder, files).checks, deadline);
+    const failing = withDrafts.filter((check) => !isNotVerified(check) && check.exitCode !== 0).map(checkId);
     if (!failing.length) {
       return { proof: withDrafts.some(isNotVerified) ? 'unproven' : 'missed', caughtBy: [], withDrafts, withoutDrafts: [] };
     }
     restoreDrafts(repository, beforeTree, folder, drafts);
-    const withoutDrafts = runChecks(folder, repository.file('rule.baseline.log'), { deadline, only: failing });
-    const passedWithout = (name) => {
-      const check = withoutDrafts.find((candidate) => candidate.name === name);
+    const baseline = selectChecks(folder, files).checks.filter((check) => failing.includes(checkId(check)));
+    const withoutDrafts = runChecks(folder, repository.file('rule.baseline.log'), baseline, deadline);
+    const passedWithout = (id) => {
+      const check = withoutDrafts.find((candidate) => checkId(candidate) === id);
       return !check || (!isNotVerified(check) && check.exitCode === 0);
     };
     const caughtBy = failing.filter(passedWithout);
@@ -1280,8 +1361,12 @@ function isBeingFixed(state, item) {
   return (state.awaiting === 'fix' && state.open.includes(item)) || item.decision === 'once';
 }
 
+function isTestCheck(id) {
+  return id === 'test' || id.endsWith(':test');
+}
+
 function proveRegression({ proof, caughtBy }) {
-  if (proof !== 'caught' || caughtBy.includes('test')) return { proof };
+  if (proof !== 'caught' || caughtBy.some(isTestCheck)) return { proof };
   return { proof: 'unproven', reason: `only ${caughtBy.join(' and ')} failed with the draft on the code before the fix, the test check did not fail` };
 }
 
@@ -1289,7 +1374,8 @@ function describeRegressionTest(item, checks) {
   if (!BLOCKING.has(item.severity) || item.fromChecks) return [];
   const { drafts, proof, reason } = item.regression ?? {};
   if (drafts) {
-    const test = checks?.find((check) => check.name === 'test');
+    const inFolder = (check) => !check.folder || drafts.some((draft) => draft.startsWith(`${check.folder}/`));
+    const test = checks?.findLast((check) => check.name === 'test' && inFolder(check));
     const before = reason ? `${proof}, ${reason}` : proof;
     return [`  test: ${drafts.join(', ')} (before the fix: ${before}, after: ${test ? checkOutcome(test) : 'not run'})`];
   }
@@ -1318,10 +1404,11 @@ function rule(cwd, options) {
     if (kind === 'rule') throw new Error(`${item.id} is marked as a rule, --no-test is for a P1 or P2 fixed without a regression test`);
     return recordNoTest(repository, state, item, options['no-test']);
   }
-  if (kind === 'regression' && !detectChecks(repository.root).some((check) => check.name === 'test')) {
+  const drafts = [options.draft].flat().filter((draft) => typeof draft === 'string').map((draft) => repositoryPath(repository.root, draft));
+  const files = [projectFileOf(item), ...drafts];
+  if (kind === 'regression' && !selectChecks(repository.root, files).checks.some((check) => check.name === 'test')) {
     throw new Error('the project has no test script or target, so a regression test would not run, record that with --no-test');
   }
-  const drafts = [options.draft].flat().filter((draft) => typeof draft === 'string').map((draft) => repositoryPath(repository.root, draft));
   if (!drafts.length) throw new Error('name the rule draft files with --draft <path>');
   for (const draft of drafts) {
     if (draft.startsWith('../') || draft === '..') throw new Error(`${draft} is outside the repository`);
@@ -1330,7 +1417,7 @@ function rule(cwd, options) {
     if (isIgnored(repository, draft)) throw new Error(`${draft} is ignored by git, so it would not be committed with the rule`);
   }
   const beforeTree = item[kind]?.beforeTree ?? state.reviewedTree;
-  const checked = checkRule(repository, beforeTree, drafts);
+  const checked = checkRule(repository, beforeTree, drafts, files);
   const { caughtBy, withDrafts, withoutDrafts } = checked;
   const { proof, reason } = kind === 'regression' ? proveRegression(checked) : checked;
   const hashes = Object.fromEntries(drafts.map((draft) => [draft, hashFile(repository, draft)]));
@@ -1348,17 +1435,22 @@ function rerunChecks(cwd) {
   const state = readJson(repository.file('state.json'), null);
   const tree = snapshotTree(repository);
   let checks;
+  let leftOut;
   if (state?.awaiting === 'review') {
     checks = runRoundChecks(repository, state);
+    leftOut = state.checksLeftOut;
   } else {
-    checks = runChecks(repository.root, repository.file('final.checks.log'));
+    const selected = selectChecks(repository.root, state?.reviewedFiles ?? state?.files ?? []);
+    checks = runChecks(repository.root, repository.file('final.checks.log'), selected.checks);
+    leftOut = selected.leftOut;
     if (state) saveState(repository, { ...state, latestChecks: checks });
   }
-  logEvent(repository, { event: 'checks', tree, checks: checks.map(({ name, exitCode }) => ({ name, exitCode })) });
+  logEvent(repository, { event: 'checks', tree, checks: checkEvents(checks) });
   return {
     checks,
+    ...leftOutField(leftOut),
     passed: checks.every((check) => check.exitCode === 0),
-    notVerified: checks.filter(isNotVerified).map((check) => check.name),
+    notVerified: checks.filter(isNotVerified).map(checkId),
   };
 }
 
@@ -1860,7 +1952,7 @@ function status(cwd) {
       rules: decidableFindings(state)
         .filter((item) => item.decision === 'rule')
         .map((item) => ({ id: item.id, drafts: item.rule?.drafts ?? [], proof: item.rule?.proof ?? null })),
-      notVerifiedChecks: (state.latestChecks ?? state.checks ?? []).filter(isNotVerified).map((check) => check.name),
+      notVerifiedChecks: (state.latestChecks ?? state.checks ?? []).filter(isNotVerified).map(checkId),
       doneSteps: doneSteps(repository, state, currentTree),
       resolvedRepeats: state.resolved
         .filter((item) => item.repeat)
@@ -1915,7 +2007,7 @@ function waitingFor(repository, state) {
     deferred: undecided(state?.deferred).map(describeDeferred),
     pendingDecisions: undecided(state?.cards).map(summarize),
     stillOpen: undecided(state?.open).map(summarize),
-    notVerifiedChecks: (state?.latestChecks ?? state?.checks ?? []).filter(isNotVerified).map((check) => check.name),
+    notVerifiedChecks: (state?.latestChecks ?? state?.checks ?? []).filter(isNotVerified).map(checkId),
     gateNotConfigured: !readGate(repository).configured,
   };
 }
