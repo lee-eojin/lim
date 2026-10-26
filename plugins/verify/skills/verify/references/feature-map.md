@@ -28,9 +28,9 @@ Every path in an entry is relative to the repository root, whatever `cwd` is: th
 |---|---|---|
 | `id` | yes | Lowercase letters, digits, and hyphens. Unique. Used with `--id`. |
 | `feature` | yes | One sentence a user would recognize: what the feature does. |
-| `run` | yes | A list of strings in one of the two forms below: `node` and a script file in the repository, or a node script in the repository started as a program, then the arguments. The script starts it in `cwd`, without a shell. |
+| `run` | yes | A list of strings in one of the two forms below: `node` or `python3` and a script file in the repository, or a node or python3 script in the repository started as a program, then the arguments. The script starts it in `cwd`, without a shell. |
 | `stdin` | no | What the program reads on stdin: a string, or `{ "file": "<path>" }`. Default: empty. |
-| `env` | no | Extra environment variables, such as `{ "TZ": "UTC" }`. Names are letters, digits, and `_`, not starting with a digit; values are strings. `PATH` and names that change how a program loads or runs code cannot be set: every name starting with `NODE_` except `NODE_ENV`, `LD_` and `DYLD_` names, `HOME` and `USERPROFILE` (node looks for modules there), `OPENSSL_CONF` (loaded at startup), `BASH_ENV`, `ENV`, `BASHOPTS`, `SHELLOPTS`, `PS4`, `ZDOTDIR`, `PYTHONSTARTUP`, `PYTHONPATH`, `PYTHONHOME`, `PERL5OPT`, `PERL5LIB`, `PERLLIB`, `RUBYOPT`, and `RUBYLIB`. |
+| `env` | no | Extra environment variables, such as `{ "TZ": "UTC" }`. Names are letters, digits, and `_`, not starting with a digit; values are strings. `PATH` and names that change how a program loads or runs code cannot be set: every name starting with `NODE_` except `NODE_ENV`, every name starting with `PYTHON`, `LD_` and `DYLD_` names, `HOME` and `USERPROFILE` (node looks for modules there), `OPENSSL_CONF` (loaded at startup), `BASH_ENV`, `ENV`, `BASHOPTS`, `SHELLOPTS`, `PS4`, `ZDOTDIR`, `PERL5OPT`, `PERL5LIB`, `PERLLIB`, `RUBYOPT`, and `RUBYLIB`. |
 | `cwd` | no | The folder inside the repository that the program starts in. Default: the root. |
 | `timeoutMs` | no | Time limit for this check. Default 30000 (or `LIM_VERIFY_TIMEOUT_MS`), at most 600000. |
 | `expect` | yes | What the result must show. |
@@ -40,17 +40,20 @@ Every path in an entry is relative to the repository root, whatever `cwd` is: th
 | Form | Example |
 |---|---|
 | `node`, a script file in the repository, then arguments | `["node", "cli/temp.mjs", "25", "--to", "K"]`, `["node", "verify-checks/expand-ports.mjs"]` |
-| A script file in the repository whose first line is `#!/usr/bin/env node` or `#!/<path>/node`, then arguments | `["./bin/temp", "25"]`, `["bin/temp", "--help"]` |
+| `python3`, a script file in the repository, then arguments | `["python3", "tools/rename.py", "--dry-run", "photos"]`, `["python3", "verify-checks/split_hours.py"]` |
+| A script file in the repository whose first line is `#!/usr/bin/env node`, `#!/usr/bin/env python3`, `#!/<path>/node`, or `#!/<path>/python3`, then arguments | `["./bin/temp", "25"]`, `["bin/temp", "--help"]` |
 
-The path must stay inside the repository, also after following a symbolic link, and outside `node_modules/` and `.git/`. Nothing goes between `node` and the script. A script started as a program must name node in its first line with nothing after it but blanks; the path in `#!/<path>/node` must be absolute and outside the repository. Both forms mean that node runs a script in the repository. Arguments after the script or executable are passed to it as they are, even ones that start with `-`. Everything else is refused:
+The path must stay inside the repository, also after following a symbolic link, and outside `node_modules/`, `.git/`, `.venv/`, `venv/`, and `__pycache__/`, which hold installed, kept, or generated files. Nothing goes between the interpreter and the script. A script started as a program must name node or python3 in its first line with nothing after it but blanks; the path in `#!/<path>/node` or `#!/<path>/python3` must be absolute and outside the repository. Both forms mean that node or python3 runs a script in the repository. A python3 script must be source text: compiled bytecode and zip archives are refused, including a text file with a zip archive appended, which python3 runs as the archive. Arguments after the script or executable are passed to it as they are, even ones that start with `-`. Everything else is refused:
 
 | Refused | Example | Instead |
 |---|---|---|
 | `run` is a string | `"run": "node cli/temp.mjs 25"` | `["node", "cli/temp.mjs", "25"]` |
-| A program found on `PATH` | `["npx", "tsc"]`, `["npm", "run", "check"]`, `["pnpm", "exec", ...]`, `["bunx", ...]`, `["timeout", "20", ...]`, `["env", ...]`, `["sh", "-c", "..."]`, `["python3", ...]` | Run the project's file with `node`, or the project's own node script |
-| A node option before the script | `["node", "-e", "..."]`, `["node", "--import", "...", "cli/temp.mjs"]`, `["node", "-r", "./setup.js", ...]` | Write a script file and run it with `node` |
-| A file outside the repository, in `node_modules/`, or in `.git/` | `["/bin/sh", ...]`, `["./node_modules/.bin/eslint"]`, `["node", "../cli/temp.mjs"]` | Run the project's own file, named from the repository root |
-| A program in the repository that is not a node script | a copy of the node binary or of a shell, a file without a `#!` line, `#!/bin/sh`, `#!/usr/bin/env -S node --require ./hook.js`, `#!/usr/local/bin/node -r ./hook.js` | Run the script with `node`, or give it the first line `#!/usr/bin/env node` |
+| A program found on `PATH` | `["npx", "tsc"]`, `["npm", "run", "check"]`, `["pnpm", "exec", ...]`, `["bunx", ...]`, `["uv", "run", ...]`, `["timeout", "20", ...]`, `["env", ...]`, `["sh", "-c", "..."]`, `["python", ...]`, `["python3.12", ...]` | Run the project's file with `node` or `python3`, or the project's own node or python3 script |
+| An option before the script | `["node", "-e", "..."]`, `["node", "--import", "...", "cli/temp.mjs"]`, `["node", "-r", "./setup.js", ...]`, `["python3", "-c", "..."]`, `["python3", "-m", "rename"]`, `["python3", "-I", "tools/rename.py"]` | Write a script file and run it with `node` or `python3` |
+| A file outside the repository, in `node_modules/`, `.git/`, `.venv/`, `venv/`, or `__pycache__/` | `["/bin/sh", ...]`, `["./node_modules/.bin/eslint"]`, `["node", "../cli/temp.mjs"]`, `["python3", ".venv/bin/rename"]` | Run the project's own file, named from the repository root |
+| A program in the repository that is not a node or python3 script | a copy of the node binary or of a shell, compiled Python, a file without a `#!` line, `#!/bin/sh`, `#!/usr/bin/env -S node --require ./hook.js`, `#!/usr/local/bin/node -r ./hook.js`, `#!/usr/bin/env python3 -I`, `#!/usr/bin/env python` | Run the script with `node` or `python3`, or give it the first line `#!/usr/bin/env node` or `#!/usr/bin/env python3` |
+
+For a python3 run, from either form, the script sets `PYTHONDONTWRITEBYTECODE=1`, so the run leaves no `__pycache__` folders behind. It removes `PYTHONPATH`, `PYTHONSTARTUP`, `PYTHONHOME`, `PYTHONINSPECT`, and `PYTHONSAFEPATH` if your session has them: python3 runs a `sitecustomize.py` from any `PYTHONPATH` folder before the script, so a file there could print the expected text in its place. A node run gets none of these changes. python3 puts only the script's own folder on the import path, so a helper in `verify-checks/` adds the repository root itself before it imports the project, as in the Python example below.
 
 There is no shell, so a pipe, `&&`, `;`, a redirect, a glob, or `$NAME` in `run` is passed to the program as plain text. Use `stdin` for input that a pipe used to feed, `env` for variables, and a file you write with the Write tool for anything that needs setup.
 
@@ -121,6 +124,30 @@ console.log(JSON.stringify(expandPorts('9000,8080-8082')));
 ```
 
 The script prints the real value and does not catch errors, so a throw ends with a non-zero exit code and fails the check.
+
+A Python library function, the same way. `verify-checks/split_hours.py`:
+
+```python
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from timesheet.shifts import split_hours
+
+print(json.dumps(split_hours(sys.argv[1])))
+```
+
+```json
+{
+  "id": "split-overnight-shift",
+  "feature": "Splits an overnight shift into hours per day",
+  "run": ["python3", "verify-checks/split_hours.py", "22:00-06:30"],
+  "expect": { "exitCode": 0, "stdout": { "equals": "[2.0, 6.5]" } }
+}
+```
+
+The `sys.path.insert` line puts the repository root first on the import path, so the helper imports the project's package as the project's own code does. An uncaught exception prints a traceback and exits with code 1, so the check fails. For a package under `src/`, insert `str(Path(__file__).resolve().parent.parent / "src")` instead. A command in `[project.scripts]`, such as `rename = "photos.cli:main"`, is a function too: a helper that adds the root the same way, then runs `from photos.cli import main` and `sys.exit(main())`, runs it with the arguments after the helper in `run`.
 
 A documented error:
 
