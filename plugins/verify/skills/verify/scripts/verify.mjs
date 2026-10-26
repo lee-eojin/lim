@@ -2,13 +2,15 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-  closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync, writeFileSync,
+  closeSync, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync,
+  utimesSync, writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const MAP_FILE = 'verify.features.json';
 const CHECKS_FOLDER = 'verify-checks';
+const REVIEW_FOLDER = '.lim-review';
 const DEFAULT_TIMEOUT_MS = 30 * 1000;
 const MAX_TIMEOUT_MS = 10 * 60 * 1000;
 const RUN_BUDGET_MS = 9 * 60 * 1000;
@@ -568,8 +570,8 @@ function filesChangedAfterFail(failed, checkFiles) {
     && ![recorded[file].before, recorded[file].after].includes(checkFiles[file].before));
 }
 
-function git(args, cwd) {
-  return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+function git(args, cwd, env = process.env) {
+  return execFileSync('git', args, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 }
 
 function openRepository(cwd) {
@@ -601,6 +603,44 @@ function gitStateOf(root, mapPath) {
     if (/[RC]/.test(entries[index].slice(0, 2))) index += 1;
   }
   return { head, uncommittedFiles: files.filter((file) => path.resolve(root, file) !== mapPath).length };
+}
+
+function copyRealIndex(root, target) {
+  try {
+    const realIndex = path.resolve(root, git(['rev-parse', '--git-path', 'index'], root));
+    copyFileSync(realIndex, target);
+    const { atime, mtime } = statSync(realIndex);
+    utimesSync(target, atime, mtime);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function headTree(root) {
+  try {
+    return git(['rev-parse', 'HEAD^{tree}'], root);
+  } catch {
+    return null;
+  }
+}
+
+// Built the way review-loop snapshots a working tree, so both give the same tree id and review-loop can match a run to the code it reviewed.
+function workingTree(repository) {
+  mkdirSync(repository.stateDir, { recursive: true });
+  const index = path.join(repository.stateDir, `tree-${process.pid}.index`);
+  const env = { ...process.env, GIT_INDEX_FILE: index };
+  try {
+    if (!copyRealIndex(repository.root, index)) {
+      const base = headTree(repository.root);
+      git(['read-tree', ...(base ? [base] : ['--empty'])], repository.root, env);
+    }
+    git(['add', '-A'], repository.root, env);
+    git(['rm', '-r', '--cached', '--ignore-unmatch', '-q', '--', REVIEW_FOLDER], repository.root, env);
+    return git(['write-tree'], repository.root, env);
+  } finally {
+    rmSync(index, { force: true });
+  }
 }
 
 function loadMap(repository, option) {
@@ -696,6 +736,7 @@ async function run(cwd, options) {
   const started = Date.now();
   const deadline = started + RUN_BUDGET_MS;
   const gitState = gitStateOf(repository.root, mapPath);
+  const tree = workingTree(repository);
   const checks = [];
   for (const entry of selected) {
     const limit = Math.min(entry.timeoutMs ?? defaultTimeoutMs, deadline - Date.now());
@@ -723,6 +764,8 @@ async function run(cwd, options) {
     mapHash: hash,
     selected: ids,
     git: gitState,
+    tree,
+    treeAfter: workingTree(repository),
     node: process.version,
     status: overallStatus(counts),
     counts,

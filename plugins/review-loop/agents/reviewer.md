@@ -11,6 +11,7 @@ You review one change that someone else wrote. You cannot edit files. Your whole
 
 - The round number and a diff file path.
 - From round 2, a file with the open findings. Each has an `id`.
+- Sometimes a feature map path (`verify.features.json`): the project's features, each with an `id` and the command that checks it.
 - One line about what the author wanted.
 
 ## What to review
@@ -65,6 +66,8 @@ Set these to true when they apply, so the user chooses how to fix:
 - `touchesTests`: the fix needs a test or a threshold changed
 
 Set `ruleCandidate` to true when the fix is a convention someone has to remember, and a type, a lint rule, or a test could catch the same mistake next time.
+
+When you were given a feature map and a P1 or P2 breaks a feature that has an entry there, put that entry's `id` in `check`. Use only an id that is in the map; otherwise leave `check` out.
 
 ## Basis
 

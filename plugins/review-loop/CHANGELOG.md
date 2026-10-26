@@ -2,6 +2,12 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Added: With a verify feature map (`verify.features.json`) in the repository, `loop start` and `loop next` return its path, the round report names it with its number of entries, and the reviewer can name the map entry a P1 or P2 breaks in `check`. (#32)
+- Added: `loop reproduce --id <id>` reads verify's saved run of that check on the reviewed code. A failed check marks the finding reproduced, the strongest evidence it can have, so a guessed P1 or P2 is no longer unverified; a passed check marks it not reproduced. The report and the cards show it, and reproduced findings come first within each severity. (#32)
+- Added: After fixing a reproduced finding, Claude runs its verify check again. `loop next` records that run, and the finding stays open until the check passes on the fixed code, even if the re-review resolves it. (#32)
+
 ## 0.5.0 (2026-10-25)
 
 - Added: An unattended mode for runs nobody is watching, such as overnight. Ask for an unattended run, or turn it on for the repository with `loop unattended --on`. Claude then asks nothing: findings that need your call are not fixed and wait for you with the reason, P3 to P5 stay pending, each choice Claude makes is written to the decision ledger with `loop note`, commits follow the delegation and gate rules, and nothing is pushed. `loop summary` lists what happened since the run started and everything waiting for you. (#40)
