@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { projectNameOf } from '../../evals/verify/run-benchmark.mjs';
 
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const projectsDir = path.join(repoRoot, 'evals/verify/projects');
@@ -10,6 +11,7 @@ const pluginDir = path.join(repoRoot, 'plugins/verify');
 const allowlistFile = fileURLToPath(new URL('blinding-allowlist.txt', import.meta.url));
 const SHORTEST_PHRASE = 6;
 const SHORTEST_TOKEN = 5;
+const INTERPRETERS = ['node', 'python3'];
 
 function filesUnder(folder) {
   return readdirSync(folder).flatMap((name) => {
@@ -56,18 +58,21 @@ export function benchmarkTerms() {
     const projectDir = path.join(projectsDir, project);
     const repo = path.join(projectDir, 'repo');
     phrases.add(project);
-    const manifest = JSON.parse(readFileSync(path.join(repo, 'package.json'), 'utf8'));
-    phrases.add(manifest.name);
+    const packageFile = path.join(repo, 'package.json');
+    const manifest = existsSync(packageFile) ? JSON.parse(readFileSync(packageFile, 'utf8')) : {};
+    phrases.add(projectNameOf(repo));
     for (const [command, file] of Object.entries(typeof manifest.bin === 'object' ? manifest.bin : {})) {
       phrases.add(command);
       phrases.add(path.basename(file));
     }
     for (const file of filesUnder(repo)) {
       const relative = path.relative(repo, file);
-      if (relative === 'README.md' || relative === 'package.json') continue;
+      if (['README.md', 'package.json', 'pyproject.toml'].includes(relative)) continue;
       phrases.add(relative);
       if (relative.startsWith(`bin${path.sep}`)) phrases.add(path.basename(relative));
-      for (const [, name] of readFileSync(file, 'utf8').matchAll(/export\s+(?:async\s+)?function\s+(\w+)/g)) {
+      const source = readFileSync(file, 'utf8');
+      const exported = [...source.matchAll(/export\s+(?:async\s+)?function\s+(\w+)/g), ...source.matchAll(/^(?:async\s+)?def\s+([A-Za-z]\w*)/gm)];
+      for (const [, name] of exported) {
         if (name.length >= SHORTEST_PHRASE) phrases.add(name);
       }
     }
@@ -76,7 +81,8 @@ export function benchmarkTerms() {
       phrases.add(entry.id);
       phrases.add(entry.feature);
       phrasesOf(entry.run.join(' ')).forEach((phrase) => phrases.add(phrase));
-      for (const argument of entry.run) {
+      // The interpreter is the run form every check uses, which the plugin must name; the script and arguments are the benchmark's own.
+      for (const argument of INTERPRETERS.includes(entry.run[0]) ? entry.run.slice(1) : entry.run) {
         phrasesOf(argument).forEach((phrase) => phrases.add(phrase));
         tokensOf(argument).forEach((token) => tokens.add(token));
       }
@@ -117,7 +123,9 @@ test('the forbidden list is built from every benchmark project', () => {
   for (const project of readdirSync(projectsDir)) assert.ok(phrases.includes(project), project);
   assert.ok(phrases.includes('Turns accented letters into plain letters'), 'feature sentences');
   assert.ok(phrases.length > 40, `only ${phrases.length} phrases`);
-  for (const token of ['brûlée', 'creme', '500ms', 'todos', 'sales']) assert.ok(tokens.includes(token), token);
+  for (const token of ['brûlée', 'creme', '500ms', 'todos', 'sales', 'proofing', 'allocate']) assert.ok(tokens.includes(token), token);
+  for (const phrase of ['logsift', 'centshare', 'to_cents', 'logfilter.py']) assert.ok(phrases.includes(phrase), phrase);
+  assert.ok(!tokens.includes('python3'), 'the interpreter is not a benchmark term');
 });
 
 test('each allowlisted word is a benchmark token, has a reason, and would otherwise hit a plugin file', () => {
@@ -137,6 +145,8 @@ test('renamed copies of benchmark examples are caught', () => {
     '{ "run": ["node", "lib/time-check.mjs", "1m 30s 500ms"], "expect": { "exitCode": 0, "stdout": { "equals": "90500" } } }',
     '{ "run": ["node", "cli/notes.js", "--file", "notes.json", "list"], "expect": { "exitCode": 0, "stdout": { "equals": "No todos." } } }',
     '{ "run": ["node", "demo/format.mjs", "90061000"], "expect": { "exitCode": 0, "stdout": { "equals": "1d 1h 1m 1s" } } }',
+    '{ "run": ["python3", "tools/filter.py", "--min", "wrn", "data/bakery.log"], "expect": { "exitCode": 0, "stdout": { "matches": "ERR proofing drawer" } } }',
+    '{ "run": ["python3", "checks/money.py", "allocate", "5.00", "3"], "expect": { "exitCode": 0, "stdout": { "equals": "[1.67, 1.67, 1.66]" } } }',
   ];
   const patterns = matchers();
   for (const sample of samples) assert.notDeepEqual(hitsIn(sample, patterns), [], sample);

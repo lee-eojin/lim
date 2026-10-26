@@ -1,0 +1,8 @@
+2026-03-02 05:00:01 INF oven 2 preheated to 220
+2026-03-02 05:00:04 DBG fan speed 3
+2026-03-02 05:12:40 WRN flour bin low at 8%
+2026-03-02 05:13:02 INF batch 14 in
+    tray sensor raw=0x1f
+2026-03-02 05:31:15 ERR proofing drawer door ajar
+2026-03-02 05:40:00 WRN humidity 38% in drawer 1
+2026-03-02 05:41:20 DBG fan speed 2

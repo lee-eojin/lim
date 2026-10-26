@@ -39,6 +39,15 @@ test('a prepared copy has one commit, a plain name, and no trace of the benchmar
   }
 });
 
+test('a prepared copy of a Python project takes its name from pyproject.toml', () => {
+  const workDir = prepareProject(path.join(projectsDir, 'centshare'), false);
+  try {
+    assert.match(path.basename(workDir), /^centshare-/);
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
+  }
+});
+
 test('a broken feature is caught only by a check that passes on the working copy', () => {
   assert.equal(scoreCase({ broken: true, modelStatuses: { a: 'fail', b: 'pass' }, intactStatuses: { a: 'pass', b: 'pass' } }).result, 'caught');
   const both = scoreCase({ broken: true, modelStatuses: { a: 'fail' }, intactStatuses: { a: 'fail' } });

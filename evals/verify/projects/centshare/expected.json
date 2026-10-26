@@ -1,0 +1,15 @@
+{
+  "kind": "Python library",
+  "features": [
+    "to_cents reads amounts with commas and up to two decimals",
+    "to_cents rejects text that is not an amount",
+    "from_cents writes two decimals and commas",
+    "allocate splits an amount into parts that add up exactly, leftover cents to the first parts",
+    "allocate rejects parts that are not an int of 1 or more",
+    "allocate rejects a negative amount"
+  ],
+  "broken": {
+    "feature": "allocate splits an amount into parts that add up exactly, leftover cents to the first parts",
+    "how": "the leftover cents go to the last parts, so allocate(\"10.00\", 3) is ['3.33', '3.33', '3.34']; the parts still add up, so a check of the exit code, the sum, the number of parts, or a pattern such as 3.3 still passes"
+  }
+}

@@ -1,0 +1,988 @@
+{
+  "date": "2026-10-26T12:21:33.541Z",
+  "model": "claude-opus-5-5",
+  "claudeVersion": "2.1.310 (Claude Code)",
+  "skill": {
+    "path": "plugins/verify/skills/verify/SKILL.md",
+    "sha256": "1b2b5c0a37394e6ee98476f075f5a7926eb99b9fbd96ab634027965e906dbcf4"
+  },
+  "prompt": "/verify:verify Check that this project's features work.",
+  "label": "python",
+  "runsPerCase": 1,
+  "elapsedSeconds": 68,
+  "summary": {
+    "runs": 3,
+    "errors": 0,
+    "errorCases": [],
+    "brokenCases": 2,
+    "caught": 2,
+    "missed": 0,
+    "workingCases": 1,
+    "casesWithFalseFailure": 0,
+    "falseFailureChecks": 0,
+    "checks": 38,
+    "notVerifiedChecks": 0,
+    "changedAfterFail": 0,
+    "removedAfterFail": 0,
+    "casesWithSourceChanges": 0,
+    "totalTokens": 602620,
+    "averageTokens": 200873,
+    "totalCostUsd": 1.0428,
+    "totalWallSeconds": 187,
+    "averageWallSeconds": 62
+  },
+  "runs": [
+    {
+      "case": "logsift-broken",
+      "project": "logsift",
+      "broken": true,
+      "wallMs": 67357,
+      "bashCommands": [
+        {
+          "command": "node /Users/lej/lim-86/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 2\n{\n  \"error\": \"the feature map has problems; fix them and run again\",\n  \"problems\": [\n    \"features[7] (no-lines-left).expect.stdout.equals \\\"\\\" is also satisfied by empty output, so the check cannot fail\",\n    \"features[7] (no-lines-left).expect.stderr.equals \\\"\\\" is also satisfied by em"
+        },
+        {
+          "command": "node /Users/lej/lim-86/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 1\n{\n  \"status\": \"failed\",\n  \"counts\": {\n    \"pass\": 9,\n    \"fail\": 3,\n    \"notVerified\": 0\n  },\n  \"report\": \"verify: 9 passed, 3 failed, 0 not verified (12 checks, 0.6 s)\\n\\nFAIL min-level-lowercase: --min wrn keeps WRN and ERR lines, ignoring the case of the level name\\n  $ python3 logsif"
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/logsift-hfyPEU/verify.features.json",
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/logsift-hfyPEU/verify-checks/run_main.py"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 14,
+        "cacheCreation": 25800,
+        "cacheRead": 207467,
+        "output": 6080,
+        "total": 239361
+      },
+      "costUsd": 0.36954940000000003,
+      "apiMs": 64383,
+      "turns": 13,
+      "finalMessage": "```\nverify: 9 passed, 3 failed, 0 not verified (12 checks, 0.6 s)\n\nFAIL min-level-lowercase: --min wrn keeps WRN and ERR lines, ignoring the case of the level name\n  $ python3 logsift.py --min wrn examples/oven.log\n  - stdout does not equal \"2026-03-02 05:12:40 WRN flour bin low at 8%\\n2026-03-02 05:31:15 ERR proofing drawer door ajar\\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\"\n  stdout: 2026-03-02 05:31:15 ERR proofing drawer door ajar\n\nFAIL min-level-err: --min ERR keeps only ERR lines\n  $ python3 logsift.py --min ERR examples/oven.log\n  - exit code 1, expected 0\n  - stdout does not equal \"2026-03-02 05:31:15 ERR proofing drawer door ajar\"\n\nFAIL levels-after-min: --levels counts after --min, listing only levels that have lines\n  $ python3 logsift.py --levels --min inf examples/oven.log\n  - stdout does not equal \"INF 2\\nWRN 2\\nERR 1\"\n  stdout: WRN 2\n    ERR 1\n\nPassed: print-all-log-lines, grep-ignores-case, levels-count, levels-after-grep, no-lines-left, unknown-level, missing-file, no-file-usage, unknown-option-usage\n\nRan on uncommitted changes to 1 file besides the feature map.\n\nEvidence: /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/logsift-hfyPEU/.git/lim/verify/runs/2026-10-26T12-21-19-584Z.json\n```\n\n9 of 12 checks passed. All 3 failures come from `--min`, which leaves out the level you give it.\n\n**Passed:**\n- With no options, it prints every log line as it is and leaves out the indented line with no level.\n- `--grep` matches without regard to case.\n- `--levels` gives the counts per level, lowest first, and counts after `--grep`.\n- When no line is left, it prints nothing and exits with code 1.\n- Errors give the documented message and exit code 2: unknown level, missing file, no file, and unknown option.\n\n**Failed:** The README says `--min <level>` \"keeps lines at that level or higher\".\n- `--min wrn` should print the two WRN lines and the ERR line, as in the README's own example. It printed only the ERR line.\n- `--min ERR` should print the ERR line. It printed nothing and exited with code 1.\n- `--levels --min inf` should print `INF 2`, `WRN 2`, `ERR 1`. It printed only `WRN 2` and `ERR 1`.\n\n**Likely cause:** `logfilter.py:26` drops a line when `LEVELS.index(level) <= floor`. That drops the given level too, so only higher levels are kept. Using `<` would match the README. I haven't changed any code; tell me if you want it fixed and I'll rerun those three checks.\n\n**How \"prints nothing\" was checked:** the checker rejects an \"empty output\" rule, because a check like that can never fail. So I added `verify-checks/run_main.py`. It calls `logsift.main` with the arguments and prints the exit code and the captured output as JSON. The checks create no other files.\n\n**Evidence:** `.git/lim/verify/runs/2026-10-26T12-21-19-584Z.json`",
+      "result": "caught",
+      "catching": [
+        "min-level-lowercase",
+        "min-level-err",
+        "levels-after-min"
+      ],
+      "falseFailures": [],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 12,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/run_main.py"
+      ],
+      "fixtureFiles": [
+        "verify-checks/run_main.py"
+      ],
+      "checks": [
+        {
+          "id": "print-all-log-lines",
+          "feature": "Without options, prints every log line as it is and leaves out lines without a level",
+          "run": [
+            "python3",
+            "logsift.py",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:01 INF oven 2 preheated to 220\n2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:13:02 INF batch 14 in\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\n2026-03-02 05:41:20 DBG fan speed 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-level-lowercase",
+          "feature": "--min wrn keeps WRN and ERR lines, ignoring the case of the level name",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "wrn",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"2026-03-02 05:12:40 WRN flour bin low at 8%\\n2026-03-02 05:31:15 ERR proofing drawer door ajar\\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-level-err",
+          "feature": "--min ERR keeps only ERR lines",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "ERR",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:31:15 ERR proofing drawer door ajar"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "exit code 1, expected 0",
+            "stdout does not equal \"2026-03-02 05:31:15 ERR proofing drawer door ajar\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "grep-ignores-case",
+          "feature": "--grep keeps lines whose message contains the text, ignoring case",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--grep",
+            "FAN",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:41:20 DBG fan speed 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-count",
+          "feature": "--levels prints the number of lines per level, lowest level first",
+          "run": [
+            "./logsift.py",
+            "--levels",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "DBG 2\nINF 2\nWRN 2\nERR 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-after-min",
+          "feature": "--levels counts after --min, listing only levels that have lines",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels",
+            "--min",
+            "inf",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "INF 2\nWRN 2\nERR 1"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"INF 2\\nWRN 2\\nERR 1\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-after-grep",
+          "feature": "--levels counts after --grep",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels",
+            "--grep",
+            "drawer",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "WRN 1\nERR 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-lines-left",
+          "feature": "When no line is left, prints nothing and exits with code 1",
+          "run": [
+            "python3",
+            "verify-checks/run_main.py",
+            "--grep",
+            "croissant",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "{\"exit\": 1, \"stdout\": \"\", \"stderr\": \"\"}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unknown-level",
+          "feature": "An unknown level prints an error naming the four levels and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "warn",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Unknown level: warn (use DBG, INF, WRN, or ERR)"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "missing-file",
+          "feature": "A file that does not exist prints No such file and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "verify-checks/missing.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "No such file: verify-checks/missing.log"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-file-usage",
+          "feature": "No file prints the usage line and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Usage: logsift [--min LEVEL] [--grep TEXT] [--levels] FILE"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unknown-option-usage",
+          "feature": "An unknown option prints the usage line and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--max",
+            "ERR",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Usage: logsift [--min LEVEL] [--grep TEXT] [--levels] FILE"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    },
+    {
+      "case": "centshare-broken",
+      "project": "centshare",
+      "broken": true,
+      "wallMs": 55061,
+      "bashCommands": [
+        {
+          "command": "node /Users/lej/lim-86/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 1\n{\n  \"status\": \"failed\",\n  \"counts\": {\n    \"pass\": 10,\n    \"fail\": 3,\n    \"notVerified\": 0\n  },\n  \"report\": \"verify: 10 passed, 3 failed, 0 not verified (13 checks, 0.3 s)\\n\\nFAIL allocate-uneven-three: allocate gives the leftover cent to the first part when splitting 10.00 three ways\\n  "
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/centshare-N6zhUV/verify-checks/to_cents.py",
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/centshare-N6zhUV/verify-checks/from_cents.py",
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/centshare-N6zhUV/verify-checks/allocate.py",
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/centshare-N6zhUV/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 24001,
+        "cacheRead": 132543,
+        "output": 5250,
+        "total": 161804
+      },
+      "costUsd": 0.3235566,
+      "apiMs": 53080,
+      "turns": 12,
+      "finalMessage": "```\nverify: 10 passed, 3 failed, 0 not verified (13 checks, 0.3 s)\n\nFAIL allocate-uneven-three: allocate gives the leftover cent to the first part when splitting 10.00 three ways\n  $ python3 verify-checks/allocate.py 10.00 3\n  - stdout does not equal \"[\\\"3.34\\\", \\\"3.33\\\", \\\"3.33\\\"]\"\n  stdout: [\"3.33\", \"3.33\", \"3.34\"]\n\nFAIL allocate-small-amount: allocate splits 0.05 into four parts, the extra cent going first\n  $ python3 verify-checks/allocate.py 0.05 4\n  - stdout does not equal \"[\\\"0.02\\\", \\\"0.01\\\", \\\"0.01\\\", \\\"0.01\\\"]\"\n  stdout: [\"0.01\", \"0.01\", \"0.01\", \"0.02\"]\n\nFAIL allocate-several-leftover-cents: allocate gives several leftover cents to the first parts, one each, and the parts add up to the amount\n  $ python3 verify-checks/allocate.py 100.00 7\n  - stdout does not equal \"[\\\"14.29\\\", \\\"14.29\\\", \\\"14.29\\\", \\\"14.29\\\", \\\"14.28\\\", \\\"14.28\\\", \\\"14.28\\\"]\"\n  stdout: [\"14.28\", \"14.28\", \"14.28\", \"14.29\", \"14.29\", \"14.29\", \"14.29\"]\n\nPassed: to-cents-decimal, to-cents-commas-one-decimal, to-cents-negative, to-cents-too-many-decimals, to-cents-misplaced-commas, from-cents-commas, from-cents-negative, allocate-even, allocate-zero-parts, allocate-negative-amount\n\nRan on uncommitted changes to 3 files besides the feature map.\n\nEvidence: /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/centshare-N6zhUV/.git/lim/verify/runs/2026-10-26T12-21-06-440Z.json\n```\n\n10 of the 13 checks passed. The 3 that failed all test the same `allocate` behavior: which parts get the leftover cents.\n\n**Passed:**\n- `to_cents` handles a plain amount (`12.34` → 1234), commas with one decimal (`1,234.5` → 123450), and a negative amount (`-0.75` → -75).\n- `to_cents` rejects more than two decimals (`12.345`) and commas in the wrong place (`12,34`) with `ValueError: Not an amount: '…'`.\n- `from_cents` writes commas and two decimals (123450 → `1,234.50`) and small negative amounts (-5 → `-0.05`).\n- `allocate` splits an amount that divides evenly (`1,000.00` into 4 parts → four × `250.00`).\n- `allocate` rejects 0 parts and negative amounts with the messages the README gives.\n\n**Failed: the leftover cents go to the last parts, not the first.** The README's example shows `allocate(\"10.00\", 3)` → `['3.34', '3.33', '3.33']`, and the `allocate(amount, parts)` section says the leftover cents \"go to the first parts, one each\".\n- `10.00` in 3 parts gave `[\"3.33\", \"3.33\", \"3.34\"]`.\n- `0.05` in 4 parts gave `[\"0.01\", \"0.01\", \"0.01\", \"0.02\"]`. The README expects `0.02` first.\n- `100.00` in 7 parts gave three `14.28` then four `14.29`. The first four should get `14.29`.\n\nThe totals still add up, but the extra cents land in the wrong parts. The likely cause is in `centshare/amounts.py:28`: the test `index >= parts - extra` picks the last parts. The README's behavior would need `index < extra`. I haven't changed anything; I can fix it and rerun those three checks if you want.\n\nI added `verify.features.json` and three helper scripts in `verify-checks/` (`to_cents.py`, `from_cents.py`, `allocate.py`). They're uncommitted, and the checks don't write any other files.\n\nEvidence: `.git/lim/verify/runs/2026-10-26T12-21-06-440Z.json`",
+      "result": "caught",
+      "catching": [
+        "allocate-uneven-three",
+        "allocate-small-amount",
+        "allocate-several-leftover-cents"
+      ],
+      "falseFailures": [],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 13,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/allocate.py",
+        "verify-checks/from_cents.py",
+        "verify-checks/to_cents.py"
+      ],
+      "fixtureFiles": [
+        "verify-checks/allocate.py",
+        "verify-checks/from_cents.py",
+        "verify-checks/to_cents.py"
+      ],
+      "checks": [
+        {
+          "id": "to-cents-decimal",
+          "feature": "to_cents reads an amount with two decimals as whole cents",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "12.34"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "1234"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-commas-one-decimal",
+          "feature": "to_cents reads commas between groups of three digits and a single decimal",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "1,234.5"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "123450"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-negative",
+          "feature": "to_cents reads a negative amount",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "-0.75"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "-75"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-too-many-decimals",
+          "feature": "to_cents rejects an amount with more than two decimals",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "12.345"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: Not an amount: '12.345'"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-misplaced-commas",
+          "feature": "to_cents rejects commas that are not between groups of three digits",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "12,34"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: Not an amount: '12,34'"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "from-cents-commas",
+          "feature": "from_cents writes two decimals and commas between groups of three digits",
+          "run": [
+            "python3",
+            "verify-checks/from_cents.py",
+            "123450"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"1,234.50\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "from-cents-negative",
+          "feature": "from_cents writes a negative amount under one unit",
+          "run": [
+            "python3",
+            "verify-checks/from_cents.py",
+            "-5"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"-0.05\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-uneven-three",
+          "feature": "allocate gives the leftover cent to the first part when splitting 10.00 three ways",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "10.00",
+            "3"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"3.34\", \"3.33\", \"3.33\"]"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"[\\\"3.34\\\", \\\"3.33\\\", \\\"3.33\\\"]\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-small-amount",
+          "feature": "allocate splits 0.05 into four parts, the extra cent going first",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "0.05",
+            "4"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"0.02\", \"0.01\", \"0.01\", \"0.01\"]"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"[\\\"0.02\\\", \\\"0.01\\\", \\\"0.01\\\", \\\"0.01\\\"]\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-several-leftover-cents",
+          "feature": "allocate gives several leftover cents to the first parts, one each, and the parts add up to the amount",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "100.00",
+            "7"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"14.29\", \"14.29\", \"14.29\", \"14.29\", \"14.28\", \"14.28\", \"14.28\"]"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"[\\\"14.29\\\", \\\"14.29\\\", \\\"14.29\\\", \\\"14.29\\\", \\\"14.28\\\", \\\"14.28\\\", \\\"14.28\\\"]\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-even",
+          "feature": "allocate splits an amount that divides evenly into equal parts",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "1,000.00",
+            "4"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"250.00\", \"250.00\", \"250.00\", \"250.00\"]"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-zero-parts",
+          "feature": "allocate rejects zero parts",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "10.00",
+            "0"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: parts must be an int of 1 or more"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-negative-amount",
+          "feature": "allocate rejects a negative amount",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "-1.00",
+            "2"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: Cannot allocate a negative amount: '-1.00'"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    },
+    {
+      "case": "logsift-working",
+      "project": "logsift",
+      "broken": false,
+      "wallMs": 64257,
+      "bashCommands": [
+        {
+          "command": "node /Users/lej/lim-86/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/logsift-Yd5INF/verify-checks/mixed.log",
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/logsift-Yd5INF/verify-checks/run_main.py",
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/logsift-Yd5INF/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 12,
+        "cacheCreation": 25193,
+        "cacheRead": 170550,
+        "output": 5700,
+        "total": 201455
+      },
+      "costUsd": 0.349702,
+      "apiMs": 61743,
+      "turns": 12,
+      "finalMessage": "```\nverify: 13 passed, 0 failed, 0 not verified (13 checks, 0.7 s)\n\nPassed: min-level-readme, min-level-mixed-case, grep-ignores-case, grep-message-only, levels-readme, levels-sorted-and-skips-absent, levels-after-filters, no-options-all-log-lines, no-lines-left, unknown-level, missing-file, usage-no-file, usage-unknown-option\n\nRan on uncommitted changes to 2 files besides the feature map.\n\nEvidence: /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/logsift-Yd5INF/.git/lim/verify/runs/2026-10-26T12-21-18-680Z.json\n```\n\nI ran 13 checks and all of them passed. Each expected result comes from the README.\n\n**Filtering:**\n- `--min wrn` keeps only the WRN and ERR lines, matching the README example. This check runs the tool as `./logsift.py`, so the shebang works too.\n- `--min Err` ignores the case of the level name.\n- `--grep FAN` keeps the \"fan\" lines regardless of case, matching the README example.\n- `--grep` searches only the message, not the date or time. I tested this with `2026`, which appears in every date.\n\n**Counting with `--levels`:**\n- It gives the counts shown in the README example.\n- Levels are listed lowest first, even when the file starts with ERR, and levels with no lines are left out.\n- It counts after `--min` and `--grep` are applied.\n\n**Other behavior:**\n- With no options, every log line is printed unchanged, and lines without a level (indented lines, plain text) are left out.\n- When no line is left, nothing is printed and the exit code is 1.\n- **Errors:** an unknown level, a missing file, a missing FILE argument and an unknown option each print the exact message in the README and exit with code 2.\n\n**Files I added for review:** the feature map is `verify.features.json`. It uses two files in `verify-checks/`:\n- `mixed.log` is a sample log with lines out of order and lines without a level.\n- `run_main.py` calls `main()` and prints its exit code, stdout and stderr as JSON. This is how the \"prints nothing\" case gets checked, because a check on empty output alone is refused.\n\nThe checks create no files, and none of the files is committed yet. The evidence is in the path at the end of the report above.",
+      "result": "clean",
+      "catching": [],
+      "falseFailures": [],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 13,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/mixed.log",
+        "verify-checks/run_main.py"
+      ],
+      "fixtureFiles": [
+        "verify-checks/mixed.log",
+        "verify-checks/run_main.py"
+      ],
+      "checks": [
+        {
+          "id": "min-level-readme",
+          "feature": "--min wrn keeps WRN and ERR lines (README example, run as ./logsift.py)",
+          "run": [
+            "./logsift.py",
+            "--min",
+            "wrn",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-level-mixed-case",
+          "feature": "--min ignores case of the level name",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "Err",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:31:15 ERR proofing drawer door ajar"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "grep-ignores-case",
+          "feature": "--grep keeps lines whose message contains the text, ignoring case (README example)",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--grep",
+            "FAN",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:41:20 DBG fan speed 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "grep-message-only",
+          "feature": "--grep matches the message only, not the date or time",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--grep",
+            "2026",
+            "verify-checks/mixed.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-04-10 09:02:00 INF batch 2026 done"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-readme",
+          "feature": "--levels prints a count per level, lowest first (README example)",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "DBG 2\nINF 2\nWRN 2\nERR 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-sorted-and-skips-absent",
+          "feature": "--levels orders levels lowest first even when the file starts with ERR, and omits levels with no lines",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels",
+            "verify-checks/mixed.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "DBG 2\nINF 1\nERR 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-after-filters",
+          "feature": "--levels counts after --min and --grep",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "inf",
+            "--grep",
+            "IN",
+            "--levels",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "INF 1\nWRN 2\nERR 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-options-all-log-lines",
+          "feature": "Without options, prints every log line as is and leaves out lines without a level",
+          "run": [
+            "python3",
+            "logsift.py",
+            "verify-checks/mixed.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-04-10 09:00:00 ERR disk full on /var\n2026-04-10 09:01:00 DBG cache warm\n2026-04-10 09:02:00 INF batch 2026 done\n2026-04-10 09:03:00 ERR disk full again\n2026-04-10 09:04:00 DBG cache cold"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-lines-left",
+          "feature": "When no line is left, nothing is printed and the exit code is 1",
+          "run": [
+            "python3",
+            "verify-checks/run_main.py",
+            "--grep",
+            "zebra",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "{\"exit\": 1, \"stdout\": \"\", \"stderr\": \"\"}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unknown-level",
+          "feature": "An unknown level prints the documented error and exits 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "verbose",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Unknown level: verbose (use DBG, INF, WRN, or ERR)"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "missing-file",
+          "feature": "A file that does not exist prints No such file and exits 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "verify-checks/nothere.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "No such file: verify-checks/nothere.log"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-no-file",
+          "feature": "No file prints the usage line and exits 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Usage: logsift [--min LEVEL] [--grep TEXT] [--levels] FILE"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-unknown-option",
+          "feature": "An unknown option prints the usage line and exits 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--max",
+            "wrn",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Usage: logsift [--min LEVEL] [--grep TEXT] [--levels] FILE"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    }
+  ]
+}

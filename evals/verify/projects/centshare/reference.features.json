@@ -1,0 +1,34 @@
+{
+  "features": [
+    {
+      "id": "cents-from-text",
+      "feature": "Reads an amount with commas and one decimal as cents",
+      "run": ["python3", "tmp/call.py", "to_cents", "1,234.5"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "123450" } }
+    },
+    {
+      "id": "cents-three-decimals",
+      "feature": "Rejects an amount with three decimals",
+      "run": ["python3", "tmp/call.py", "to_cents", "12.345"],
+      "expect": { "exitCode": 1, "stderr": { "includes": "ValueError: Not an amount: '12.345'" } }
+    },
+    {
+      "id": "cents-to-text",
+      "feature": "Writes cents with two decimals and commas",
+      "run": ["python3", "tmp/call.py", "from_cents", "123450"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "\"1,234.50\"" } }
+    },
+    {
+      "id": "allocate-leftover-first",
+      "feature": "Gives the leftover cents to the first parts",
+      "run": ["python3", "tmp/call.py", "allocate", "10.00", "3"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "[\"3.34\", \"3.33\", \"3.33\"]" } }
+    },
+    {
+      "id": "allocate-zero-parts",
+      "feature": "Rejects zero parts",
+      "run": ["python3", "tmp/call.py", "allocate", "10.00", "0"],
+      "expect": { "exitCode": 1, "stderr": { "includes": "ValueError: parts must be an int of 1 or more" } }
+    }
+  ]
+}
