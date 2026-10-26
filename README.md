@@ -26,7 +26,7 @@ Fork it, change it, make it yours. Issues and pull requests are welcome.
 |---|---|---|
 | [review-loop](plugins/review-loop) | 0.7.1 | Reviews your changes before you commit, fixes P1 and P2 findings, re-reviews, and hands the rest to you. |
 | [clear-explain](plugins/clear-explain) | 0.1.0 | Explains concepts, code, and errors with the answer first, one meaning per word, and technical terms in their official English names. |
-| [verify](plugins/verify) | 0.2.0 | Proves your features work by running them, and saves the commands and output as evidence. |
+| [verify](plugins/verify) | 0.3.0 | Proves your features work by running them, and saves the commands and output as evidence. |
 
 ## Install
 
