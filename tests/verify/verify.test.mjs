@@ -798,3 +798,49 @@ describe('evidence', () => {
     assert.doesNotMatch(verify(root, 'run').report, /Removed after it failed/);
   });
 });
+
+describe('tree', () => {
+  const loopScript = fileURLToPath(new URL('../../plugins/review-loop/skills/review-loop/scripts/loop.mjs', import.meta.url));
+  const save = { ...upper, id: 'save', run: ['node', 'cli.js', 'save', 'abc'], expect: { exitCode: 0, files: [{ path: 'saved.txt', equals: 'saved abc' }] } };
+
+  function treeOf(root) {
+    const index = path.join(mkdtempSync(path.join(tmpdir(), 'verify-index-')), 'index');
+    const env = { ...process.env, GIT_INDEX_FILE: index };
+    execFileSync('git', ['add', '-A'], { cwd: root, env });
+    execFileSync('git', ['rm', '-r', '--cached', '--ignore-unmatch', '-q', '--', '.lim-review'], { cwd: root, env });
+    return execFileSync('git', ['write-tree'], { cwd: root, env, encoding: 'utf8' }).trim();
+  }
+
+  test('each run records the tree git add -A would commit before and after its checks and leaves out .lim-review', () => {
+    const root = createRepository([upper, save], { '.lim-review/round-1.json': '{}' });
+    const before = treeOf(root);
+    const result = verify(root, 'run');
+    const evidence = JSON.parse(readFileSync(result.evidencePath, 'utf8'));
+    assert.equal(evidence.tree, before);
+    assert.equal(evidence.treeAfter, treeOf(root));
+    assert.notEqual(evidence.treeAfter, evidence.tree);
+    const names = (tree) => execFileSync('git', ['ls-tree', '--name-only', tree], { cwd: root, encoding: 'utf8' }).trim().split('\n');
+    assert.deepEqual(names(evidence.tree), ['cli.js', 'verify.features.json']);
+    assert.deepEqual(names(evidence.treeAfter), ['cli.js', 'saved.txt', 'verify.features.json']);
+    assert.deepEqual(readdirSync(path.join(root, '.git', 'lim', 'verify')).filter((name) => name.endsWith('.index')), []);
+  });
+
+  test('the tree a verify run records equals the review-loop snapshot of the same working tree', () => {
+    const root = createRepository([upper], { 'notes.txt': 'one\n', 'old.txt': 'old\n' });
+    const runGit = (...args) => execFileSync('git', args, { cwd: root, stdio: 'ignore' });
+    runGit('add', '-A');
+    runGit('-c', 'user.name=test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', 'commit', '-qm', 'base');
+    writeFileSync(path.join(root, 'notes.txt'), 'two\n');
+    runGit('add', 'notes.txt');
+    writeFileSync(path.join(root, 'notes.txt'), 'three\n');
+    writeFileSync(path.join(root, 'new.txt'), 'new\n');
+    mkdirSync(path.join(root, '.lim-review'));
+    writeFileSync(path.join(root, '.lim-review', 'round-1.json'), '{}');
+    execFileSync('git', ['rm', '-q', 'old.txt'], { cwd: root });
+    execFileSync('node', [loopScript, 'start'], { cwd: root, encoding: 'utf8' });
+    const { reviewedTree } = JSON.parse(readFileSync(path.join(root, '.git', 'lim', 'review-loop', 'state.json'), 'utf8'));
+    const evidence = JSON.parse(readFileSync(verify(root, 'run').evidencePath, 'utf8'));
+    assert.equal(evidence.tree, reviewedTree);
+    assert.equal(evidence.treeAfter, reviewedTree);
+  });
+});

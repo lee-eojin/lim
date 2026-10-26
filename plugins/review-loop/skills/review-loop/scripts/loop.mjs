@@ -26,10 +26,13 @@ const CONFIRM_LEVELS = { off: [], P2: ['P2'], all: ['P1', 'P2'] };
 const REVIEWER_MODELS = ['inherit', 'opus', 'sonnet', 'haiku', 'fable'];
 const BASES = ['measured', 'inferred', 'guessed'];
 const REVIEWER_FIELDS = [
-  'severity', 'file', 'line', 'category', 'title', ...EVIDENCE_FIELDS, 'basis', 'measuredBy', ...ASK_FLAGS, 'ruleCandidate',
+  'severity', 'file', 'line', 'category', 'title', ...EVIDENCE_FIELDS, 'basis', 'measuredBy', ...ASK_FLAGS, 'ruleCandidate', 'check',
 ];
 const DECISION_CHOICES = ['keep', 'once', 'rule'];
 const REVIEW_FOLDER = '.lim-review';
+const FEATURE_MAP = 'verify.features.json';
+const VERIFY_RUN_FILE = /^(.+Z)(?:-(\d+))?\.json$/;
+const RERUN_OUTCOMES = { pass: 'passed', fail: 'failed', 'not-verified': 'was not verified', missing: 'was not run' };
 const DIFF_COMMAND = ['-c', 'core.quotePath=false', 'diff', '--no-color', '--no-ext-diff', '--src-prefix=a/', '--dst-prefix=b/'];
 const CHECK_SCRIPTS = [
   ['typecheck', ['typecheck', 'type-check', 'tsc']],
@@ -218,6 +221,10 @@ export function parseReview(input) {
   }
   review.findings.forEach((finding, index) => {
     const basis = finding?.basis;
+    const check = finding?.check;
+    if (check !== undefined && check !== null && (typeof check !== 'string' || !normalize(check))) {
+      throw new Error(`finding ${index + 1} has check ${JSON.stringify(check)}, use the id of a ${FEATURE_MAP} entry as a string`);
+    }
     if (basis === undefined || basis === null) return;
     if (!BASES.includes(basis)) {
       throw new Error(`finding ${index + 1} has basis ${JSON.stringify(basis)}, use measured, inferred, or guessed`);
@@ -234,12 +241,15 @@ export function parseReview(input) {
 export function renderReport(view) {
   const {
     round, maxRounds, checks = [], resolved = [], fix = [], ask = [], stillOpen = [], regressions = [],
-    integrity = [], cards = [], kept = [], counts = [], looped = [], deferred = [], decision, reason, reviewerModel,
+    integrity = [], cards = [], kept = [], counts = [], looped = [], deferred = [], decision, reason, reviewerModel, featureMap,
   } = view;
   const reviewerLabel = reviewerModel ? ` (reviewer: ${reviewerModel === 'inherit' ? 'session model' : reviewerModel})` : '';
   const lines = [`Review round ${round} of ${maxRounds}${reviewerLabel}`, `Checks: ${describeChecks(checks)}`];
+  if (featureMap) {
+    lines.push(`Feature map: ${FEATURE_MAP} (${featureMap.ids.length} ${featureMap.ids.length === 1 ? 'entry' : 'entries'})`);
+  }
   const section = (title, items, describe) => {
-    if (items.length) lines.push('', title, ...items.flatMap(describe));
+    if (items.length) lines.push('', title, ...reproducedFirst(items).flatMap(describe));
   };
   const outOfScope = cards.filter((card) => card.outOfScope && card.round === round);
   section('Resolved since last round:', resolved, (item) => [
@@ -279,6 +289,11 @@ export function renderReport(view) {
   return lines.join('\n');
 }
 
+function reproducedFirst(items) {
+  const rank = (item) => SEVERITIES.indexOf(severityOf(item)) * 2 + (item.reproduced ? 0 : 1);
+  return [...items].sort((first, second) => rank(first) - rank(second));
+}
+
 function location(item) {
   return item.line ? `${item.file}:${item.line}` : String(item.file);
 }
@@ -293,8 +308,25 @@ function describeFinding(item) {
     const measuredBy = item.basis === 'measured' && item.measuredBy ? ` (${normalize(item.measuredBy)})` : '';
     lines.push(`  basis: ${item.basis}${measuredBy}`);
   }
+  lines.push(...verifyLines(item));
   if (item.note) lines.push(`  note: ${item.note}`);
   return [...lines, ...repeatLines(item)];
+}
+
+function verifyLines(item) {
+  const lines = [];
+  if (item.reproduced) {
+    lines.push(`  reproduced: verify check ${item.reproduced.check} failed (${item.reproduced.evidencePath})`);
+  } else if (item.notReproduced) {
+    lines.push(`  not reproduced: verify check ${item.notReproduced.check} passed`);
+  }
+  if (item.reproduced && item.rerun) lines.push(`  rerun on the fix: ${describeRerun(item)}`);
+  return lines;
+}
+
+function describeRerun(item) {
+  const { status, evidencePath } = item.rerun;
+  return `verify check ${item.reproduced.check} ${RERUN_OUTCOMES[status] ?? status}${evidencePath ? ` (${evidencePath})` : ' on the fixed code'}`;
 }
 
 function repeatLines(item) {
@@ -302,6 +334,9 @@ function repeatLines(item) {
 }
 
 function fixBasis(item) {
+  if (item.reproduced && item.rerun?.status === 'pass') {
+    return `(fixed, measured: verify check ${item.reproduced.check} passed on the fixed code, ${item.rerun.evidencePath})`;
+  }
   return item.fromChecks ? `(fixed, measured: ${item.quote} no longer fails)` : '(fixed, inferred: the re-review read the fix)';
 }
 
@@ -398,7 +433,15 @@ function passedCheckPrints(root, checks) {
   return new Set([...passed, ...(manifestRead ? [{ command: MANIFEST_READ }] : [])].map(checkFingerprint));
 }
 
-function carriedNote(item, checks, unverifiedPrints) {
+function rerunBlocks(item) {
+  return Boolean(item.reproduced) && item.rerun?.status !== 'pass';
+}
+
+function carriedNote(item, checks, unverifiedPrints, resolvedIds) {
+  if (rerunBlocks(item)) {
+    const outcome = `verify check ${item.reproduced.check} ${RERUN_OUTCOMES[item.rerun?.status ?? 'missing']} on the fixed code`;
+    return resolvedIds.has(item.id) ? `the re-review marked it resolved, but ${outcome}` : `the first fix did not resolve it, and ${outcome}`;
+  }
   if (!item.fromChecks) return 'the first fix did not resolve it';
   if (unverifiedPrints.has(item.fingerprint)) return 'its check timed out, so the fix is not verified';
   if (!checks.some((check) => checkFingerprint(check) === item.fingerprint)) return 'its check did not run, so the fix is not verified';
@@ -446,7 +489,12 @@ function openRepository(cwd, { create = true } = {}) {
     mkdirSync(stateDir, { recursive: true });
     mkdirSync(sharedDir, { recursive: true });
   }
-  return { root, file: (name) => path.join(stateDir, name), shared: (name) => path.join(sharedDir, name) };
+  return {
+    root,
+    file: (name) => path.join(stateDir, name),
+    shared: (name) => path.join(sharedDir, name),
+    verifyRuns: path.join(gitDir, 'lim', 'verify', 'runs'),
+  };
 }
 
 function commonGitDir(gitDir) {
@@ -569,6 +617,55 @@ function diffTrees(repository, fromTree, toTree, ...options) {
 
 function filesBetween(repository, fromTree, toTree) {
   return diffTrees(repository, fromTree, toTree, '--name-only', '--no-renames', '-z').split('\0').filter(Boolean);
+}
+
+function readFeatureMap(root) {
+  try {
+    const map = JSON.parse(readFileSync(path.join(root, FEATURE_MAP), 'utf8'));
+    return Array.isArray(map?.features) ? { ids: map.features.map((entry) => entry?.id) } : null;
+  } catch {
+    return null;
+  }
+}
+
+function featureMapFields(root) {
+  return readFeatureMap(root) ? { featureMapPath: path.join(root, FEATURE_MAP) } : {};
+}
+
+// The same order verify keeps its runs in: two runs that start in the same millisecond get -2, -3, ...
+function verifyRunOrder(name) {
+  const match = VERIFY_RUN_FILE.exec(name);
+  return match ? [match[1], Number(match[2] ?? 1)] : [name, 0];
+}
+
+function compareVerifyRuns(left, right) {
+  const [leftTime, leftSequence] = verifyRunOrder(left);
+  const [rightTime, rightSequence] = verifyRunOrder(right);
+  if (leftTime !== rightTime) return leftTime < rightTime ? -1 : 1;
+  return leftSequence - rightSequence;
+}
+
+function shownPath(root, file) {
+  const relative = path.relative(root, file);
+  return relative.startsWith('..') || path.isAbsolute(relative) ? file : relative.split(path.sep).join('/');
+}
+
+function verifyEvidence(repository, check, tree) {
+  if (!existsSync(repository.verifyRuns)) return null;
+  const newestFirst = readdirSync(repository.verifyRuns).filter((name) => name.endsWith('.json')).sort(compareVerifyRuns).reverse();
+  for (const name of newestFirst) {
+    const evidencePath = path.join(repository.verifyRuns, name);
+    let run;
+    try {
+      run = JSON.parse(readFileSync(evidencePath, 'utf8'));
+    } catch {
+      continue;
+    }
+    if (run?.tree !== tree && run?.treeAfter !== tree) continue;
+    const result = (run.checks ?? []).find((candidate) => candidate.id === check);
+    if (result) return { status: result.status, reasons: result.reasons ?? [], evidencePath: shownPath(repository.root, evidencePath) };
+  }
+  return null;
 }
 
 function readJson(filePath, fallback) {
@@ -746,6 +843,7 @@ function resumeView(repository, state) {
     deferred,
     cards: deciding ? state.cards.filter((card) => !card.decision) : [],
     treeMatchesReview: snapshotTree(repository) === state.reviewedTree,
+    ...featureMapFields(repository.root),
   };
 }
 
@@ -782,7 +880,7 @@ function start(cwd, options) {
   });
   return {
     status: 'review', round: 1, maxRounds, unattended, reviewerModel, diffPath: repository.file('round-1.diff'),
-    reviewPath: reviewPathFor(repository, 1), checks,
+    reviewPath: reviewPathFor(repository, 1), checks, ...featureMapFields(repository.root),
   };
 }
 
@@ -809,11 +907,11 @@ function recordReview(repository, input) {
   const resolved = [];
   const carried = [];
   for (const item of state.open) {
-    const isResolved = item.fromChecks ? passedPrints.has(item.fingerprint) : resolvedIds.has(item.id);
+    const isResolved = item.fromChecks ? passedPrints.has(item.fingerprint) : resolvedIds.has(item.id) && !rerunBlocks(item);
     if (isResolved) {
       resolved.push(item);
     } else {
-      carried.push({ ...item, attempts: item.attempts + 1, note: carriedNote(item, state.checks, unverifiedPrints) });
+      carried.push({ ...item, attempts: item.attempts + 1, note: carriedNote(item, state.checks, unverifiedPrints, resolvedIds) });
     }
   }
   const stuck = carried.filter((item) => item.attempts >= 2);
@@ -873,7 +971,7 @@ function recordReview(repository, input) {
     fix: stopped ? [] : fix, ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
     deferred: stopped ? allDeferred : deferred,
     regressions, cards: allCards, kept: allKept, counts, decision, reason,
-    looped: [...state.resolved, ...resolved, ...open, ...allDeferred],
+    looped: [...state.resolved, ...resolved, ...open, ...allDeferred], featureMap: readFeatureMap(repository.root),
   };
   const report = renderReport(view);
   Object.assign(state, {
@@ -899,6 +997,9 @@ function recordReview(repository, input) {
     decision, reason, round: state.round,
     fix: view.fix, ask: view.ask, stillOpen: view.stillOpen, deferred,
     cards: stopped ? state.cards : [],
+    reproducible: decidableFindings(state)
+      .filter((item) => item.check && BLOCKING.has(item.severity) && !item.reproduced)
+      .map((item) => item.id),
   };
 }
 
@@ -907,6 +1008,10 @@ function next(cwd) {
   const state = loadState(repository);
   if (state.awaiting !== 'fix') throw new Error(`expected ${state.awaiting}, not a fix`);
   const fixedTree = snapshotTree(repository);
+  for (const item of state.open.filter((candidate) => candidate.reproduced)) {
+    const rerun = verifyEvidence(repository, item.reproduced.check, fixedTree);
+    item.rerun = rerun ? { status: rerun.status, evidencePath: rerun.evidencePath } : { status: 'missing' };
+  }
   const fixDiff = diffTrees(repository, state.reviewedTree, fixedTree);
   const nameStatus = diffTrees(repository, state.reviewedTree, fixedTree, '--name-status', '--no-renames');
   const integrity = findWeakening(fixDiff, nameStatus);
@@ -944,7 +1049,7 @@ function next(cwd) {
   logEvent(repository, { event: 'next', round: state.round, fixedTree, changedFiles: state.files });
   return {
     status: 'review', round: state.round, maxRounds: state.maxRounds, reviewerModel: state.reviewerModel, diffPath, openPath,
-    reviewPath: reviewPathFor(repository, state.round), checks,
+    reviewPath: reviewPathFor(repository, state.round), checks, ...featureMapFields(repository.root),
   };
 }
 
@@ -964,6 +1069,39 @@ function decide(cwd, options) {
   const result = { recorded: true, id: item.id, choice, pending: pendingDecisionIds(state) };
   if (nothingRunsRules) result.ruleSkipped = 'package.json has no typecheck, lint, or test script, so nothing would run a rule';
   return result;
+}
+
+function reproduce(cwd, options) {
+  const repository = openRepository(cwd);
+  const state = loadState(repository);
+  const item = decidableFindings(state).find((candidate) => candidate.id === options.id);
+  if (!item) throw new Error(`no finding with id ${options.id}`);
+  const { check } = item;
+  if (!check) throw new Error(`${item.id} has no check: the reviewer names one only for a P1 or P2 that breaks a feature in ${FEATURE_MAP}`);
+  if (!readFeatureMap(repository.root)?.ids.includes(check)) throw new Error(`${item.id} names check ${check}, which is not an id in ${FEATURE_MAP}`);
+  const run = verifyEvidence(repository, check, state.reviewedTree);
+  if (!run) {
+    throw new Error(`no verify run of ${check} on the reviewed code: run the verify skill's \`run --id ${check}\` before changing any file, then run reproduce again`);
+  }
+  const { status, reasons, evidencePath } = run;
+  const lines = [`${item.id} [${item.severity}] ${location(item)} ${item.title}`];
+  if (status === 'fail') {
+    item.reproduced = { check, evidencePath, reasons, tree: state.reviewedTree };
+    delete item.notReproduced;
+    delete item.unproven;
+    lines.push(`  reproduced: verify check ${check} failed (${evidencePath})`, ...reasons.map((line) => `  - ${line}`));
+  } else if (status === 'pass' && item.reproduced) {
+    const where = item.reproduced.tree === state.reviewedTree ? 'on the same code' : 'on code that changed since';
+    lines.push(`  verify check ${check} passed (${evidencePath}) ${where} an earlier run failed on (${item.reproduced.evidencePath}); the failure stays recorded`);
+  } else if (status === 'pass') {
+    item.notReproduced = { check, evidencePath };
+    lines.push(`  not reproduced: verify check ${check} passed (${evidencePath}); the finding stays as it is, the check may not cover its scenario`);
+  } else {
+    lines.push(`  not checked: verify check ${check} was not verified (${evidencePath}), nothing recorded`, ...reasons.map((line) => `  - ${line}`));
+  }
+  saveState(repository, state);
+  logEvent(repository, { event: 'reproduce', ...summarize(item), check, status, evidencePath });
+  return { report: lines.join('\n'), id: item.id, check, status, reasons, evidencePath };
 }
 
 function checkoutTree(repository, tree, folder) {
@@ -1546,6 +1684,7 @@ function doneSteps(repository, state, currentTree) {
     start: true,
     review: reviews > 0,
     record: reviews > 0,
+    reproduce: eventsSinceStart(repository).some((entry) => entry.event === 'reproduce'),
     fix: state.round > 1,
     're-review': reviews > 1,
     decide: items.some((item) => item.decision) && pendingDecisionIds(state).length === 0,
@@ -1694,7 +1833,7 @@ function summary(cwd, options) {
 }
 
 const COMMANDS = {
-  start, record, next, decide, rule, checks: rerunChecks, delegate, gate, confirm, reviewer, unattended: setUnattended, note,
+  start, record, next, reproduce, decide, rule, checks: rerunChecks, delegate, gate, confirm, reviewer, unattended: setUnattended, note,
   summary, status,
 };
 

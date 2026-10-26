@@ -4,7 +4,7 @@ All notable changes to verify. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
-Nothing yet.
+- Added: Each run's evidence records `tree` and `treeAfter`, the git tree that `git add -A` would commit before and after the checks, so review-loop can match a run to the code it reviewed. (#32)
 
 ## 0.1.0 (2026-10-25)
 

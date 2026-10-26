@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
 } from 'node:fs';
@@ -2063,5 +2063,197 @@ describe('reviewer model', () => {
     assert.equal(second.report.split('\n')[0], 'Review round 2 of 3 (reviewer: haiku)');
     const records = ledger(root).filter((entry) => entry.event === 'record');
     assert.deepEqual(records.map((entry) => entry.reviewerModel), ['sonnet', 'haiku']);
+  });
+});
+
+describe('verify evidence', () => {
+  const verifyScript = fileURLToPath(new URL('../../plugins/verify/skills/verify/scripts/verify.mjs', import.meta.url));
+  const loadCart = [
+    "import { readFileSync, writeFileSync } from 'node:fs';",
+    "const { total } = await import('data:text/javascript,' + encodeURIComponent(readFileSync('src/cart.js', 'utf8')));",
+  ];
+  const checkFiles = {
+    'verify-checks/total.mjs': [...loadCart, 'console.log(total([{ price: 10 }]));', ''].join('\n'),
+    'verify-checks/empty.mjs': [...loadCart, 'console.log(total([]));', ''].join('\n'),
+    'verify-checks/save-total.mjs': [...loadCart, "writeFileSync('verify-checks/total.txt', String(total([{ price: 10 }])));", ''].join('\n'),
+  };
+  const totalCheck = {
+    id: 'cart-total', feature: 'Totals the prices of the items', run: ['node', 'verify-checks/total.mjs'], expect: { exitCode: 0, stdout: { equals: '10' } },
+  };
+  const emptyCheck = {
+    id: 'cart-empty', feature: 'An empty cart totals 0', run: ['node', 'verify-checks/empty.mjs'], expect: { exitCode: 0, stdout: { equals: '0' } },
+  };
+  const savedTotalCheck = {
+    id: 'saved-total',
+    feature: 'Saves the total of the items',
+    run: ['node', 'verify-checks/save-total.mjs'],
+    expect: { exitCode: 0, files: [{ path: 'verify-checks/total.txt', equals: '10' }] },
+  };
+  const withCheck = { ...doubledPrice, check: 'cart-total' };
+  const ledger = (root) => readFileSync(path.join(root, '.git/lim/review-loop/ledger.jsonl'), 'utf8')
+    .trim().split('\n').map((line) => JSON.parse(line));
+
+  function reviewing(features = [totalCheck, emptyCheck, savedTotalCheck]) {
+    const root = createRepository({ 'src/cart.js': correctCart, ...checkFiles, 'verify.features.json': JSON.stringify({ features }) });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    return root;
+  }
+
+  function verify(root, ...args) {
+    return JSON.parse(spawnSync('node', [verifyScript, ...args], { cwd: root, encoding: 'utf8' }).stdout);
+  }
+
+  function reproduced(findings = [withCheck]) {
+    const root = reviewing();
+    loop(root, ['start']);
+    loop(root, ['record'], { findings });
+    assert.equal(verify(root, 'run', '--id', 'cart-total').status, 'failed');
+    assert.equal(loop(root, ['reproduce', '--id', 'F-1']).status, 'fail');
+    return root;
+  }
+
+  test('start and next return the feature map path and the report counts its entries', () => {
+    const root = reviewing();
+    const mapPath = path.join(realpathSync(root), 'verify.features.json');
+    assert.equal(loop(root, ['start']).featureMapPath, mapPath);
+    const first = loop(root, ['record'], { findings: [doubledPrice] });
+    assert.match(first.report, /^Review round 1 of 3.*\nChecks: .*\nFeature map: verify\.features\.json \(3 entries\)\n/);
+    writeFiles(root, { 'src/cart.js': correctCart });
+    assert.equal(loop(root, ['next']).featureMapPath, mapPath);
+    assert.equal(loop(root, ['start']).featureMapPath, mapPath);
+  });
+
+  test('a missing or invalid feature map adds nothing to start or the report', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    assert.equal(Object.hasOwn(loop(root, ['start']), 'featureMapPath'), false);
+    writeFiles(root, { 'verify.features.json': '{ "features": [' });
+    assert.equal(Object.hasOwn(loop(root, ['start', '--fresh']), 'featureMapPath'), false);
+    assert.doesNotMatch(loop(root, ['record'], { findings: [] }).report, /Feature map/);
+  });
+
+  test('parseReview accepts a check id and rejects a check that is not a non-empty string', () => {
+    assert.equal(parseReview(JSON.stringify({ findings: [withCheck] })).findings[0].check, 'cart-total');
+    assert.throws(() => parseReview(JSON.stringify({ findings: [{ ...doubledPrice, check: 3 }] })), /finding 1 has check 3, use the id of a verify\.features\.json entry/);
+    assert.throws(() => parseReview(JSON.stringify({ findings: [{ ...doubledPrice, check: ' ' }] })), /finding 1 has check " "/);
+  });
+
+  test('reproduce records a verify check that failed on the reviewed code as reproduced', () => {
+    const root = reviewing();
+    loop(root, ['start']);
+    assert.equal(loop(root, ['record'], { findings: [withCheck] }).fix[0].check, 'cart-total');
+    verify(root, 'run', '--id', 'cart-total');
+    const result = loop(root, ['reproduce', '--id', 'F-1']);
+    assert.equal(result.status, 'fail');
+    assert.match(result.report, /^F-1 \[P2\] src\/cart\.js:1 Price is doubled\n {2}reproduced: verify check cart-total failed \(\.git\/lim\/verify\/runs\/[^)]+\.json\)\n {2}- stdout does not equal "10"/);
+    const event = ledger(root).find((entry) => entry.event === 'reproduce');
+    assert.deepEqual([event.id, event.check, event.status], ['F-1', 'cart-total', 'fail']);
+    assert.ok(loop(root, ['status']).review.doneSteps.includes('reproduce'));
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { stillOpen: ['F-1'], findings: [] });
+    assert.match(second.report, /- F-1 .*\n(?: {2}.*\n)*? {2}reproduced: verify check cart-total failed \(\.git\/lim\/verify\/runs\//);
+  });
+
+  test('reproduce records a verify check that passed as not reproduced and leaves the finding open', () => {
+    const root = reviewing();
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [{ ...doubledPrice, check: 'cart-empty' }] });
+    verify(root, 'run', '--id', 'cart-empty');
+    const result = loop(root, ['reproduce', '--id', 'F-1']);
+    assert.equal(result.status, 'pass');
+    assert.match(result.report, /not reproduced: verify check cart-empty passed/);
+    assert.deepEqual(loop(root, ['status']).review.open.map((item) => item.id), ['F-1']);
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { stillOpen: ['F-1'], findings: [] });
+    assert.match(second.report, /- F-1 .*\n(?: {2}.*\n)*? {2}not reproduced: verify check cart-empty passed\n/);
+  });
+
+  test('reproduce needs a verify run of the check on the reviewed code', () => {
+    const root = reviewing();
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [withCheck] });
+    const noRun = /no verify run of cart-total on the reviewed code: run the verify skill's `run --id cart-total`/;
+    assert.throws(() => loop(root, ['reproduce', '--id', 'F-1']), noRun);
+    writeFiles(root, { 'src/notes.js': 'export const note = 1;\n' });
+    verify(root, 'run', '--id', 'cart-total');
+    assert.throws(() => loop(root, ['reproduce', '--id', 'F-1']), noRun);
+    assert.equal(ledger(root).some((entry) => entry.event === 'reproduce'), false);
+  });
+
+  test('reproduce refuses a finding without a check or with a check the feature map does not have', () => {
+    const root = reviewing();
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPrice, { ...doubledPrice, quote: 'items.reduce', check: 'cart-missing' }] });
+    assert.throws(() => loop(root, ['reproduce', '--id', 'F-1']), /F-1 has no check/);
+    assert.throws(() => loop(root, ['reproduce', '--id', 'F-2']), /F-2 names check cart-missing, which is not an id in verify\.features\.json/);
+    assert.throws(() => loop(root, ['reproduce', '--id', 'F-9']), /no finding with id F-9/);
+  });
+
+  test('a guessed P1 or P2 reproduced by a failing check has evidence and stays a card', () => {
+    const root = reproduced([{ ...withCheck, basis: 'guessed' }]);
+    const resumed = loop(root, ['start']);
+    assert.equal(resumed.awaiting, 'decisions');
+    assert.deepEqual(resumed.cards.map((card) => [card.id, card.unproven, card.reproduced.check]), [['F-1', undefined, 'cart-total']]);
+    assert.deepEqual(loop(root, ['status']).review.pendingDecisions, ['F-1']);
+  });
+
+  test('record lists a guessed P1 or P2 card with a check as reproducible while the round continues', () => {
+    const root = reviewing();
+    loop(root, ['start']);
+    const guessedCard = { ...withCheck, line: 2, title: 'Empty cart total is wrong', quote: 'module.exports', basis: 'guessed' };
+    const first = loop(root, ['record'], { findings: [doubledPrice, guessedCard] });
+    assert.equal(first.decision, 'continue');
+    assert.deepEqual(first.reproducible, ['F-2']);
+    assert.equal(verify(root, 'run', '--id', 'cart-total').status, 'failed');
+    assert.equal(loop(root, ['reproduce', '--id', 'F-2']).status, 'fail');
+  });
+
+  test('a reproduced finding whose check passes on the fixed code resolves', () => {
+    const root = reproduced();
+    writeFiles(root, { 'src/cart.js': correctCart });
+    assert.equal(verify(root, 'run', '--id', 'cart-total').status, 'passed');
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { resolved: ['F-1'], findings: [] });
+    assert.equal(second.reason, 'clean');
+    assert.match(second.report, /- F-1 \[P2\] Price is doubled \(fixed, measured: verify check cart-total passed on the fixed code, \.git\/lim\/verify\/runs\//);
+  });
+
+  test('a reproduced finding stays open when its check was not run or failed on the fixed code even if the re-review resolved it', () => {
+    const root = reproduced();
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { resolved: ['F-1'], findings: [] });
+    assert.deepEqual([second.decision, second.ask[0].id], ['continue', 'F-1']);
+    assert.equal(second.ask[0].note, 'the re-review marked it resolved, but verify check cart-total was not run on the fixed code');
+    assert.match(second.report, /rerun on the fix: verify check cart-total was not run on the fixed code/);
+    writeFiles(root, { 'src/cart.js': brokenCart.replace('* 2', '* 3') });
+    verify(root, 'run', '--id', 'cart-total');
+    loop(root, ['next']);
+    const third = loop(root, ['record'], { resolved: ['F-1'], findings: [] });
+    assert.deepEqual([third.decision, third.reason, third.stillOpen[0].id], ['stop', 'stuck', 'F-1']);
+    assert.match(third.report, /rerun on the fix: verify check cart-total failed \(\.git\/lim\/verify\/runs\/[^)]+\)\n {2}note: the re-review marked it resolved, but verify check cart-total failed on the fixed code/);
+  });
+
+  test('a check that writes a file is matched to the fixed code by the tree after its run', () => {
+    const root = reviewing();
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [{ ...doubledPrice, check: 'saved-total' }] });
+    assert.equal(verify(root, 'run', '--id', 'saved-total').status, 'failed');
+    assert.equal(loop(root, ['reproduce', '--id', 'F-1']).status, 'fail');
+    writeFiles(root, { 'src/cart.js': correctCart });
+    assert.equal(verify(root, 'run', '--id', 'saved-total').status, 'passed');
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { resolved: ['F-1'], findings: [] });
+    assert.equal(second.reason, 'clean');
+    assert.match(second.report, /fixed, measured: verify check saved-total passed on the fixed code/);
+  });
+
+  test('the report lists reproduced findings first within a severity', () => {
+    const plain = { ...doubledPrice, id: 'F-1' };
+    const failing = { ...doubledPrice, id: 'F-2', reproduced: { check: 'cart-total', evidencePath: 'runs/one.json', reasons: [] } };
+    const blocker = { ...doubledPrice, id: 'F-3', severity: 'P1' };
+    const report = renderReport({ round: 1, maxRounds: 3, fix: [plain, failing, blocker], decision: 'continue' });
+    const order = report.split('\n').filter((line) => line.startsWith('- F-')).map((line) => line.slice(2, 5));
+    assert.deepEqual(order, ['F-3', 'F-2', 'F-1']);
   });
 });
