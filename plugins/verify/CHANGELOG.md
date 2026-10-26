@@ -2,6 +2,10 @@
 
 All notable changes to verify. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Added: Checks can run Python command-line tools and libraries: `["python3", "<script>", ...arguments]` with no option before the script, or a script whose first line is `#!/usr/bin/env python3` or an absolute path to python3 with no option. A python3 run gets no `PYTHONPATH` (a library helper adds the repository root to `sys.path` itself) and no `__pycache__` folders, a python3 script with a zip archive anywhere in it is refused, `env` refuses every `PYTHON` name, and an expectation that a Python traceback or `None` satisfies is refused. (#83)
+
 ## 0.2.0 (2026-10-26)
 
 - Added: Each run's evidence records `tree` and `treeAfter`, the git tree that `git add -A` would commit before and after the checks, so review-loop can match a run to the code it reviewed. (#32)

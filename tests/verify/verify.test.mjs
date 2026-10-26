@@ -463,13 +463,13 @@ describe('only the project\'s own scripts and executables run', () => {
   mkdirSync(path.join(root, 'verify-checks'));
   symlinkSync('/bin/sh', path.join(root, 'verify-checks/shell'));
   const problemsFor = (entry) => validateMap({ features: [{ ...upper, ...entry }] }, root);
-  const allowedForms = '; a check runs only node with a script file in the repository, as ["node", "<script>", ...arguments], or a script file in the repository whose first line is #!/usr/bin/env node or #!/<path>/node with no option, as ["./bin/<tool>", ...arguments]';
+  const allowedForms = '; a check runs only node or python3 with a script file in the repository, as ["node", "<script>", ...arguments] or ["python3", "<script>", ...arguments], or a script file in the repository whose first line is #!/usr/bin/env node, #!/usr/bin/env python3, #!/<path>/node, or #!/<path>/python3 with no option, as ["./bin/<tool>", ...arguments]';
 
   test('wrappers and package runners and shells and other interpreters are refused with the two allowed forms', () => {
     for (const run of [
       ['timeout', '20', 'sh', '-c', 'node cli.js half; exit 0'], ['nice', 'node', 'cli.js', 'half'], ['xargs', 'node', 'cli.js'],
       ['pnpm', 'exec', 'node', 'cli.js'], ['yarn', 'exec', 'node', 'cli.js'], ['bunx', 'tool'], ['bun', 'x', 'tool'], ['npm', 'run', 'check'],
-      ['npx', 'tool'], ['env', 'node', 'cli.js'], ['sh', '-c', 'true'], ['bash', 'check.sh'], ['python3', '-W', 'ignore', '-c', 'print(1)'],
+      ['npx', 'tool'], ['env', 'node', 'cli.js'], ['sh', '-c', 'true'], ['bash', 'check.sh'], ['python', 'tool.py'], ['python3.12', 'tool.py'],
       ['/bin/sh', '-c', 'true'], ['/usr/bin/env', 'node', 'cli.js'],
     ]) {
       const [problem] = problemsFor({ run });
@@ -495,7 +495,7 @@ describe('only the project\'s own scripts and executables run', () => {
       ['node', '../elsewhere/cli.js'], ['node', '/tmp/cli.js'], ['node', 'node_modules/eslint/bin/eslint.js'], ['./node_modules/.bin/eslint'],
       ['node', '.git/hooks/check.js'], ['verify-checks/shell', '-c', 'exit 0'], ['node', 'bin'],
     ]) {
-      assert.match(problemsFor({ run })[0], /, which resolves to [^;]+, not a file in the repository outside node_modules and \.git; a check runs only/, run.join(' '));
+      assert.match(problemsFor({ run })[0], /, which resolves to [^;]+, not a file in the repository outside node_modules, \.git, \.venv, venv, and __pycache__; a check runs only/, run.join(' '));
     }
     assert.match(problemsFor({ run: ['node', 'node_modules/eslint/bin/eslint.js'] })[0], /on "node_modules\/eslint\/bin\/eslint\.js", which resolves to node_modules\/eslint\/bin\/eslint\.js, not a file/);
     assert.ok(problemsFor({ run: ['verify-checks/shell', '-c', 'exit 0'] })[0]
@@ -525,17 +525,17 @@ describe('only the project\'s own scripts and executables run', () => {
     copyFileSync(process.execPath, path.join(copied, 'verify-checks/n'));
     const result = verify(copied, 'run');
     assert.equal(result.exit, 2);
-    assert.deepEqual(result.problems, [`features[0] (copied-node).run starts "verify-checks/n", a binary file, not a script that node runs${allowedForms}`]);
+    assert.deepEqual(result.problems, [`features[0] (copied-node).run starts "verify-checks/n", a binary file, not a script that node or python3 runs${allowedForms}`]);
   });
 
   test('an executable whose first line does not run node without options is refused with the two allowed forms', () => {
     const scripts = {
-      'verify-checks/sh-script': ['#!/bin/sh\nexit 0\n', 'whose first line "#!/bin/sh" does not run node without options'],
-      'verify-checks/env-split': ['#!/usr/bin/env -S node --require ./setup.js\n', 'whose first line "#!/usr/bin/env -S node --require ./setup.js" does not run node without options'],
-      'verify-checks/env-option': ['#!/usr/bin/env node --require ./setup.js\n', 'whose first line "#!/usr/bin/env node --require ./setup.js" does not run node without options'],
-      'verify-checks/node-option': ['#!/usr/local/bin/node -r ./setup.js\n', 'whose first line "#!/usr/local/bin/node -r ./setup.js" does not run node without options'],
-      'verify-checks/python': ['#!/usr/bin/python3\nprint(1)\n', 'whose first line "#!/usr/bin/python3" does not run node without options'],
-      'verify-checks/plain.js': ['console.log(1);\n', 'whose first line is not a #! line that runs node'],
+      'verify-checks/sh-script': ['#!/bin/sh\nexit 0\n', 'whose first line "#!/bin/sh" does not run node or python3 without options'],
+      'verify-checks/env-split': ['#!/usr/bin/env -S node --require ./setup.js\n', 'whose first line "#!/usr/bin/env -S node --require ./setup.js" does not run node or python3 without options'],
+      'verify-checks/env-option': ['#!/usr/bin/env node --require ./setup.js\n', 'whose first line "#!/usr/bin/env node --require ./setup.js" does not run node or python3 without options'],
+      'verify-checks/node-option': ['#!/usr/local/bin/node -r ./setup.js\n', 'whose first line "#!/usr/local/bin/node -r ./setup.js" does not run node or python3 without options'],
+      'verify-checks/python': ['#!/usr/bin/python\nprint(1)\n', 'whose first line "#!/usr/bin/python" does not run node or python3 without options'],
+      'verify-checks/plain.js': ['console.log(1);\n', 'whose first line is not a #! line that runs node or python3'],
       'verify-checks/in-repo': [`#!${root}/verify-checks/node\n`, `whose first line runs "${root}/verify-checks/node", a file in the repository, not an installed node`],
     };
     for (const [file, [content]] of Object.entries(scripts)) writeFileSync(path.join(root, file), content, { mode: 0o755 });
@@ -568,6 +568,225 @@ describe('only the project\'s own scripts and executables run', () => {
       assert.deepEqual(problemsFor({ run }), [], run.join(' '));
     }
     assert.deepEqual(problemsFor({ cwd: 'bin', run: ['./bin/tool'] }), []);
+  });
+});
+
+describe('python3 scripts', () => {
+  const greet = [
+    'import sys',
+    'name = sys.argv[1]',
+    'if not name.isalpha():',
+    '    print(f"not a name: {name}", file=sys.stderr)',
+    '    sys.exit(3)',
+    'print(f"Hello, {name.title()}!")',
+    '',
+  ].join('\n');
+  const stock = 'def restock(levels, minimum):\n    return sorted(name for name, count in levels.items() if count < minimum)\n';
+  const rootOnPath = 'sys.path.insert(0, str(Path(__file__).resolve().parent.parent))';
+  const lowStock = [
+    'import json',
+    'import sys',
+    'from pathlib import Path',
+    rootOnPath,
+    'from shelf.stock import restock',
+    'print(json.dumps(restock({"bolts": 3, "nuts": 12, "washers": 1}, int(sys.argv[1]))))',
+    '',
+  ].join('\n');
+  const library = { 'shelf/__init__.py': '', 'shelf/stock.py': stock, 'verify-checks/low_stock.py': lowStock };
+  const lowStockCheck = {
+    id: 'low-stock', feature: 'Lists items below the minimum', run: ['python3', 'verify-checks/low_stock.py', '5'],
+    expect: { exitCode: 0, stdout: { equals: '["bolts", "washers"]' } },
+  };
+
+  function foldersNamed(folder, name) {
+    return readdirSync(folder, { withFileTypes: true }).filter((item) => item.isDirectory() && item.name !== '.git').flatMap((item) => {
+      const inner = path.join(folder, item.name);
+      return [...(item.name === name ? [inner] : []), ...foldersNamed(inner, name)];
+    });
+  }
+
+  test('python3 with a script file in the repository passes and fails on its exit code and output', () => {
+    const entries = [
+      { id: 'greet', feature: 'Greets a name', run: ['python3', 'tools/greet.py', 'ada'], expect: { exitCode: 0, stdout: { equals: 'Hello, Ada!' } } },
+      { id: 'greet-digits', feature: 'Rejects a name with digits', run: ['python3', 'tools/greet.py', 'r2d2'], expect: { exitCode: 3, stderr: { equals: 'not a name: r2d2' } } },
+      { id: 'greet-shout', feature: 'Greets a name in capitals', run: ['python3', 'tools/greet.py', 'ada'], expect: { exitCode: 0, stdout: { equals: 'Hello, ADA!' } } },
+      { id: 'greet-exit', feature: 'Rejects a name with digits', run: ['python3', 'tools/greet.py', 'r2d2'], expect: { exitCode: 2, stderr: { includes: 'not a name' } } },
+    ];
+    const result = verify(createRepository(entries, { 'tools/greet.py': greet }), 'run');
+    assert.equal(result.exit, 1);
+    assert.deepEqual(result.checks.map((check) => [check.id, check.status, check.reasons]), [
+      ['greet', 'pass', []],
+      ['greet-digits', 'pass', []],
+      ['greet-shout', 'fail', ['stdout does not equal "Hello, ADA!"']],
+      ['greet-exit', 'fail', ['exit code 3, expected 2']],
+    ]);
+    assert.match(result.report, /FAIL greet-shout: Greets a name in capitals\n {2}\$ python3 tools\/greet\.py ada\n/);
+  });
+
+  test('a library helper in verify-checks/ adds the repository root itself and cannot import from an inherited PYTHONPATH', () => {
+    const decoy = mkdtempSync(path.join(tmpdir(), 'verify-decoy-'));
+    mkdirSync(path.join(decoy, 'shelf'));
+    writeFileSync(path.join(decoy, 'shelf', '__init__.py'), '');
+    writeFileSync(path.join(decoy, 'shelf', 'stock.py'), 'def restock(levels, minimum):\n    return ["bolts", "washers"]\n');
+    writeFileSync(path.join(decoy, 'pantry.py'), 'print("from the decoy")\n');
+    const decoyCheck = {
+      id: 'no-decoy', feature: 'Finds no module from the inherited path', run: ['python3', 'verify-checks/no_decoy.py'],
+      expect: { exitCode: 0, stdout: { equals: 'pantry not found' } },
+    };
+    const noDecoy = 'import importlib.util\nprint("pantry", "not found" if importlib.util.find_spec("pantry") is None else "found")\n';
+    const broken = createRepository([lowStockCheck, decoyCheck], {
+      ...library, 'shelf/stock.py': 'def restock(levels, minimum):\n    return sorted(levels)\n', 'verify-checks/no_decoy.py': noDecoy,
+    });
+    const result = verifyWith({ PYTHONPATH: decoy }, broken, 'run');
+    assert.deepEqual(result.checks.map((check) => [check.id, check.status, check.reasons]), [
+      ['low-stock', 'fail', ['stdout does not equal "[\\"bolts\\", \\"washers\\"]"']],
+      ['no-decoy', 'pass', []],
+    ]);
+    assert.equal(JSON.parse(readFileSync(result.evidencePath, 'utf8')).checks[0].stdout, '["bolts", "nuts", "washers"]\n');
+    assert.equal(verifyWith({ PYTHONPATH: decoy }, createRepository([lowStockCheck], library), 'run').status, 'passed');
+  });
+
+  test('a sitecustomize.py in the repository root or next to the script does not run before a python3 script', () => {
+    const shortcut = 'import os\nprint("Hello, ADA!", flush=True)\nos._exit(0)\n';
+    const entries = [
+      { id: 'greet', feature: 'Greets a name', run: ['python3', 'tools/greet.py', 'ada'], expect: { exitCode: 0, stdout: { equals: 'Hello, Ada!' } } },
+      { id: 'greet-shout', feature: 'Greets a name in capitals', run: ['python3', 'tools/greet.py', 'ada'], expect: { exitCode: 0, stdout: { equals: 'Hello, ADA!' } } },
+    ];
+    const root = createRepository(entries, { 'tools/greet.py': greet, 'sitecustomize.py': shortcut, 'tools/sitecustomize.py': shortcut });
+    const result = verifyWith({ PYTHONPATH: root }, root, 'run');
+    assert.deepEqual(result.checks.map((check) => [check.id, check.status, check.reasons]), [
+      ['greet', 'pass', []],
+      ['greet-shout', 'fail', ['stdout does not equal "Hello, ADA!"']],
+    ]);
+  });
+
+  test('a run that imports a module leaves no __pycache__ folder and the same tree', () => {
+    const root = createRepository([lowStockCheck], library);
+    const result = verifyWith({ PYTHONDONTWRITEBYTECODE: undefined }, root, 'run');
+    assert.equal(result.status, 'passed');
+    assert.deepEqual(foldersNamed(root, '__pycache__'), []);
+    const evidence = JSON.parse(readFileSync(result.evidencePath, 'utf8'));
+    assert.equal(evidence.treeAfter, evidence.tree);
+  });
+
+  test('a python3 run gets PYTHONDONTWRITEBYTECODE and loses inherited PYTHONPATH and startup variables while a node run gets no change', () => {
+    const names = ['PYTHONPATH', 'PYTHONDONTWRITEBYTECODE', 'PYTHONSTARTUP', 'PYTHONHOME', 'PYTHONINSPECT', 'PYTHONSAFEPATH'];
+    const showPython = `import os\nprint(*(os.environ.get(name, "unset") for name in ${JSON.stringify(names)}))\n`;
+    const showNode = `console.log(${JSON.stringify(names)}.map((name) => process.env[name] ?? 'unset').join(' '));\n`;
+    const entries = [
+      { id: 'python-env', feature: 'Shows the Python variables', run: ['python3', 'verify-checks/show_env.py'], expect: { exitCode: 0, stdout: { equals: 'unset 1 unset unset unset unset' } } },
+      {
+        id: 'node-env', feature: 'Shows the Python variables to node', run: ['node', 'verify-checks/show-env.js'],
+        expect: { exitCode: 0, stdout: { equals: '/opt/shelf-lib unset /opt/startup.py /nowhere 1 1' } },
+      },
+    ];
+    const root = createRepository(entries, { 'verify-checks/show_env.py': showPython, 'verify-checks/show-env.js': showNode });
+    const inherited = {
+      PYTHONPATH: '/opt/shelf-lib', PYTHONDONTWRITEBYTECODE: undefined, PYTHONSTARTUP: '/opt/startup.py',
+      PYTHONHOME: '/nowhere', PYTHONINSPECT: '1', PYTHONSAFEPATH: '1',
+    };
+    const result = verifyWith(inherited, root, 'run');
+    assert.deepEqual(result.checks.map((check) => [check.id, check.status, check.reasons]), [['python-env', 'pass', []], ['node-env', 'pass', []]]);
+  });
+
+  test('a script whose first line is #!/usr/bin/env python3 runs as an executable and its exit code is judged', () => {
+    const tool = `#!/usr/bin/env python3\nimport sys\nfrom pathlib import Path\n${rootOnPath}\nfrom shelf.stock import restock\nprint(" ".join(restock({"pins": 0, "clips": 9}, int(sys.argv[1]))))\nsys.exit(4)\n`;
+    const entries = [
+      { id: 'restock', feature: 'Prints what to restock', run: ['./bin/restock', '2'], expect: { exitCode: 4, stdout: { equals: 'pins' } } },
+      { id: 'restock-zero', feature: 'Prints what to restock', run: ['./bin/restock', '2'], expect: { exitCode: 0, stdout: { equals: 'pins' } } },
+    ];
+    const root = createRepository(entries, { ...library, 'bin/restock': tool });
+    execFileSync('chmod', ['755', path.join(root, 'bin/restock')]);
+    const result = verify(root, 'run');
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [['pass', []], ['fail', ['exit code 4, expected 0']]]);
+    assert.deepEqual(foldersNamed(root, '__pycache__'), []);
+  });
+
+  describe('refusals', () => {
+    const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'verify-python-')));
+    const files = {
+      'tools/greet.py': greet, '.venv/bin/greet.py': greet, 'venv/lib/greet.py': greet, 'tools/__pycache__/greet.py': greet,
+      'bin/absolute': '#!/usr/bin/python3\nprint(1)\n', 'bin/elsewhere': '#!/opt/python/bin/python3 \t\nprint(1)\n',
+      'bin/isolated': '#!/usr/bin/env python3 -I\nprint(1)\n', 'bin/split': '#!/usr/bin/env -S python3 -I\nprint(1)\n',
+      'bin/unversioned': '#!/usr/bin/env python\nprint(1)\n', 'bin/inside': `#!${root}/bin/python3\nprint(1)\n`,
+    };
+    for (const [file, content] of Object.entries(files)) {
+      mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      writeFileSync(path.join(root, file), content, { mode: 0o755 });
+    }
+    writeFileSync(path.join(root, 'tools/greet.pyc'), Buffer.from([0xcb, 0x0d, 0x0d, 0x0a, 0, 0, 0, 0]));
+    const archive = execFileSync('python3', ['-c', [
+      'import io, sys, zipfile',
+      'buffer = io.BytesIO()',
+      'with zipfile.ZipFile(buffer, "w") as archive: archive.writestr("__main__.py", "print(1)")',
+      'sys.stdout.buffer.write(buffer.getvalue())',
+    ].join('\n')]);
+    const padded = (firstLine) => Buffer.concat([Buffer.from(firstLine + 'print("Hello")\n'.repeat(20000)), archive]);
+    writeFileSync(path.join(root, 'tools/padded.py'), padded(''));
+    writeFileSync(path.join(root, 'bin/padded'), padded('#!/usr/bin/env python3\n'), { mode: 0o755 });
+    const problemsFor = (entry) => validateMap({ features: [{ ...upper, ...entry }] }, root);
+    const allowedForms = '; a check runs only node or python3 with a script file in the repository, as ["node", "<script>", ...arguments] or ["python3", "<script>", ...arguments], or a script file in the repository whose first line is #!/usr/bin/env node, #!/usr/bin/env python3, #!/<path>/node, or #!/<path>/python3 with no option, as ["./bin/<tool>", ...arguments]';
+
+    test('python3 options before the script are refused', () => {
+      for (const run of [
+        ['python3', '-c', 'print(1)'], ['python3', '-m', 'json.tool'], ['python3', '-I', 'tools/greet.py'], ['python3', '-W', 'ignore', 'tools/greet.py'],
+        ['python3', '-'], ['python3', '--', 'tools/greet.py'],
+      ]) {
+        assert.deepEqual(problemsFor({ run }), [`features[0] (upper).run gives "python3" the option ${JSON.stringify(run[1])} before the script${allowedForms}`], run.join(' '));
+      }
+      assert.deepEqual(problemsFor({ run: ['python3'], stdin: 'print(1)' }), [`features[0] (upper).run runs "python3" without a script file${allowedForms}`]);
+    });
+
+    test('python and versioned interpreter names are refused as programs on PATH', () => {
+      for (const program of ['python', 'python3.12', 'python3-config']) {
+        assert.deepEqual(problemsFor({ run: [program, 'tools/greet.py'] }), [`features[0] (upper).run starts "${program}", a program found on PATH, not a file in the repository${allowedForms}`]);
+      }
+    });
+
+    test('a python3 script in .venv or venv or __pycache__ or a compiled file is refused', () => {
+      for (const script of ['.venv/bin/greet.py', 'venv/lib/greet.py', 'tools/__pycache__/greet.py']) {
+        assert.deepEqual(problemsFor({ run: ['python3', script] }), [
+          `features[0] (upper).run runs "python3" on "${script}", which resolves to ${script}, not a file in the repository outside node_modules, .git, .venv, venv, and __pycache__${allowedForms}`,
+        ], script);
+      }
+      assert.deepEqual(problemsFor({ run: ['./.venv/bin/greet.py'] }), [
+        `features[0] (upper).run starts "./.venv/bin/greet.py", which resolves to .venv/bin/greet.py, not a file in the repository outside node_modules, .git, .venv, venv, and __pycache__${allowedForms}`,
+      ]);
+      assert.deepEqual(problemsFor({ run: ['python3', 'tools/greet.pyc'] }), [`features[0] (upper).run runs "python3" on "tools/greet.pyc", a binary file, not a script that python3 runs${allowedForms}`]);
+    });
+
+    test('a python3 script with a long text prefix before a zip archive is refused as a zip archive', () => {
+      const zipArchive = 'a zip archive, not a script that python3 runs';
+      assert.deepEqual(problemsFor({ run: ['python3', 'tools/padded.py'] }), [`features[0] (upper).run runs "python3" on "tools/padded.py", ${zipArchive}${allowedForms}`]);
+      assert.deepEqual(problemsFor({ run: ['bin/padded'] }), [`features[0] (upper).run starts "bin/padded", ${zipArchive}${allowedForms}`]);
+    });
+
+    test('a #! line that runs python3 with an option or another python or a python3 in the repository is refused', () => {
+      const refused = {
+        'bin/isolated': 'whose first line "#!/usr/bin/env python3 -I" does not run node or python3 without options',
+        'bin/split': 'whose first line "#!/usr/bin/env -S python3 -I" does not run node or python3 without options',
+        'bin/unversioned': 'whose first line "#!/usr/bin/env python" does not run node or python3 without options',
+        'bin/inside': `whose first line runs "${root}/bin/python3", a file in the repository, not an installed python3`,
+      };
+      for (const [file, problem] of Object.entries(refused)) {
+        assert.deepEqual(problemsFor({ run: [file] }), [`features[0] (upper).run starts "${file}", ${problem}${allowedForms}`], file);
+      }
+      assert.deepEqual(problemsFor({ run: ['bin/absolute'] }), []);
+      assert.deepEqual(problemsFor({ run: ['bin/elsewhere'] }), []);
+    });
+
+    test('PYTHONPATH and PYTHONWARNINGS and every other PYTHON name in env are refused', () => {
+      for (const name of ['PYTHONPATH', 'PYTHONWARNINGS', 'PYTHONSTARTUP', 'PYTHONHOME', 'PYTHONUSERBASE', 'PYTHONDONTWRITEBYTECODE', 'PYTHONSAFEPATH']) {
+        assert.deepEqual(problemsFor({ run: ['python3', 'tools/greet.py', 'ada'], env: { [name]: 'x' } }), [`features[0] (upper).env cannot set ${name}, which changes how a program loads or runs code`], name);
+      }
+    });
+
+    test('an expectation that a Python crash or a printed None satisfies is refused', () => {
+      assert.match(problemsFor({ expect: { exitCode: 1, stderr: { includes: 'Traceback' } } })[0], /stderr\.includes "Traceback" is also satisfied by a Python crash, so the check cannot fail$/);
+      assert.match(problemsFor({ expect: { exitCode: 1, stderr: { matches: 'No module named' } } })[0], /is also satisfied by a Python crash/);
+      assert.match(problemsFor({ expect: { exitCode: 1, stderr: { includes: 'can only concatenate' } } })[0], /is also satisfied by a Python crash/);
+      assert.match(problemsFor({ expect: { exitCode: 0, stdout: { equals: 'None' } } })[0], /stdout\.equals "None" is also satisfied by None, so the check cannot fail$/);
+    });
   });
 });
 
@@ -610,7 +829,7 @@ describe('paths in an entry are read from the repository root', () => {
       }, { ...upper, id: 'elsewhere', cwd: '../app' }],
     }, root);
     assert.deepEqual(problems, [
-      `features[0] (upper).run runs "node" on "../cli.js", which resolves to ${outside('cli.js')}, not a file in the repository outside node_modules and .git; a check runs only node with a script file in the repository, as ["node", "<script>", ...arguments], or a script file in the repository whose first line is #!/usr/bin/env node or #!/<path>/node with no option, as ["./bin/<tool>", ...arguments]`,
+      `features[0] (upper).run runs "node" on "../cli.js", which resolves to ${outside('cli.js')}, not a file in the repository outside node_modules, .git, .venv, venv, and __pycache__; a check runs only node or python3 with a script file in the repository, as ["node", "<script>", ...arguments] or ["python3", "<script>", ...arguments], or a script file in the repository whose first line is #!/usr/bin/env node, #!/usr/bin/env python3, #!/<path>/node, or #!/<path>/python3 with no option, as ["./bin/<tool>", ...arguments]`,
       `features[0] (upper).stdin.file "../words.txt" resolves to ${outside('words.txt')}, outside the repository; paths in an entry are relative to the repository root`,
       `features[0] (upper).expect.files[0].path "../saved.txt" resolves to ${outside('saved.txt')}, outside the repository; paths in an entry are relative to the repository root`,
       `features[1] (elsewhere).cwd "../app" resolves to ${outside('app')}, outside the repository; paths in an entry are relative to the repository root`,
