@@ -216,17 +216,17 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 [`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 173 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 162 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 11 个行为需要实际运行模型：对 P3 到 P5 只询问一次、在任何提问之前先展示报告、把每个步骤都留在待办清单中并为每个跳过的步骤写下原因、为每个修复的 P1 和 P2 编写回归测试、为每个发现项标明 measured、inferred 或 guessed、说明如何确认修复有效、在你提出异议时重新核实发现项、为反复出现的同类发现项建议设为规则、在无人值守运行中不提任何问题、用你选择的模型启动审查者、报告在原因不明时添加的代码。最后一个行为在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一个 fixture，前两个行为在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手动运行记录。
 
-检测基准测试给审查者一些改动，这些改动放在名称看不出是测试的临时仓库中。[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中有 12 个各植入一个 bug 的改动和 6 个干净的改动。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) 中有 6 个更难的 bug，以及 4 个看起来可疑的干净改动。这些更难的 bug 包括：只有查看 diff 没有改动的文件才能发现的 bug、藏在 183 行 diff 中的 bug、两次搜索之间的竞态，以及在错误路径上没有释放的锁。2026-10-25 的结果如下，每个用例运行 3 次：
+检测基准测试给审查者一些改动，这些改动放在名称看不出是测试的临时仓库中。[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中有 12 个各植入一个 bug 的改动和 6 个干净的改动。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) 中有 10 个更难的 bug，以及 6 个看起来可疑的干净改动。这些更难的 bug 包括：只有查看 diff 没有改动的文件才能发现的 bug、只有顺着四个文件追下去才能发现的 bug、藏在 183 行 diff 中的 bug、两次搜索之间的竞态、在异步写入读取之前就被清空的缓冲区，以及在错误路径上没有释放的锁。结果如下，每个用例运行 3 次，常规组于 2026-10-25 运行，困难组于 2026-10-26 运行：
 
-| 审查者模型 | 常规组：作为 P1 或 P2 找出的 bug | 常规组：对干净改动误报的 P1 或 P2 | 困难组：作为 P1 或 P2 找出的 bug | 困难组：对干净改动误报的 P1 或 P2 | 困难组的费用（30 次运行） |
+| 审查者模型 | 常规组：作为 P1 或 P2 找出的 bug | 常规组：对干净改动误报的 P1 或 P2 | 困难组：作为 P1 或 P2 找出的 bug | 困难组：对干净改动误报的 P1 或 P2 | 困难组的费用（48 次运行） |
 |---|---|---|---|---|---|
-| claude-opus-5-5 | 36 个中 36 个 | 18 个中 0 个 | 18 个中 18 个 | 12 个中 0 个 | $1.77 |
-| claude-sonnet-5-5 | 未运行 | 未运行 | 18 个中 18 个 | 12 个中 1 个 | $0.76 |
-| claude-haiku-5-5 | 未运行 | 未运行 | 18 个中 17 个 | 12 个中 3 个 | $0.06（Claude Code 报告的数值） |
+| claude-opus-5-5 | 36 个中 36 个 | 18 个中 0 个 | 30 个中 30 个 | 18 个中 0 个 | $3.11 |
+| claude-sonnet-5-5 | 未运行 | 未运行 | 30 个中 29 个 | 18 个中 0 个 | $1.14 |
+| claude-haiku-5-5 | 未运行 | 未运行 | 30 个中 30 个 | 18 个中 3 个 | $0.09（Claude Code 报告的数值） |
 
-默认情况下，审查者使用你会话中的模型运行。Opus 在两组用例中找出了所有植入的 bug，所以这个基准测试目前还无法显示它的小幅下降。较弱的模型的结果说明，这个基准测试确实能发现漏掉的 bug 和误报。Haiku 漏掉的一个用例指出了 bug，但给出的行超出了它所指文件的末尾，引用的又是另一个文件中的代码，review-loop 同样会把这类发现项显示为未验证。第一批运行之后，有三个用例的审查者用评分不接受的措辞指出了植入的 bug，于是为这三个用例补充了关键词，并用它们重新给所有已保存的运行评分。在一次只修改 fixture 的改动之前，Opus 曾在困难组上运行过一次，当时在一个干净用例上误报了一个 P2（与 Sonnet 和 Haiku 误报的是同一个用例），所以在 Opus 的 6 次运行中，这个用例误报了 1 次。可以用 `node evals/review-loop/run-detection.mjs --runs 3` 再次运行，加上 `--cases evals/review-loop/detection-hard` 可运行困难组。
+默认情况下，审查者使用你会话中的模型运行。Opus 在两组用例中找出了所有植入的 bug，所以这个基准测试目前还无法显示它找出的 bug 有所减少。为了看看这个基准测试到底能不能显示出更差的 `reviewer.md`，Opus 还用一个删减到只剩输出格式的 `reviewer.md` 运行了困难组：它仍然找出了 30 个中 30 个，在 18 次干净运行中误报了 1 个 P2，并提出了 83 个 P3 到 P5 的发现项，而完整的审查者提出的是 55 个。对 Opus 来说，能否找出这些 bug 更多取决于模型而不是指令，更差的 `reviewer.md` 会表现为误报和噪声。Sonnet 漏掉的那一个，对在异步写入之前被清空的缓冲区没有给出任何发现项。Haiku 的 3 个误报都出现在同一个干净用例上，这个用例在两天内用完整审查者进行的 9 次 Opus 运行中也误报了 1 个 P2。发现项在改动过的行上指出植入的 bug 时才算数；对于只有在另一个文件中才能发现的 bug，则要在那个文件中标记的行上指出。第一批运行之后，有四个用例的审查者用评分不接受的措辞指出了植入的 bug，于是为这四个用例补充了关键词，并用它们重新给所有已保存的运行评分。可以用 `node evals/review-loop/run-detection.mjs --runs 3` 再次运行，加上 `--cases evals/review-loop/detection-hard` 可运行困难组。
 
-上表就是审查者默认模型的依据。在困难组中，Opus 找出了 18 个中 18 个，没有误报的 P1 或 P2；Sonnet 找出了 18 个中 18 个，在 12 次干净运行中误报了 1 个 P1 或 P2，费用约为 Opus 的 43%；Haiku 找出了 18 个中 17 个，12 个中 3 个有误报。因此默认仍然是会话的模型，而当你希望审查者使用与编写改动的模型不同的模型时，Sonnet 是更便宜的选择。
+上表就是审查者默认模型的依据。在困难组中，Opus 找出了 30 个中 30 个，没有误报的 P1 或 P2；Sonnet 找出了 30 个中 29 个，也没有误报，费用约为 Opus 的 37%；Haiku 找出了 30 个中 30 个，在 18 次干净运行中误报了 3 个 P1 或 P2。因此默认仍然是会话的模型，而当你希望审查者使用与编写改动的模型不同的模型时，Sonnet 是更便宜的选择。
 
 <details>
 <summary>成本</summary>

@@ -1,0 +1,10 @@
+{
+  "intent": "Reserve stock when the order worker confirms an order, and reject the order when there is not enough",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

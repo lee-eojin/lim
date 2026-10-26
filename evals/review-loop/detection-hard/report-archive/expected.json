@@ -1,0 +1,19 @@
+{
+  "intent": "Retry the archive upload up to 3 times, so a brief storage outage does not fail the nightly run",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "swallowed error: after the last attempt retry() returns report(error), which only logs and returns undefined, so uploadArchive resolves as if it succeeded and archiveDay deletes the local file that never reached storage",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/storage.js", "lines": [1, 5] },
+        { "file": "src/retry.js", "lines": [5, 14], "context": true },
+        { "file": "src/errors.js", "lines": [1, 3], "context": true },
+        { "file": "src/archive.js", "lines": [8, 9], "context": true }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["swallow", "swallows", "swallowed", "swallowing", "eats the error", "eats errors", "never throws", "does not throw", "doesn't throw", "no longer throws", "never rethrows", "does not rethrow", "doesn't rethrow", "not rethrown", "rethrow", "re-throw", "returns undefined", "resolves undefined", "resolves to undefined", "resolves with undefined", "resolves successfully", "resolves normally", "report()", "report(error", "only logs", "just logs", "logs and returns", "treated as success", "treated as a success", "treated as successful", "looks successful", "reported as archived", "counted as archived", "unlink", "deletes the local file", "deletes the file", "local file is deleted", "file is deleted", "removes the local file", "data loss", "loses the report", "report is lost", "archive is lost", "lost forever", "silently", "masks the failure", "hides the failure", "hides the error", "failure is hidden"]
+    }
+  ],
+  "forbid": []
+}

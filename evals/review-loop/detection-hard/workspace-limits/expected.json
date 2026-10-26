@@ -1,0 +1,10 @@
+{
+  "intent": "Apply each workspace's purchased extra seats and beta features on top of its plan defaults",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

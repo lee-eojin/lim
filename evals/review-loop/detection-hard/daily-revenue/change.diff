@@ -1,0 +1,45 @@
+diff --git a/src/revenue-report.js b/src/revenue-report.js
+new file mode 100644
+index 0000000..3139d2d
+--- /dev/null
++++ b/src/revenue-report.js
+@@ -0,0 +1,12 @@
++import { addDays, isoDate, startOfDay } from './dates.js';
++
++export function dailyRevenue(ledger, from, to) {
++  const rows = [];
++  for (let day = startOfDay(from); day < to; day = addDays(day, 1)) {
++    const entries = ledger.entriesBetween(day, addDays(day, 1));
++    const totalCents = entries.reduce((sum, entry) => sum + entry.amountCents, 0);
++    rows.push({ date: isoDate(day), totalCents });
++  }
++  const totalCents = rows.reduce((sum, row) => sum + row.totalCents, 0);
++  return { rows, totalCents };
++}
+diff --git a/src/routes.js b/src/routes.js
+index f295469..9a34f0d 100644
+--- a/src/routes.js
++++ b/src/routes.js
+@@ -1,9 +1,21 @@
++import { dailyRevenue } from './revenue-report.js';
+ import { dayStatement } from './statement.js';
+ 
++const parseDate = (text) => Date.parse(`${text}T00:00:00Z`);
++
+ export function registerRoutes(app, { ledger }) {
+   app.get('/statements/:date', (request) => {
+-    const day = Date.parse(`${request.params.date}T00:00:00Z`);
++    const day = parseDate(request.params.date);
+     if (Number.isNaN(day)) return { status: 400, body: { error: 'date must be YYYY-MM-DD' } };
+     return { status: 200, body: dayStatement(ledger, day) };
+   });
++
++  app.get('/reports/revenue', (request) => {
++    const from = parseDate(request.query.from);
++    const to = parseDate(request.query.to);
++    if (Number.isNaN(from) || Number.isNaN(to) || from >= to) {
++      return { status: 400, body: { error: 'from and to must be YYYY-MM-DD, with from before to' } };
++    }
++    return { status: 200, body: dailyRevenue(ledger, from, to) };
++  });
+ }

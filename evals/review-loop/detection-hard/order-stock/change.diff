@@ -1,0 +1,61 @@
+diff --git a/src/inventory.js b/src/inventory.js
+new file mode 100644
+index 0000000..e5fc45d
+--- /dev/null
++++ b/src/inventory.js
+@@ -0,0 +1,8 @@
++export async function reserveStock(stock, lines) {
++  const items = await Promise.all(lines.map((line) => stock.get(line.sku)));
++  const short = lines.find((line, index) => !items[index] || items[index].available < line.quantity);
++  if (short) return { reserved: false, sku: short.sku };
++  await Promise.all(lines.map((line, index) =>
++    stock.set(line.sku, { ...items[index], available: items[index].available - line.quantity })));
++  return { reserved: true };
++}
+diff --git a/src/main.js b/src/main.js
+index 3cc6c04..0e54081 100644
+--- a/src/main.js
++++ b/src/main.js
+@@ -5,9 +5,13 @@ import { registerRoutes } from './routes.js';
+ import { runOrderWorker } from './worker.js';
+ 
+ const orders = new KeyValueStore();
++const stock = new KeyValueStore([
++  ['sku_mug', { name: 'Mug', available: 40 }],
++  ['sku_tee', { name: 'T-shirt', available: 25 }],
++]);
+ const queue = new JobQueue();
+ const app = createApp();
+ 
+ registerRoutes(app, { orders, queue });
+-runOrderWorker(queue, { orders });
++runOrderWorker(queue, { orders, stock });
+ app.listen(Number(process.env.PORT ?? 3000));
+diff --git a/src/orders.js b/src/orders.js
+index dc7af48..a15ad22 100644
+--- a/src/orders.js
++++ b/src/orders.js
+@@ -1,3 +1,5 @@
++import { reserveStock } from './inventory.js';
++
+ let nextId = 1;
+ 
+ export function createOrder(items) {
+@@ -9,10 +11,13 @@ export function createOrder(items) {
+   return { id: `ord_${nextId++}`, lines, status: 'pending' };
+ }
+ 
+-export async function processOrder(orderId, { orders }) {
++export async function processOrder(orderId, { orders, stock }) {
+   const order = await orders.get(orderId);
+   if (order.status !== 'pending') return order;
+-  const confirmed = { ...order, status: 'confirmed' };
+-  await orders.set(orderId, confirmed);
+-  return confirmed;
++  const reservation = await reserveStock(stock, order.lines);
++  const next = reservation.reserved
++    ? { ...order, status: 'confirmed' }
++    : { ...order, status: 'rejected', reason: `not enough stock for ${reservation.sku}` };
++  await orders.set(orderId, next);
++  return next;
+ }

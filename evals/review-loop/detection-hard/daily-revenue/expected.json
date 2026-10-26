@@ -1,0 +1,18 @@
+{
+  "intent": "Add a revenue report for a date range, with a total for each UTC day and for the whole range",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "double-counted midnight: entriesBetween() includes both ends, and renewals are recorded at exactly 00:00, so each renewal is counted in its own day and in the day before, and the range total is too high",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/revenue-report.js", "lines": [3, 8] },
+        { "file": "src/ledger.js", "lines": [10, 12], "context": true },
+        { "file": "src/renewals.js", "lines": [3, 10], "context": true }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["inclusive", "both ends", "both bounds", "both boundaries", "upper bound", "upper boundary", "end bound", "<= to", "entry.at <= to", "half-open", "exclusive end", "exclusive upper", "endOfDay", "end of day", "end of the day", "DAY_MS - 1", "next day's start", "start of the next day", "midnight", "00:00", "T00:00", "boundary", "counted twice", "counted in both", "counted in two", "two days", "both days", "two rows", "double-count", "double-counts", "double count", "double counts", "double-counted", "double counted", "double counting", "overlap", "overlaps", "overlapping", "inflated", "overstated", "overstates", "too high", "renewal", "renewals", "chargeRenewal", "startOfDay(periodStart)"]
+    }
+  ],
+  "forbid": []
+}

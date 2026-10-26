@@ -1,0 +1,19 @@
+{
+  "intent": "Slow down password guessing: allow 5 login attempts per account every 15 minutes, and clear the count on a successful login",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "limit keyed by the raw email: the key uses body.email as typed, but findByEmail() trims and lowercases it, so changing the case or adding a space gives the same account a fresh limit and guessing is unlimited",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/login.js", "lines": [7, 10] },
+        { "file": "src/routes.js", "lines": [6, 8] },
+        { "file": "src/users.js", "lines": [12, 14], "context": true },
+        { "file": "src/emails.js", "lines": [1, 1], "context": true }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["normalize", "normalized", "normalizes", "normalizing", "normalise", "normalised", "normalization", "normalisation", "normalizeEmail", "not normalized", "unnormalized", "un-normalized", "lowercase", "lower-case", "lowercased", "lowercases", "toLowerCase", "case-insensitive", "case insensitive", "case-sensitive", "case sensitive", "casing", "uppercase", "upper-case", "upper case", "capitalization", "capitalisation", "capital letters", "mixed case", "mixed-case", "different case", "changing the case", "letter case", "trim", "trims", "trimmed", "whitespace", "trailing space", "leading space", "raw email", "email as typed", "as typed", "as submitted", "as entered", "variants of the email", "email variants", "spellings", "OWNER@", "same account", "fresh limit", "fresh bucket", "new bucket", "separate bucket", "separate counter", "user.id"]
+    }
+  ],
+  "forbid": []
+}

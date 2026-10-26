@@ -1,0 +1,12 @@
+diff --git a/src/storage.js b/src/storage.js
+index 945e418..435c083 100644
+--- a/src/storage.js
++++ b/src/storage.js
+@@ -1,4 +1,6 @@
++import { retry } from './retry.js';
++
+ export async function uploadArchive(bucket, key, body) {
+-  await bucket.put(key, body, { contentType: 'application/x-ndjson' });
++  await retry(() => bucket.put(key, body, { contentType: 'application/x-ndjson' }), { attempts: 3, label: `upload ${key}` });
+   return key;
+ }

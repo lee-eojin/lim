@@ -9,7 +9,7 @@
         { "file": "src/prices.js", "lines": [3, 12] }
       ],
       "severity": ["P1", "P2"],
-      "mentions": ["leaves out currency", "without the currency", "missing currency", "include the currency", "includes the currency", "every currency", "wrong currency", "other currencies", "keyed only by product"]
+      "mentions": ["leaves out currency", "without the currency", "missing currency", "include the currency", "includes the currency", "every currency", "wrong currency", "other currencies", "keyed only by product", "every other currency", "ignores currency", "ignores the currency", "ignoring currency", "ignoring the currency", "first currency", "keyed by product id", "keyed only by the product", "only the product id", "does not include currency", "doesn't include currency", "does not include the currency", "doesn't include the currency", "currency is not part", "currency in the key", "currency to the key"]
     }
   ],
   "forbid": []

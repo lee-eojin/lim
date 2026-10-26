@@ -1,0 +1,45 @@
+diff --git a/src/audit-writer.js b/src/audit-writer.js
+index 755a16e..0abffc2 100644
+--- a/src/audit-writer.js
++++ b/src/audit-writer.js
+@@ -1,9 +1,15 @@
+-import { appendFileSync } from 'node:fs';
++import { appendFile } from 'node:fs/promises';
+ 
+ const toLine = (event) => `${JSON.stringify(event)}\n`;
+ 
+-export function createAuditWriter(file) {
+-  return (events) => {
+-    appendFileSync(file, events.map(toLine).join(''));
++export function createAuditWriter(file, { onError = console.error } = {}) {
++  let pending = Promise.resolve();
++  return {
++    write(events) {
++      pending = pending
++        .then(() => appendFile(file, events.map(toLine).join('')))
++        .catch(onError);
++    },
++    idle: () => pending,
+   };
+ }
+diff --git a/src/audit.js b/src/audit.js
+index 28022de..4842f12 100644
+--- a/src/audit.js
++++ b/src/audit.js
+@@ -2,12 +2,14 @@ import { createAuditWriter } from './audit-writer.js';
+ import { config } from './config.js';
+ import { EventBuffer } from './event-buffer.js';
+ 
+-const buffer = new EventBuffer({ size: config.auditBatchSize, write: createAuditWriter(config.auditFile) });
++const writer = createAuditWriter(config.auditFile);
++const buffer = new EventBuffer({ size: config.auditBatchSize, write: writer.write });
+ 
+ export function recordAudit(actorId, action, target) {
+   buffer.add({ at: new Date().toISOString(), actorId, action, target });
+ }
+ 
+-export function flushAudit() {
++export async function flushAudit() {
+   buffer.flush();
++  await writer.idle();
+ }

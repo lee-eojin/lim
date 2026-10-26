@@ -383,6 +383,10 @@ function table(runs) {
   return rows.map((row) => row.map((cell, column) => cell.padEnd(widths[column])).join('  ').trimEnd()).join('\n');
 }
 
+export function serializeResults(results) {
+  return `${JSON.stringify(results, null, 2).replace(/[\u2014\u00b7]/g, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`)}\n`;
+}
+
 function defaultOut(model, label) {
   const now = new Date();
   const date = [now.getFullYear(), now.getMonth() + 1, now.getDate()].map((part) => String(part).padStart(2, '0')).join('-');
@@ -429,7 +433,7 @@ async function main() {
     const stored = JSON.parse(readFileSync(source, 'utf8'));
     const results = rescoreResults(stored, casesDirFor(values.cases, stored), values.note);
     const out = values.out ? path.resolve(values.out) : source;
-    writeFileSync(out, `${JSON.stringify(results, null, 2)}\n`);
+    writeFileSync(out, serializeResults(results));
     report(results.runs, results.summary, out);
     return;
   }
@@ -487,7 +491,7 @@ async function main() {
   };
   const out = values.out ? path.resolve(values.out) : defaultOut(model, values.label);
   mkdirSync(path.dirname(out), { recursive: true });
-  writeFileSync(out, `${JSON.stringify(results, null, 2)}\n`);
+  writeFileSync(out, serializeResults(results));
   report(runs, results.summary, out);
 }
 
