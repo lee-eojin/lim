@@ -172,3 +172,12 @@ B170,stop,A reproduced finding stays open with the reason when its verify check 
 B171,evidence,A verify run is matched to the fixed code by the tree after its checks when a check writes a file,test: a check that writes a file is matched to the fixed code by the tree after its run,yes
 B172,tell,The round report lists reproduced P1 or P2 findings first within each severity,test: the report lists reproduced findings first within a severity,yes
 B173,ask,Record lists every open finding and card that is a P1 or P2 with a verify check and is not yet reproduced so a guessed card is reproduced while the round continues,test: record lists a guessed P1 or P2 card with a check as reproducible while the round continues,yes
+B174,do,A Makefile typecheck or check-types or types and lint and test target declared at the start of a line runs as make with that target and an assignment such as test := is not a target,test: makefile targets are detected as checks and an assignment is not a target,yes
+B175,do,A Go module runs go vet as lint and go test as test,test: a go module runs go vet and go test,yes
+B176,do,A Cargo project runs cargo check as typecheck and cargo test as test,test: a cargo project runs cargo check and cargo test,yes
+B177,silence,Python pytest and ruff and mypy run only when the project configures them in pyproject.toml or their own config file,test: python tools run only when the project configures them,yes
+B178,do,Python tools run through uv run when uv.lock exists,test: python tools run through uv run when uv.lock exists,yes
+B179,do,For each check name the first source that declares it wins in the order package.json then Makefile then Go then Rust then Python,test: the first source that declares a check wins,yes
+B180,tell,A check whose program is not installed is reported as not verified with its command and does not become a P1,test: a check whose program is not installed is reported as not verified instead of failing,yes
+B181,stop,A Python tool that uv or python cannot find is reported as not installed and not verified instead of a failing check,test: a tool uv or python cannot find is read as not installed and other failures are not,yes
+B182,do,mypy runs without a path when the project configures its files so the project's own file list is kept,test: mypy runs without a path when the project configures its files,yes

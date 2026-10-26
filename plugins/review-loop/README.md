@@ -25,7 +25,7 @@ The reviewer runs on your session's model unless you ask Claude to run it on ano
 
 ## How it works
 
-1. Runs your project's typecheck, lint, and test scripts from `package.json`. A project without them is reviewed from the diff alone.
+1. Runs the typecheck, lint, and test checks your project declares: `package.json` scripts, Makefile targets, `go vet` and `go test` for a `go.mod`, `cargo check` and `cargo test` for a `Cargo.toml`, and pytest, ruff, or mypy when the project configures them. A project without them is reviewed from the diff alone.
 2. A fresh reviewer subagent reads the diff and labels findings P1 to P5. It also reports code that agents add when they do not know the cause: guards for states nothing shows can happen, comments about history, TODOs without an issue link, and a second way to do a job the codebase already does. P1 and P2 need evidence: the exact line, a failure scenario, and why nothing already prevents it. Each finding is labeled measured, inferred, or guessed, and a guessed P1 or P2 counts as unverified.
 3. Claude says what it will fix, then fixes P1 and P2. If a fix needs a design choice (more than one fix, a visible behavior change, removing a feature, changing tests), you choose first. To see every P2 (or every P1 and P2) before anything changes, ask Claude to confirm them with you first. If your project has a test script, Claude also writes a regression test from the failure scenario of each P1 or P2 it fixes, and review-loop shows that the test fails on the code from before the fix.
 4. A new reviewer checks only the fixes and the open findings. Up to 3 rounds.
@@ -37,7 +37,7 @@ Every round ends with a report like this:
 
 ```
 Review round 2 of 3 (reviewer: session model)
-Checks: typecheck passed, lint passed, test passed
+Checks: typecheck (npm run typecheck) passed, lint (npm run lint) passed, test (npm run test) passed
 
 Resolved since last round:
 - F-1 [P2] Coupon branch adds the item twice (fixed, inferred: the re-review read the fix)
@@ -74,7 +74,7 @@ Based on Banksalad's public Pn rule: P1 must fix, P2 should fix, P3 worth fixing
 
 ## Measured behavior
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 173 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 162 of them. The other 11 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, starting the reviewer on the model you chose, and reporting code added without a known cause) need a model run. The first two have a manual run in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md), and the reviewer has a detection benchmark in [`evals/review-loop/detection/`](../../evals/review-loop/detection/).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lists 182 behaviors across do, tell, ask, silence, stop, and evidence. Unit tests in CI cover 171 of them. The other 11 (asking about P3 to P5 once, showing the report before any question, keeping every step in the todo list with a reason for each skip, writing a regression test for each fixed P1 or P2, labeling each finding measured, inferred, or guessed, saying how a fix is known, checking a finding again when you push back, recommending a rule for a kind of finding that keeps coming back, asking nothing in an unattended run, starting the reviewer on the model you chose, and reporting code added without a known cause) need a model run. The first two have a manual run in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md), and the reviewer has a detection benchmark in [`evals/review-loop/detection/`](../../evals/review-loop/detection/).
 
 ## Data
 
@@ -82,10 +82,11 @@ State, diffs, check logs, and a decision ledger are stored in `.git/lim/review-l
 
 ## Limits in v0.1
 
-- Check detection reads `package.json` scripts only.
+- Checks are detected at the repository root, and for each of typecheck, lint, and test the first source that declares one wins: `package.json` scripts (run with the lockfile's package manager), then Makefile targets `typecheck` (or `check-types`, `types`), `lint`, and `test` (run as `make <target>`), then `go.mod` (`go vet ./...`, `go test ./...`), then `Cargo.toml` (`cargo check`, `cargo test`), then Python tools the project configures: pytest from `[tool.pytest.ini_options]`, `pytest.ini`, or `[tool:pytest]` in `setup.cfg`, ruff from `[tool.ruff]` or `ruff.toml`, and mypy from `[tool.mypy]` or `mypy.ini`, run through `uv run --frozen --no-sync` when `uv.lock` exists. A check whose program is not installed is reported as "not run because <program> is not installed (not verified)" instead of failing.
 - Each check gets up to 5 minutes, and all checks together up to 9 minutes. A check past its limit is reported as "timed out (not verified)" instead of failing, and Claude tells you before committing. Set `LIM_CHECK_TIMEOUT_MS` to change the per-check limit.
 - Without the commit gate, asking before a commit is an instruction to Claude, not a guarantee. Turn the gate on to make it a hook.
 - The commit gate does not resolve git aliases. A commit made through an alias such as `git ci` is not checked.
 - If you start Claude Code in a folder that is not a repository, the gate cannot check a commit whose repository it cannot tell, for example after `cd "$(...)"`.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
 - A rule or a regression test is checked in a temporary copy with your tracked files and the root `node_modules` only. A check that needs other ignored files, such as `.env`, can report it as unproven or as caught for the wrong reason. Claude reads the failure to tell which.
+- In Go, Rust, and Python projects, rules and regression tests run in that copy without untracked build caches or virtual environments, so they can be slow or report unproven.

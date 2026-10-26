@@ -34,8 +34,15 @@ const FEATURE_MAP = 'verify.features.json';
 const VERIFY_RUN_FILE = /^(.+Z)(?:-(\d+))?\.json$/;
 const RERUN_OUTCOMES = { pass: 'passed', fail: 'failed', 'not-verified': 'was not verified', missing: 'was not run' };
 const DIFF_COMMAND = ['-c', 'core.quotePath=false', 'diff', '--no-color', '--no-ext-diff', '--src-prefix=a/', '--dst-prefix=b/'];
+const CHECK_NAMES = ['typecheck', 'lint', 'test'];
 const CHECK_SCRIPTS = [
   ['typecheck', ['typecheck', 'type-check', 'tsc']],
+  ['lint', ['lint']],
+  ['test', ['test']],
+];
+const MAKEFILES = ['GNUmakefile', 'makefile', 'Makefile'];
+const MAKE_TARGETS = [
+  ['typecheck', ['typecheck', 'check-types', 'types']],
   ['lint', ['lint']],
   ['test', ['test']],
 ];
@@ -84,6 +91,8 @@ const normalize = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
 const now = () => new Date().toISOString();
 const summarize = ({ id, severity, file, line, title }) => ({ id, severity, file, line, title });
 const severityOf = (finding) => (SEVERITIES.includes(finding.severity) ? finding.severity : 'P3');
+const programOf = (check) => check.command.split(' ')[0];
+const isNotVerified = (check) => Boolean(check.timedOut || check.notInstalled);
 
 export function fingerprint(finding) {
   const anchor = normalize(finding.quote) || normalize(finding.title);
@@ -343,11 +352,12 @@ function fixBasis(item) {
 function describeChecks(checks) {
   if (checks === null) return 'not run';
   if (!checks.length) return 'none detected, reviewing the diff only';
-  return checks.map((check) => `${check.name} ${checkOutcome(check)}`).join(', ');
+  return checks.map((check) => `${check.name} (${check.command}) ${checkOutcome(check)}`).join(', ');
 }
 
 function checkOutcome(check) {
   if (check.timedOut) return 'timed out (not verified)';
+  if (check.notInstalled) return `not run because ${programOf(check)} is not installed (not verified)`;
   return check.exitCode === 0 ? 'passed' : 'failed';
 }
 
@@ -370,7 +380,12 @@ function tally(cards, looped) {
   return parts.join(', ');
 }
 
-export function detectChecks(root) {
+function readProjectFile(root, file) {
+  const filePath = path.join(root, file);
+  return existsSync(filePath) && statSync(filePath).isFile() ? readFileSync(filePath, 'utf8') : '';
+}
+
+function packageScripts(root) {
   const manifestPath = path.join(root, 'package.json');
   if (!existsSync(manifestPath)) return [];
   let manifest;
@@ -385,6 +400,72 @@ export function detectChecks(root) {
     const script = candidates.find((candidate) => scripts[candidate] && !scripts[candidate].includes('no test specified'));
     return script ? [{ name, command: [runner, 'run', script] }] : [];
   });
+}
+
+function makeTargets(root) {
+  const makefile = MAKEFILES.map((file) => readProjectFile(root, file)).find(Boolean);
+  if (!makefile) return [];
+  const declares = (target) => new RegExp(`^${target}\\s*::?(?![:=])`, 'm').test(makefile);
+  return MAKE_TARGETS.flatMap(([name, candidates]) => {
+    const target = candidates.find(declares);
+    return target ? [{ name, command: ['make', target] }] : [];
+  });
+}
+
+function goChecks(root) {
+  if (!existsSync(path.join(root, 'go.mod'))) return [];
+  return [{ name: 'lint', command: ['go', 'vet', './...'] }, { name: 'test', command: ['go', 'test', './...'] }];
+}
+
+function rustChecks(root) {
+  if (!existsSync(path.join(root, 'Cargo.toml'))) return [];
+  return [{ name: 'typecheck', command: ['cargo', 'check'] }, { name: 'test', command: ['cargo', 'test'] }];
+}
+
+function sectionLines(lines, header) {
+  const start = lines.indexOf(header);
+  if (start === -1) return [];
+  const end = lines.findIndex((line, index) => index > start && line.startsWith('['));
+  return lines.slice(start + 1, end === -1 ? undefined : end);
+}
+
+function pythonChecks(root) {
+  const pyproject = readProjectFile(root, 'pyproject.toml').split('\n').map((line) => line.trim());
+  const pyprojectHas = (section) => pyproject.some((line) => line.startsWith(section));
+  const hasFile = (file) => existsSync(path.join(root, file));
+  const viaUv = hasFile('uv.lock');
+  const tool = (program) => (viaUv ? ['uv', 'run', '--frozen', '--no-sync', program] : [program]);
+  const checks = [];
+  if (pyprojectHas('[tool.mypy') || hasFile('mypy.ini')) {
+    const mypyConfig = hasFile('mypy.ini')
+      ? sectionLines(readProjectFile(root, 'mypy.ini').split('\n').map((line) => line.trim()), '[mypy]')
+      : sectionLines(pyproject, '[tool.mypy]');
+    const configuresFiles = mypyConfig.some((line) => /^files\s*=/.test(line));
+    checks.push({ name: 'typecheck', command: configuresFiles ? tool('mypy') : [...tool('mypy'), '.'] });
+  }
+  if (pyprojectHas('[tool.ruff') || hasFile('ruff.toml') || hasFile('.ruff.toml')) {
+    checks.push({ name: 'lint', command: [...tool('ruff'), 'check', '.'] });
+  }
+  const setupCfg = readProjectFile(root, 'setup.cfg').split('\n').map((line) => line.trim());
+  if (pyprojectHas('[tool.pytest.ini_options]') || hasFile('pytest.ini') || setupCfg.includes('[tool:pytest]')) {
+    checks.push({ name: 'test', command: viaUv ? tool('pytest') : ['python3', '-m', 'pytest'] });
+  }
+  return checks;
+}
+
+const CHECK_SOURCES = [packageScripts, makeTargets, goChecks, rustChecks, pythonChecks];
+
+export function detectChecks(root) {
+  const declared = CHECK_SOURCES.flatMap((source) => source(root));
+  const problems = declared.filter((check) => check.problem);
+  const chosen = CHECK_NAMES.flatMap((name) => declared.find((check) => check.name === name) ?? []);
+  return [...problems, ...chosen];
+}
+
+export function missingProgram(command, stderr) {
+  if (command[0] === 'uv') return /Failed to spawn: `([^`]+)`[\s\S]*No such file or directory/.exec(stderr)?.[1] ?? null;
+  if (command[1] === '-m') return new RegExp(`No module named '?${command[2]}'?\\s*$`, 'm').test(stderr) ? command[2] : null;
+  return null;
 }
 
 function runCheck(root, { name, command, problem }, timeout) {
@@ -402,6 +483,10 @@ function runCheck(root, { name, command, problem }, timeout) {
     });
     return { name, command: label, exitCode: 0, timedOut: false, output };
   } catch (error) {
+    const missing = error.code === 'ENOENT' ? command[0] : missingProgram(command, `${error.stderr ?? ''}`);
+    if (missing) {
+      return { name, command: label, exitCode: null, timedOut: false, notInstalled: true, output: `not run: ${missing} is not installed` };
+    }
     const timedOut = error.code === 'ETIMEDOUT';
     const cause = typeof error.status === 'number' ? '' : `\n${error.message}`;
     return {
@@ -437,20 +522,22 @@ function rerunBlocks(item) {
   return Boolean(item.reproduced) && item.rerun?.status !== 'pass';
 }
 
-function carriedNote(item, checks, unverifiedPrints, resolvedIds) {
+function carriedNote(item, checks, unverified, resolvedIds) {
   if (rerunBlocks(item)) {
     const outcome = `verify check ${item.reproduced.check} ${RERUN_OUTCOMES[item.rerun?.status ?? 'missing']} on the fixed code`;
     return resolvedIds.has(item.id) ? `the re-review marked it resolved, but ${outcome}` : `the first fix did not resolve it, and ${outcome}`;
   }
   if (!item.fromChecks) return 'the first fix did not resolve it';
-  if (unverifiedPrints.has(item.fingerprint)) return 'its check timed out, so the fix is not verified';
+  const unverifiedCheck = unverified.get(item.fingerprint);
+  if (unverifiedCheck?.notInstalled) return `its check did not run because ${programOf(unverifiedCheck)} is not installed, so the fix is not verified`;
+  if (unverifiedCheck) return 'its check timed out, so the fix is not verified';
   if (!checks.some((check) => checkFingerprint(check) === item.fingerprint)) return 'its check did not run, so the fix is not verified';
   return 'the first fix did not resolve it';
 }
 
 function checkFindings(checks) {
   return checks
-    .filter((check) => !check.timedOut && check.exitCode !== 0)
+    .filter((check) => !isNotVerified(check) && check.exitCode !== 0)
     .map((check) => ({
       severity: 'P1',
       category: 'checks',
@@ -901,7 +988,7 @@ function recordReview(repository, input) {
   const filesInRound = new Set(state.files);
   const failingChecks = checkFindings(state.checks);
   const passedPrints = passedCheckPrints(repository.root, state.checks);
-  const unverifiedPrints = new Set(state.checks.filter((check) => check.timedOut).map(checkFingerprint));
+  const unverified = new Map(state.checks.filter(isNotVerified).map((check) => [checkFingerprint(check), check]));
   const resolvedIds = new Set(review.resolved ?? []);
 
   const resolved = [];
@@ -911,7 +998,7 @@ function recordReview(repository, input) {
     if (isResolved) {
       resolved.push(item);
     } else {
-      carried.push({ ...item, attempts: item.attempts + 1, note: carriedNote(item, state.checks, unverifiedPrints, resolvedIds) });
+      carried.push({ ...item, attempts: item.attempts + 1, note: carriedNote(item, state.checks, unverified, resolvedIds) });
     }
   }
   const stuck = carried.filter((item) => item.attempts >= 2);
@@ -1067,7 +1154,7 @@ function decide(cwd, options) {
   const ruleFields = choice === 'rule' ? { category: item.category, quote: item.quote, scenario: item.scenario } : {};
   logEvent(repository, { event: 'decision', ...summarize(item), choice, fingerprint: item.fingerprint, ...ruleFields });
   const result = { recorded: true, id: item.id, choice, pending: pendingDecisionIds(state) };
-  if (nothingRunsRules) result.ruleSkipped = 'package.json has no typecheck, lint, or test script, so nothing would run a rule';
+  if (nothingRunsRules) result.ruleSkipped = 'the project has no typecheck, lint, or test script or target, so nothing would run a rule';
   return result;
 }
 
@@ -1171,15 +1258,15 @@ function checkRule(repository, beforeTree, drafts) {
     }
     copyDrafts(repository.root, folder, drafts);
     const withDrafts = runChecks(folder, repository.file('rule.checks.log'), { deadline });
-    const failing = withDrafts.filter((check) => !check.timedOut && check.exitCode !== 0).map((check) => check.name);
+    const failing = withDrafts.filter((check) => !isNotVerified(check) && check.exitCode !== 0).map((check) => check.name);
     if (!failing.length) {
-      return { proof: withDrafts.some((check) => check.timedOut) ? 'unproven' : 'missed', caughtBy: [], withDrafts, withoutDrafts: [] };
+      return { proof: withDrafts.some(isNotVerified) ? 'unproven' : 'missed', caughtBy: [], withDrafts, withoutDrafts: [] };
     }
     restoreDrafts(repository, beforeTree, folder, drafts);
     const withoutDrafts = runChecks(folder, repository.file('rule.baseline.log'), { deadline, only: failing });
     const passedWithout = (name) => {
       const check = withoutDrafts.find((candidate) => candidate.name === name);
-      return !check || (!check.timedOut && check.exitCode === 0);
+      return !check || (!isNotVerified(check) && check.exitCode === 0);
     };
     const caughtBy = failing.filter(passedWithout);
     return { proof: caughtBy.length ? 'caught' : 'unproven', caughtBy, withDrafts, withoutDrafts };
@@ -1232,7 +1319,7 @@ function rule(cwd, options) {
     return recordNoTest(repository, state, item, options['no-test']);
   }
   if (kind === 'regression' && !detectChecks(repository.root).some((check) => check.name === 'test')) {
-    throw new Error('package.json has no test script, so a regression test would not run, record that with --no-test');
+    throw new Error('the project has no test script or target, so a regression test would not run, record that with --no-test');
   }
   const drafts = [options.draft].flat().filter((draft) => typeof draft === 'string').map((draft) => repositoryPath(repository.root, draft));
   if (!drafts.length) throw new Error('name the rule draft files with --draft <path>');
@@ -1271,7 +1358,7 @@ function rerunChecks(cwd) {
   return {
     checks,
     passed: checks.every((check) => check.exitCode === 0),
-    notVerified: checks.filter((check) => check.timedOut).map((check) => check.name),
+    notVerified: checks.filter(isNotVerified).map((check) => check.name),
   };
 }
 
@@ -1720,7 +1807,7 @@ function status(cwd) {
       rules: decidableFindings(state)
         .filter((item) => item.decision === 'rule')
         .map((item) => ({ id: item.id, drafts: item.rule?.drafts ?? [], proof: item.rule?.proof ?? null })),
-      notVerifiedChecks: (state.latestChecks ?? state.checks ?? []).filter((check) => check.timedOut).map((check) => check.name),
+      notVerifiedChecks: (state.latestChecks ?? state.checks ?? []).filter(isNotVerified).map((check) => check.name),
       doneSteps: doneSteps(repository, state, currentTree),
       resolvedRepeats: state.resolved
         .filter((item) => item.repeat)
@@ -1775,7 +1862,7 @@ function waitingFor(repository, state) {
     deferred: undecided(state?.deferred).map(describeDeferred),
     pendingDecisions: undecided(state?.cards).map(summarize),
     stillOpen: undecided(state?.open).map(summarize),
-    notVerifiedChecks: (state?.latestChecks ?? state?.checks ?? []).filter((check) => check.timedOut).map((check) => check.name),
+    notVerifiedChecks: (state?.latestChecks ?? state?.checks ?? []).filter(isNotVerified).map((check) => check.name),
     gateNotConfigured: !readGate(repository).configured,
   };
 }

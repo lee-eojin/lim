@@ -78,7 +78,7 @@ Fork 它、修改它，把它变成你自己的。欢迎提交 issue 和 pull re
 
 ```
 Review round 2 of 3 (reviewer: session model)
-Checks: test passed
+Checks: test (npm run test) passed
 
 Resolved since last round:
 - F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal (fixed, inferred: the re-review read the fix)
@@ -120,7 +120,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 在你提交之前，review-loop 运行一个短循环，并自动停止。
 
-1. **检查。** review-loop 运行你的 `package.json` 中的 `typecheck`、`lint` 和 `test` 脚本。如果某个检查失败，或者 `package.json` 不是有效的 JSON，review-loop 会将其记为一个 P1 发现项。如果某个检查的运行时间超过时间限制，review-loop 会将其报告为“未验证”，而不是“失败”。
+1. **检查。** review-loop 运行你的项目声明的 `typecheck`、`lint` 和 `test` 检查：`package.json` 中的脚本、Makefile 中的目标，或 Go（`go.mod`）、Rust（`Cargo.toml`）的默认命令以及你配置的 Python 工具。如果某个检查失败，或者 `package.json` 不是有效的 JSON，review-loop 会将其记为一个 P1 发现项。如果某个检查的运行时间超过时间限制，或者它的程序没有安装，review-loop 会将其报告为“未验证”，而不是“失败”。
 2. **全新审查。** 一个独立的审查者 agent 会收到 diff 和一行说明你想要实现什么的摘要，但不会收到 Claude 对这次改动的推理。审查者可以读取周围的代码来了解上下文。审查者把发现项标记为 P1 到 P5。P1 和 P2 需要证据：确切的代码行、一个失败场景，以及为什么现有代码没有阻止该问题。每个发现项都会标明 measured（实测）、inferred（推断）或 guessed（猜测）。没有证据的 P1 或 P2，以及被标为 guessed 的 P1 或 P2，不会被修复，而是以“未验证”的状态展示给你。
 3. **修复。** Claude 先说明它要修复什么，然后修复 P1 和 P2。如果某个修复需要设计决策（修复方式不止一种、用户可见的行为变化、删除功能、修改测试），由你先做选择。如果你的项目有 test 脚本，Claude 会根据它修复的每个 P1 和 P2 的失败场景编写回归测试，review-loop 会证明该测试在修复之前的代码上失败。
 4. **再次审查。** 一个新的审查者只检查本轮的修复和仍未解决的发现项。最多 3 轮。
@@ -214,7 +214,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 ## 测量结果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 173 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 162 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 11 个行为需要实际运行模型：对 P3 到 P5 只询问一次、在任何提问之前先展示报告、把每个步骤都留在待办清单中并为每个跳过的步骤写下原因、为每个修复的 P1 和 P2 编写回归测试、为每个发现项标明 measured、inferred 或 guessed、说明如何确认修复有效、在你提出异议时重新核实发现项、为反复出现的同类发现项建议设为规则、在无人值守运行中不提任何问题、用你选择的模型启动审查者、报告在原因不明时添加的代码。最后一个行为在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一个 fixture，前两个行为在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手动运行记录。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 182 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 171 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 11 个行为需要实际运行模型：对 P3 到 P5 只询问一次、在任何提问之前先展示报告、把每个步骤都留在待办清单中并为每个跳过的步骤写下原因、为每个修复的 P1 和 P2 编写回归测试、为每个发现项标明 measured、inferred 或 guessed、说明如何确认修复有效、在你提出异议时重新核实发现项、为反复出现的同类发现项建议设为规则、在无人值守运行中不提任何问题、用你选择的模型启动审查者、报告在原因不明时添加的代码。最后一个行为在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一个 fixture，前两个行为在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手动运行记录。
 
 检测基准测试给审查者一些改动，这些改动放在名称看不出是测试的临时仓库中。[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中有 12 个各植入一个 bug 的改动和 6 个干净的改动。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) 中有 10 个更难的 bug，以及 6 个看起来可疑的干净改动。这些更难的 bug 包括：只有查看 diff 没有改动的文件才能发现的 bug、只有顺着四个文件追下去才能发现的 bug、藏在 183 行 diff 中的 bug、两次搜索之间的竞态、在异步写入读取之前就被清空的缓冲区，以及在错误路径上没有释放的锁。结果如下，每个用例运行 3 次，常规组于 2026-10-25 运行，困难组于 2026-10-26 运行：
 
@@ -289,7 +289,7 @@ review-loop 本身不发起任何网络请求。Claude 和审查者读取 diff�
 
 ## 限制
 
-- review-loop 只从 `package.json` 的 scripts 中识别检查。
+- review-loop 按顺序从 `package.json` 的 scripts、Makefile 的目标、Go、Rust 和已配置的 Python 工具（pytest、ruff、mypy）中识别检查，并且只看仓库根目录。
 - 每个检查最多运行 5 分钟，所有检查合计最多运行 9 分钟。
 - 如果没有开启提交门禁，提交前询问只是给 Claude 的指令，而不是保证。
 - 提交门禁只检查 Claude 通过它的 Bash 工具运行的命令。你在自己的终端中输入的提交不会被检查。`git ci` 这样的 git 别名也不会被识别。
