@@ -160,8 +160,8 @@ function mainModel(output) {
   return entries[0]?.[0];
 }
 
-function runClaude(args, timeoutSeconds) {
-  const cwd = realpathSync(mkdtempSync(path.join(tmpdir(), 'notes-')));
+export function runClaude(args, timeoutSeconds, { workDir } = {}) {
+  const cwd = workDir ?? realpathSync(mkdtempSync(path.join(tmpdir(), 'notes-')));
   return new Promise((resolve) => {
     const started = Date.now();
     const child = spawn('claude', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -172,7 +172,7 @@ function runClaude(args, timeoutSeconds) {
     const timer = setTimeout(() => child.kill('SIGTERM'), timeoutSeconds * 1000);
     child.on('close', (code, signal) => {
       clearTimeout(timer);
-      rmSync(cwd, { recursive: true, force: true });
+      if (!workDir) rmSync(cwd, { recursive: true, force: true });
       resolve({ code, signal, stdout, stderr, wallMs: Date.now() - started });
     });
   });

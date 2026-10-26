@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-26T10:51:01.229Z",
+  "model": "opus",
+  "set": "evals/review-loop/triggers/tuning.json",
+  "summary": {
+    "errors": 0,
+    "startedWhenWanted": 4,
+    "wanted": 10,
+    "startedWhenNotWanted": 0,
+    "notWanted": 5
+  },
+  "records": [
+    {
+      "id": "gate-off-ko",
+      "want": true,
+      "prompt": "이 저장소에서 커밋 게이트 꺼줘",
+      "skills": [],
+      "started": false,
+      "wallMs": 9814,
+      "stop": "error_max_turns",
+      "costUsd": 0.070231
+    },
+    {
+      "id": "gate-on-en",
+      "want": true,
+      "prompt": "Turn on the commit gate in this repo.",
+      "skills": [
+        "review-loop:review-loop"
+      ],
+      "started": true,
+      "wallMs": 8027,
+      "stop": "error_max_turns",
+      "costUsd": 0.06734960000000001
+    },
+    {
+      "id": "delegate-ko",
+      "want": true,
+      "prompt": "이 저장소에서는 커밋하기 전에 더 이상 묻지 마",
+      "skills": [],
+      "started": false,
+      "wallMs": 12433,
+      "stop": "error_max_turns",
+      "costUsd": 0.07476440000000001
+    },
+    {
+      "id": "reviewer-ko",
+      "want": true,
+      "prompt": "리뷰어는 앞으로 sonnet으로 돌려줘",
+      "skills": [],
+      "started": false,
+      "wallMs": 11815,
+      "stop": "error_max_turns",
+      "costUsd": 0.0758436
+    },
+    {
+      "id": "reviewer-en",
+      "want": true,
+      "prompt": "From now on run the reviewer on haiku.",
+      "skills": [],
+      "started": false,
+      "wallMs": 9907,
+      "stop": "error_max_turns",
+      "costUsd": 0.0739216
+    },
+    {
+      "id": "unattended-ko",
+      "want": true,
+      "prompt": "이 저장소 리뷰는 전부 무인으로 돌게 설정해줘",
+      "skills": [
+        "review-loop:review-loop"
+      ],
+      "started": true,
+      "wallMs": 9313,
+      "stop": "error_max_turns",
+      "costUsd": 0.0693442
+    },
+    {
+      "id": "summary-ko",
+      "want": true,
+      "prompt": "어젯밤 무인 리뷰에서 뭐 했는지 요약해줘",
+      "skills": [],
+      "started": false,
+      "wallMs": 10007,
+      "stop": "error_max_turns",
+      "costUsd": 0.0767206
+    },
+    {
+      "id": "confirm-ko",
+      "want": true,
+      "prompt": "P2는 고치기 전에 나한테 먼저 물어보게 해줘",
+      "skills": [
+        "review-loop:review-loop"
+      ],
+      "started": true,
+      "wallMs": 7279,
+      "stop": "error_max_turns",
+      "costUsd": 0.11072019999999999
+    },
+    {
+      "id": "skip-en",
+      "want": true,
+      "prompt": "Skip the review just this once, I need to commit this now.",
+      "skills": [],
+      "started": false,
+      "wallMs": 6802,
+      "stop": "error_max_turns",
+      "costUsd": 0.06128220000000001
+    },
+    {
+      "id": "review-ko",
+      "want": true,
+      "prompt": "작업 끝났어, 커밋 전에 리뷰해줘",
+      "skills": [
+        "review-loop:review-loop"
+      ],
+      "started": true,
+      "wallMs": 5557,
+      "stop": "error_max_turns",
+      "costUsd": 0.1084952
+    },
+    {
+      "id": "log-ko",
+      "want": false,
+      "prompt": "최근 커밋 로그 5개 보여줘",
+      "skills": [],
+      "started": false,
+      "wallMs": 6343,
+      "stop": "success",
+      "costUsd": 0.058782400000000005
+    },
+    {
+      "id": "explain-ko",
+      "want": false,
+      "prompt": "src/app.js가 뭐 하는 파일인지 설명해줘",
+      "skills": [],
+      "started": false,
+      "wallMs": 7116,
+      "stop": "error_max_turns",
+      "costUsd": 0.0630116
+    },
+    {
+      "id": "typo-en",
+      "want": false,
+      "prompt": "Fix the typo in README.md.",
+      "skills": [],
+      "started": false,
+      "wallMs": 6485,
+      "stop": "error_max_turns",
+      "costUsd": 0.0613492
+    },
+    {
+      "id": "branch-ko",
+      "want": false,
+      "prompt": "새 브랜치 feat/login 만들어줘",
+      "skills": [],
+      "started": false,
+      "wallMs": 6287,
+      "stop": "success",
+      "costUsd": 0.06413840000000001
+    },
+    {
+      "id": "tests-en",
+      "want": false,
+      "prompt": "What test framework does this project use?",
+      "skills": [],
+      "started": false,
+      "wallMs": 6168,
+      "stop": "error_max_turns",
+      "costUsd": 0.062447800000000005
+    }
+  ]
+}

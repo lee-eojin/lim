@@ -1,0 +1,158 @@
+{
+  "date": "2026-10-26T10:52:13.356Z",
+  "model": "opus",
+  "set": "evals/review-loop/triggers/held-out.json",
+  "summary": {
+    "errors": 0,
+    "startedWhenWanted": 1,
+    "wanted": 8,
+    "startedWhenNotWanted": 0,
+    "notWanted": 6
+  },
+  "records": [
+    {
+      "id": "h-gate-ko",
+      "want": true,
+      "prompt": "훅이 자꾸 커밋을 막아서 귀찮네. 그거 꺼줄래?",
+      "skills": [],
+      "started": false,
+      "wallMs": 7955,
+      "stop": "error_max_turns",
+      "costUsd": 0.0688376
+    },
+    {
+      "id": "h-delegate-en",
+      "want": true,
+      "prompt": "You can commit on your own in this repo after reviews, no need to check with me.",
+      "skills": [
+        "review-loop:review-loop"
+      ],
+      "started": true,
+      "wallMs": 13048,
+      "stop": "error_max_turns",
+      "costUsd": 0.12354760000000001
+    },
+    {
+      "id": "h-model-ko",
+      "want": true,
+      "prompt": "리뷰 돌릴 때 opus 말고 더 싼 모델 써줘",
+      "skills": [],
+      "started": false,
+      "wallMs": 12013,
+      "stop": "error_max_turns",
+      "costUsd": 0.07688880000000001
+    },
+    {
+      "id": "h-unattended-en",
+      "want": true,
+      "prompt": "I'm heading to bed. Review and fix this change overnight without asking me anything.",
+      "skills": [],
+      "started": false,
+      "wallMs": 10544,
+      "stop": "error_max_turns",
+      "costUsd": 0.0662798
+    },
+    {
+      "id": "h-summary-en",
+      "want": true,
+      "prompt": "What happened in the review that ran while I was away?",
+      "skills": [],
+      "started": false,
+      "wallMs": 9067,
+      "stop": "error_max_turns",
+      "costUsd": 0.0782696
+    },
+    {
+      "id": "h-confirm-en",
+      "want": true,
+      "prompt": "Before you fix any P1 or P2 in reviews here, check with me first.",
+      "skills": [],
+      "started": false,
+      "wallMs": 11628,
+      "stop": "error_max_turns",
+      "costUsd": 0.0769876
+    },
+    {
+      "id": "h-skip-ko",
+      "want": true,
+      "prompt": "급해서 그런데 이번만 리뷰 없이 바로 커밋해줘",
+      "skills": [],
+      "started": false,
+      "wallMs": 6567,
+      "stop": "error_max_turns",
+      "costUsd": 0.0619004
+    },
+    {
+      "id": "h-commit-en",
+      "want": true,
+      "prompt": "Looks good, let's commit this.",
+      "skills": [],
+      "started": false,
+      "wallMs": 7772,
+      "stop": "error_max_turns",
+      "costUsd": 0.0649286
+    },
+    {
+      "id": "h-hook-ko",
+      "want": false,
+      "prompt": "husky로 pre-commit hook 설정하는 방법 알려줘",
+      "skills": [],
+      "started": false,
+      "wallMs": 16220,
+      "stop": "success",
+      "costUsd": 0.07667560000000001
+    },
+    {
+      "id": "h-models-ko",
+      "want": false,
+      "prompt": "Sonnet이랑 Opus 차이가 뭐야?",
+      "skills": [
+        "claude-api"
+      ],
+      "started": false,
+      "wallMs": 17875,
+      "stop": "success",
+      "costUsd": 0.0775912
+    },
+    {
+      "id": "h-yesterday-ko",
+      "want": false,
+      "prompt": "어제 내가 커밋한 내용 요약해줘",
+      "skills": [],
+      "started": false,
+      "wallMs": 8313,
+      "stop": "success",
+      "costUsd": 0.06481440000000001
+    },
+    {
+      "id": "h-pr-en",
+      "want": false,
+      "prompt": "Write a pull request description for the last commit.",
+      "skills": [],
+      "started": false,
+      "wallMs": 7410,
+      "stop": "error_max_turns",
+      "costUsd": 0.06787739999999999
+    },
+    {
+      "id": "h-gitignore-en",
+      "want": false,
+      "prompt": "Add node_modules to .gitignore.",
+      "skills": [],
+      "started": false,
+      "wallMs": 8647,
+      "stop": "error_max_turns",
+      "costUsd": 0.0618418
+    },
+    {
+      "id": "h-p1-ko",
+      "want": false,
+      "prompt": "버그 우선순위 P1이랑 P2는 보통 어떻게 나눠?",
+      "skills": [],
+      "started": false,
+      "wallMs": 11471,
+      "stop": "success",
+      "costUsd": 0.0697078
+    }
+  ]
+}

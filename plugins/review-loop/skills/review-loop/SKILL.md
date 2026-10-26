@@ -1,6 +1,6 @@
 ---
 name: review-loop
-description: Reviews uncommitted changes before a commit by running the project's checks, having a fresh reviewer label findings P1 to P5, fixing P1 and P2 with re-review for up to 3 rounds, and asking the user about the rest and before committing. Use when the user wants to commit, wrap up, or review their current changes, or wants review-loop to ask before fixing P2 or P1 findings.
+description: Reviews uncommitted changes before a commit by running the project's checks, having a fresh reviewer label findings P1 to P5, fixing P1 and P2 with re-review for up to 3 rounds, and asking the user about the rest and before committing. Use when the user wants to commit, wrap up, or review their current changes, and, without starting a review, when the user asks to turn the commit gate on or off, stop asking before commits, skip the review just this once, pick the reviewer's model, run reviews unattended, be asked before P2 or P1 findings are fixed, or see what an unattended review did.
 ---
 
 # review-loop
