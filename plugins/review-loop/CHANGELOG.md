@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Added: Gradle and Maven projects run their test task (`./gradlew test` or `./mvnw -B -q test` with the wrapper, otherwise `gradle` or `mvn`), at the root or in a subfolder project, after the project's own scripts and Makefile targets. A Maven module or Gradle subproject runs no build of its own, a wrapper without the executable bit runs through `sh`, and a missing Java is not verified. (#91)
+
 ## 0.8.0 (2026-10-26)
 
 - Added: A change in a subfolder project, such as `web/package.json` or `services/api/go.mod`, runs that project's checks in its folder, up to 4 projects per round, and the report names the folder of each check and the projects left out. (#88)

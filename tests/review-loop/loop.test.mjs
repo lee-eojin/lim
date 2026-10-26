@@ -370,6 +370,61 @@ describe('check detection', () => {
     ]);
   });
 
+  test('gradle and maven projects run their tests through the wrapper when the project has one', () => {
+    assert.deepEqual(commands(projectFolder({ 'build.gradle.kts': '' })), [['test', 'gradle test']]);
+    assert.deepEqual(commands(projectFolder({ 'settings.gradle': '', gradlew: '' })), [['test', 'sh gradlew test']]);
+    assert.deepEqual(commands(projectFolder({ 'pom.xml': '<project/>' })), [['test', 'mvn -B -q test']]);
+    assert.deepEqual(commands(projectFolder({ 'pom.xml': '<project/>', mvnw: '' })), [['test', 'sh mvnw -B -q test']]);
+    assert.deepEqual(commands(projectFolder({ 'pom.xml': '<project/>', Makefile: 'test:\n\tmvn test\n' })), [['test', 'make test']]);
+  });
+
+  test('a module under a parent maven or gradle build runs no build of its own', () => {
+    const parentPom = '<project><modules>\n  <module>core</module>\n</modules></project>';
+    const maven = createRepository({ 'pom.xml': parentPom, mvnw: '#!/bin/sh\nexit 0\n', 'core/pom.xml': '<project/>', 'core/src/A.java': 'class A {}\n' });
+    chmodSync(path.join(maven, 'mvnw'), 0o755);
+    writeFiles(maven, { 'core/src/A.java': 'class A { int b; }\n' });
+    assert.deepEqual(loop(maven, ['start']).checks.map((check) => [check.folder ?? '', check.command]), [['', './mvnw -B -q test']]);
+    const gradle = createRepository({ 'settings.gradle': '', 'app/build.gradle': '', 'app/src/A.java': 'class A {}\n' });
+    writeFiles(gradle, { 'app/src/A.java': 'class A { int b; }\n' });
+    assert.deepEqual(changedProjects(gradle, ['app/src/A.java']), []);
+  });
+
+  test('a nested build with its own gradle settings or a pom no parent lists outside comments and profiles runs its own build', () => {
+    const root = createRepository({
+      'settings.gradle': '', 'samples/demo/settings.gradle': '', 'samples/demo/src/A.java': 'class A {}\n',
+      'pom.xml': '<project><modules><module>core</module><!-- <module>legacy</module> --></modules><profiles><profile><modules><module>extra</module></modules></profile></profiles></project>',
+      'tools/pom.xml': '<project/>', 'tools/src/B.java': 'class B {}\n',
+      'legacy/pom.xml': '<project/>', 'legacy/src/C.java': 'class C {}\n', 'extra/pom.xml': '<project/>', 'extra/src/D.java': 'class D {}\n',
+    });
+    assert.deepEqual(changedProjects(root, ['samples/demo/src/A.java', 'tools/src/B.java', 'legacy/src/C.java', 'extra/src/D.java']), ['extra', 'legacy', 'samples/demo', 'tools']);
+  });
+
+  test('a wrapper without the executable bit runs through sh and a missing java is not verified', () => {
+    const wrapper = '#!/bin/sh\necho\necho "ERROR: JAVA_HOME is not set and no \'java\' command could be found in your PATH."\nexit 1\n';
+    const root = createRepository({ 'settings.gradle': '', gradlew: wrapper, 'src/A.java': 'class A {}\n' });
+    chmodSync(path.join(root, 'gradlew'), 0o644);
+    writeFiles(root, { 'src/A.java': 'class A { int b; }\n' });
+    const started = loop(root, ['start']);
+    assert.deepEqual(started.checks.map((check) => [check.command, check.notInstalled, check.exitCode]), [['sh gradlew test', true, null]]);
+    assert.match(started.checks[0].tail, /not run: java is not installed/);
+    assert.equal(missingProgram(['./mvnw', '-B', '-q', 'test'], 'The operation couldn\'t be completed. Unable to locate a Java Runtime.\n'), 'java');
+    assert.equal(missingProgram(['mvn', '-B', '-q', 'test'], 'The JAVA_HOME environment variable is not defined correctly,\n'), 'java');
+    assert.equal(missingProgram(['./mvnw', '-B', '-q', 'test'], 'The java/javac command does not exist in PATH nor is JAVA_HOME set, so mvnw cannot run.\n'), 'java');
+    assert.equal(missingProgram(['./gradlew', 'test'], 'FAILURE: Build failed with an exception.\n'), null);
+  });
+
+  test('a gradle wrapper runs in its project folder and a failing test is a P1', () => {
+    const wrapper = '#!/bin/sh\necho "BUILD FAILED in $(basename "$(pwd)") for $1" >&2\nexit 1\n';
+    const root = createRepository({ 'api/settings.gradle': '', 'api/gradlew': wrapper, 'api/src/Cart.java': 'class Cart {}\n' });
+    chmodSync(path.join(root, 'api/gradlew'), 0o755);
+    writeFiles(root, { 'api/src/Cart.java': 'class Cart { int total; }\n' });
+    const started = loop(root, ['start']);
+    assert.deepEqual(started.checks.map((check) => [check.folder, check.name, check.command, check.exitCode]), [['api', 'test', './gradlew test', 1]]);
+    assert.match(started.checks[0].tail, /BUILD FAILED in api for test/);
+    const result = loop(root, ['record'], { findings: [] });
+    assert.match(result.report, /api: test \(\.\/gradlew test\) failed/);
+  });
+
   test('python tools run only when the project configures them', () => {
     assert.deepEqual(commands(projectFolder({ 'pyproject.toml': '[project]\nname = "cart"\n', 'main.py': '' })), []);
     const configured = '[project]\nname = "cart"\n\n[tool.pytest.ini_options]\naddopts = "-q"\n\n[tool.ruff.lint]\nselect = ["E"]\n\n[tool.mypy]\nstrict = true\n';
