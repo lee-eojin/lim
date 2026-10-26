@@ -78,7 +78,7 @@ Cada rodada termina com um relatório. O Claude mostra o relatório antes de qua
 
 ```
 Review round 2 of 3 (reviewer: session model)
-Checks: test passed
+Checks: test (npm run test) passed
 
 Resolved since last round:
 - F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal (fixed, inferred: the re-review read the fix)
@@ -120,7 +120,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 Antes do seu commit, o review-loop executa um ciclo curto e para sozinho.
 
-1. **Verificações.** O review-loop executa os scripts `typecheck`, `lint` e `test` do seu `package.json`. Uma verificação que falha, ou um `package.json` que não é um JSON válido, vira um achado P1. Uma verificação que passa do limite de tempo é informada como "não verificada", e não como falha.
+1. **Verificações.** O review-loop executa as verificações `typecheck`, `lint` e `test` que o seu projeto declara: scripts do `package.json`, alvos de um Makefile ou os padrões para Go (`go.mod`), Rust (`Cargo.toml`) e as ferramentas Python que você configura. Uma verificação que falha, ou um `package.json` que não é um JSON válido, vira um achado P1. Uma verificação que passa do limite de tempo, ou cujo programa não está instalado, é informada como "não verificada", e não como falha.
 2. **Revisão nova.** Um agente revisor separado recebe o diff e um resumo de uma linha do que você queria, mas não o raciocínio do Claude sobre a alteração. Ele pode ler o código ao redor para entender o contexto. Ele classifica os achados de P1 a P5. P1 e P2 precisam de evidência: a linha exata, um cenário de falha e o motivo pelo qual nada já impede o problema. Cada achado é rotulado como measured (medido), inferred (deduzido) ou guessed (suposto). Um P1 ou P2 sem evidência, ou um guessed, aparece para você como não verificado em vez de ser corrigido.
 3. **Correção.** O Claude diz o que vai corrigir e depois corrige P1 e P2. Se uma correção precisar de uma decisão de design (mais de uma forma de corrigir, uma mudança de comportamento visível, remover uma funcionalidade, alterar testes), você escolhe primeiro. Se o seu projeto tem um script de test, o Claude escreve um teste de regressão a partir do cenário de falha de cada P1 ou P2 que corrige, e o review-loop mostra que o teste falha no código de antes da correção.
 4. **Nova revisão.** Um revisor novo verifica apenas as correções e os achados que continuam abertos. No máximo 3 rodadas.
@@ -214,7 +214,7 @@ As cinco primeiras configurações valem para um repositório. Para mudar uma, d
 
 ## Medições
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lista 173 comportamentos em seis eixos: `do`, `tell`, `ask`, `silence`, `stop` e `evidence`. Os testes unitários no CI cobrem 162 desses comportamentos, incluindo execuções em repositórios git temporários reais e o hook de commit gate. Os outros 11 precisam de uma execução do modelo: perguntar uma única vez sobre P3 a P5, mostrar o relatório antes de qualquer pergunta, manter cada etapa na lista de tarefas com um motivo para cada etapa pulada, escrever um teste de regressão para cada P1 ou P2 corrigido, rotular cada achado como measured, inferred ou guessed, dizer como se sabe que uma correção funciona, verificar de novo um achado que você contesta, recomendar uma regra para um tipo de achado que continua aparecendo, não perguntar nada em uma execução sem supervisão, iniciar o revisor no modelo que você escolheu e apontar código adicionado sem uma causa conhecida. O último tem uma fixture em [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), e os dois primeiros têm uma execução manual em [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) lista 182 comportamentos em seis eixos: `do`, `tell`, `ask`, `silence`, `stop` e `evidence`. Os testes unitários no CI cobrem 171 desses comportamentos, incluindo execuções em repositórios git temporários reais e o hook de commit gate. Os outros 11 precisam de uma execução do modelo: perguntar uma única vez sobre P3 a P5, mostrar o relatório antes de qualquer pergunta, manter cada etapa na lista de tarefas com um motivo para cada etapa pulada, escrever um teste de regressão para cada P1 ou P2 corrigido, rotular cada achado como measured, inferred ou guessed, dizer como se sabe que uma correção funciona, verificar de novo um achado que você contesta, recomendar uma regra para um tipo de achado que continua aparecendo, não perguntar nada em uma execução sem supervisão, iniciar o revisor no modelo que você escolheu e apontar código adicionado sem uma causa conhecida. O último tem uma fixture em [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), e os dois primeiros têm uma execução manual em [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Um benchmark de detecção dá ao revisor alterações em repositórios temporários cujos nomes não dizem que são um teste. [`evals/review-loop/detection/`](../../evals/review-loop/detection/) tem 12 alterações com um bug plantado em cada uma e 6 alterações limpas. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) tem 10 bugs mais difíceis, como um que só aparece em um arquivo que o diff não toca, um que só aparece seguindo quatro arquivos, um dentro de um diff de 183 linhas, uma condição de corrida entre duas buscas, um buffer esvaziado antes que uma escrita assíncrona o leia e um lock que não é liberado em um caminho de erro, além de 6 alterações limpas que parecem suspeitas. Resultados com 3 execuções por caso, de 2026-10-25 para o conjunto regular e de 2026-10-26 para o conjunto difícil:
 
@@ -289,7 +289,7 @@ O review-loop não faz chamadas de rede próprias. O Claude e o revisor leem o d
 
 ## Limites
 
-- As verificações são detectadas apenas a partir dos scripts do `package.json`.
+- As verificações são detectadas a partir dos scripts do `package.json`, depois dos alvos de um Makefile, depois de Go, Rust e das ferramentas Python configuradas (pytest, ruff, mypy), apenas na raiz do repositório.
 - Cada verificação tem no máximo 5 minutos, e todas as verificações juntas têm no máximo 9 minutos.
 - Sem o commit gate, perguntar antes de um commit é uma instrução para o Claude, e não uma garantia.
 - O commit gate verifica apenas os comandos que o Claude executa pela ferramenta Bash dele. Os commits que você digita no seu próprio terminal não são verificados, e aliases do git como `git ci` não são reconhecidos.

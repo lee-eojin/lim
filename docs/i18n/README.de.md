@@ -78,7 +78,7 @@ Jede Runde endet mit einem Bericht. Claude zeigt ihn vor allem anderen:
 
 ```
 Review round 2 of 3 (reviewer: session model)
-Checks: test passed
+Checks: test (npm run test) passed
 
 Resolved since last round:
 - F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal (fixed, inferred: the re-review read the fix)
@@ -120,7 +120,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 Vor deinem Commit führt review-loop eine kurze Schleife aus und stoppt selbstständig.
 
-1. **Checks.** review-loop führt die Skripte `typecheck`, `lint` und `test` aus deiner `package.json` aus. Ein fehlgeschlagener Check oder eine `package.json` mit ungültigem JSON wird zu einem P1-Finding. Ein Check, der sein Zeitlimit überschreitet, wird als "nicht verifiziert" gemeldet und nicht als fehlgeschlagen.
+1. **Checks.** review-loop führt die Checks `typecheck`, `lint` und `test` aus, die dein Projekt festlegt: Skripte in `package.json`, Makefile-Targets oder die Standards für Go (`go.mod`), Rust (`Cargo.toml`) und die Python-Tools, die du konfigurierst. Ein fehlgeschlagener Check oder eine `package.json` mit ungültigem JSON wird zu einem P1-Finding. Ein Check, der sein Zeitlimit überschreitet oder dessen Programm nicht installiert ist, wird als "nicht verifiziert" gemeldet und nicht als fehlgeschlagen.
 2. **Neues Review.** Ein separater Reviewer-Agent bekommt den Diff und eine einzeilige Zusammenfassung deines Ziels, aber nicht Claudes Überlegungen zu der Änderung. Er kann den umliegenden Code lesen, um den Kontext zu verstehen. Er kennzeichnet Findings mit P1 bis P5. P1 und P2 brauchen Belege: die genaue Zeile, ein Fehlerszenario und eine Begründung, warum nichts Bestehendes den Fehler bereits verhindert. Jedes Finding wird als measured (gemessen), inferred (abgeleitet) oder guessed (vermutet) gekennzeichnet. Ein P1 oder P2 ohne Belege oder mit guessed wird dir als nicht verifiziert gezeigt und nicht behoben.
 3. **Beheben.** Claude sagt, was es beheben wird, und behebt dann P1 und P2. Wenn ein Fix eine Designentscheidung braucht (mehr als ein möglicher Weg, eine sichtbare Verhaltensänderung, das Entfernen eines Features, Änderungen an Tests), entscheidest du zuerst. Wenn dein Projekt ein test-Skript hat, schreibt Claude aus dem Fehlerszenario jedes behobenen P1 oder P2 einen Regressionstest, und review-loop zeigt, dass der Test auf dem Code von vor dem Fix fehlschlägt.
 4. **Erneutes Review.** Ein neuer Reviewer prüft nur die Fixes und die noch offenen Findings. Es gibt höchstens 3 Runden.
@@ -214,7 +214,7 @@ Die ersten fünf Einstellungen gelten für ein Repository. Du änderst eine Eins
 
 ## Gemessen
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 173 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 162 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 11 brauchen einen Lauf mit einem Modell: einmal nach P3 bis P5 fragen, den Bericht vor jeder Frage zeigen, jeden Schritt mit einem Grund für jedes Überspringen in der Todo-Liste behalten, für jedes behobene P1 oder P2 einen Regressionstest schreiben, jedes Finding als measured, inferred oder guessed kennzeichnen, sagen, woher man weiß, dass ein Fix wirkt, ein Finding erneut prüfen, wenn du widersprichst, für eine Art von Finding, die immer wiederkommt, eine Regel empfehlen, in einem unbeaufsichtigten Lauf nichts fragen, den Reviewer auf dem gewählten Modell starten und Code melden, der ohne bekannte Ursache hinzugefügt wurde. Für die letzte gibt es eine Fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), und für die ersten beiden gibt es einen manuellen Lauf in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) listet 182 Verhaltensweisen auf sechs Achsen: do, tell, ask, silence, stop und evidence. Unit-Tests in der CI decken 171 davon ab. Dazu gehören Läufe gegen echte temporäre git-Repositories und gegen den Commit-Gate-Hook. Die übrigen 11 brauchen einen Lauf mit einem Modell: einmal nach P3 bis P5 fragen, den Bericht vor jeder Frage zeigen, jeden Schritt mit einem Grund für jedes Überspringen in der Todo-Liste behalten, für jedes behobene P1 oder P2 einen Regressionstest schreiben, jedes Finding als measured, inferred oder guessed kennzeichnen, sagen, woher man weiß, dass ein Fix wirkt, ein Finding erneut prüfen, wenn du widersprichst, für eine Art von Finding, die immer wiederkommt, eine Regel empfehlen, in einem unbeaufsichtigten Lauf nichts fragen, den Reviewer auf dem gewählten Modell starten und Code melden, der ohne bekannte Ursache hinzugefügt wurde. Für die letzte gibt es eine Fixture in [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), und für die ersten beiden gibt es einen manuellen Lauf in [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Ein Detection-Benchmark gibt dem Reviewer Änderungen in temporären Repositories, deren Namen nicht verraten, dass es ein Test ist. [`evals/review-loop/detection/`](../../evals/review-loop/detection/) enthält 12 Änderungen mit je einem eingebauten Bug und 6 saubere Änderungen. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) enthält 10 schwierigere Bugs, etwa einen, den man nur in einer Datei sieht, die der Diff nicht berührt, einen, den man nur sieht, wenn man vier Dateien folgt, einen in einem 183 Zeilen langen Diff, eine Race Condition zwischen zwei Suchen, einen Buffer, der geleert wird, bevor ein asynchroner Schreibvorgang ihn liest, und einen Lock, der auf einem Fehlerpfad nicht freigegeben wird, dazu 6 saubere Änderungen, die verdächtig aussehen. Ergebnisse mit 3 Läufen pro Fall, vom 2026-10-25 für das normale Set und vom 2026-10-26 für das schwierigere Set:
 
@@ -289,7 +289,7 @@ review-loop sendet selbst keine Netzwerkanfragen. Claude und der Reviewer lesen 
 
 ## Grenzen
 
-- Checks werden nur aus den Skripten in `package.json` erkannt.
+- Checks werden aus den Skripten in `package.json` erkannt, dann aus Makefile-Targets, dann aus Go, Rust und konfigurierten Python-Tools (pytest, ruff, mypy), nur im Wurzelordner des Repositorys.
 - Jeder Check bekommt höchstens 5 Minuten, alle Checks zusammen höchstens 9 Minuten.
 - Ohne Commit-Gate ist die Frage vor einem Commit eine Anweisung an Claude, keine Garantie.
 - Das Commit-Gate prüft nur Befehle, die Claude über sein Bash-Tool ausführt. Commits, die du in deinem eigenen Terminal eingibst, prüft es nicht, und git-Aliase wie `git ci` erkennt es nicht.

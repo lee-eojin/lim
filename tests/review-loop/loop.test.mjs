@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   classify,
   decideNext,
+  detectChecks,
   findWeakening,
   gateDecision,
   gitInvocations,
@@ -17,6 +18,7 @@ import {
   NAMED_KINDS,
   parseReview,
   renderReport,
+  missingProgram,
 } from '../../plugins/review-loop/skills/review-loop/scripts/loop.mjs';
 
 const script = fileURLToPath(new URL('../../plugins/review-loop/skills/review-loop/scripts/loop.mjs', import.meta.url));
@@ -294,10 +296,10 @@ describe('parseReview', () => {
 describe('renderReport', () => {
   test('report shows checks trend and stop reason', () => {
     const report = renderReport({
-      round: 1, maxRounds: 3, checks: [{ name: 'test', exitCode: 0 }],
+      round: 1, maxRounds: 3, checks: [{ name: 'test', command: 'npm run test', exitCode: 0 }],
       counts: [0], decision: 'stop', reason: 'clean', cards: [{ severity: 'P3' }],
     });
-    assert.match(report, /Checks: test passed/);
+    assert.match(report, /Checks: test \(npm run test\) passed/);
     assert.match(report, /Trend \(P1 \+ P2\): 0/);
     assert.match(report, /Stopped: no P1 or P2 left/);
     assert.match(report, /Left for you: P3 1, P4 0, P5 0/);
@@ -334,6 +336,104 @@ describe('renderReport', () => {
     }).split('\n')[0];
     assert.equal(firstLine('sonnet'), 'Review round 1 of 3 (reviewer: sonnet)');
     assert.equal(firstLine('inherit'), 'Review round 1 of 3 (reviewer: session model)');
+  });
+});
+
+describe('check detection', () => {
+  const projectFolder = (files) => {
+    const root = mkdtempSync(path.join(tmpdir(), 'review-loop-checks-'));
+    writeFiles(root, files);
+    return root;
+  };
+  const commands = (root) => detectChecks(root).map(({ name, command }) => [name, command.join(' ')]);
+
+  test('makefile targets are detected as checks and an assignment is not a target', () => {
+    const makefile = 'types: deps\n\ttsc\nlint:\n\teslint .\ntest := unit\n.PHONY: test\n';
+    assert.deepEqual(commands(projectFolder({ Makefile: makefile })), [['typecheck', 'make types'], ['lint', 'make lint']]);
+    assert.deepEqual(commands(projectFolder({ GNUmakefile: 'check-types:\n\ttrue\ntest::\n\ttrue\n' })), [
+      ['typecheck', 'make check-types'], ['test', 'make test'],
+    ]);
+  });
+
+  test('a go module runs go vet and go test', () => {
+    assert.deepEqual(commands(projectFolder({ 'go.mod': 'module example.com/cart\n' })), [
+      ['lint', 'go vet ./...'], ['test', 'go test ./...'],
+    ]);
+  });
+
+  test('a cargo project runs cargo check and cargo test', () => {
+    assert.deepEqual(commands(projectFolder({ 'Cargo.toml': '[package]\nname = "cart"\n' })), [
+      ['typecheck', 'cargo check'], ['test', 'cargo test'],
+    ]);
+  });
+
+  test('python tools run only when the project configures them', () => {
+    assert.deepEqual(commands(projectFolder({ 'pyproject.toml': '[project]\nname = "cart"\n', 'main.py': '' })), []);
+    const configured = '[project]\nname = "cart"\n\n[tool.pytest.ini_options]\naddopts = "-q"\n\n[tool.ruff.lint]\nselect = ["E"]\n\n[tool.mypy]\nstrict = true\n';
+    assert.deepEqual(commands(projectFolder({ 'pyproject.toml': configured })), [
+      ['typecheck', 'mypy .'], ['lint', 'ruff check .'], ['test', 'python3 -m pytest'],
+    ]);
+    assert.deepEqual(commands(projectFolder({ 'pytest.ini': '[pytest]\n', 'ruff.toml': '', 'mypy.ini': '[mypy]\n' })), [
+      ['typecheck', 'mypy .'], ['lint', 'ruff check .'], ['test', 'python3 -m pytest'],
+    ]);
+    assert.deepEqual(commands(projectFolder({ 'setup.cfg': '[tool:pytest]\n', '.ruff.toml': '' })), [
+      ['lint', 'ruff check .'], ['test', 'python3 -m pytest'],
+    ]);
+  });
+
+  test('python tools run through uv run when uv.lock exists', () => {
+    const configured = '[tool.pytest.ini_options]\n[tool.ruff]\n[tool.mypy]\n';
+    assert.deepEqual(commands(projectFolder({ 'pyproject.toml': configured, 'uv.lock': '' })), [
+      ['typecheck', 'uv run --frozen --no-sync mypy .'], ['lint', 'uv run --frozen --no-sync ruff check .'], ['test', 'uv run --frozen --no-sync pytest'],
+    ]);
+  });
+
+  test('a tool uv or python cannot find is read as not installed and other failures are not', () => {
+    const spawnFailure = 'error: Failed to spawn: `pytest`\n  Caused by: No such file or directory (os error 2)\n';
+    assert.equal(missingProgram(['uv', 'run', '--frozen', '--no-sync', 'pytest'], spawnFailure), 'pytest');
+    assert.equal(missingProgram(['uv', 'run', '--frozen', '--no-sync', 'pytest'], 'FAILED tests/test_cart.py::test_total\n'), null);
+    assert.equal(missingProgram(['python3', '-m', 'pytest'], '/usr/bin/python3: No module named pytest\n'), 'pytest');
+    assert.equal(missingProgram(['python3', '-m', 'pytest'], "E   ModuleNotFoundError: No module named 'cart'\n"), null);
+    assert.equal(missingProgram(['make', 'test'], spawnFailure), null);
+  });
+
+  test('mypy runs without a path when the project configures its files', () => {
+    assert.deepEqual(commands(projectFolder({ 'pyproject.toml': '[tool.mypy]\nfiles = ["src"]\n\n[tool.ruff]\n' })), [
+      ['typecheck', 'mypy'], ['lint', 'ruff check .'],
+    ]);
+    assert.deepEqual(commands(projectFolder({ 'mypy.ini': '[mypy]\nfiles = src\n' })), [['typecheck', 'mypy']]);
+    assert.deepEqual(commands(projectFolder({ 'pyproject.toml': '[tool.mypy]\nstrict = true\n\n[tool.other]\nfiles = ["x"]\n' })), [['typecheck', 'mypy .']]);
+    assert.deepEqual(commands(projectFolder({ 'mypy.ini': '[mypy]\nstrict = True\n', 'pyproject.toml': '[tool.mypy]\nfiles = ["src"]\n' })), [['typecheck', 'mypy .']]);
+  });
+
+  test('the first source that declares a check wins', () => {
+    const root = projectFolder({
+      'package.json': JSON.stringify({ scripts: { test: 'node --test' } }),
+      Makefile: 'lint:\n\tgo vet ./...\ntest:\n\tgo test ./...\n',
+      'go.mod': 'module example.com/cart\n',
+      'Cargo.toml': '[package]\nname = "cart"\n',
+    });
+    assert.deepEqual(commands(root), [['typecheck', 'cargo check'], ['lint', 'make lint'], ['test', 'npm run test']]);
+  });
+
+  test('a check whose program is not installed is reported as not verified instead of failing', () => {
+    const bin = mkdtempSync(path.join(tmpdir(), 'review-loop-bin-'));
+    symlinkSync(process.execPath, path.join(bin, 'node'));
+    const gitFolder = execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim();
+    symlinkSync(path.join(gitFolder, 'git'), path.join(bin, 'git'));
+    const withoutGo = { PATH: bin };
+    const root = createRepository({ 'go.mod': 'module example.com/cart\n', 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const started = loop(root, ['start'], undefined, withoutGo);
+    assert.deepEqual(started.checks.map((check) => [check.name, check.notInstalled, check.exitCode]), [
+      ['lint', true, null], ['test', true, null],
+    ]);
+    assert.match(started.checks[1].tail, /not run: go is not installed/);
+    const result = loop(root, ['record'], { findings: [] }, withoutGo);
+    assert.deepEqual([result.decision, result.reason], ['stop', 'clean']);
+    assert.match(result.report, /test \(go test \.\/\.\.\.\) not run because go is not installed \(not verified\)/);
+    assert.deepEqual(loop(root, ['status'], undefined, withoutGo).review.notVerifiedChecks, ['lint', 'test']);
+    assert.deepEqual(loop(root, ['checks'], undefined, withoutGo).notVerified, ['lint', 'test']);
   });
 });
 
@@ -653,7 +753,7 @@ describe('loop.mjs in a git repository', () => {
     assert.equal(started.checks[0].timedOut, true);
     const result = loop(root, ['record'], { findings: [] }, fastTimeout);
     assert.deepEqual([result.decision, result.reason], ['stop', 'clean']);
-    assert.match(result.report, /test timed out \(not verified\)/);
+    assert.match(result.report, /test \(npm run test\) timed out \(not verified\)/);
     assert.deepEqual(loop(root, ['status']).review.notVerifiedChecks, ['test']);
   });
 

@@ -78,7 +78,7 @@ Claude Code가 재시작을 요청하면 재시작합니다. marketplace를 추�
 
 ```
 Review round 2 of 3 (reviewer: session model)
-Checks: test passed
+Checks: test (npm run test) passed
 
 Resolved since last round:
 - F-1 [P1] Coupon total adds the discounted sum on top of the full subtotal (fixed, inferred: the re-review read the fix)
@@ -120,7 +120,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 커밋하기 전에 review-loop는 짧은 루프를 실행하고, 스스로 멈춥니다.
 
-1. **검사.** `package.json`의 `typecheck`, `lint`, `test` 스크립트를 실행합니다. 검사가 실패하거나 `package.json`이 올바른 JSON이 아니면, 그 결과는 P1 지적 사항이 됩니다. 검사가 제한 시간을 넘기면, 실패 대신 "검증되지 않음"(not verified)으로 보고합니다.
+1. **검사.** 프로젝트가 선언한 `typecheck`, `lint`, `test` 검사를 실행합니다. 대상은 `package.json` 스크립트, Makefile 타깃, Go(`go.mod`)와 Rust(`Cargo.toml`)의 기본 명령, 설정해 둔 Python 도구입니다. 검사가 실패하거나 `package.json`이 올바른 JSON이 아니면, 그 결과는 P1 지적 사항이 됩니다. 검사가 제한 시간을 넘기거나 그 프로그램이 설치되어 있지 않으면, 실패 대신 "검증되지 않음"(not verified)으로 보고합니다.
 2. **새 리뷰.** 별도의 리뷰어 에이전트가 diff와, 사용자가 원한 내용을 요약한 한 줄을 받습니다. 이 변경에 대한 Claude의 추론은 받지 않습니다. 리뷰어는 맥락을 파악하기 위해 주변 코드를 읽을 수 있습니다. 리뷰어는 지적 사항에 P1부터 P5까지 등급을 붙입니다. P1과 P2에는 근거가 필요합니다. 근거는 정확한 줄, 실패 시나리오, 기존 장치가 그 실패를 막지 못하는 이유입니다. 지적 사항마다 measured(측정), inferred(추론), guessed(추측) 중 하나를 표시합니다. 근거가 없거나 guessed로 표시된 P1과 P2는 수정하지 않고, 미검증으로 사용자에게 보여 줍니다.
 3. **수정.** Claude가 무엇을 수정할지 먼저 말하고, 그다음 P1과 P2를 수정합니다. 수정에 설계 선택이 필요하면(수정 방법이 둘 이상, 사용자에게 보이는 동작 변경, 기능 제거, 테스트 변경) 사용자가 먼저 선택합니다. 프로젝트에 test 스크립트가 있으면, Claude는 수정하는 P1과 P2마다 실패 시나리오로 회귀 테스트를 작성합니다. review-loop는 그 테스트가 수정 전 코드에서 실패한다는 것을 보여 줍니다.
 4. **재리뷰.** 새 리뷰어가 수정한 부분과 아직 해결되지 않은 지적 사항만 확인합니다. 최대 3라운드까지 진행합니다.
@@ -214,7 +214,7 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 
 ## 측정 결과
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 173개 동작이 있습니다. CI의 단위 테스트가 그중 162개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 11개는 모델 실행이 필요합니다. 그 11개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 같은 종류로 되풀이되는 지적 사항에 규칙 만들기 권하기, 무인 실행에서는 아무것도 묻지 않기, 고른 모델로 리뷰어 시작하기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있고, 처음 두 동작은 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)에 수동 실행 기록이 있습니다.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 182개 동작이 있습니다. CI의 단위 테스트가 그중 171개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 11개는 모델 실행이 필요합니다. 그 11개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 같은 종류로 되풀이되는 지적 사항에 규칙 만들기 권하기, 무인 실행에서는 아무것도 묻지 않기, 고른 모델로 리뷰어 시작하기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있고, 처음 두 동작은 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)에 수동 실행 기록이 있습니다.
 
 탐지 벤치마크는 이름만 봐서는 테스트인지 알 수 없는 임시 저장소에 변경을 만들어 리뷰어에게 줍니다. [`evals/review-loop/detection/`](../../evals/review-loop/detection/)에는 버그를 하나씩 심은 변경 12개와 깨끗한 변경 6개가 있습니다. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/)에는 더 어려운 버그 10개와, 수상해 보이지만 깨끗한 변경 6개가 있습니다. 더 어려운 버그에는 diff가 건드리지 않은 파일을 봐야만 보이는 버그, 파일 네 개를 따라가야만 보이는 버그, 183줄짜리 diff 안에 있는 버그, 두 검색 사이의 경쟁 상태, 비동기 쓰기가 읽기 전에 비워지는 버퍼, 에러 경로에서 풀리지 않고 남은 락 같은 것이 있습니다. 케이스마다 3번씩, 기본 세트는 2026-10-25에, 어려운 세트는 2026-10-26에 실행한 결과입니다.
 
@@ -289,7 +289,7 @@ review-loop는 자체적으로 네트워크 요청을 보내지 않습니다. Cl
 
 ## 제한 사항
 
-- 검사는 `package.json` 스크립트에서만 감지합니다.
+- 검사는 `package.json` 스크립트, Makefile 타깃, Go, Rust, 설정해 둔 Python 도구(pytest, ruff, mypy) 순서로, 저장소 최상위 폴더에서만 감지합니다.
 - 검사 하나는 최대 5분, 모든 검사는 합쳐서 최대 9분까지 실행합니다.
 - 커밋 게이트가 꺼져 있으면, 커밋 전에 묻는 동작은 Claude에게 주는 지시일 뿐입니다. 이 동작은 보장되지 않습니다.
 - 커밋 게이트는 Claude가 Bash 도구로 실행하는 명령만 검사합니다. 사용자가 자신의 터미널에서 직접 입력한 커밋은 검사하지 않습니다. `git ci` 같은 git alias도 인식하지 않습니다.

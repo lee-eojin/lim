@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Added: Checks are detected in Go, Rust, Python, and Makefile projects, not only from `package.json` scripts: Makefile `typecheck`, `lint`, and `test` targets, `go vet` and `go test` for `go.mod`, `cargo check` and `cargo test` for `Cargo.toml`, and pytest, ruff, and mypy when the project configures them (through `uv run --frozen --no-sync` with `uv.lock`). The report names each check's command, and a check whose program is not installed is reported as not verified instead of failing. (#77)
+
 ## 0.6.1 (2026-10-26)
 
 - Fixed: Asking in plain words to turn the commit gate on or off, stop asking before commits, skip the review once, pick the reviewer's model, see what an unattended review did, and similar settings now starts review-loop. On requests written after the new description, it started for 8 of 8 such requests, where the previous description started for 1. (#74)
