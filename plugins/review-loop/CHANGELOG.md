@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.6.1 (2026-10-26)
 
 - Fixed: Asking in plain words to turn the commit gate on or off, stop asking before commits, skip the review once, pick the reviewer's model, see what an unattended review did, and similar settings now starts review-loop. On requests written after the new description, it started for 8 of 8 such requests, where the previous description started for 1. (#74)
 
