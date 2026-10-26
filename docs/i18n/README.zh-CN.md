@@ -214,7 +214,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 ## 测量结果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 186 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 175 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 11 个行为需要实际运行模型：对 P3 到 P5 只询问一次、在任何提问之前先展示报告、把每个步骤都留在待办清单中并为每个跳过的步骤写下原因、为每个修复的 P1 和 P2 编写回归测试、为每个发现项标明 measured、inferred 或 guessed、说明如何确认修复有效、在你提出异议时重新核实发现项、为反复出现的同类发现项建议设为规则、在无人值守运行中不提任何问题、用你选择的模型启动审查者、报告在原因不明时添加的代码。最后一个行为在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一个 fixture，前两个行为在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手动运行记录。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六个维度上的 196 个行为。六个维度是：执行（do）、告知（tell）、询问（ask）、静默（silence）、停止（stop）和证据（evidence）。CI 中的单元测试覆盖其中 185 个行为，包括在真实的临时 git 仓库上运行的测试和针对提交门禁 hook 的测试。其余 11 个行为需要实际运行模型：对 P3 到 P5 只询问一次、在任何提问之前先展示报告、把每个步骤都留在待办清单中并为每个跳过的步骤写下原因、为每个修复的 P1 和 P2 编写回归测试、为每个发现项标明 measured、inferred 或 guessed、说明如何确认修复有效、在你提出异议时重新核实发现项、为反复出现的同类发现项建议设为规则、在无人值守运行中不提任何问题、用你选择的模型启动审查者、报告在原因不明时添加的代码。最后一个行为在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一个 fixture，前两个行为在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手动运行记录。
 
 检测基准测试给审查者一些改动，这些改动放在名称看不出是测试的临时仓库中。[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中有 12 个各植入一个 bug 的改动和 6 个干净的改动。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) 中有 10 个更难的 bug，以及 6 个看起来可疑的干净改动。这些更难的 bug 包括：只有查看 diff 没有改动的文件才能发现的 bug、只有顺着四个文件追下去才能发现的 bug、藏在 183 行 diff 中的 bug、两次搜索之间的竞态、在异步写入读取之前就被清空的缓冲区，以及在错误路径上没有释放的锁。结果如下，每个用例运行 3 次，常规组于 2026-10-25 运行，困难组于 2026-10-26 运行：
 
@@ -289,7 +289,7 @@ review-loop 本身不发起任何网络请求。Claude 和审查者读取 diff�
 
 ## 限制
 
-- review-loop 按顺序从 `package.json` 的 scripts、Makefile 的目标、Go、Rust 和已配置的 Python 工具（pytest、ruff、mypy）中识别检查，并且只看仓库根目录。
+- review-loop 按顺序从 `package.json` 的 scripts、Makefile 的目标、Go、Rust 和已配置的 Python 工具（pytest、ruff、mypy）中识别检查，范围是仓库根目录和改动涉及的子文件夹项目（每轮最多 4 个）。
 - 每个检查最多运行 5 分钟，所有检查合计最多运行 9 分钟。
 - 如果没有开启提交门禁，提交前询问只是给 Claude 的指令，而不是保证。
 - 提交门禁只检查 Claude 通过它的 Bash 工具运行的命令。你在自己的终端中输入的提交不会被检查。通过 `git ci` 这样的 git 别名进行的提交会像 `git commit` 一样被检查。会提交的 shell 别名（`!...`）会先询问你，因为门禁看不到它的内部。用 `git -c alias.ci=commit` 在命令中临时设置的别名不会被识别。
