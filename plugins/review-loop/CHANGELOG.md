@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.6.0 (2026-10-26)
 
 - Added: With a verify feature map (`verify.features.json`) in the repository, `loop start` and `loop next` return its path, the round report names it with its number of entries, and the reviewer can name the map entry a P1 or P2 breaks in `check`. (#32)
 - Added: `loop reproduce --id <id>` reads verify's saved run of that check on the reviewed code. A failed check marks the finding reproduced, the strongest evidence it can have, so a guessed P1 or P2 is no longer unverified; a passed check marks it not reproduced. The report and the cards show it, and reproduced findings come first within each severity. (#32)
