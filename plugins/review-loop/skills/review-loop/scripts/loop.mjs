@@ -1690,7 +1690,7 @@ function reviewVerdict(repository, gateSettings) {
 const SAFE_GIT_SUBCOMMANDS = new Set(['add', 'commit', 'status', 'diff', 'log', 'show']);
 
 export function gateDecision({ cwd, command, projectDir }) {
-  const invocations = gitInvocations(command, cwd);
+  const invocations = gitInvocations(command, cwd).map(resolveInvocation);
   const sessionFolders = [...new Set([cwd, projectDir].filter(Boolean))];
   const strictest = gateVerdicts(invocations, sessionFolders)[0] ?? null;
   if (strictest?.decision !== 'allow') return strictest;
@@ -1722,11 +1722,64 @@ function locateTargets(directories) {
   });
 }
 
+const GATED_SUBCOMMANDS = ['commit', 'push'];
+const ALIAS_DEPTH = 5;
+
+function aliasOf(directory, name) {
+  try {
+    return execFileSync('git', ['config', '--get', `alias.${name}`], { cwd: directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return null;
+  }
+}
+
+export function expandAlias(invocation, lookup, depth = 0) {
+  let { subcommand, args, directories } = invocation;
+  const seen = new Set();
+  while (depth < ALIAS_DEPTH && !GATED_SUBCOMMANDS.includes(subcommand) && !seen.has(subcommand)) {
+    seen.add(subcommand);
+    depth += 1;
+    const expansion = lookup(subcommand);
+    if (!expansion) break;
+    if (expansion.startsWith('!')) {
+      const body = expansion.slice(1);
+      const named = GATED_SUBCOMMANDS.find((name) => new RegExp(`\\b${name}\\b`).test(body));
+      const throughAlias = gitInvocations(body, '.')
+        .map((inner) => expandAlias(inner, lookup, depth))
+        .find((inner) => GATED_SUBCOMMANDS.includes(inner.subcommand) || inner.shellAlias);
+      const mentions = named ?? throughAlias?.subcommand ?? throughAlias?.shellAlias?.mentions;
+      return mentions ? { ...invocation, shellAlias: { name: invocation.subcommand, expansion, mentions } } : invocation;
+    }
+    const [expanded] = gitInvocations(`git ${expansion}`, '.');
+    if (!expanded) break;
+    if (expanded.directories.length !== 1 || expanded.directories[0] !== '.') directories = [null];
+    subcommand = expanded.subcommand;
+    args = [...expanded.args, ...args];
+  }
+  return GATED_SUBCOMMANDS.includes(subcommand) ? { ...invocation, subcommand, args, directories, alias: invocation.subcommand } : invocation;
+}
+
+function resolveInvocation(invocation) {
+  if (GATED_SUBCOMMANDS.includes(invocation.subcommand)) return invocation;
+  const directory = invocation.directories.find((candidate) => candidate && existsSync(candidate));
+  const repository = directory && findRepository(directory);
+  if (!repository || !readGate(repository).enabled) return invocation;
+  return expandAlias(invocation, (name) => aliasOf(directory, name));
+}
+
 function gateVerdicts(invocations, sessionFolders) {
   const verdicts = [];
   const skipped = new Set();
   for (const invocation of invocations) {
-    if (!['commit', 'push'].includes(invocation.subcommand)) continue;
+    if (invocation.shellAlias) {
+      const gated = locateTargets(invocation.directories).some(({ repository }) => repository && readGate(repository).enabled);
+      if (gated) {
+        const { name, mentions } = invocation.shellAlias;
+        verdicts.push(verdict('ask', `review-loop: git ${name} is a shell alias that runs git ${mentions}, so the commit gate cannot check it. Confirm before Claude runs it.`));
+      }
+      continue;
+    }
+    if (!GATED_SUBCOMMANDS.includes(invocation.subcommand)) continue;
     const targets = locateTargets(invocation.directories);
     const ambiguous = new Set(targets.map((target) => target.place)).size > 1;
     const checkedRepositories = new Set();
