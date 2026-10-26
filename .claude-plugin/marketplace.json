@@ -23,7 +23,7 @@
       "name": "verify",
       "source": "./plugins/verify",
       "description": "Prove features by running them: a feature map of commands and expected results, run by a script that decides pass or fail and saves the output as evidence.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "development"
     }
   ]

@@ -2,7 +2,7 @@
 
 All notable changes to verify. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.2.0 (2026-10-26)
 
 - Added: Each run's evidence records `tree` and `treeAfter`, the git tree that `git add -A` would commit before and after the checks, so review-loop can match a run to the code it reviewed. (#32)
 
