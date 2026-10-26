@@ -15,6 +15,8 @@ Needs Node.js 18 or later and git.
 
 Run `/review-loop:review-loop`. Asking Claude to review or commit your changes can also start it, but that depends on the model noticing, so the command is the reliable way.
 
+Asking for a setting in plain words also starts it, without a review: turning the commit gate on or off, not asking before commits, skipping the review once, the reviewer's model, unattended reviews, being asked before P2 or P1 fixes, and what an unattended review did. With claude-opus-5-5, one run per request, and the tools of a normal session, it started for 8 of 8 setting and commit requests and 0 of 6 other requests written after the skill's description and never used to tune it; with the previous description, it started for 1 of those 8. Run it again with `node evals/review-loop/run-triggers.mjs --set evals/review-loop/triggers/held-out.json`.
+
 If a session ends in the middle of a loop, running it again offers to continue where it stopped.
 
 To run it with nobody watching, for example overnight, add "run unattended" after the command, or ask Claude to turn on unattended mode in the repository. Claude then asks nothing: it leaves design choices and P3 to P5 for you, records each choice it makes in the decision ledger, and ends with a summary of what it did and what waits for you.

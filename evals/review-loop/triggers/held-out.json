@@ -1,0 +1,16 @@
+[
+ {"id":"h-gate-ko","want":true,"prompt":"훅이 자꾸 커밋을 막아서 귀찮네. 그거 꺼줄래?"},
+ {"id":"h-delegate-en","want":true,"prompt":"You can commit on your own in this repo after reviews, no need to check with me."},
+ {"id":"h-model-ko","want":true,"prompt":"리뷰 돌릴 때 opus 말고 더 싼 모델 써줘"},
+ {"id":"h-unattended-en","want":true,"prompt":"I'm heading to bed. Review and fix this change overnight without asking me anything."},
+ {"id":"h-summary-en","want":true,"prompt":"What happened in the review that ran while I was away?"},
+ {"id":"h-confirm-en","want":true,"prompt":"Before you fix any P1 or P2 in reviews here, check with me first."},
+ {"id":"h-skip-ko","want":true,"prompt":"급해서 그런데 이번만 리뷰 없이 바로 커밋해줘"},
+ {"id":"h-commit-en","want":true,"prompt":"Looks good, let's commit this."},
+ {"id":"h-hook-ko","want":false,"prompt":"husky로 pre-commit hook 설정하는 방법 알려줘"},
+ {"id":"h-models-ko","want":false,"prompt":"Sonnet이랑 Opus 차이가 뭐야?"},
+ {"id":"h-yesterday-ko","want":false,"prompt":"어제 내가 커밋한 내용 요약해줘"},
+ {"id":"h-pr-en","want":false,"prompt":"Write a pull request description for the last commit."},
+ {"id":"h-gitignore-en","want":false,"prompt":"Add node_modules to .gitignore."},
+ {"id":"h-p1-ko","want":false,"prompt":"버그 우선순위 P1이랑 P2는 보통 어떻게 나눠?"}
+]

@@ -1,0 +1,17 @@
+[
+ {"id":"gate-off-ko","want":true,"prompt":"이 저장소에서 커밋 게이트 꺼줘"},
+ {"id":"gate-on-en","want":true,"prompt":"Turn on the commit gate in this repo."},
+ {"id":"delegate-ko","want":true,"prompt":"이 저장소에서는 커밋하기 전에 더 이상 묻지 마"},
+ {"id":"reviewer-ko","want":true,"prompt":"리뷰어는 앞으로 sonnet으로 돌려줘"},
+ {"id":"reviewer-en","want":true,"prompt":"From now on run the reviewer on haiku."},
+ {"id":"unattended-ko","want":true,"prompt":"이 저장소 리뷰는 전부 무인으로 돌게 설정해줘"},
+ {"id":"summary-ko","want":true,"prompt":"어젯밤 무인 리뷰에서 뭐 했는지 요약해줘"},
+ {"id":"confirm-ko","want":true,"prompt":"P2는 고치기 전에 나한테 먼저 물어보게 해줘"},
+ {"id":"skip-en","want":true,"prompt":"Skip the review just this once, I need to commit this now."},
+ {"id":"review-ko","want":true,"prompt":"작업 끝났어, 커밋 전에 리뷰해줘"},
+ {"id":"log-ko","want":false,"prompt":"최근 커밋 로그 5개 보여줘"},
+ {"id":"explain-ko","want":false,"prompt":"src/app.js가 뭐 하는 파일인지 설명해줘"},
+ {"id":"typo-en","want":false,"prompt":"Fix the typo in README.md."},
+ {"id":"branch-ko","want":false,"prompt":"새 브랜치 feat/login 만들어줘"},
+ {"id":"tests-en","want":false,"prompt":"What test framework does this project use?"}
+]
