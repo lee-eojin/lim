@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.9.0 (2026-10-26)
 
 - Added: Gradle and Maven projects run their test task (`./gradlew test` or `./mvnw -B -q test` with the wrapper, otherwise `gradle` or `mvn`), at the root or in a subfolder project, after the project's own scripts and Makefile targets. A Maven module or Gradle subproject runs no build of its own, a wrapper without the executable bit runs through `sh`, and a missing Java is not verified. (#91)
 
