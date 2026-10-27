@@ -8,7 +8,7 @@
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-Ini adalah terjemahan dari [README bahasa Inggris](../../README.md) per 2026-10-24. Jika keduanya berbeda, README bahasa Inggris yang benar.
+Ini adalah terjemahan dari [README bahasa Inggris](../../README.md) per 2026-10-27. Jika keduanya berbeda, README bahasa Inggris yang benar.
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | Bahasa Indonesia
 
@@ -301,7 +301,7 @@ review-loop tidak melakukan panggilan jaringan sendiri. Claude dan reviewer memb
 - Commit gate hanya memeriksa perintah yang dijalankan Claude melalui tool Bash miliknya. Commit yang kamu ketik di terminalmu sendiri tidak diperiksa. Commit melalui alias git seperti `git ci` diperiksa seperti `git commit`, alias shell (`!...`) yang melakukan commit akan ditanyakan karena gate tidak bisa melihat isinya, dan alias yang diatur langsung dengan `git -c alias.ci=commit` tidak dikenali.
 - Jika kamu memulai Claude Code di folder yang bukan repository, gate tidak bisa memeriksa commit yang repository-nya tidak bisa ia kenali, misalnya setelah `cd "$(...)"`.
 - review-loop me-review semua yang akan dimasukkan oleh `git add -A`, bukan kumpulan perubahan staged yang kamu pilih sendiri.
-- Aturan dan regression test diperiksa di salinan sementara yang berisi file tracked milikmu dan tautan ke `node_modules` di root. File ignored lainnya, seperti `.env` atau `node_modules` bersarang, tidak ada di sana. Karena itu, pemeriksaan yang membutuhkannya melaporkan hasil belum terbukti, atau tertangkap karena alasan yang salah. Claude membaca kegagalannya untuk mengetahui yang mana.
+- Aturan dan regression test diperiksa di salinan sementara yang berisi file tracked milikmu dan tautan ke `node_modules` di root dan di proyek yang berisi temuan dan draf. File ignored lainnya, seperti `.env`, tidak ada di sana. Karena itu, pemeriksaan yang membutuhkannya melaporkan hasil belum terbukti, atau tertangkap karena alasan yang salah. Claude membaca kegagalannya untuk mengetahui yang mana.
 
 ## FAQ
 

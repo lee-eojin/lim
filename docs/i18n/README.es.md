@@ -8,7 +8,7 @@
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-Este documento es una traducción del [README en inglés](../../README.md) en su versión del 2026-10-24. Si los dos documentos son diferentes, el README en inglés es el correcto.
+Este documento es una traducción del [README en inglés](../../README.md) en su versión del 2026-10-27. Si los dos documentos son diferentes, el README en inglés es el correcto.
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | Español | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
@@ -301,7 +301,7 @@ review-loop no hace llamadas de red propias. Claude y el revisor leen el diff, l
 - El commit gate solo comprueba los comandos que Claude ejecuta con su herramienta Bash. Los commits que escribes en tu propia terminal no se comprueban. Un commit a través de un alias de git como `git ci` se comprueba igual que `git commit`, un alias de shell (`!...`) que hace commit genera una pregunta porque el gate no puede ver dentro de él, y un alias definido en línea con `git -c alias.ci=commit` no se reconoce.
 - Si inicias Claude Code en una carpeta que no es un repositorio, el gate no puede comprobar un commit cuyo repositorio no puede identificar, por ejemplo después de `cd "$(...)"`.
 - review-loop revisa todo lo que `git add -A` incluiría, no un conjunto de cambios en stage que eliges a mano.
-- Una regla o un test de regresión se comprueba en una copia temporal que tiene tus archivos rastreados por git y un enlace al `node_modules` de la raíz. Otros archivos ignorados, como `.env` o un `node_modules` anidado, no están ahí, así que una comprobación que los necesita lo informa como no demostrado o como detectado por una razón equivocada. Claude lee el fallo para saber cuál de los dos casos es.
+- Una regla o un test de regresión se comprueba en una copia temporal que tiene tus archivos rastreados por git y enlaces al `node_modules` de la raíz y de los proyectos que contienen el hallazgo y los borradores. Otros archivos ignorados, como `.env`, no están ahí, así que una comprobación que los necesita lo informa como no demostrado o como detectado por una razón equivocada. Claude lee el fallo para saber cuál de los dos casos es.
 
 ## Preguntas frecuentes
 

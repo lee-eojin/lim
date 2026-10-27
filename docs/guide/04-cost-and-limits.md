@@ -97,7 +97,7 @@ To go back:
 
 ## Limits
 
-From the [plugin README](../../plugins/review-loop/README.md#limits-in-v01):
+From the [plugin README](../../plugins/review-loop/README.md#limits):
 
 - Checks run at the repository root and in the subfolder projects the change touches, at most 4 per round. A check whose program is not installed is not verified, not failed. [Page 6](06-other-languages.md) shows both.
 - Each check gets up to 5 minutes, and all checks together, in every folder, up to 9. `LIM_CHECK_TIMEOUT_MS` changes the first. [Pitfalls](05-pitfalls.md) shows a timeout.

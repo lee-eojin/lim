@@ -8,7 +8,7 @@
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-Dies ist eine Übersetzung der [englischen README](../../README.md) auf dem Stand vom 2026-10-24. Wenn sich die beiden unterscheiden, gilt die englische README.
+Dies ist eine Übersetzung der [englischen README](../../README.md) auf dem Stand vom 2026-10-27. Wenn sich die beiden unterscheiden, gilt die englische README.
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | Deutsch | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
@@ -301,7 +301,7 @@ review-loop sendet selbst keine Netzwerkanfragen. Claude und der Reviewer lesen 
 - Das Commit-Gate prüft nur Befehle, die Claude über sein Bash-Tool ausführt. Commits, die du in deinem eigenen Terminal eingibst, prüft es nicht. Ein Commit über einen git-Alias wie `git ci` wird wie `git commit` geprüft, bei einem Shell-Alias (`!...`), der committet, fragt es nach, weil das Gate nicht hineinsehen kann, und einen Alias, der inline mit `git -c alias.ci=commit` gesetzt wird, erkennt es nicht.
 - Wenn du Claude Code in einem Ordner startest, der kein Repository ist, kann das Gate einen Commit nicht prüfen, dessen Repository es nicht erkennen kann, zum Beispiel nach `cd "$(...)"`.
 - review-loop prüft alles, was `git add -A` einschließen würde, und keine von Hand ausgewählte Menge gestagter Änderungen.
-- Eine Regel oder ein Regressionstest wird in einer temporären Kopie geprüft, die deine getrackten Dateien und einen Link auf das `node_modules` im Root enthält. Andere ignorierte Dateien wie `.env` oder ein verschachteltes `node_modules` fehlen dort. Ein Check, der sie braucht, meldet das Ergebnis darum als unbewiesen oder als aus dem falschen Grund erkannt. Claude liest den Fehlschlag, um zu erkennen, welcher Fall vorliegt.
+- Eine Regel oder ein Regressionstest wird in einer temporären Kopie geprüft, die deine getrackten Dateien und Links auf die `node_modules` im Root und in den Projekten enthält, in denen das Finding und die Entwürfe liegen. Andere ignorierte Dateien wie `.env` fehlen dort. Ein Check, der sie braucht, meldet das Ergebnis darum als unbewiesen oder als aus dem falschen Grund erkannt. Claude liest den Fehlschlag, um zu erkennen, welcher Fall vorliegt.
 
 ## FAQ
 

@@ -18,7 +18,7 @@ In each folder it checks, review-loop looks for a `typecheck`, a `lint`, and a `
 | 8 | .NET (`*.sln`, `*.csproj`, `*.fsproj`) | `dotnet test` |
 | 9 | Ruby tools the project uses | rubocop as lint, rspec or `rake test`, through `bundle exec` when a `Gemfile` exists |
 
-So a Go service with a Makefile `lint` target runs `make lint`, not `go vet`, and still runs `go test ./...`, because the Makefile has no `test` target. The [README limits](../../plugins/review-loop/README.md#limits-in-v01) list the exact files each source reads.
+So a Go service with a Makefile `lint` target runs `make lint`, not `go vet`, and still runs `go test ./...`, because the Makefile has no `test` target. The [README limits](../../plugins/review-loop/README.md#limits) list the exact files each source reads.
 
 ## A Go service with a web app in a subfolder
 

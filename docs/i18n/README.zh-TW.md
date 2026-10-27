@@ -8,7 +8,7 @@
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-本文是截至 2026-10-24 的 [英文 README](../../README.md) 的翻譯。如果兩者內容不一致，以英文 README 為準。
+本文是截至 2026-10-27 的 [英文 README](../../README.md) 的翻譯。如果兩者內容不一致，以英文 README 為準。
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | 繁體中文 | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
@@ -301,7 +301,7 @@ review-loop 本身不會發出任何網路請求。Claude 和審查者讀取 dif
 - 提交關卡只檢查 Claude 透過它的 Bash 工具執行的指令。你在自己的終端機中輸入的提交不會被檢查。透過 `git ci` 這類 git 別名進行的提交會像 `git commit` 一樣被檢查。會提交的 shell 別名（`!...`）會先詢問你，因為關卡看不到它的內部。用 `git -c alias.ci=commit` 在指令中臨時設定的別名不會被辨識。
 - 如果你在不是儲存庫的資料夾中啟動 Claude Code，關卡無法檢查它辨識不出儲存庫的提交，例如 `cd "$(...)"` 之後的提交。
 - review-loop 審查 `git add -A` 會包含的所有內容，而不是你手動挑選的一組已暫存變更。
-- 規則和回歸測試在一個暫存副本中檢查。該副本包含你已追蹤的檔案，以及一個指向根目錄 `node_modules` 的連結。其他被忽略的檔案（例如 `.env` 或巢狀的 `node_modules`）不在其中，因此依賴這些檔案的檢查會把規則或測試回報為未證實，或因錯誤的原因被抓到。Claude 會讀取失敗訊息來判斷是哪一種。
+- 規則和回歸測試在一個暫存副本中檢查。該副本包含你已追蹤的檔案，以及指向根目錄和發現項目與草稿所在專案的 `node_modules` 的連結。其他被忽略的檔案（例如 `.env`）不在其中，因此依賴這些檔案的檢查會把規則或測試回報為未證實，或因錯誤的原因被抓到。Claude 會讀取失敗訊息來判斷是哪一種。
 
 ## 常見問題
 

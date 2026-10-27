@@ -8,7 +8,7 @@
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-本文是截至 2026-10-24 的 [英文 README](../../README.md) 的翻译。如果两者内容不一致，以英文 README 为准。
+本文是截至 2026-10-27 的 [英文 README](../../README.md) 的翻译。如果两者内容不一致，以英文 README 为准。
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | 简体中文 | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
@@ -301,7 +301,7 @@ review-loop 本身不发起任何网络请求。Claude 和审查者读取 diff�
 - 提交门禁只检查 Claude 通过它的 Bash 工具运行的命令。你在自己的终端中输入的提交不会被检查。通过 `git ci` 这样的 git 别名进行的提交会像 `git commit` 一样被检查。会提交的 shell 别名（`!...`）会先询问你，因为门禁看不到它的内部。用 `git -c alias.ci=commit` 在命令中临时设置的别名不会被识别。
 - 如果你在不是仓库的文件夹中启动 Claude Code，门禁无法检查它识别不出仓库的提交，例如 `cd "$(...)"` 之后的提交。
 - review-loop 审查 `git add -A` 会包含的所有内容，而不是你手动挑选的一组已暂存改动。
-- 规则和回归测试在一个临时副本中检查。该副本包含你已跟踪的文件，以及一个指向根目录 `node_modules` 的链接。其他被忽略的文件（例如 `.env` 或嵌套的 `node_modules`）不在其中，因此依赖这些文件的检查会把规则或测试报告为未证实，或者因错误的原因被捕获。Claude 会读取失败信息来判断是哪一种。
+- 规则和回归测试在一个临时副本中检查。该副本包含你已跟踪的文件，以及指向根目录和发现项与草稿所在项目的 `node_modules` 的链接。其他被忽略的文件（例如 `.env`）不在其中，因此依赖这些文件的检查会把规则或测试报告为未证实，或者因错误的原因被捕获。Claude 会读取失败信息来判断是哪一种。
 
 ## 常见问题
 
