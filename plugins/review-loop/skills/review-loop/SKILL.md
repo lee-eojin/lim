@@ -66,7 +66,7 @@ When `decision` is `continue`:
    - `caught`: read `withDrafts[].tail` and confirm the failure is the test's own assertion. `missed`: revise the test once and run `loop rule` again. `unproven`: keep the test; the report shows it. If its `reason` says only lint or typecheck failed and the test did not, treat it like `missed`.
    - If the scenario cannot be tested cheaply (it needs a network, a browser, real time, or a large setup), or the test is still `missed`, delete the test and run `loop rule --id <id> --no-test "<reason>"`.
 5. For each finding with `reproduced`, run the same verify check again (`run --id <check>`) after the fix and its test, as the last change to the files before `loop next`. `loop next` reads that run: a reproduced finding whose check did not pass on the fixed code stays open even if the reviewer resolves it.
-6. Run `loop next`. If `status` is `stopped`, show `report` and go to section 5 (Decide). Otherwise go back to section 2 (Review).
+6. Run `loop next`. If `status` is `stopped`, show `report` and go to section 5 (Decide). Otherwise go back to section 2 (Review). If `next` refuses because nothing changed and nothing should (the user kept an `ask` finding as is, or a check fails only because of the environment), run `loop next --unchanged "<why>"`.
 
 When `decision` is `stop`, go to section 5 (Decide).
 
@@ -128,7 +128,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs note --phase <step> --decision "<what 
 ```
 
 - section 1 (Start): continue a loop that is in progress instead of asking, unless the Start steps say to start over; then run `loop start --fresh --unattended` so the new run stays unattended.
-- section 4 (Continue or stop): skip the `ask` step. The script moved those findings to `deferred` with the reason; do not fix them.
+- section 4 (Continue or stop): skip the `ask` step. The script moved those findings to `deferred` with the reason; do not fix them. A `fix` finding whose `note` says to use the fix that changes the least had several possible fixes: use the smallest one and record it with `loop note`.
 - section 5 (Decide): ask nothing and decide nothing. Cards and `deferred` findings stay pending for the user.
 - A rule or regression test draft that is `unproven`: keep it.
 - section 6 (Commit): do not ask about the commit gate; leave it unconfigured. Commit only if `delegation.scope` is `repo` and `pendingDecisions` is empty; otherwise leave the change uncommitted. Never push.

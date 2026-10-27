@@ -43,6 +43,15 @@ Two sessions per scenario. Costs are Claude Code's list-price estimate (`total_c
 
 Files: `results/2026-10-27-run1-*.json` and `results/2026-10-27-run2-*.json`, renamed from the runner's default names (`<date>-<model>-<label>.json`) to keep the two runs apart. All runs together, with one smoke run and one probe session, cost $3.27.
 
+After the fixes in #114 (unattended reviews fix findings and carry deferred ones), one more session of each review scenario, in `results/2026-10-27-claude-opus-5-5-fix-114-final.json`:
+
+| Scenario | Before #114 (runs 1 and 2) | After #114 | Cost |
+|---|---|---|---|
+| `review-with-verify` | 6/12, 5/12 | 11/12 | $0.73 |
+| `failing-check` | 10/11, 8/11 | 11/11 | $0.64 |
+
+In `review-with-verify` the session now reproduced the finding with verify, fixed it, proved it with a regression test that caught the bug on the old code, reran the verify check (pass), and the second review resolved it as measured. The one miss is a tool call before the round report. The `resolved-measured` check in that file was corrected after the run: it had read a `reproduced.status` field the script never writes.
+
 ### What the sessions showed
 
 - **verify works end to end.** Both sessions read the README and `references/feature-map.md`, wrote a map of 7 or 8 checks that covers two decimals, `--symbol`, and both documented errors, ran it, showed the report first, and left the code alone.

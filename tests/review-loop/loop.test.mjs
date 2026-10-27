@@ -70,6 +70,10 @@ function commitAll(root) {
   );
 }
 
+function attemptFix(root, attempt = 1) {
+  writeFiles(root, { 'src/attempt.js': `export const attempt = ${attempt};\n` });
+}
+
 function loop(root, args, review, env = {}) {
   const input = review === undefined ? '' : JSON.stringify(review);
   return JSON.parse(execFileSync('node', [script, ...args], {
@@ -685,6 +689,7 @@ describe('loop.mjs in a git repository', () => {
     writeFiles(root, { 'src/cart.js': brokenCart });
     loop(root, ['start']);
     loop(root, ['record'], { findings: [doubledPrice] });
+    attemptFix(root);
     loop(root, ['next']);
 
     const second = loop(root, ['record'], { stillOpen: ['F-1'], findings: [] });
@@ -692,6 +697,7 @@ describe('loop.mjs in a git repository', () => {
     assert.equal(second.ask[0].id, 'F-1');
     assert.match(second.ask[0].note, /first fix did not resolve/);
 
+    attemptFix(root, 2);
     loop(root, ['next']);
     const third = loop(root, ['record'], { stillOpen: ['F-1'], findings: [] });
     assert.deepEqual([third.decision, third.reason], ['stop', 'stuck']);
@@ -921,6 +927,7 @@ describe('loop.mjs in a git repository', () => {
     writeFiles(root, { 'src/cart.js': brokenCart });
     loop(root, ['start']);
     loop(root, ['record'], { findings: [doubledPrice, doubledPrice] });
+    attemptFix(root);
     loop(root, ['next']);
     const second = loop(root, ['record'], { stillOpen: ['F-1'], findings: [doubledPrice] });
     assert.deepEqual(second.ask.map((item) => item.id), ['F-1']);
@@ -2110,6 +2117,13 @@ describe('repeated kinds', () => {
     assert.deepEqual(new Set(tableKinds), NAMED_KINDS);
   });
 
+  test('the reviewer does not count the regression test every fix gets as touching tests', () => {
+    const reviewer = readFileSync(fileURLToPath(new URL('../../plugins/review-loop/agents/reviewer.md', import.meta.url)), 'utf8');
+    const touchesTests = reviewer.split('\n').find((line) => line.startsWith('- `touchesTests`:'));
+    assert.match(touchesTests, /an existing test, snapshot, or threshold/);
+    assert.match(touchesTests, /Adding a new test does not count/);
+  });
+
   test('status lists the most repeated kinds and leaves out failing checks', () => {
     const failing = 'node -e "process.exit(1)"';
     const root = brokenCartRepository({ 'package.json': JSON.stringify({ scripts: { lint: failing, test: failing } }) });
@@ -2126,8 +2140,10 @@ describe('repeated kinds', () => {
 
 describe('unattended runs', () => {
   const namingCard = { severity: 'P3', file: 'src/cart.js', title: 'Name total as sumPrices' };
-  const designChoice = { ...doubledPrice, title: 'Pick a rounding rule', quote: 'items.reduce', multipleFixes: true };
+  const designChoice = { ...doubledPrice, title: 'Pick a rounding rule', quote: 'items.reduce', behaviorChange: true };
   const savedState = (root) => JSON.parse(readFileSync(path.join(root, '.git', 'lim', 'review-loop', 'state.json'), 'utf8'));
+  const ledgerOf = (root) => readFileSync(path.join(root, '.git', 'lim', 'review-loop', 'ledger.jsonl'), 'utf8')
+    .trim().split('\n').map((line) => JSON.parse(line));
   const commit = (root) => gateDecision({ cwd: root, command: 'git commit -m "feat: cart"' });
 
   function brokenRepository() {
@@ -2166,7 +2182,7 @@ describe('unattended runs', () => {
     assert.deepEqual([stopped.decision, stopped.reason], ['stop', 'waiting']);
     const resumed = loop(root, ['start']);
     assert.deepEqual([resumed.status, resumed.awaiting, resumed.unattended], ['in-progress', 'decisions', false]);
-    assert.deepEqual(resumed.stillOpen.map((item) => [item.id, item.deferredReason]), [['F-1', 'multipleFixes']]);
+    assert.deepEqual(resumed.stillOpen.map((item) => [item.id, item.deferredReason]), [['F-1', 'behaviorChange']]);
     assert.deepEqual(resumed.cards.map((item) => item.id), ['F-2']);
     assert.equal(savedState(root).unattended, false);
     assert.equal(loop(root, ['decide', '--id', 'F-1', '--choice', 'once']).choice, 'once');
@@ -2178,9 +2194,9 @@ describe('unattended runs', () => {
     const first = loop(flagged, ['record'], { findings: [designChoice, doubledPrice] });
     assert.deepEqual([first.decision, first.ask], ['continue', []]);
     assert.deepEqual(first.fix.map((item) => item.title), ['Price is doubled']);
-    assert.deepEqual(first.deferred.map((item) => [item.id, item.deferredReason]), [['F-2', 'multipleFixes']]);
+    assert.deepEqual(first.deferred.map((item) => [item.id, item.deferredReason]), [['F-2', 'behaviorChange']]);
     assert.match(first.report, /Waiting for you \(not fixed in an unattended run\):\n- F-2 \[P2\] src\/cart\.js:1 Pick a rounding rule/);
-    assert.match(first.report, /waiting because: multipleFixes/);
+    assert.match(first.report, /waiting because: behaviorChange/);
 
     const confirming = brokenRepository();
     loop(confirming, ['confirm', '--severity', 'P2']);
@@ -2192,6 +2208,7 @@ describe('unattended runs', () => {
     const retried = brokenRepository();
     loop(retried, ['start', '--unattended']);
     loop(retried, ['record'], { findings: [doubledPrice] });
+    attemptFix(retried);
     loop(retried, ['next']);
     const second = loop(retried, ['record'], { stillOpen: ['F-1'], findings: [] });
     assert.deepEqual([second.reason, second.ask], ['waiting', []]);
@@ -2232,7 +2249,7 @@ describe('unattended runs', () => {
     assert.deepEqual(loop(root, ['unattended', '--on']).deferred, ['F-2']);
     const resumed = loop(root, ['start']);
     assert.deepEqual([resumed.unattended, resumed.ask, resumed.fix.map((item) => item.id)], [true, [], ['F-1']]);
-    assert.equal(resumed.deferred[0].deferredReason, 'multipleFixes');
+    assert.equal(resumed.deferred[0].deferredReason, 'behaviorChange');
 
     const switched = brokenRepository();
     loop(switched, ['start']);
@@ -2273,12 +2290,12 @@ describe('unattended runs', () => {
     assert.equal(summary.since, savedState(root).startedAt);
     assert.deepEqual(summary.events.map((entry) => entry.event), ['record', 'record', 'note']);
     assert.deepEqual(summary.events[1].resolved.map((item) => item.id), ['F-1']);
-    assert.deepEqual(summary.waiting.deferred.map((item) => [item.id, item.reason]), [['F-2', 'multipleFixes']]);
+    assert.deepEqual(summary.waiting.deferred.map((item) => [item.id, item.reason]), [['F-2', 'behaviorChange']]);
     assert.deepEqual(summary.waiting.pendingDecisions.map((item) => item.id), ['F-3']);
     assert.equal(summary.waiting.gateNotConfigured, true);
     assert.match(summary.report, /Resolved F-1 \[P2\] Price is doubled/);
     assert.match(summary.report, /Note \(decide\): left F-3 pending\. Why: nobody to ask/);
-    assert.match(summary.report, /Waiting for you:\n- F-2 \[P2\] src\/cart\.js:1 Pick a rounding rule \(not fixed: multipleFixes\)/);
+    assert.match(summary.report, /Waiting for you:\n- F-2 \[P2\] src\/cart\.js:1 Pick a rounding rule \(not fixed: behaviorChange\)/);
     assert.match(summary.report, /- Decide F-3 \[P3\]/);
 
     assert.deepEqual(loop(root, ['summary', '--since', '2999-01-01T00:00:00Z']).events, []);
@@ -2329,6 +2346,142 @@ describe('unattended runs', () => {
     const { waiting } = loop(root, ['summary']);
     assert.deepEqual(waiting.deferred.map((item) => [item.id, item.severity]), [['F-2', 'P2']]);
     assert.deepEqual(waiting.pendingDecisions.map((item) => [item.id, item.severity]), [['F-3', 'P3']]);
+  });
+
+  test('the next reviewer gets the deferred findings and a deferred finding it resolves leaves the waiting list', () => {
+    const root = brokenRepository();
+    const currency = { ...designChoice, severity: 'P1', title: 'Pick a currency', quote: 'item.price' };
+    loop(root, ['start', '--unattended']);
+    loop(root, ['record'], { findings: [doubledPrice, designChoice, currency] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    const { openPath } = loop(root, ['next']);
+    assert.deepEqual(JSON.parse(readFileSync(openPath, 'utf8')).map((item) => item.id), ['F-1', 'F-2', 'F-3']);
+
+    const second = loop(root, ['record'], { resolved: ['F-1', 'F-2'], stillOpen: ['F-3'], findings: [] });
+    assert.deepEqual([second.decision, second.reason], ['stop', 'waiting']);
+    assert.match(second.report, /Resolved since last round:\n- F-2 \[P2\] Pick a rounding rule \(fixed, inferred: the re-review read the fix\)\n/);
+    assert.match(second.report, /\n- F-1 \[P2\] Price is doubled \(fixed/);
+    assert.match(second.report, /Stopped: nothing left to fix without you; 1 P1 or P2 waiting for you/);
+    const { review } = loop(root, ['status']);
+    assert.deepEqual(review.deferred.map((item) => [item.id, item.reason]), [['F-3', 'behaviorChange']]);
+    assert.deepEqual(review.pendingDecisions, ['F-3']);
+    const { waiting, report } = loop(root, ['summary']);
+    assert.deepEqual(waiting.deferred.map((item) => item.id), ['F-3']);
+    assert.match(report, /Resolved F-2 \[P2\] Pick a rounding rule/);
+  });
+
+  test('a deferred failing check stays one finding while it fails and is resolved once it passes', () => {
+    const failsWhileBroken = `node -e "process.exit(require('fs').readFileSync('src/cart.js', 'utf8').includes('* 2') ? 1 : 0)"`;
+    const hardCoded = { ...doubledPrice, file: 'src/attempt.js', title: 'Attempt is hard-coded', quote: 'export const attempt = 1;' };
+    const deferredCheck = () => {
+      const root = createRepository({ 'package.json': JSON.stringify({ scripts: { test: failsWhileBroken } }), 'src/cart.js': correctCart });
+      writeFiles(root, { 'src/cart.js': brokenCart });
+      loop(root, ['start', '--unattended']);
+      assert.equal(loop(root, ['record'], { findings: [] }).fix[0].fromChecks, true);
+      attemptFix(root);
+      loop(root, ['next']);
+      const second = loop(root, ['record'], { findings: [hardCoded] });
+      assert.deepEqual([second.fix.map((item) => item.id), second.deferred.map((item) => item.id)], [['F-2'], ['F-1']]);
+      return root;
+    };
+
+    const stillFailing = deferredCheck();
+    attemptFix(stillFailing, 2);
+    loop(stillFailing, ['next']);
+    const third = loop(stillFailing, ['record'], { resolved: ['F-2'], findings: [] });
+    assert.deepEqual([third.decision, third.reason], ['stop', 'waiting']);
+    assert.deepEqual(loop(stillFailing, ['status']).review.deferred.map((item) => item.id), ['F-1']);
+
+    const passing = deferredCheck();
+    attemptFix(passing, 2);
+    writeFiles(passing, { 'src/cart.js': correctCart });
+    loop(passing, ['next']);
+    const fixed = loop(passing, ['record'], { resolved: ['F-2'], findings: [] });
+    assert.deepEqual([fixed.decision, fixed.reason], ['stop', 'clean']);
+    assert.match(fixed.report, /- F-1 \[P1\] .*\(fixed, measured: .* no longer fails\)/);
+    assert.deepEqual(loop(passing, ['status']).review.deferred, []);
+  });
+
+  test('next refuses when nothing changed since the review and does not count it as a fix attempt', () => {
+    const root = createRepository({ 'package.json': JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } }), 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start', '--unattended']);
+    loop(root, ['record'], { findings: [] });
+    assert.throws(() => loop(root, ['next']), /nothing changed since round 1's review; fix the findings, then run next/);
+    const { review } = loop(root, ['status']);
+    assert.deepEqual([review.round, review.awaiting, review.counts], [1, 'fix', [1]]);
+    assert.deepEqual(review.deferred, []);
+    assert.equal(savedState(root).open[0].attempts, 0);
+  });
+
+  test('an unattended run fixes a finding whose only open question is which fix to use with the smallest one', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start', '--unattended']);
+    const first = loop(root, ['record'], { findings: [{ ...doubledPrice, multipleFixes: true }, { ...designChoice, line: 2 }] });
+    assert.deepEqual(first.fix.map((item) => [item.id, item.note]), [['F-1', 'unattended: use the fix that changes the least, and record the choice with loop note']]);
+    assert.deepEqual(first.deferred.map((item) => [item.id, item.deferredReason]), [['F-2', 'behaviorChange']]);
+  });
+
+  test('next --unchanged reviews the unchanged tree again and logs why and still counts the attempt', () => {
+    const root = createRepository({ 'package.json': JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } }), 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    assert.throws(() => loop(root, ['next']), /run next --unchanged \\?"<why>\\?" when nothing should change/);
+    assert.throws(() => loop(root, ['next', '--unchanged']), /nothing changed since round 1's review/);
+
+    const second = loop(root, ['next', '--unchanged', 'the test needs a database this machine lacks']);
+    assert.deepEqual([second.status, second.round], ['review', 2]);
+    const event = ledgerOf(root).findLast((entry) => entry.event === 'next');
+    assert.equal(event.unchanged, 'the test needs a database this machine lacks');
+    assert.match(loop(root, ['record'], { findings: [] }).ask[0].note, /first fix did not resolve/);
+
+    loop(root, ['next', '--unchanged', 'still no database']);
+    const third = loop(root, ['record'], { findings: [] });
+    assert.deepEqual([third.decision, third.reason], ['stop', 'stuck']);
+  });
+
+  test('turning unattended on outside a fix round leaves ask findings and their notes as they are', () => {
+    const root = brokenRepository();
+    const choice = { ...doubledPrice, line: 2, title: 'Pick a total helper', quote: 'export const total', multipleFixes: true };
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [designChoice, choice, doubledPrice] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    assert.deepEqual(loop(root, ['unattended', '--on']).deferred, []);
+    const asking = savedState(root).open.filter((item) => item.route !== 'fix' || item.note);
+    assert.deepEqual(asking.map((item) => [item.title, item.route, item.note]), [
+      ['Pick a rounding rule', 'ask', undefined], ['Pick a total helper', 'ask', undefined],
+    ]);
+
+    const retried = brokenRepository();
+    loop(retried, ['start']);
+    loop(retried, ['record'], { findings: [doubledPrice] });
+    attemptFix(retried);
+    loop(retried, ['next']);
+    loop(retried, ['record'], { stillOpen: ['F-1'], findings: [] });
+    attemptFix(retried, 2);
+    loop(retried, ['next']);
+    loop(retried, ['unattended', '--on']);
+    const [kept] = savedState(retried).open;
+    assert.deepEqual([kept.route, kept.note], ['ask', 'the first fix did not resolve it']);
+  });
+
+  test('going back to attended asks about a finding the unattended run would fix with the smallest change', () => {
+    const choice = { ...doubledPrice, multipleFixes: true };
+    const switchedOff = brokenRepository();
+    loop(switchedOff, ['start', '--unattended']);
+    assert.deepEqual(loop(switchedOff, ['record'], { findings: [choice] }).fix.map((item) => item.id), ['F-1']);
+    loop(switchedOff, ['unattended', '--off']);
+    const resumed = loop(switchedOff, ['start']);
+    assert.deepEqual([resumed.fix, resumed.ask.map((item) => [item.id, item.note])], [[], [['F-1', undefined]]]);
+
+    const resumedAttended = brokenRepository();
+    loop(resumedAttended, ['start', '--unattended']);
+    loop(resumedAttended, ['record'], { findings: [choice] });
+    const attended = loop(resumedAttended, ['start']);
+    assert.deepEqual([attended.unattended, attended.fix, attended.ask.map((item) => item.id)], [false, [], ['F-1']]);
   });
 });
 
@@ -2555,6 +2708,7 @@ describe('verify evidence', () => {
     const event = ledger(root).find((entry) => entry.event === 'reproduce');
     assert.deepEqual([event.id, event.check, event.status], ['F-1', 'cart-total', 'fail']);
     assert.ok(loop(root, ['status']).review.doneSteps.includes('reproduce'));
+    attemptFix(root);
     loop(root, ['next']);
     const second = loop(root, ['record'], { stillOpen: ['F-1'], findings: [] });
     assert.match(second.report, /- F-1 .*\n(?: {2}.*\n)*? {2}reproduced: verify check cart-total failed \(\.git\/lim\/verify\/runs\//);
@@ -2569,6 +2723,7 @@ describe('verify evidence', () => {
     assert.equal(result.status, 'pass');
     assert.match(result.report, /not reproduced: verify check cart-empty passed/);
     assert.deepEqual(loop(root, ['status']).review.open.map((item) => item.id), ['F-1']);
+    attemptFix(root);
     loop(root, ['next']);
     const second = loop(root, ['record'], { stillOpen: ['F-1'], findings: [] });
     assert.match(second.report, /- F-1 .*\n(?: {2}.*\n)*? {2}not reproduced: verify check cart-empty passed\n/);
