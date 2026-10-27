@@ -313,6 +313,12 @@ describe('parseReview', () => {
     assert.deepEqual(parseReview('```json\n{"findings":[]}\n```').findings, []);
   });
 
+  test('rejects a finding that is not an object', () => {
+    for (const finding of ['null', '"F-1"', '[]']) {
+      assert.throws(() => parseReview(`{"findings":[${finding}]}`), /finding 1 is not an object/);
+    }
+  });
+
   test('rejects output without a findings array', () => {
     assert.throws(() => parseReview('{"issues":[]}'), /findings/);
   });
@@ -749,6 +755,70 @@ describe('loop.mjs in a git repository', () => {
     const third = loop(root, ['record'], { stillOpen: ['F-1'], findings: [] });
     assert.deepEqual([third.decision, third.reason], ['stop', 'stuck']);
     assert.equal(third.stillOpen[0].id, 'F-1');
+  });
+
+  test('a card raised again in a later round stays one card', () => {
+    const naming = { severity: 'P3', file: 'src/cart.js', line: 1, category: 'naming', title: 'Name total as sumPrices', quote: 'export const total' };
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPrice, naming] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { resolved: ['F-1'], findings: [naming] });
+    assert.deepEqual(second.cards.map((card) => card.id), ['F-2']);
+    assert.deepEqual(loop(root, ['status']).review.pendingDecisions, ['F-2']);
+  });
+
+  test('an out of scope card raised again after the fix touched its file is looped instead of left as a card', () => {
+    const outside = { ...doubledPrice, severity: 'P1', file: 'src/other.js', quote: 'export const flag = true;' };
+    const root = createRepository({ 'src/cart.js': correctCart, 'src/other.js': 'export const flag = true;\n' });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const first = loop(root, ['record'], { findings: [doubledPrice, outside] });
+    assert.match(first.report, /Noticed outside this round's diff \(not looped, decided at the end\):\n- F-2 \[P1\]/);
+    writeFiles(root, { 'src/cart.js': correctCart, 'src/other.js': 'export const flag = true;\nexport const other = 1;\n' });
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { resolved: ['F-1'], findings: [outside] });
+    assert.deepEqual([second.decision, second.fix.map((item) => [item.id, item.file])], ['continue', [['F-3', 'src/other.js']]]);
+    assert.deepEqual(loop(root, ['status']).review.pendingDecisions, ['F-3']);
+  });
+
+  test('an out of scope P3 card raised again after the fix touched its file is no longer marked outside the diff', () => {
+    const outside = { severity: 'P3', file: 'src/other.js', line: 1, category: 'naming', title: 'Name flag as enabled', quote: 'export const flag = true;' };
+    const root = createRepository({ 'src/cart.js': correctCart, 'src/other.js': 'export const flag = true;\n' });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPrice, outside] });
+    writeFiles(root, { 'src/cart.js': correctCart, 'src/other.js': 'export const flag = true;\nexport const other = 1;\n' });
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { resolved: ['F-1'], findings: [outside] });
+    assert.deepEqual(second.cards.map((item) => [item.id, Boolean(item.outOfScope)]), [['F-3', false]]);
+  });
+
+  test('a card raised again at a blocking severity is looped and leaves no card behind', () => {
+    const naming = { severity: 'P3', file: 'src/cart.js', line: 1, category: 'naming', title: 'Name total as sumPrices', quote: 'export const total' };
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPrice, naming] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    const raised = { ...naming, severity: 'P2', scenario: 'a caller reads total as a single price', whyNotPrevented: 'no lint rule on names' };
+    const second = loop(root, ['record'], { resolved: ['F-1'], findings: [raised] });
+    assert.deepEqual(second.fix.map((item) => [item.id, item.severity]), [['F-3', 'P2']]);
+    assert.deepEqual(loop(root, ['status']).review.pendingDecisions, ['F-3']);
+  });
+
+  test('start --fresh with nothing to review ends the loop in progress', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPrice] });
+    writeFiles(root, { 'src/cart.js': correctCart });
+    assert.equal(loop(root, ['start', '--fresh']).status, 'nothing-to-review');
+    assert.equal(loop(root, ['start']).status, 'nothing-to-review');
+    assert.equal(loop(root, ['status']).review, null);
   });
 
   test('out of scope findings are not looped', () => {
@@ -1357,12 +1427,21 @@ describe('regression tests', () => {
     writeFiles(root, { 'checks/cart.cjs': totalTest });
     assert.throws(() => loop(root, ['rule', '--id', 'F-2', '--draft', 'checks/cart.cjs']), /not marked as a rule/);
     loop(root, ['next']);
-    assert.throws(() => loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']), /not a P1 or P2 with a scenario that is being fixed/);
+    assert.throws(() => loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']), /not a P1 or P2 that is being fixed/);
 
     const failing = fixing({ files: { 'checks/existing.cjs': 'process.exit(1);\n' }, findings: [] });
     assert.equal(failing.recorded.fix[0].category, 'checks');
     writeFiles(failing.root, { 'checks/cart.cjs': totalTest });
     assert.throws(() => loop(failing.root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']), /not marked as a rule/);
+  });
+
+  test('a P1 or P2 card without a scenario fixed this time only can record why it has no test', () => {
+    const { root, recorded } = fixing({ findings: [{ ...doubledPrice, scenario: '' }] });
+    assert.equal(recorded.cards[0].unproven, true);
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'once']);
+    writeFiles(root, { 'checks/cart.cjs': totalTest });
+    assert.throws(() => loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']), /F-1 has no scenario to write a regression test from, record why with --no-test/);
+    assert.equal(loop(root, ['rule', '--id', 'F-1', '--no-test', 'the reviewer gave no scenario']).noTest, 'the reviewer gave no scenario');
   });
 
   test('the commit gate asks for a regression test proven after the loop stopped and blocks it once edited', () => {
@@ -1419,17 +1498,48 @@ describe('subfolder projects', () => {
     assert.match(second.report, /- F-1 \[P1\] web: test fails \(fixed, measured: web: npm run test no longer fails\)/);
   });
 
-  test('later rounds run only the subfolder projects the fixes touched', () => {
+  test('later rounds run the subfolder projects the fixes touched or that have an open failing check', () => {
     const root = createRepository({
       'api/package.json': failing, 'api/index.js': '', 'web/package.json': failing, 'web/index.js': '',
+      'lib/package.json': passing, 'lib/index.js': '',
     });
-    writeFiles(root, { 'api/index.js': 'export {};\n', 'web/index.js': 'export {};\n' });
+    writeFiles(root, { 'api/index.js': 'export {};\n', 'web/index.js': 'export {};\n', 'lib/index.js': 'export {};\n' });
     loop(root, ['start']);
     assert.equal(loop(root, ['record'], { findings: [] }).fix.length, 2);
     writeFiles(root, { 'web/package.json': passing });
+    assert.deepEqual(labels(loop(root, ['next']).checks), [['web', 'test', 0], ['api', 'test', 1]]);
+    const second = loop(root, ['record'], { findings: [] });
+    assert.deepEqual(second.ask.map((item) => [item.file, item.note]), [['api: npm run test', 'the first fix did not resolve it']]);
+  });
+
+  test('a failing check in a subfolder project runs again while it is open even when the fix is outside that folder', () => {
+    const needsShared = manifest('node -e "process.exit(require(\'fs\').existsSync(\'../shared.json\') ? 0 : 1)"');
+    const root = createRepository({ 'web/package.json': needsShared, 'web/index.js': '' });
+    writeFiles(root, { 'web/index.js': 'export {};\n' });
+    loop(root, ['start']);
+    assert.equal(loop(root, ['record'], { findings: [] }).fix[0].file, 'web: npm run test');
+    writeFiles(root, { 'shared.json': '{}\n' });
     assert.deepEqual(labels(loop(root, ['next']).checks), [['web', 'test', 0]]);
     const second = loop(root, ['record'], { findings: [] });
-    assert.deepEqual(second.ask.map((item) => [item.file, item.note]), [['api: npm run test', 'its check did not run, so the fix is not verified']]);
+    assert.deepEqual([second.decision, second.reason], ['stop', 'clean']);
+    assert.match(second.report, /- F-1 \[P1\] web: test fails \(fixed, measured: web: npm run test no longer fails\)/);
+  });
+
+  test('the projects a fix touched run before the projects of open failing checks when more than four need checks', () => {
+    const folders = ['a', 'b', 'c', 'd', 'z'];
+    const root = createRepository(Object.fromEntries(folders.flatMap((folder) => [
+      [`${folder}/package.json`, failing], [`${folder}/index.js`, ''],
+    ])));
+    writeFiles(root, Object.fromEntries(['a', 'b', 'c', 'd'].map((folder) => [`${folder}/index.js`, 'export {};\n'])));
+    loop(root, ['start']);
+    assert.equal(loop(root, ['record'], { findings: [] }).fix.length, 4);
+    writeFiles(root, { 'z/index.js': 'export {};\n' });
+    const second = loop(root, ['next']);
+    assert.deepEqual(labels(second.checks), [['z', 'test', 1], ['a', 'test', 1], ['b', 'test', 1], ['c', 'test', 1]]);
+    assert.deepEqual(second.checksLeftOut, ['d']);
+    const recorded = loop(root, ['record'], { findings: [] });
+    assert.ok(recorded.fix.some((item) => item.file === 'z: npm run test'));
+    assert.match(recorded.report, /; not run: more than 4 projects to check \(d\)\n/);
   });
 
   test('at most four subfolder projects run per round and the report names the ones left out', () => {
@@ -1441,7 +1551,7 @@ describe('subfolder projects', () => {
     const started = loop(root, ['start']);
     assert.deepEqual(started.checks.map((check) => check.folder), ['a', 'b', 'c', 'd']);
     assert.deepEqual(started.checksLeftOut, ['e', 'f']);
-    assert.match(loop(root, ['record'], { findings: [] }).report, /d: test \(npm run test\) passed; not run: more than 4 projects changed \(e, f\)\n/);
+    assert.match(loop(root, ['record'], { findings: [] }).report, /d: test \(npm run test\) passed; not run: more than 4 projects to check \(e, f\)\n/);
     assert.deepEqual(loop(root, ['checks']).checksLeftOut, ['e', 'f']);
   });
 
@@ -2070,7 +2180,7 @@ describe('kept findings', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     writeFiles(root, { 'src/cart.js': brokenCart });
     keepInFirstReview(root, [scaledPrice]);
-    writeFiles(root, { 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': `${correctCart}export const tax = 0.1;\n` });
     loop(root, ['start', '--fresh']);
     const result = loop(root, ['record'], { findings: [scaledPrice] });
     assert.deepEqual(result.cards, []);
@@ -2086,6 +2196,42 @@ describe('kept findings', () => {
     const result = loop(root, ['record'], { findings: [{ ...scaledPrice, quote: 'item.price * 3' }] });
     assert.deepEqual(result.cards.map((card) => card.title), ['Explain the factor']);
     assert.doesNotMatch(result.report, /kept before/);
+  });
+
+  test('an ask finding kept during the loop is not retried or stuck and the reviewer raising it again is not a new finding', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    assert.deepEqual(loop(root, ['record'], { findings: [{ ...doubledPrice, behaviorChange: true }] }).ask.map((item) => item.id), ['F-1']);
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'keep']);
+    loop(root, ['next', '--unchanged', 'the user kept F-1 as is']);
+    const second = loop(root, ['record'], { findings: [doubledPrice] });
+    assert.deepEqual([second.decision, second.reason, second.ask, second.stillOpen, second.cards], ['stop', 'clean', [], [], []]);
+    assert.match(second.report, /\nKept as is at your request:\n- F-1 \[P2\] src\/cart\.js:1 Price is doubled\n/);
+    assert.match(second.report, /\nStopped: no P1 or P2 left to fix; the kept ones are listed above\n/);
+    assert.deepEqual(loop(root, ['status']).review.pendingDecisions, []);
+  });
+
+  test('a failing check kept during the loop still runs, stays listed, and its decision can change', () => {
+    const root = createRepository({
+      'web/package.json': JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } }), 'web/index.js': '', 'src/cart.js': correctCart,
+    });
+    writeFiles(root, { 'web/index.js': 'export {};\n', 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const first = loop(root, ['record'], { findings: [doubledPrice] });
+    assert.deepEqual(first.fix.map((item) => [item.id, item.file]), [['F-1', 'web: npm run test'], ['F-2', 'src/cart.js']]);
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'keep']);
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    const ignored = { ...doubledPrice, title: 'Total ignores quantity', quote: 'sum + item.price' };
+    assert.equal(loop(root, ['record'], { resolved: ['F-2'], findings: [ignored] }).fix[0].id, 'F-3');
+    writeFiles(root, { 'src/cart.js': `${correctCart}export const quantity = 1;\n` });
+    const third = loop(root, ['next']);
+    assert.deepEqual(third.checks.map((check) => [check.folder, check.exitCode]), [['web', 1]]);
+    const report = loop(root, ['record'], { resolved: ['F-3'], findings: [] }).report;
+    assert.match(report, /\nKept as is at your request:\n- F-1 \[P1\] web: npm run test web: test fails\n/);
+    assert.ok(loop(root, ['status']).review.doneSteps.includes('decide'));
+    assert.equal(loop(root, ['decide', '--id', 'F-1', '--choice', 'once']).choice, 'once');
   });
 
   test('a failing check is still a P1 finding after the user kept it', () => {
@@ -2328,6 +2474,31 @@ describe('unattended runs', () => {
     const continued = loop(switched, ['start', '--unattended']);
     assert.deepEqual([continued.status, continued.unattended, continued.ask], ['in-progress', true, []]);
     assert.deepEqual(continued.deferred.map((item) => item.id), ['F-2']);
+  });
+
+  test('turning unattended on when every finding of a fix round needs your call stops the loop as waiting', () => {
+    const root = brokenRepository();
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [designChoice] });
+    assert.deepEqual(loop(root, ['unattended', '--on']).deferred, ['F-1']);
+    const resumed = loop(root, ['start']);
+    assert.deepEqual([resumed.awaiting, resumed.stillOpen.map((item) => item.id)], ['decisions', ['F-1']]);
+    assert.match(resumed.report, /\nStopped: nothing left to fix without you; 1 P1 or P2 waiting for you\n/);
+    assert.equal(loop(root, ['status']).review.stopped.reason, 'waiting');
+  });
+
+  test('confirm during an unattended fix round defers the findings it reroutes with the confirm setting as the reason', () => {
+    const root = brokenRepository();
+    const missingTax = { ...doubledPrice, severity: 'P1', title: 'Total ignores tax', quote: 'items.reduce' };
+    loop(root, ['start', '--unattended']);
+    loop(root, ['record'], { findings: [doubledPrice, missingTax] });
+    assert.deepEqual(loop(root, ['confirm', '--severity', 'P2']).deferred, ['F-1']);
+    assert.deepEqual(savedState(root).open.map((item) => item.id), ['F-2']);
+    attemptFix(root);
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { resolved: ['F-2'], findings: [] });
+    assert.deepEqual([second.decision, second.reason], ['stop', 'waiting']);
+    assert.deepEqual(loop(root, ['status']).review.deferred.map((item) => [item.id, item.reason]), [['F-1', 'confirm --severity P2']]);
   });
 
   test('note records the phase and decision and why and evidence in the ledger', () => {

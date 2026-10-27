@@ -68,11 +68,11 @@ How to read it:
 
 ## More than 4 projects
 
-Each round runs the root's checks and at most 4 subfolder projects, in name order. Round 1 runs the projects of the whole change, and later rounds only the projects the fixes touched. In `/tmp/sites`, the change bumps a version in five projects, `admin`, `api`, `docs`, `shop`, and `web`, each with a `test` script (the report):
+Each round runs the root's checks and at most 4 subfolder projects. Round 1 runs the projects of the whole change, in name order. Later rounds run the projects the fixes touched first, then the projects of failing checks that are still open. In `/tmp/sites`, the change bumps a version in five projects, `admin`, `api`, `docs`, `shop`, and `web`, each with a `test` script (the report):
 
 ```
 Review round 1 of 3 (reviewer: session model)
-Checks: admin: test (npm run test) passed, api: test (npm run test) passed, docs: test (npm run test) passed, shop: test (npm run test) passed; not run: more than 4 projects changed (web)
+Checks: admin: test (npm run test) passed, api: test (npm run test) passed, docs: test (npm run test) passed, shop: test (npm run test) passed; not run: more than 4 projects to check (web)
 
 Trend (P1 + P2): 0
 Stopped: no P1 or P2 left in this change
