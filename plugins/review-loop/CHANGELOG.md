@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.11.1 (2026-10-27)
 
 - Changed: An unattended run need not show each round report as it goes; it ends with `loop summary`, which lists every round. Headless sessions never showed them, and nobody reads them during the run. (#123)
 - Fixed: The skill says to run each `loop` and verify command alone in its own Bash call. A headless session that appended `; echo` to a verify command was refused by its permission rule and reproduced nothing. It also says to keep `$`, backticks, and `!` out of free-text arguments such as `loop note`, which Claude Code refuses when they could expand. (#123)
