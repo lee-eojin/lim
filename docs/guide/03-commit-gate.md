@@ -4,7 +4,7 @@ The skill tells Claude to ask before every commit. That is an instruction, and a
 
 ## Turn it on
 
-At the end of your first review, Claude asks once whether to turn the gate on for the repository. Or ask for it:
+At the end of your first review, Claude asks once whether to turn the gate on for the repository. Or ask for it in plain words. A request for a setting starts review-loop without starting a review:
 
 ```
 /review-loop:review-loop turn on the commit gate in this repo.
@@ -30,7 +30,7 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"git add -A && git commit -m
 {"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"review-loop: reviewed files or checked rule drafts changed after the last review, for example fixes and rules chosen in the decision step. Commit them without another review?"}}
 ```
 
-That was right after page 2: the F-2 fix and its proven rule changed after the review, so the gate asks you instead of blocking. Every answer below came from the same kind of call in `/tmp/shop`, except the fourth row, which came from `/tmp/slow`, a second example repository whose review had passed with no changes since:
+That was right after page 2: the F-2 fix and its proven rule changed after the review, so the gate asks you instead of blocking. Every answer below came from the same kind of call in `/tmp/shop`, as the example moved on: the F-2 change was committed, the next change added a shipping label, and its review passed with nothing left open.
 
 | Situation | Command Claude runs | Answer | Reason the hook gives (shortened) |
 |---|---|---|---|
@@ -57,7 +57,7 @@ Once you trust the loop in a repository, you can stop being asked:
 $ node "$LOOP" delegate --scope repo
 {
   "scope": "repo",
-  "grantedAt": "2026-10-25T08:04:05.024Z"
+  "grantedAt": "2026-10-27T05:55:42.037Z"
 }
 ```
 
@@ -86,9 +86,9 @@ $ node "$LOOP" gate --skip-once
 
 The gate allowed the next commit (`review skipped once at your request.`), because commits were delegated. Asked about the same commit again before it ran, it allowed it again: the skip lasts until a commit lands. Once that commit was made, the next change was denied (`HEAD moved after the last review started (...)`), and resetting the branch to the commit before did not bring the skip back.
 
-Without delegation, the gate asks instead (`review skipped once at your request. Commit without a review?`). If you answer no, nothing is committed and the skip stays. In `/tmp/slow`, with the gate on, commits not delegated, and a new file the review had not seen, the same commit was asked about twice, and `loop gate` still returned `"skipOnce": true` after the second question. After the commit landed, the next change was denied. A `git reset HEAD~1` back to the unreviewed file did not revive the skip either (`notes.js changed after the last review and were not reviewed.`). A chained command that fails before it reaches `git commit` also keeps the skip for the next try. [Issue #61](https://github.com/lee-eojin/lim/issues/61) tracked the change to this behavior.
+Without delegation, the gate asks instead (`review skipped once at your request. Commit without a review?`). If you answer no, nothing is committed and the skip stays. In `/tmp/shop`, after `loop delegate --scope off` and with a new file the review had not seen, the same commit was asked about twice, and `loop gate` still returned `"skipOnce": true` after the second question. A chained command that fails before it reaches `git commit` also keeps the skip for the next try. [Issue #61](https://github.com/lee-eojin/lim/issues/61) tracked the change to this behavior.
 
-> **Pitfall:** the gate reads the commands Claude's Bash tool runs, nothing else. A commit you type in your own terminal never reaches it, and neither does a git alias such as `git ci`. [Pitfalls](05-pitfalls.md) shows both.
+> **Pitfall:** the gate reads the commands Claude's Bash tool runs, nothing else. A commit you type in your own terminal never reaches it. A git alias such as `git ci` is checked like `git commit`, but an alias set inline with `git -c` is not. [Pitfalls](05-pitfalls.md) shows both.
 
 **If you remember one thing:** the gate is code, so "Claude will ask before committing" stops depending on Claude remembering to.
 
