@@ -327,7 +327,7 @@ describe('gitInvocations', () => {
     assert.deepEqual(directories('cd -- app && git commit -m x'), [path.resolve('/repo/app')]);
     assert.deepEqual(directories('popd && git commit -m x'), [null]);
     assert.deepEqual(directories('pushd +1 && git commit -m x'), [null]);
-    assert.deepEqual(directories('if true; then cd app; fi; git commit -m x'), [path.resolve('/repo'), path.resolve('/repo/app')]);
+    assert.deepEqual(directories('if true; then cd app; fi; git commit -m x'), ['/repo', path.resolve('/repo/app')]);
   });
 
   test('keeps global options and reads --git-dir as the repository it names', () => {
