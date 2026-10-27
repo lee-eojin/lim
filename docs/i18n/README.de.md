@@ -22,7 +22,7 @@ Coding-Agenten schreiben schnell Code. Ihre eigenen Fehler bemerken sie viel sch
 
 **Kommentare, die du immer wieder schreibst, werden zu Regeln.** Wenn du bei einem Finding "eine Regel daraus machen" wählst, entwirft Claude eine Lint-Regel oder einen Test, und review-loop führt den Entwurf gegen den Code von vor dem Fix aus, um zu beweisen, dass er den Fehler erkennt. Ein Bugfix bekommt auf dieselbe Weise einen Regressionstest.
 
-**Bewusst klein.** review-loop fügt einer Session etwa 212 Tokens hinzu. Sein Hook tut nichts, bis du ihn in einem Repository einschaltest. Nichts wird installiert, ohne dass du erfährst, was es ist und wie du es wieder entfernst.
+**Bewusst klein.** review-loop fügt einer Session etwa 275 Tokens hinzu. Sein Hook tut nichts, bis du ihn in einem Repository einschaltest. Nichts wird installiert, ohne dass du erfährst, was es ist und wie du es wieder entfernst.
 
 Forke es, ändere es, mach es zu deinem. Issues und Pull Requests sind willkommen.
 
@@ -239,8 +239,8 @@ Die Tabelle oben ist die Grundlage für das Standardmodell des Reviewers. Im sch
 
 | Teil | Immer aktiv, in jeder Session | Bei jedem Lauf |
 |---|---|---|
-| review-loop-Skill | etwa 140 Tokens | etwa 5.600 Tokens |
-| Reviewer-Agent | etwa 70 Tokens | etwa 1.700 Tokens, dazu der Diff und der Code, den er liest |
+| review-loop-Skill | etwa 210 Tokens | etwa 6.000 Tokens |
+| Reviewer-Agent | etwa 60 Tokens | etwa 1.800 Tokens, dazu der Diff und der Code, den er liest |
 
 Die Kosten des Skills fallen einmal pro Lauf an. Die Kosten des Reviewers fallen einmal pro Runde an, und eine Schleife hat höchstens 3 Runden. Das Reviewer-Modell ändert diese Kosten; die Benchmark-Tabelle oben zeigt sie für jedes Modell. Deine Checks laufen auf deinem Rechner und kosten keine Tokens.
 

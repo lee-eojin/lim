@@ -20,7 +20,7 @@ Coding agents write code fast. They are much worse at noticing what they got wro
 
 **Comments you keep repeating become rules.** When you mark a finding "make it a rule", Claude drafts a lint rule or a test, and review-loop runs it against the code from before the fix to prove that it catches the mistake. A bug fix gets a regression test the same way.
 
-**Small on purpose.** review-loop adds about 212 tokens to a session. Its hook does nothing until you turn it on in a repository. Nothing is installed without telling you what it is and how to remove it.
+**Small on purpose.** review-loop adds about 275 tokens to a session. Its hook does nothing until you turn it on in a repository. Nothing is installed without telling you what it is and how to remove it.
 
 Fork it, change it, make it yours. Issues and pull requests are welcome.
 
@@ -237,8 +237,8 @@ The table above is the basis for the reviewer's default model. On the harder set
 
 | Part | Always on, every session | Each time it runs |
 |---|---|---|
-| review-loop skill | about 140 tokens | about 5,600 tokens |
-| reviewer agent | about 70 tokens | about 1,700 tokens, plus the diff and the code it reads |
+| review-loop skill | about 210 tokens | about 6,000 tokens |
+| reviewer agent | about 60 tokens | about 1,800 tokens, plus the diff and the code it reads |
 
 The skill's cost is paid once per run. The reviewer's cost is paid once per round, and a loop runs at most 3 rounds. The reviewer model changes that cost; the benchmark table above shows it for each model. Your checks run on your machine and cost no tokens.
 

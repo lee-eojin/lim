@@ -22,7 +22,7 @@ Coding agent menulis kode dengan cepat. Namun, mereka jauh lebih buruk dalam men
 
 **Komentar yang terus kamu ulangi menjadi aturan.** Saat kamu menandai sebuah temuan dengan "jadikan aturan", Claude menyusun draf aturan lint atau test, dan review-loop menjalankannya pada kode dari sebelum perbaikan untuk membuktikan bahwa draf itu menangkap kesalahannya. Perbaikan bug mendapat regression test dengan cara yang sama.
 
-**Sengaja dibuat kecil.** review-loop menambahkan sekitar 212 token ke satu sesi. Hook-nya tidak melakukan apa pun sampai kamu menyalakannya di sebuah repository. Tidak ada yang dipasang tanpa memberitahumu apa itu dan cara menghapusnya.
+**Sengaja dibuat kecil.** review-loop menambahkan sekitar 275 token ke satu sesi. Hook-nya tidak melakukan apa pun sampai kamu menyalakannya di sebuah repository. Tidak ada yang dipasang tanpa memberitahumu apa itu dan cara menghapusnya.
 
 Silakan fork, ubah, dan jadikan milikmu. Issue dan pull request dipersilakan.
 
@@ -239,8 +239,8 @@ Tabel di atas menjadi dasar model default reviewer. Pada set lebih sulit, Opus m
 
 | Bagian | Selalu aktif, setiap sesi | Setiap kali berjalan |
 |---|---|---|
-| skill review-loop | sekitar 140 token | sekitar 5.600 token |
-| reviewer agent | sekitar 70 token | sekitar 1.700 token, ditambah diff dan kode yang dibacanya |
+| skill review-loop | sekitar 210 token | sekitar 6.000 token |
+| reviewer agent | sekitar 60 token | sekitar 1.800 token, ditambah diff dan kode yang dibacanya |
 
 Biaya skill dibayar satu kali per eksekusi. Biaya reviewer dibayar satu kali per putaran, dan satu loop berjalan maksimal 3 putaran. Model reviewer mengubah biaya itu; tabel benchmark di atas menunjukkannya untuk tiap model. Pemeriksaanmu berjalan di mesinmu sendiri dan tidak memakan token.
 

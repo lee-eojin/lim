@@ -22,7 +22,7 @@ Coding agent viết code rất nhanh. Nhưng chúng kém hơn nhiều trong vi�
 
 **Những nhận xét bạn cứ phải lặp lại sẽ trở thành quy tắc.** Khi bạn đánh dấu một phát hiện là "biến nó thành một quy tắc", Claude soạn bản nháp một quy tắc lint hoặc một test, và review-loop chạy nó trên code từ trước bản sửa để chứng minh rằng nó bắt được lỗi đó. Một bản sửa bug cũng nhận được một regression test theo cùng cách.
 
-**Nhỏ có chủ đích.** review-loop thêm khoảng 212 token vào một session. Hook của nó không làm gì cho đến khi bạn bật nó trong một repository. Không có gì được cài đặt mà không cho bạn biết nó là gì và cách gỡ nó.
+**Nhỏ có chủ đích.** review-loop thêm khoảng 275 token vào một session. Hook của nó không làm gì cho đến khi bạn bật nó trong một repository. Không có gì được cài đặt mà không cho bạn biết nó là gì và cách gỡ nó.
 
 Hãy fork, chỉnh sửa và biến nó thành của bạn. Chúng tôi hoan nghênh issue và pull request.
 
@@ -239,8 +239,8 @@ Bảng ở trên là cơ sở cho model mặc định của reviewer. Trên bộ
 
 | Thành phần | Luôn bật, trong mọi session | Mỗi lần chạy |
 |---|---|---|
-| skill review-loop | khoảng 140 token | khoảng 5.600 token |
-| reviewer agent | khoảng 70 token | khoảng 1.700 token, cộng với diff và code mà nó đọc |
+| skill review-loop | khoảng 210 token | khoảng 6.000 token |
+| reviewer agent | khoảng 60 token | khoảng 1.800 token, cộng với diff và code mà nó đọc |
 
 Chi phí của skill được tính một lần cho mỗi lần chạy. Chi phí của reviewer được tính một lần cho mỗi vòng, và một vòng lặp chạy tối đa 3 vòng. Model của reviewer làm thay đổi chi phí đó; bảng benchmark ở trên cho thấy chi phí của từng model. Các check của bạn chạy trên máy của bạn và không tốn token.
 
