@@ -93,7 +93,7 @@ const normalize = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
 const now = () => new Date().toISOString();
 const summarize = ({ id, severity, file, line, title }) => ({ id, severity, file, line, title });
 const severityOf = (finding) => (SEVERITIES.includes(finding.severity) ? finding.severity : 'P3');
-const programOf = (check) => check.command.split(' ')[0];
+const programOf = (check) => check.missingProgram ?? check.command.split(' ')[0];
 const isNotVerified = (check) => Boolean(check.timedOut || check.notInstalled);
 const checkId = (check) => (check.folder ? `${check.folder}:${check.name}` : check.name);
 const checkTarget = (check) => (check.folder ? `${check.folder}: ${check.command}` : check.command);
@@ -488,6 +488,40 @@ function jvmChecks(folder, repositoryRoot = folder) {
   return [];
 }
 
+const DOTNET_SOLUTION_EXTENSIONS = ['.sln', '.slnx'];
+const DOTNET_PROJECT_EXTENSIONS = ['.csproj', '.fsproj'];
+
+function filesEndingWith(folder, extensions) {
+  try {
+    return readdirSync(folder).filter((file) => extensions.some((extension) => file.endsWith(extension))).sort();
+  } catch {
+    return [];
+  }
+}
+
+// A project without a solution of its own under a folder that has one is built and tested by that solution.
+// dotnet test needs a target when a folder holds more than one solution or project file.
+function dotnetChecks(folder, repositoryRoot = folder) {
+  const solutions = filesEndingWith(folder, DOTNET_SOLUTION_EXTENSIONS);
+  const projects = filesEndingWith(folder, DOTNET_PROJECT_EXTENSIONS);
+  if (solutions.length) return [{ name: 'test', command: ['dotnet', 'test', ...(solutions.length + projects.length > 1 ? [solutions[0]] : [])] }];
+  if (!projects.length) return [];
+  if (ancestorsOf(folder, repositoryRoot).some((parent) => filesEndingWith(parent, DOTNET_SOLUTION_EXTENSIONS).length)) return [];
+  return [{ name: 'test', command: ['dotnet', 'test', ...(projects.length > 1 ? [projects[0]] : [])] }];
+}
+
+function rubyChecks(folder) {
+  const has = (file) => existsSync(path.join(folder, file));
+  const hasFolder = (name) => has(name) && statSync(path.join(folder, name)).isDirectory();
+  const tool = (...command) => (has('Gemfile') ? ['bundle', 'exec', ...command] : command);
+  const checks = [];
+  if (has('.rubocop.yml')) checks.push({ name: 'lint', command: tool('rubocop') });
+  // A spec/ folder alone is common outside Ruby (OpenAPI specs, Jasmine), so it counts only next to a Gemfile or Rakefile.
+  if (has('.rspec') || (hasFolder('spec') && (has('Gemfile') || has('Rakefile')))) checks.push({ name: 'test', command: tool('rspec') });
+  else if (has('Rakefile') && hasFolder('test')) checks.push({ name: 'test', command: tool('rake', 'test') });
+  return checks;
+}
+
 function sectionLines(lines, header) {
   const start = lines.indexOf(header);
   if (start === -1) return [];
@@ -519,7 +553,7 @@ function pythonChecks(root) {
   return checks;
 }
 
-const CHECK_SOURCES = [packageScripts, makeTargets, goChecks, rustChecks, pythonChecks, jvmChecks];
+const CHECK_SOURCES = [packageScripts, makeTargets, goChecks, rustChecks, pythonChecks, jvmChecks, dotnetChecks, rubyChecks];
 
 function declaredChecks(root, folder) {
   return CHECK_SOURCES.flatMap((source) => source(path.join(root, folder), root));
@@ -577,6 +611,13 @@ function selectChecks(root, files) {
 export function missingProgram(command, stderr) {
   if (JVM_TOOLS.has(command[0]) && /JAVA_HOME is not set and no 'java' command could be found|Unable to locate a Java Runtime|JAVA_HOME (?:environment variable )?is not defined correctly|java\/javac command does not exist in PATH nor is JAVA_HOME set/.test(stderr)) return 'java';
   if (command[0] === 'uv') return /Failed to spawn: `([^`]+)`[\s\S]*No such file or directory/.exec(stderr)?.[1] ?? null;
+  if (command[0] === 'bundle' && command[1] === 'exec') {
+    const notFound = /^bundler: command not found: (\S+)/m.exec(stderr)?.[1];
+    if (notFound) return notFound;
+    const missingGems = /Could not find ([^\n]+?) in locally installed gems/.exec(stderr)?.[1];
+    if (missingGems) return missingGems.split(', ')[0].replace(/^gem '([^' ]+)[^']*'$/, '$1').replace(/-\d.*$/, '');
+    return /^Run `bundle install` to install missing gems/m.test(stderr) ? command[2] : null;
+  }
   if (command[1] === '-m') return new RegExp(`No module named '?${command[2]}'?\\s*$`, 'm').test(stderr) ? command[2] : null;
   return null;
 }
@@ -604,7 +645,7 @@ function runCommand(root, { command, problem, folder }, timeout) {
   } catch (error) {
     const missing = error.code === 'ENOENT' ? command[0] : missingProgram(command, `${error.stdout ?? ''}${error.stderr ?? ''}`);
     if (missing) {
-      return { command: label, exitCode: null, timedOut: false, notInstalled: true, output: `not run: ${missing} is not installed` };
+      return { command: label, exitCode: null, timedOut: false, notInstalled: true, missingProgram: missing, output: `not run: ${missing} is not installed` };
     }
     const timedOut = error.code === 'ETIMEDOUT';
     const cause = typeof error.status === 'number' ? '' : `\n${error.message}`;
