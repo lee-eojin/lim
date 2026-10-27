@@ -613,7 +613,7 @@ function selectChecks(root, files) {
 }
 
 export function missingProgram(command, stderr) {
-  if (JVM_TOOLS.has(command[0]) && /JAVA_HOME is not set and no 'java' command could be found|Unable to locate a Java Runtime|JAVA_HOME (?:environment variable )?is not defined correctly|JAVA_HOME not found in your environment|java\/javac command does not exist in PATH nor is JAVA_HOME set/.test(stderr)) return 'java';
+  if (JVM_TOOLS.has(command[0]) && /JAVA_HOME is not set and no 'java' command could be found|Unable to locate a Java Runtime|JAVA_HOME (?:environment variable )?is not defined correctly|java\/javac command does not exist in PATH nor is JAVA_HOME set/.test(stderr)) return 'java';
   if (command[0] === 'uv') return /Failed to spawn: `([^`]+)`[\s\S]*No such file or directory/.exec(stderr)?.[1] ?? null;
   if (command[0] === 'bundle' && command[1] === 'exec') {
     const notFound = /^bundler: command not found: (\S+)/m.exec(stderr)?.[1];

@@ -526,7 +526,7 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
       }, CLOSE_GRACE_MS).unref();
     }, timeoutMs);
     child.on('error', (error) => finish({
-      exitCode: null, signal: null, startError: error.code === 'ENOENT' ? `${quote(run[0])} was not found (ENOENT)` : error.message,
+      exitCode: null, signal: null, startError: error.code === 'ENOENT' ? `${quote(WINDOWS ? program : run[0])} was not found (ENOENT)` : error.message,
     }));
     child.on('close', (exitCode, signal) => finish({ exitCode, signal }));
   });

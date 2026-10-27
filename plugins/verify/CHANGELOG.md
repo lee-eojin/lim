@@ -5,6 +5,7 @@ All notable changes to verify. Versions follow [Semantic Versioning](https://sem
 ## Unreleased
 
 - Internal: The benchmark has two Python projects; on them claude-opus-5-5 caught 2 of 2 broken features with no working feature reported as failing. (#86)
+- Added: Windows support. A script whose first line runs node or python3 runs through that interpreter from PATH, because Windows does not read #! lines, and paths in reports and evidence use `/` on every system. (#112)
 - Internal: The benchmark ran 3 times per case: the broken feature was caught in all 18 broken-case runs, and no working feature was reported as failing in the 9 working-case runs. (#99)
 
 ## 0.3.0 (2026-10-26)

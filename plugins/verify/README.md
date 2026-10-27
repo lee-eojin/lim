@@ -150,7 +150,7 @@ verify makes no network calls of its own. The commands in your feature map run o
 - Only `node` or `python3` with a project script, or a project script whose first line runs one of them. A tool that only runs through `npx`, `npm run`, `uv run`, or another package runner cannot be checked unless the project has a file that `node` or `python3` can run.
 - Python: no `python3 -m`, no virtual environments (a `python3` inside `.venv/` or `venv/` is refused, and verify does not activate one), so a project whose dependencies are installed only in a virtual environment fails on its imports. Tested with CPython 3 on macOS and Linux.
 - A file check expects a file that does not already match: before running a file check again, delete the file the last run wrote, or write it empty, or write the starting file again.
-- Tested on macOS and Linux. Windows is not supported yet.
+- Tested on macOS, Linux, and Windows. Windows does not read #! lines, so there verify starts the `node` or `python3` the line names from PATH, with the script as its first argument. `python3` has to be on PATH under that name.
 - Each check gets 30 seconds unless its entry sets `timeoutMs` (up to 10 minutes); set `LIM_VERIFY_TIMEOUT_MS` to change the default (a whole number from 1 to 600000; any other value is refused). One run stops starting checks after 9 minutes and reports the rest as not verified.
 - Checks run one at a time. A check that writes files can affect the next; use separate paths.
 - "Changed after it failed" covers the feature map entry and only the files a check names inside `verify-checks/`, each as the whole argument. A file elsewhere, a file that a named script imports, or a path inside a longer argument such as `--out=verify-checks/a.txt` is not covered.
