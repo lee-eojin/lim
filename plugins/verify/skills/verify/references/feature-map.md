@@ -51,7 +51,7 @@ The path must stay inside the repository, also after following a symbolic link, 
 | A program found on `PATH` | `["npx", "tsc"]`, `["npm", "run", "check"]`, `["pnpm", "exec", ...]`, `["bunx", ...]`, `["uv", "run", ...]`, `["timeout", "20", ...]`, `["env", ...]`, `["sh", "-c", "..."]`, `["python", ...]`, `["python3.12", ...]` | Run the project's file with `node` or `python3`, or the project's own node or python3 script |
 | An option before the script | `["node", "-e", "..."]`, `["node", "--import", "...", "cli/temp.mjs"]`, `["node", "-r", "./setup.js", ...]`, `["python3", "-c", "..."]`, `["python3", "-m", "rename"]`, `["python3", "-I", "tools/rename.py"]` | Write a script file and run it with `node` or `python3` |
 | A file outside the repository, in `node_modules/`, `.git/`, `.venv/`, `venv/`, or `__pycache__/` | `["/bin/sh", ...]`, `["./node_modules/.bin/eslint"]`, `["node", "../cli/temp.mjs"]`, `["python3", ".venv/bin/rename"]` | Run the project's own file, named from the repository root |
-| A program in the repository that is not a node or python3 script | a copy of the node binary or of a shell, compiled Python, a file without a `#!` line, `#!/bin/sh`, `#!/usr/bin/env -S node --require ./hook.js`, `#!/usr/local/bin/node -r ./hook.js`, `#!/usr/bin/env python3 -I`, `#!/usr/bin/env python` | Run the script with `node` or `python3`, or give it the first line `#!/usr/bin/env node` or `#!/usr/bin/env python3` |
+| A program in the repository that is not a node or python3 script | a copy of the node binary or of a shell, a compiled addon such as `["node", "verify-checks/convert.node"]`, compiled Python, a file without a `#!` line, `#!/bin/sh`, `#!/usr/bin/env -S node --require ./hook.js`, `#!/usr/local/bin/node -r ./hook.js`, `#!/usr/bin/env python3 -I`, `#!/usr/bin/env python` | Run the script with `node` or `python3`, or give it the first line `#!/usr/bin/env node` or `#!/usr/bin/env python3` |
 
 For a python3 run, from either form, the script sets `PYTHONDONTWRITEBYTECODE=1`, so the run leaves no `__pycache__` folders behind. It removes `PYTHONPATH`, `PYTHONSTARTUP`, `PYTHONHOME`, `PYTHONINSPECT`, and `PYTHONSAFEPATH` if your session has them: python3 runs a `sitecustomize.py` from any `PYTHONPATH` folder before the script, so a file there could print the expected text in its place. A node run gets none of these changes. python3 puts only the script's own folder on the import path, so a helper in `verify-checks/` adds the repository root itself before it imports the project, as in the Python example below.
 
@@ -85,11 +85,11 @@ Because the check cannot fail:
 |---|---|---|
 | A rule that empty output satisfies | `"matches": ".*"`, `"matches": "^"` | Expect the specific value |
 | A rule that a crash satisfies | `"includes": "Error"`, `"includes": "e"` | Expect the documented message |
-| A rule that the command text, the stdin text, or the text of a file named in `run` satisfies | `"run": ["node", "cli/echo.mjs", "ok"]` with `"includes": "ok"` | Print the real result |
+| A rule that the command text, one of its arguments, the stdin text, or the text of a file named in `run` satisfies | `"run": ["node", "cli/echo.mjs", "ok"]` with `"includes": "ok"` or `"equals": "ok"` | Print the real result |
 | Only an exit code | `"expect": { "exitCode": 0 }` | Add `stdout`, `stderr`, or `files` |
 | A file with only a path | `"files": [{ "path": "out.txt" }]` | Add `includes`, `matches`, or `equals` |
 
-`includes` and `equals` texts that also appear in the command are refused for the same reason. Pick an input whose output text is not in the command, or match the output more fully.
+`includes` texts that also appear in the command, and `equals` and `matches` rules that one argument in `run` satisfies on its own, are refused for the same reason: a program that prints its arguments would pass. Pick an input whose output text is not in the command, or match the output more fully.
 
 `stdin` from a file is checked the same way when the file exists as the map is read, and again just before the check runs: a rule that its text satisfies makes the check not verified. So is each argument after the script or executable that names a file in the repository, read from `cwd`, because the program could print or copy that file. A file a check both names and expects is checked against its own rule only just before the run, as `files` above describes.
 

@@ -95,6 +95,21 @@ describe('run', () => {
     assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [['pass', []]]);
   });
 
+  test('a node or git in a folder named by a relative PATH entry does not run in place of the installed one', {
+    skip: windows && 'Windows has its own test above',
+  }, () => {
+    const fake = '#!/bin/sh\necho FAKE\nexit 0\n';
+    const tool = { ...upper, id: 'tool', cwd: 'tools', run: ['./bin/tool', 'xyz'], expect: { exitCode: 0, stdout: { equals: 'XYZ' } } };
+    const root = createRepository([{ ...upper, cwd: 'tools' }, tool], {
+      'tools/node': fake, 'bin/tool': '#!/usr/bin/env node\nconsole.log(process.argv[2].toUpperCase());\n',
+    });
+    for (const file of ['tools/node', 'bin/tool']) chmodSync(path.join(root, file), 0o755);
+    const statuses = () => verifyWith({ PATH: `.::${process.env.PATH}` }, root, 'run').checks?.map((check) => [check.status, check.reasons]);
+    assert.deepEqual(statuses(), [['pass', []], ['pass', []]]);
+    writeFileSync(path.join(root, 'git'), fake, { mode: 0o755 });
+    assert.deepEqual(statuses(), [['pass', []], ['pass', []]]);
+  });
+
   test('a check whose output matches passes and exits 0', () => {
     const root = createRepository([upper]);
     const result = verify(root, 'run');
@@ -378,6 +393,12 @@ describe('checks that cannot fail are refused', () => {
     assert.match(problemsFor({ run: ['node', 'cli.js', 'echo', 'HELLO-THERE'], expect: { exitCode: 0, stdout: { includes: 'HELLO-THERE' } } })[0], /satisfied by the command text itself/);
   });
 
+  test('an equals or matches rule that only repeats a run argument is refused', () => {
+    for (const rule of [{ equals: 'HELLO-THERE' }, { matches: '^HELLO-THERE$' }, { equals: 'HELLO - THERE' }]) {
+      assert.match(problemsFor({ run: ['node', 'cli.js', 'echo', 'HELLO-THERE'], expect: { exitCode: 0, stdout: rule } })[0] ?? '', /satisfied by the run argument "HELLO-THERE", so the check cannot fail/, JSON.stringify(rule));
+    }
+  });
+
   test('a string run is refused with the list form to use', () => {
     for (const run of ['node cli.js upper abc', '! node cli.js half', 'echo $(node cli.js half)', 'node cli.js half || true']) {
       assert.deepEqual(problemsFor({ run }), [
@@ -433,6 +454,42 @@ describe('checks that cannot fail are refused', () => {
     const later = verify(createRepository([save, copy], { 'tools/show.js': echo }), 'run');
     assert.deepEqual(later.checks.map((check) => check.status), ['pass', 'not-verified']);
     assert.deepEqual(later.checks[1].reasons, ['not run: the text of the file saved.txt named in run satisfies the stdout rule (match "saved abc"), so the check cannot fail']);
+  });
+
+  test('a file named in run or a stdin file that cannot be read makes only that check not verified', {
+    skip: (windows || process.getuid?.() === 0) && 'mode 000 does not stop Windows or root from reading a file',
+  }, () => {
+    const show = { id: 'show', feature: 'Shows a report', run: ['node', 'cli.js', 'upper', 'verify-checks/locked.txt'], expect: { exitCode: 0, stdout: { equals: 'VERIFY-CHECKS/LOCKED.TXT' } } };
+    const read = { ...upper, id: 'read', run: ['node', 'cli.js', 'read'], stdin: { file: 'verify-checks/locked.txt' }, expect: { exitCode: 0, stdout: { equals: 'QUIET' } } };
+    const root = createRepository([upper, show, read], { 'verify-checks/locked.txt': 'quiet\n' });
+    chmodSync(path.join(root, 'verify-checks/locked.txt'), 0o000);
+    const result = verify(root, 'run');
+    assert.equal(result.exit, 1);
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [
+      ['pass', []],
+      ['not-verified', ['not run: the file verify-checks/locked.txt named in run cannot be read (EACCES)']],
+      ['not-verified', ['not run: the stdin file verify-checks/locked.txt cannot be read (EACCES)']],
+    ]);
+    assert.equal(JSON.parse(readFileSync(result.evidencePath, 'utf8')).tree, null);
+    assert.match(result.report, /git could not record the working tree, so this run records no tree; review-loop cannot use it as evidence/);
+  });
+
+  test('a script that cannot be read makes only that check not verified', {
+    skip: (windows || process.getuid?.() === 0) && 'mode 000 does not stop Windows or root from reading a file',
+  }, () => {
+    const scripts = { 'verify-checks/locked.mjs': 'console.log("hi");\n', 'verify-checks/locked.py': 'print("hi")\n', 'verify-checks/locked': '#!/usr/bin/env node\nconsole.log("hi");\n' };
+    const locked = [['node', 'verify-checks/locked.mjs'], ['python3', 'verify-checks/locked.py'], ['./verify-checks/locked']]
+      .map((run, index) => ({ id: `locked-${index}`, feature: 'Says hi', run, expect: { exitCode: 0, stdout: { equals: 'hi' } } }));
+    const root = createRepository([upper, ...locked], scripts);
+    for (const file of Object.keys(scripts)) chmodSync(path.join(root, file), 0o000);
+    const result = verify(root, 'run');
+    assert.equal(result.exit, 1, result.error);
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [
+      ['pass', []],
+      ['not-verified', ['not run: verify-checks/locked.mjs cannot be read (EACCES)']],
+      ['not-verified', ['not run: verify-checks/locked.py cannot be read (EACCES)']],
+      ['not-verified', ['not run: verify-checks/locked cannot be read (EACCES)']],
+    ]);
   });
 
   test('an input file named in run that holds the expected text once whitespace is ignored is refused or not verified', () => {
@@ -552,6 +609,21 @@ describe('only the project\'s own scripts and executables run', () => {
     const result = verify(copied, 'run');
     assert.equal(result.exit, 2);
     assert.deepEqual(result.problems, [`features[0] (copied-node).run starts "verify-checks/n", a binary file, not a script that node or python3 runs${allowedForms}`]);
+  });
+
+  test('a compiled addon or a binary file is refused as the script node runs', () => {
+    writeFileSync(path.join(root, 'verify-checks/convert.node'), Buffer.from('\x7fELF\x02\x01\x01\x00\x00\x00', 'latin1'));
+    writeFileSync(path.join(root, 'verify-checks/text.node'), 'console.log(1);\n');
+    writeFileSync(path.join(root, 'verify-checks/blob.js'), Buffer.from('console.log(1);\x00\x01', 'latin1'));
+    symlinkSync('convert.node', path.join(root, 'verify-checks/addon.js'));
+    for (const [script, problem] of [
+      ['verify-checks/convert.node', 'a compiled addon, not a script that node runs'],
+      ['verify-checks/text.node', 'a compiled addon, not a script that node runs'],
+      ['verify-checks/addon.js', 'a compiled addon, not a script that node runs'],
+      ['verify-checks/blob.js', 'a binary file, not a script that node runs'],
+    ]) {
+      assert.deepEqual(problemsFor({ run: ['node', script, '212'] }), [`features[0] (upper).run runs "node" on "${script}", ${problem}${allowedForms}`], script);
+    }
   });
 
   test('an executable whose first line does not run node without options is refused with the two allowed forms', () => {
@@ -969,7 +1041,43 @@ describe('evidence', () => {
     assert.equal(result.status, 'passed');
     assert.equal(result.checks[0].changedAfterFail, true);
     assert.match(result.report, /Changed after it failed: upper/);
+    assert.equal(verify(root, 'run').checks[0].changedAfterFail, true);
+  });
+
+  test('a check stays marked as changed after it failed until its new definition fails once', () => {
+    const wrong = { ...upper, expect: { exitCode: 0, stdout: { equals: 'ABD' } } };
+    const root = createRepository([wrong]);
+    assert.equal(verify(root, 'run').status, 'failed');
+    writeMap(root, [{ ...upper, run: ['node', 'cli.js', 'upper', 'abd'], expect: { exitCode: 0, stdout: { equals: 'ABD' } } }]);
+    for (let round = 0; round < 3; round += 1) assert.equal(verify(root, 'run').checks[0].changedAfterFail, true, `run ${round}`);
+    writeMap(root, [wrong]);
     assert.equal(verify(root, 'run').checks[0].changedAfterFail, undefined);
+    writeMap(root, [upper]);
+    assert.equal(verify(root, 'run').checks[0].changedAfterFail, true);
+    writeFileSync(path.join(root, 'cli.js'), 'console.log("ABD");\n');
+    writeMap(root, [wrong]);
+    assert.equal(verify(root, 'run').status, 'passed');
+    writeMap(root, [upper]);
+    assert.equal(verify(root, 'run').checks[0].changedAfterFail, undefined);
+  });
+
+  test('a check removed after it failed and added back changed is marked as changed', () => {
+    const wrong = { ...upper, expect: { exitCode: 0, stdout: { equals: 'ABD' } } };
+    const other = { ...upper, id: 'other' };
+    const root = createRepository([wrong, other]);
+    assert.equal(verify(root, 'run').status, 'failed');
+    writeMap(root, [other]);
+    assert.match(verify(root, 'run').report, /Removed after it failed: upper\./);
+    writeMap(root, [upper, other]);
+    assert.equal(verify(root, 'run').checks[0].changedAfterFail, true);
+  });
+
+  test('a check run from another map after it failed stays marked as changed', () => {
+    const root = createRepository([{ ...upper, expect: { exitCode: 0, stdout: { equals: 'ABD' } } }]);
+    assert.equal(verify(root, 'run').status, 'failed');
+    writeFileSync(path.join(root, 'other.json'), JSON.stringify({ features: [upper] }));
+    assert.equal(verify(root, 'run', '--map', 'other.json').checks[0].changedAfterFail, true);
+    assert.equal(verify(root, 'run', '--map', 'other.json').checks[0].changedAfterFail, true);
   });
 
   test('a check that passes after the code is fixed is not marked as changed', () => {
@@ -1076,6 +1184,18 @@ describe('tree', () => {
     assert.deepEqual(names(evidence.tree), ['cli.js', 'verify.features.json']);
     assert.deepEqual(names(evidence.treeAfter), ['cli.js', 'saved.txt', 'verify.features.json']);
     assert.deepEqual(readdirSync(path.join(root, '.git', 'lim', 'verify')).filter((name) => name.endsWith('.index')), []);
+    assert.doesNotMatch(result.report, /records no tree/);
+  });
+
+  test('a git failure after the checks ran keeps their results and records no tree after them', () => {
+    const corrupt = { ...upper, id: 'corrupt', run: ['node', 'verify-checks/corrupt.js'], expect: { exitCode: 0, stdout: { equals: 'DONE' } } };
+    const root = createRepository([corrupt], { 'verify-checks/corrupt.js': "require('node:fs').writeFileSync('.git/index', 'garbage');\nconsole.log('DONE');\n" });
+    const result = verify(root, 'run');
+    assert.equal(result.exit, 0);
+    assert.equal(result.checks[0].status, 'pass');
+    const evidence = JSON.parse(readFileSync(result.evidencePath, 'utf8'));
+    assert.equal(evidence.treeAfter, null);
+    assert.match(result.report, /records no tree/);
   });
 
   test('the tree a verify run records equals the review-loop snapshot of the same working tree', () => {
