@@ -30,9 +30,9 @@ Faça um fork, mude, deixe do seu jeito. Issues e pull requests são bem-vindos.
 
 | Plugin | Status | Um trabalho |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.10.0 | Revisa suas alterações antes do commit, corrige os achados P1 e P2, revisa de novo e entrega o restante para você. |
+| [review-loop](../../plugins/review-loop) | 0.11.0 | Revisa suas alterações antes do commit, corrige os achados P1 e P2, revisa de novo e entrega o restante para você. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.3 | Explica conceitos, código e erros com a resposta primeiro, um só significado por palavra e os termos técnicos com o nome oficial em inglês. |
-| [verify](../../plugins/verify) | 0.3.0 | Prova que suas funcionalidades funcionam executando-as e salva os comandos e a saída como evidência. |
+| [verify](../../plugins/verify) | 0.4.0 | Prova que suas funcionalidades funcionam executando-as e salva os comandos e a saída como evidência. |
 
 ## Instalação
 

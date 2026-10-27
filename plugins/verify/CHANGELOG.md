@@ -2,7 +2,7 @@
 
 All notable changes to verify. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.4.0 (2026-10-27)
 
 - Internal: The benchmark has two Python projects; on them claude-opus-5-5 caught 2 of 2 broken features with no working feature reported as failing. (#86)
 - Added: Windows support. A script whose first line runs node or python3 runs through that interpreter from PATH, because Windows does not read #! lines, and paths in reports and evidence use `/` on every system. `node`, `python3`, and `git` start from PATH only, never the project folder, and `env` names are refused in any case, such as `Path` or `node_options`. (#112)
