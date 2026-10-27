@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { summarizeTriggers, triggerArgs, triggerRecord } from '../../evals/review-loop/run-triggers.mjs';
+import { parseOptions, summarizeTriggers, triggerArgs, triggerRecord } from '../../evals/review-loop/run-triggers.mjs';
 
 const skillCall = (skill) => JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Skill', input: { skill } }] } });
 const resultEvent = JSON.stringify({ type: 'result', subtype: 'success', total_cost_usd: 0.01 });
@@ -30,4 +30,12 @@ test('each trigger set has unique ids and requests that should and should not st
     assert.ok(requests.some((request) => request.want === true) && requests.some((request) => request.want === false), `${name} has both kinds`);
     assert.ok(requests.every((request) => typeof request.prompt === 'string' && request.prompt.length > 0), `${name} prompts are text`);
   }
+});
+
+test('trigger options refuse a count that is not a whole number above 0', () => {
+  for (const args of [['-j', '0'], ['--concurrency', 'two'], ['--timeout', '0']]) {
+    assert.throws(() => parseOptions(args), /must be a whole number above 0/, args.join(' '));
+  }
+  assert.equal(parseOptions(['-j', '2', '--timeout', '60']).values.concurrency, '2');
+  assert.equal(parseOptions(['--help', '-j', '0']).mode, 'help');
 });

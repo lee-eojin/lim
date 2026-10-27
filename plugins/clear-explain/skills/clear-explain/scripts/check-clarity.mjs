@@ -29,7 +29,7 @@ const FORBIDDEN_CHARACTERS = [
 ];
 
 const STRUCTURE_RULES = [
-  { rule: 'double-negative', pattern: /지\s*않으면\s*안\s*(?:된|돼|됩)/gu, advice: 'write ~해야 한다' },
+  { rule: 'double-negative', pattern: /지\s*않으면\s*안\s*(?:되|된|돼|됩)/gu, advice: 'write ~해야 한다' },
   { rule: 'passive-stack', pattern: /(?:되어|보여|쓰여|잊혀|불려)[지-짛져-졓]/gu, advice: 'one passive is enough (되다, 보이다)' },
   {
     rule: 'passive-stack',
@@ -43,7 +43,7 @@ const KOREAN_NOUNS_ENDING_IN_UI = new Set([
   '모의', '질의', '문의', '결의', '호의', '예의', '성의', '상의', '하의', '협의',
 ]);
 
-const FENCE = /^([ \t]*)(?:```|~~~)/;
+const FENCE = /^([ \t]*)(`{3,}|~{3,})(.*)$/;
 const INDENTED = /^(?: {4}|\t)/;
 const EMPHASIS = /(?<=^|[\s(\[])[*_]+(?=\S)|(?<=\S)[*_]+(?=$|[\s.,!?:;)\]])/gu;
 const INLINE_CODE = /`[^`]*`/g;
@@ -54,7 +54,7 @@ const QUOTE_MARKER = /^\s*>+\s?/;
 const LIST_MARKER = /^\s*(?:[-*+]|\d+[.)])\s+/;
 const HANGUL = /[가-힣]/u;
 const EDGE_PUNCTUATION = /^[.,!?()[\]{}'"]+|[.,!?()[\]{}'"]+$/gu;
-const ENGLISH_POSSESSIVES = /(?:\b[\w-]+'s\s+){2,}[\w-]+/gu;
+const ENGLISH_POSSESSIVES = /(?:\b[\w-]+['\u2019]s\s+){2,}[\w-]+/gu;
 const OF_CHAIN = /\bof\s+(?:(?:the|a|an)\s+)?[\w-]+\s+of\s+(?:(?:the|a|an)\s+)?[\w-]+\s+of\b/giu;
 
 export function loadPatterns(file, flags) {
@@ -76,16 +76,20 @@ function vaguePatterns() {
 
 // A fence starts with at most three spaces of indentation, as in CommonMark, except inside a
 // list, where the item's own indentation comes first.
-function isFence(line, inList) {
+function fenceAt(line, inList) {
   const match = FENCE.exec(line);
-  return Boolean(match) && (inList || match[1].replace(/\t/g, '    ').length <= 3);
+  if (!match || (!inList && match[1].replace(/\t/g, '    ').length > 3)) return null;
+  return { marker: match[2], rest: match[3] };
 }
+
+// As in CommonMark, only a bare fence of the same character, at least as long, closes the block.
+const closes = (fence, opening) => Boolean(fence) && fence.marker[0] === opening[0] && fence.marker.length >= opening.length && !fence.rest.trim();
 
 // An indented code block starts after a blank line, outside a list, and runs until a line that
 // is neither blank nor indented.
 export function proseLines(text) {
   const lines = [];
-  let inFence = false;
+  let openFence = null;
   let inIndentedCode = false;
   let inList = false;
   let afterBlank = true;
@@ -93,8 +97,8 @@ export function proseLines(text) {
     const blank = !line.trim();
     const wasAfterBlank = afterBlank;
     afterBlank = blank;
-    if (inFence) {
-      if (isFence(line, inList)) inFence = false;
+    if (openFence) {
+      if (closes(fenceAt(line, inList), openFence)) openFence = null;
       return;
     }
     if (blank && inIndentedCode) return;
@@ -102,14 +106,15 @@ export function proseLines(text) {
       inIndentedCode = true;
       return;
     }
-    if (isFence(line, inList)) {
-      inFence = true;
+    if (LIST_MARKER.test(line)) inList = true;
+    else if (!blank && !/^\s/.test(line) && (wasAfterBlank || FENCE.test(line))) inList = false;
+    const fence = fenceAt(line, inList);
+    if (fence) {
+      openFence = fence.marker;
       inIndentedCode = false;
       return;
     }
     inIndentedCode = false;
-    if (LIST_MARKER.test(line)) inList = true;
-    else if (!blank && wasAfterBlank && !/^\s/.test(line)) inList = false;
     const cleaned = line.replace(INLINE_CODE, 'code').replace(LINK, '$1').replace(URL_PATTERN, 'url').replace(EMPHASIS, '');
     lines.push({ number: index + 1, text: cleaned });
   });

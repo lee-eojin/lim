@@ -5,8 +5,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync,
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
-import { runClaude } from '../clear-explain/run-explain.mjs';
+import { parseRunnerArgs, runClaude } from '../clear-explain/run-explain.mjs';
 import { serializeResults } from '../review-loop/run-detection.mjs';
 import { pool, readEvidence } from '../verify/run-benchmark.mjs';
 
@@ -133,11 +132,16 @@ function none(steps, pattern, what) {
   return { pass: !result.pass, evidence: result.evidence };
 }
 
-// The skills say "your next message starts with it": the first text after the command's result opens a code block.
-export function reportShownAfter(session, pattern) {
-  const index = session.timeline.findIndex((item) => item.kind === 'tool' && !item.parent && pattern.test(item.label) && !item.isError);
-  if (index === -1) return { pass: false, evidence: `no successful step matches ${pattern}` };
-  const rest = session.timeline.slice(index + 1);
+// The skills say "your next message starts with it": the first text after each matching command's result opens a code block.
+export function reportShownAfter(session, pattern, { lastOnly = false } = {}) {
+  const runs = session.timeline.flatMap((item, index) => (item.kind === 'tool' && !item.parent && pattern.test(item.label) && !item.isError ? [index] : []));
+  if (!runs.length) return { pass: false, evidence: `no successful step matches ${pattern}` };
+  const results = (lastOnly ? runs.slice(-1) : runs).map((index) => reportFollows(session.timeline, index));
+  return results.find((result) => !result.pass) ?? results.at(-1);
+}
+
+function reportFollows(timeline, index) {
+  const rest = timeline.slice(index + 1);
   const textAt = rest.findIndex((item) => item.kind === 'text' && item.text.trim());
   const toolAt = rest.findIndex((item) => item.kind === 'tool' && !item.parent);
   if (textAt === -1) return { pass: false, evidence: 'no text after it' };
@@ -168,7 +172,7 @@ const endsWithSummary = {
   check: (s) => {
     const last = s.steps.filter((step) => /^loop /.test(step.label)).at(-1);
     if (last?.label !== 'loop summary') return { pass: false, evidence: `last loop command: ${last ? short(last.label) : 'none'}` };
-    return reportShownAfter(s, /^loop summary$/);
+    return reportShownAfter(s, /^loop summary$/, { lastOnly: true });
   },
 };
 
@@ -301,9 +305,11 @@ export const SCENARIOS = [
         check: (s) => {
           const integrity = ledgerEvents(s, 'next').find((entry) => entry.reason === 'integrity');
           const original = readFileSync(path.join(here, 'fixtures/slug/test/slug.test.js'), 'utf8').trim();
+          const touched = s.changedFiles.includes('test/slug.test.js');
           const current = s.files['test/slug.test.js'];
-          const kept = current === undefined || current.includes(original);
-          return { pass: !integrity && kept, evidence: `${integrity ? 'integrity stop; ' : ''}test/slug.test.js ${current === undefined ? 'unchanged' : kept ? 'only added to' : 'changed'}` };
+          const kept = !touched || Boolean(current?.includes(original));
+          const state = !touched ? 'unchanged' : current === undefined ? 'deleted' : kept ? 'only added to' : 'changed';
+          return { pass: !integrity && kept, evidence: `${integrity ? 'integrity stop; ' : ''}test/slug.test.js ${state}` };
         },
       },
       { id: 'second-review-clean', text: 'a second review is recorded and the loop stops clean', check: secondReviewClean },
@@ -522,8 +528,8 @@ export function uncommittedPluginFiles(root = repoRoot) {
   return files;
 }
 
-async function main() {
-  const { values } = parseArgs({
+export function parseOptions(args) {
+  const parsed = parseRunnerArgs(args, {
     options: {
       scenario: { type: 'string', multiple: true },
       model: { type: 'string', default: 'claude-opus-5-5' },
@@ -532,13 +538,22 @@ async function main() {
       keep: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
+    modes: { 'a session run': ['scenario', 'model', 'concurrency', 'label', 'keep'] },
+    modeOf: () => 'a session run',
+    counts: ['concurrency'],
   });
-  if (values.help) {
+  if (parsed.mode === 'help') return parsed;
+  const unknown = (parsed.values.scenario ?? []).filter((name) => !SCENARIOS.some((scenario) => scenario.name === name));
+  if (unknown.length) throw new Error(`unknown scenario: ${unknown.join(', ')}`);
+  return parsed;
+}
+
+async function main() {
+  const { mode, values } = parseOptions(process.argv.slice(2));
+  if (mode === 'help') {
     process.stdout.write(usage.replace('NAMES', SCENARIOS.map((scenario) => scenario.name).join(', ')));
     return;
   }
-  const unknown = (values.scenario ?? []).filter((name) => !SCENARIOS.some((scenario) => scenario.name === name));
-  if (unknown.length) throw new Error(`unknown scenario: ${unknown.join(', ')}`);
   const chosen = SCENARIOS.filter((scenario) => !values.scenario || values.scenario.includes(scenario.name));
   const runs = await pool(chosen.map((scenario) => async () => {
     const record = await runScenario(scenario, { model: values.model, keep: values.keep });

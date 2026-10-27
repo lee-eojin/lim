@@ -4,8 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
-import { parseStream, pool, runClaude } from '../clear-explain/run-explain.mjs';
+import { parseRunnerArgs, parseStream, pool, runClaude } from '../clear-explain/run-explain.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
@@ -67,8 +66,8 @@ function practiceRepository() {
   return repo;
 }
 
-async function main() {
-  const { values } = parseArgs({
+export function parseOptions(args) {
+  return parseRunnerArgs(args, {
     options: {
       set: { type: 'string', default: path.join(here, 'triggers/tuning.json') },
       'plugin-dir': { type: 'string', default: path.join(repoRoot, 'plugins/review-loop') },
@@ -78,8 +77,15 @@ async function main() {
       label: { type: 'string' },
       help: { type: 'boolean', short: 'h', default: false },
     },
+    modes: { 'a trigger run': ['set', 'plugin-dir', 'model', 'concurrency', 'timeout', 'label'] },
+    modeOf: () => 'a trigger run',
+    counts: ['concurrency', 'timeout'],
   });
-  if (values.help) {
+}
+
+async function main() {
+  const { mode, values } = parseOptions(process.argv.slice(2));
+  if (mode === 'help') {
     process.stdout.write(usage);
     return;
   }
@@ -107,4 +113,9 @@ async function main() {
   process.stdout.write(`results: ${out}\n`);
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    process.stderr.write(`${error.message}\n`);
+    process.exit(1);
+  });
+}

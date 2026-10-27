@@ -43,6 +43,59 @@ different model, which sees the two answers in random order, to pick the clearer
   --max-turns <n>         turns per trigger run (default: 6)
 `;
 
+// Each runner lists the flags each of its modes reads. A flag the chosen mode would ignore, or a
+// count that is not a whole number above 0, stops the run before it starts.
+export function parseRunnerArgs(args, { options, modes, modeOf, counts, allowPositionals = false }) {
+  const { values, positionals, tokens } = parseArgs({ args, options, allowPositionals, tokens: true });
+  if (values.help) return { mode: 'help', values, positionals };
+  const mode = modeOf(values);
+  const ignored = [...new Set(tokens.filter((token) => token.kind === 'option' && !modes[mode].includes(token.name)).map((token) => token.rawName))];
+  if (ignored.length) throw new Error(`${ignored.join(', ')} ${ignored.length === 1 ? 'is' : 'are'} not used by ${mode}`);
+  for (const name of counts) {
+    if (!/^[1-9]\d*$/.test(values[name])) throw new Error(`--${name} must be a whole number above 0, not ${values[name]}`);
+  }
+  return { mode, values, positionals };
+}
+
+const MODES = {
+  '--rescore': ['rescore', 'out'],
+  '--rejudge': ['rejudge', 'judge-model', 'concurrency', 'out', 'timeout'],
+  '--held-out': ['held-out', 'triggers', 'model', 'concurrency', 'label', 'out', 'timeout', 'max-turns'],
+  '--triggers': ['triggers', 'questions', 'question', 'trigger-prompts', 'model', 'concurrency', 'label', 'out', 'timeout', 'max-turns'],
+  'a judged run': ['questions', 'question', 'model', 'judge-model', 'concurrency', 'label', 'out', 'timeout'],
+};
+
+export function parseOptions(args) {
+  return parseRunnerArgs(args, {
+    options: {
+      questions: { type: 'string', default: path.join(here, 'questions.json') },
+      question: { type: 'string', multiple: true },
+      model: { type: 'string', default: 'opus' },
+      'judge-model': { type: 'string', default: 'sonnet' },
+      concurrency: { type: 'string', short: 'j', default: '4' },
+      label: { type: 'string' },
+      out: { type: 'string' },
+      timeout: { type: 'string', default: '300' },
+      rescore: { type: 'string' },
+      rejudge: { type: 'string' },
+      triggers: { type: 'boolean', default: false },
+      'trigger-prompts': { type: 'string', default: path.join(here, 'triggers.json') },
+      'max-turns': { type: 'string', default: '6' },
+      'held-out': { type: 'string' },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+    modes: MODES,
+    modeOf: (values) => ['--rescore', '--rejudge', '--held-out', '--triggers'].find((mode) => values[mode.slice(2)]) ?? 'a judged run',
+    counts: ['concurrency', 'timeout', 'max-turns'],
+  });
+}
+
+export function selectQuestions(questions, ids) {
+  const unknown = (ids ?? []).filter((id) => !questions.some((question) => question.id === id));
+  if (unknown.length) throw new Error(`unknown question: ${unknown.join(', ')}`);
+  return questions.filter((question) => !ids || ids.includes(question.id));
+}
+
 const PREAMBLE = /^(?:great question|good question|sure\b|certainly\b|let me\b|let's\b|i'll\b|here(?:'s| is) (?:a|an|the) (?:explanation|overview|breakdown)|좋은 질문|설명해 ?드릴게요|설명해 ?드리겠습니다|알겠습니다)/i;
 const BLOCK_START = /^(?:#|\||```|~~~|>|[-*+]\s|\d+[.)]\s)/;
 
@@ -472,25 +525,7 @@ function defaultOut(model, label) {
 }
 
 async function main() {
-  const { values } = parseArgs({
-    options: {
-      questions: { type: 'string', default: path.join(here, 'questions.json') },
-      question: { type: 'string', multiple: true },
-      model: { type: 'string', default: 'opus' },
-      'judge-model': { type: 'string', default: 'sonnet' },
-      concurrency: { type: 'string', short: 'j', default: '4' },
-      label: { type: 'string' },
-      out: { type: 'string' },
-      timeout: { type: 'string', default: '300' },
-      rescore: { type: 'string' },
-      rejudge: { type: 'string' },
-      triggers: { type: 'boolean', default: false },
-      'trigger-prompts': { type: 'string', default: path.join(here, 'triggers.json') },
-      'max-turns': { type: 'string', default: '6' },
-      'held-out': { type: 'string' },
-      help: { type: 'boolean', short: 'h', default: false },
-    },
-  });
+  const { values } = parseOptions(process.argv.slice(2));
   if (values.help) {
     process.stdout.write(usage);
     return;
@@ -519,7 +554,7 @@ async function main() {
     return;
   }
   const options = { model: values.model, judgeModel: values['judge-model'], timeout: Number(values.timeout) };
-  const questions = JSON.parse(readFileSync(values.questions, 'utf8')).filter((question) => !values.question || values.question.includes(question.id));
+  const questions = selectQuestions(JSON.parse(readFileSync(values.questions, 'utf8')), values.question);
   if (!questions.length) throw new Error('no questions to run');
   const skill = skillVersion(readFileSync(path.join(pluginDir, 'skills/clear-explain/SKILL.md'), 'utf8'));
   if (values.triggers || values['held-out']) {

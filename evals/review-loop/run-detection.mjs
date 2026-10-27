@@ -5,7 +5,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
+import { parseRunnerArgs } from '../clear-explain/run-explain.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
@@ -87,10 +87,10 @@ function locatedAt(location, finding, readLines) {
   if (!sameFile(location.file, finding.file)) return false;
   if (!location.lines || inRange(finding.line, location.lines)) return true;
   const quote = cleanQuote(finding.quote);
-  if (!quote) return false;
+  if (quote.length <= 8) return false;
   const lines = readLines(normalizeFile(location.file)) ?? [];
   const [from, to] = location.lines;
-  return lines.slice(from - 1, to).some((line) => line.includes(quote) || (quote.length > 8 && quote.includes(line.trim()) && line.trim().length > 8));
+  return lines.slice(from - 1, to).some((line) => line.includes(quote) || (quote.includes(line.trim()) && line.trim().length > 8));
 }
 
 // A keyword only counts as a whole word or phrase, so "0" does not match "200 ms". Edges that are
@@ -472,8 +472,15 @@ function report(runs, summary, out) {
   process.stdout.write(`results: ${out}\n`);
 }
 
-async function main() {
-  const { values, positionals } = parseArgs({
+const MODES = {
+  '--compare': ['compare'],
+  '--rescore': ['rescore', 'cases', 'out', 'note'],
+  '--dry-run': ['dry-run', 'cases', 'case', 'reviewer', 'runs', 'concurrency', 'keep'],
+  'a model run': ['cases', 'case', 'reviewer', 'model', 'runs', 'concurrency', 'label', 'out', 'timeout', 'keep'],
+};
+
+export function parseOptions(args) {
+  return parseRunnerArgs(args, {
     allowPositionals: true,
     options: {
       cases: { type: 'string' },
@@ -492,7 +499,14 @@ async function main() {
       note: { type: 'string', default: DEFAULT_RESCORE_NOTE },
       help: { type: 'boolean', short: 'h', default: false },
     },
+    modes: MODES,
+    modeOf: (values) => ['--compare', '--rescore', '--dry-run'].find((mode) => values[mode.slice(2)]) ?? 'a model run',
+    counts: ['runs', 'concurrency', 'timeout'],
   });
+}
+
+async function main() {
+  const { values, positionals } = parseOptions(process.argv.slice(2));
   if (values.help) {
     process.stdout.write(usage);
     return;
@@ -524,11 +538,12 @@ async function main() {
   const reviewerText = readFileSync(values.reviewer, 'utf8');
   const agent = parseAgentFile(reviewerText);
   const casesDir = casesDirFor(values.cases);
-  const names = readdirSync(casesDir, { withFileTypes: true })
+  const available = readdirSync(casesDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && existsSync(path.join(casesDir, entry.name, 'expected.json')))
-    .map((entry) => entry.name)
-    .filter((name) => !values.case || values.case.includes(name))
-    .sort();
+    .map((entry) => entry.name);
+  const unknown = (values.case ?? []).filter((name) => !available.includes(name));
+  if (unknown.length) throw new Error(`unknown case: ${unknown.join(', ')}`);
+  const names = available.filter((name) => !values.case || values.case.includes(name)).sort();
   if (!names.length) throw new Error(`no cases found in ${casesDir}`);
   const tasks = [];
   for (const name of names) {

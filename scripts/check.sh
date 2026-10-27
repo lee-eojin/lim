@@ -6,7 +6,10 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 status=0
 
 while IFS= read -r json_file; do
-  if ! python3 -m json.tool "$json_file" > /dev/null 2>&1; then
+  # Python's json accepts NaN and Infinity, which JSON.parse refuses.
+  if ! python3 -c 'import json, sys
+def refuse(name): raise ValueError(name)
+json.load(open(sys.argv[1], encoding="utf-8"), parse_constant=refuse)' "$json_file" > /dev/null 2>&1; then
     echo "invalid JSON: ${json_file#"$root"/}"
     status=1
   fi
