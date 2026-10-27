@@ -50,7 +50,7 @@ function pathWith(programs = {}) {
     writeFileSync(path.join(bin, windows ? `${name}.cmd` : name), windows ? batch : posix, { mode: 0o755 });
   }
   const gitFolder = execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim();
-  return [bin, gitFolder, ...(windows ? [] : ['/bin', '/usr/bin'])].join(path.delimiter);
+  return [bin, gitFolder].join(path.delimiter);
 }
 
 function writeFiles(root, files) {
@@ -437,7 +437,7 @@ describe('check detection', () => {
 
   test('a gradle wrapper runs in its project folder and a failing test is a P1', () => {
     const wrapper = '#!/bin/sh\necho "BUILD FAILED in $(basename "$(pwd)") for $1" >&2\nexit 1\n';
-    const batch = '@echo off\r\nfor %%I in (.) do echo BUILD FAILED in %%~nxI for %1 1>&2\r\nexit /b 1\r\n';
+    const batch = '@echo off\r\nfor %%I in (.) do echo BUILD FAILED in %%~nxI for %~1 1>&2\r\nexit /b 1\r\n';
     const root = createRepository({ 'api/settings.gradle': '', 'api/gradlew': wrapper, 'api/gradlew.bat': batch, 'api/src/Cart.java': 'class Cart {}\n' });
     chmodSync(path.join(root, 'api/gradlew'), 0o755);
     writeFiles(root, { 'api/src/Cart.java': 'class Cart { int total; }\n' });
@@ -497,9 +497,9 @@ describe('check detection', () => {
       PATH: pathWith({
         dotnet: {
           posix: '#!/bin/sh\necho "Failed! in $(basename "$(pwd)") for $1" >&2\nexit 1\n',
-          windows: '@echo off\r\nfor %%I in (.) do echo Failed! in %%~nxI for %1 1>&2\r\nexit /b 1\r\n',
+          windows: '@echo off\r\nfor %%I in (.) do echo Failed! in %%~nxI for %~1 1>&2\r\nexit /b 1\r\n',
         },
-      }),
+      }) + (windows ? '' : ':/bin:/usr/bin'),
     };
     const root = createRepository({ 'api/Api.csproj': '<Project/>', 'api/Cart.cs': 'class Cart {}\n' });
     writeFiles(root, { 'api/Cart.cs': 'class Cart { int total; }\n' });
@@ -1449,7 +1449,7 @@ describe('subfolder projects', () => {
     const root = createRepository({
       '.gitignore': 'node_modules/\n', 'web/package.json': manifest('runchecks'), 'web/checks/existing.cjs': '', 'web/src/cart.js': correctCart,
     });
-    writeFiles(root, { 'web/node_modules/.bin/runchecks': runner });
+    writeFiles(root, { 'web/node_modules/.bin/runchecks': runner, 'web/node_modules/.bin/runchecks.cmd': '@node "%~dp0runchecks" %*\r\n' });
     chmodSync(path.join(root, 'web/node_modules/.bin/runchecks'), 0o755);
     writeFiles(root, { 'web/src/cart.js': brokenCart });
     loop(root, ['start']);

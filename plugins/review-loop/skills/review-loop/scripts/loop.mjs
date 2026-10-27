@@ -1786,7 +1786,7 @@ function limitLocations(locations) {
 }
 
 // Git Bash, the shell Claude Code uses on Windows, names drive C: as /c.
-const fromShell = (target) => (WINDOWS ? target.replace(/^\/([A-Za-z])(?=\/|$)/, '$1:/') : target);
+const fromShell = (target) => (WINDOWS ? target.replace(/^\/([A-Za-z])(?=\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`) : target);
 
 function resolveDirectory(base, target) {
   if (target === '-') return null;
