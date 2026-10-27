@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
+[![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
+[![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 Dies ist eine Übersetzung der [englischen README](../../README.md) auf dem Stand vom 2026-10-24. Wenn sich die beiden unterscheiden, gilt die englische README.
@@ -12,9 +14,11 @@ Dies ist eine Übersetzung der [englischen README](../../README.md) auf dem Stan
 
 Coding-Agenten schreiben schnell Code. Ihre eigenen Fehler bemerken sie viel schlechter. Der Agent, der eine Änderung geschrieben hat, ist ihr schwächster Reviewer, denn er liest die Änderung durch seine eigenen Überlegungen und gibt sich selbst recht. Deshalb wird Arbeit ohne Review committet oder mit einem Review aus demselben Kontext, der sie geschrieben hat.
 
-**LIM ist meine Antwort darauf: kleine Plugins, die jeweils eine Aufgabe erledigen, mit den Zahlen, die sie belegen.** Das erste ist review-loop.
+**LIM ist meine Antwort darauf: kleine Plugins, die jeweils eine Aufgabe erledigen, mit den Zahlen, die sie belegen.** Im Zentrum steht review-loop, daneben arbeiten verify und clear-explain.
 
-**Mit review-loop heißt "bereit zum Commit" auch geprüft.** Zuerst laufen deine eigenen Tests, Typprüfungen und Lint. Dann kennzeichnet ein Reviewer mit frischem Kontext, der Claudes Überlegungen nie sieht, Findings mit P1 bis P5 und muss für die schweren Findings Belege zeigen. Claude behebt P1 und P2, ein neuer Reviewer prüft die Fixes, und ein Skript, nicht das Modell, entscheidet, wann Schluss ist. Über den Rest entscheidest du einmal, am Ende.
+**Mit review-loop heißt "bereit zum Commit" auch geprüft.** Zuerst laufen deine eigenen Tests, Typprüfungen und Lint, in Projekten mit Node.js, Python, Go, Rust, Java (Gradle oder Maven), .NET, Ruby und Makefile, auch in bis zu 4 Unterordner-Projekten pro Runde, die eine Änderung berührt. Dann kennzeichnet ein Reviewer mit frischem Kontext, der Claudes Überlegungen nie sieht, Findings mit P1 bis P5 und muss für die schweren Findings Belege zeigen. Claude behebt P1 und P2, ein neuer Reviewer prüft die Fixes, und ein Skript, nicht das Modell, entscheidet, wann Schluss ist. Über den Rest entscheidest du einmal, am Ende.
+
+**Beweis durch Ausführen des Features.** Mit [verify](../../plugins/verify) gilt ein Finding als reproduziert, wenn ein Check, der das Feature ausführt, auf dem geprüften Code fehlschlägt, und sein Fix zählt erst, wenn derselbe Check wieder besteht.
 
 **Kommentare, die du immer wieder schreibst, werden zu Regeln.** Wenn du bei einem Finding "eine Regel daraus machen" wählst, entwirft Claude eine Lint-Regel oder einen Test, und review-loop führt den Entwurf gegen den Code von vor dem Fix aus, um zu beweisen, dass er den Fehler erkennt. Ein Bugfix bekommt auf dieselbe Weise einen Regressionstest.
 

@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
+[![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
+[![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 Ce document est une traduction du [README en anglais](../../README.md) dans sa version du 2026-10-24. Si les deux documents sont différents, le README en anglais est la référence correcte.
@@ -12,9 +14,11 @@ Ce document est une traduction du [README en anglais](../../README.md) dans sa v
 
 Les agents de code écrivent vite. Ils sont bien moins bons pour remarquer ce qu'ils ont raté. L'agent qui a écrit une modification en est le plus faible réviseur, parce qu'il la relit à travers son propre raisonnement et se donne raison. Résultat : le travail part en commit sans revue, ou avec une revue faite par le contexte même qui l'a écrit.
 
-**LIM est ma réponse : de petits plugins qui font chacun un seul travail, avec les chiffres pour le prouver.** Le premier est review-loop.
+**LIM est ma réponse : de petits plugins qui font chacun un seul travail, avec les chiffres pour le prouver.** review-loop est au centre, et verify et clear-explain travaillent à ses côtés.
 
-**Avec review-loop, "prêt pour le commit" veut dire revu.** Vos propres tests, types et lint s'exécutent d'abord. Ensuite, un réviseur avec un contexte neuf, qui ne voit jamais le raisonnement de Claude, classe les constats de P1 à P5 et doit apporter une preuve pour les plus graves. Claude corrige P1 et P2, un nouveau réviseur vérifie les corrections, et un script, et non le modèle, décide quand s'arrêter. Vous décidez du reste une seule fois, à la fin.
+**Avec review-loop, "prêt pour le commit" veut dire revu.** Vos propres tests, types et lint s'exécutent d'abord, dans les projets Node.js, Python, Go, Rust, Java (Gradle ou Maven), .NET, Ruby et Makefile, y compris jusqu'à 4 projets de sous-dossier touchés par une modification, à chaque tour. Ensuite, un réviseur avec un contexte neuf, qui ne voit jamais le raisonnement de Claude, classe les constats de P1 à P5 et doit apporter une preuve pour les plus graves. Claude corrige P1 et P2, un nouveau réviseur vérifie les corrections, et un script, et non le modèle, décide quand s'arrêter. Vous décidez du reste une seule fois, à la fin.
+
+**La preuve en exécutant la fonctionnalité.** Avec [verify](../../plugins/verify), un constat est reproduit quand une vérification qui exécute la fonctionnalité échoue sur le code revu, et sa correction ne compte que lorsque la même vérification réussit de nouveau.
 
 **Les remarques que vous répétez deviennent des règles.** Quand vous marquez un constat "en faire une règle", Claude rédige une règle de lint ou un test, et review-loop l'exécute sur le code d'avant la correction pour prouver qu'il détecte l'erreur. La correction d'un bug reçoit un test de régression de la même façon.
 
