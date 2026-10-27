@@ -774,11 +774,7 @@ function evidenceSources(root, finding, diffText) {
 }
 
 function git(args, options = {}) {
-  const launch = launchOf(['git', ...args], options.cwd ?? process.cwd());
-  if (!launch) throw Object.assign(new Error('git was not found on PATH'), { code: 'ENOENT' });
-  return execFileSync(launch.file, launch.args, {
-    encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, windowsVerbatimArguments: launch.windowsVerbatimArguments, ...options,
-  });
+  return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...options });
 }
 
 function openRepository(cwd, { create = true } = {}) {

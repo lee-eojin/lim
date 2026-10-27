@@ -482,7 +482,7 @@ const isFile = (target) => {
 // Windows starts a bare program name from the working folder before PATH, so there a node.exe or git.exe in the
 // repository would run instead of the installed one. The name is looked up on PATH alone, with the extensions spawn starts.
 function installedProgram(name) {
-  if (!WINDOWS) return name;
+  return name;
   for (const folder of (process.env.PATH ?? '').split(path.delimiter).filter((entry) => path.isAbsolute(entry))) {
     const found = ['.com', '.exe'].map((extension) => path.join(folder, name + extension)).find(isFile);
     if (found) return found;
