@@ -1,0 +1,40 @@
+diff --git a/src/posting/rules.py b/src/posting/rules.py
+index 6ee2380..5a143e1 100644
+--- a/src/posting/rules.py
++++ b/src/posting/rules.py
+@@ -1,15 +1,13 @@
+-def _at_most(limit):
+-    def check(text):
+-        return len(text) <= limit
+-
+-    return check
+-
+-
+-VALIDATORS = {
+-    "title": _at_most(80),
+-    "summary": _at_most(280),
++LIMITS = {
++    "title": 80,
++    "summary": 280,
++    "body": 5000,
+ }
+ 
++VALIDATORS = {}
++for field, limit in LIMITS.items():
++    VALIDATORS[field] = lambda text: len(text) <= limit
++
+ 
+ def validate(post):
+     errors = []
+diff --git a/tests/test_rules.py b/tests/test_rules.py
+index eb1048f..e8d5473 100644
+--- a/tests/test_rules.py
++++ b/tests/test_rules.py
+@@ -3,3 +3,7 @@ from posting.rules import validate
+ 
+ def test_short_post_passes():
+     assert validate({"title": "Hello", "summary": "A first post"}) == []
++
++
++def test_long_body_is_rejected():
++    assert validate({"title": "Hello", "body": "x" * 5001}) == ["body is too long"]

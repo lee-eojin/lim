@@ -232,6 +232,8 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 
 위 표가 리뷰어 기본 모델의 근거입니다. 어려운 세트에서 Opus는 30개 중 30개를 찾았고 잘못 낸 P1이나 P2가 없었습니다. Sonnet은 30개 중 29개를 찾았고 잘못 낸 P1이나 P2가 없었으며, 비용은 Opus의 약 37%였습니다. Haiku는 30개 중 30개를 찾았고 깨끗한 실행 18회 중 3회에서 P1이나 P2를 잘못 냈습니다. 그래서 기본값은 세션의 모델로 두고, 변경을 작성한 모델과 다른 모델로 리뷰하고 싶다면 Sonnet이 더 저렴한 선택입니다.
 
+[`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/)에는 Python, Rust, Go에 심은 버그 6개와 깨끗한 변경 2개가 있습니다. 케이스당 3회 실행했을 때 Opus와 Sonnet은 18개 중 18개, Haiku는 18개 중 16개를 찾았고, 어느 모델도 깨끗한 실행 6회에서 잘못 낸 P1이나 P2가 없었습니다. 자세한 내용은 [review-loop README](../../plugins/review-loop/README.md#measured-behavior)에 있습니다.
+
 <details>
 <summary>비용</summary>
 

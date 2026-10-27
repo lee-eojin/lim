@@ -1,0 +1,66 @@
+diff --git a/cmd/ledger-export/main.go b/cmd/ledger-export/main.go
+index 1c0f662..a5d7e25 100644
+--- a/cmd/ledger-export/main.go
++++ b/cmd/ledger-export/main.go
+@@ -10,6 +10,7 @@ import (
+ 
+ func main() {
+ 	out := flag.String("out", "ledger.csv", "file to write")
++	gzipped := flag.Bool("gzip", false, "compress the file with gzip")
+ 	flag.Parse()
+ 
+ 	entries, err := loadEntries()
+@@ -20,7 +21,7 @@ func main() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	if err := export.Write(file, entries); err != nil {
++	if err := export.Write(file, entries, export.Options{Gzip: *gzipped}); err != nil {
+ 		file.Close()
+ 		os.Remove(*out)
+ 		log.Fatalf("export failed, removed %s: %v", *out, err)
+diff --git a/export/export.go b/export/export.go
+index 2c35793..57910df 100644
+--- a/export/export.go
++++ b/export/export.go
+@@ -2,6 +2,7 @@ package export
+ 
+ import (
+ 	"bufio"
++	"compress/gzip"
+ 	"fmt"
+ 	"io"
+ )
+@@ -11,6 +12,10 @@ type Entry struct {
+ 	AmountCents int64
+ }
+ 
++type Options struct {
++	Gzip bool
++}
++
+ func writeEntries(w io.Writer, entries []Entry) error {
+ 	buffered := bufio.NewWriter(w)
+ 	if _, err := fmt.Fprintln(buffered, "id,amount_cents"); err != nil {
+@@ -24,7 +29,18 @@ func writeEntries(w io.Writer, entries []Entry) error {
+ 	return buffered.Flush()
+ }
+ 
+-// Write writes entries as CSV and reports any error from w.
+-func Write(w io.Writer, entries []Entry) error {
+-	return writeEntries(w, entries)
++// Write writes entries as CSV, compressed with gzip when options.Gzip is set,
++// and reports any error from w.
++func Write(w io.Writer, entries []Entry, options Options) error {
++	var err error
++	if options.Gzip {
++		compressed := gzip.NewWriter(w)
++		err := writeEntries(compressed, entries)
++		if err == nil {
++			err = compressed.Close()
++		}
++	} else {
++		err = writeEntries(w, entries)
++	}
++	return err
+ }

@@ -232,6 +232,8 @@ Secara default, reviewer berjalan dengan model sesimu. Opus menemukan setiap bug
 
 Tabel di atas menjadi dasar model default reviewer. Pada set lebih sulit, Opus menemukan 30 dari 30 tanpa P1 atau P2 palsu, Sonnet menemukan 29 dari 30 tanpa satu pun dengan biaya sekitar 37% dari Opus, dan Haiku menemukan 30 dari 30 dengan 3 P1 atau P2 palsu dari 18 eksekusi bersih. Jadi default tetap model sesi, dan Sonnet adalah pilihan yang lebih murah saat kamu ingin reviewer berjalan pada model yang berbeda dari model yang menulis perubahan.
 
+[`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/) berisi 6 bug yang ditanam dalam Python, Rust, dan Go serta 2 perubahan bersih. Dengan 3 eksekusi per kasus, Opus dan Sonnet menemukan 18 dari 18 dan Haiku 16 dari 18, tanpa P1 atau P2 palsu dalam 6 eksekusi bersih untuk ketiganya; [review-loop README](../../plugins/review-loop/README.md#measured-behavior) memuat detailnya.
+
 <details>
 <summary>Biaya</summary>
 

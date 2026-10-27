@@ -230,6 +230,8 @@ By default the reviewer runs on your session's model. Opus found every seeded bu
 
 The table above is the basis for the reviewer's default model. On the harder set, Opus found 30 of 30 with no false P1 or P2, Sonnet found 29 of 30 with none at about 37% of Opus's cost, and Haiku found 30 of 30 with 3 false P1 or P2 in 18 clean runs. So the default stays the session's model, and Sonnet is the cheaper choice when you want the reviewer on a different model than the one that wrote the change.
 
+[`evals/review-loop/detection-languages/`](evals/review-loop/detection-languages/) has 6 seeded bugs in Python, Rust, and Go and 2 clean changes. With 3 runs per case, Opus and Sonnet found 18 of 18 and Haiku 16 of 18, with no false P1 or P2 in 6 clean runs for any of them; the [review-loop README](plugins/review-loop/README.md#measured-behavior) has the details.
+
 <details>
 <summary>Cost</summary>
 

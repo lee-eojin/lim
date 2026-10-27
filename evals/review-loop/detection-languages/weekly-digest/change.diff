@@ -1,0 +1,44 @@
+diff --git a/src/notices/digest.py b/src/notices/digest.py
+index 2859f57..760a683 100644
+--- a/src/notices/digest.py
++++ b/src/notices/digest.py
+@@ -9,8 +9,9 @@ class Digest:
+     recipients: list = field(default_factory=list)
+ 
+ 
+-def build_digest(entries):
+-    return Digest(entries=list(entries), recipients=[TEAM_INBOX])
++def build_digest(entries, recipients=[]):
++    recipients.append(TEAM_INBOX)
++    return Digest(entries=list(entries), recipients=recipients)
+ 
+ 
+ def subject_line(digest):
+diff --git a/src/notices/weekly.py b/src/notices/weekly.py
+index fb487b4..1b36dfe 100644
+--- a/src/notices/weekly.py
++++ b/src/notices/weekly.py
+@@ -5,6 +5,6 @@ from .sender import send_digest
+ def send_weekly(projects, mailer):
+     sent = 0
+     for project in projects:
+-        digest = build_digest(project.changes_this_week())
++        digest = build_digest(project.changes_this_week(), project.watchers())
+         sent += send_digest(digest, mailer)
+     return sent
+diff --git a/tests/test_digest.py b/tests/test_digest.py
+index a824aaf..8e6a024 100644
+--- a/tests/test_digest.py
++++ b/tests/test_digest.py
+@@ -6,6 +6,11 @@ def test_team_inbox_gets_the_digest():
+     assert digest.recipients == [TEAM_INBOX]
+ 
+ 
++def test_extra_recipients_and_the_team_inbox():
++    digest = build_digest(["release 2.1 shipped"], ["lead@example.com"])
++    assert digest.recipients == ["lead@example.com", TEAM_INBOX]
++
++
+ def test_subject_counts_updates():
+     assert subject_line(build_digest(["a"])) == "1 update"
+     assert subject_line(build_digest(["a", "b"])) == "2 updates"

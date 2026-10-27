@@ -1,0 +1,17 @@
+{
+  "intent": "Add a -gzip flag that compresses the export, and keep reporting write errors so a failed export never leaves a file behind",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "shadowed err: err := inside the gzip branch declares a new variable, so Write returns the outer err, still nil, and drops write and Close errors on the gzip path",
+  "expect": [
+    {
+      "locations": [
+        { "file": "export/export.go", "lines": [34, 46] },
+        { "file": "cmd/ledger-export/main.go", "lines": [24, 24] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["shadow", "shadows", "shadowed", "shadowing", "err :=", ":= declares", "new variable", "new err", "inner err", "outer err", "redeclares", "redeclared", "redeclaration", "different variable", "separate variable", "block scope", "block-scoped", "scoped to the if", "always nil", "always returns nil", "returns nil", "nil error", "swallowed", "swallows", "swallow", "discarded", "dropped", "lost", "ignored", "never assigned", "never set", "Close error", "error from Close", "close error", "footer", "truncated", "corrupt", "reports success", "logs success", "leaves a file", "left behind"]
+    }
+  ],
+  "forbid": []
+}

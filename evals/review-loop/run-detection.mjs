@@ -180,6 +180,17 @@ function projectNameOf(repo) {
   }
 }
 
+// Build output from running a case's own checks (target/, __pycache__/) is git-ignored here,
+// and copying it would hand the reviewer paths that name this eval.
+function ignoredPaths(repo) {
+  try {
+    const listed = git(repo, 'ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z');
+    return new Set(listed.split('\0').filter(Boolean).map((entry) => entry.replace(/\/$/, '')));
+  } catch {
+    return new Set();
+  }
+}
+
 // The reviewer must not be able to tell it is being measured, so the copy lives under a
 // plain project name in the system temp folder and the diff sits where review-loop keeps it.
 export function prepareCase(caseDir, expected) {
@@ -188,7 +199,8 @@ export function prepareCase(caseDir, expected) {
   const projectName = projectNameOf(sourceRepo).replace(/[^\w.-]/g, '-');
   const workDir = realpathSync(mkdtempSync(path.join(tmpdir(), `${projectName}-`)));
   try {
-    cpSync(sourceRepo, workDir, { recursive: true });
+    const ignored = ignoredPaths(sourceRepo);
+    cpSync(sourceRepo, workDir, { recursive: true, filter: (source) => !ignored.has(path.relative(sourceRepo, source).split(path.sep).join('/')) });
     git(workDir, 'init', '-q');
     const alreadyApplied = !applies(workDir, diffFile, false) && applies(workDir, diffFile, true);
     if (alreadyApplied) git(workDir, 'apply', '-R', diffFile);

@@ -12,6 +12,7 @@ const casesDir = path.join(evalsDir, 'detection');
 const caseSets = [
   { folder: 'detection', minBugs: 10, minClean: 5 },
   { folder: 'detection-hard', minBugs: 5, minClean: 3 },
+  { folder: 'detection-languages', minBugs: 6, minClean: 2 },
 ].map((set) => {
   const dir = path.join(evalsDir, set.folder);
   const names = readdirSync(dir).filter((name) => existsSync(path.join(dir, name, 'expected.json')));
@@ -332,5 +333,23 @@ test('compare refuses files with no shared cases and other modes refuse stray ar
     assert.match(stray.stderr, /unexpected argument: stray/);
   } finally {
     rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test('a case copy leaves out files git ignores, such as build output from running its checks', () => {
+  const dir = path.join(evalsDir, 'detection-languages', 'message-frames');
+  const buildOutput = path.join(dir, 'repo', 'target', 'debug', 'relay.d');
+  const existed = existsSync(buildOutput);
+  if (!existed) {
+    mkdirSync(path.dirname(buildOutput), { recursive: true });
+    writeFileSync(buildOutput, `${dir}/repo/src/frame.rs\n`);
+  }
+  const { workDir } = prepareCase(dir, readCase(path.join(evalsDir, 'detection-languages'), 'message-frames'));
+  try {
+    assert.ok(existsSync(path.join(workDir, 'src', 'frame.rs')), 'tracked files are copied');
+    assert.ok(!existsSync(path.join(workDir, 'target')), 'target/ is not copied');
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
+    if (!existed) rmSync(path.join(dir, 'repo', 'target'), { recursive: true, force: true });
   }
 });

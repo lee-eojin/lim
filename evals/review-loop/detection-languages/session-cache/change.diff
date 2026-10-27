@@ -1,0 +1,142 @@
+diff --git a/src/sessions/cache.py b/src/sessions/cache.py
+index 102ceca..2a43c0c 100644
+--- a/src/sessions/cache.py
++++ b/src/sessions/cache.py
+@@ -1,12 +1,40 @@
++import time
++from dataclasses import dataclass
++
++_MISSING = object()
++
++
++@dataclass
++class _Entry:
++    value: object
++    stored_at: float
++
++
+ class Cache:
+-    def __init__(self):
++    def __init__(self, ttl_seconds=900, clock=time.monotonic):
+         self._entries = {}
++        self._ttl = ttl_seconds
++        self._clock = clock
+ 
+     def put(self, key, value):
+-        self._entries[key] = value
++        self._entries[key] = _Entry(value, self._clock())
++
++    def get(self, key, default=_MISSING):
++        entry = self._entries.get(key)
++        if entry is None or self._expired(entry, self._clock()):
++            if default is _MISSING:
++                raise KeyError(key)
++            return default
++        return entry.value
++
++    def purge(self):
++        now = self._clock()
++        for key, entry in list(self._entries.items()):
++            if self._expired(entry, now):
++                del self._entries[key]
+ 
+-    def get(self, key):
+-        return self._entries[key]
++    def _expired(self, entry, now):
++        return now - entry.stored_at >= self._ttl
+ 
+     def __len__(self):
+         return len(self._entries)
+diff --git a/src/sessions/jobs.py b/src/sessions/jobs.py
+index cfcd09b..7e95218 100644
+--- a/src/sessions/jobs.py
++++ b/src/sessions/jobs.py
+@@ -1,5 +1,7 @@
+ import logging
+ 
++from .lookup import forget_expired
++
+ log = logging.getLogger(__name__)
+ 
+ 
+@@ -9,7 +11,7 @@ def report_size():
+     log.info("sessions cached: %d", len(_sessions))
+ 
+ 
+-EVERY_MINUTE = [report_size]
++EVERY_MINUTE = [forget_expired, report_size]
+ 
+ 
+ def run_minutely():
+diff --git a/src/sessions/lookup.py b/src/sessions/lookup.py
+index 3f6972f..64706d0 100644
+--- a/src/sessions/lookup.py
++++ b/src/sessions/lookup.py
+@@ -1,6 +1,6 @@
+ from .cache import Cache
+ 
+-_sessions = Cache()
++_sessions = Cache(ttl_seconds=1800)
+ 
+ 
+ def remember(token, user_id):
+@@ -8,7 +8,8 @@ def remember(token, user_id):
+ 
+ 
+ def user_for(token):
+-    try:
+-        return _sessions.get(token)
+-    except KeyError:
+-        return None
++    return _sessions.get(token, None)
++
++
++def forget_expired():
++    _sessions.purge()
+diff --git a/tests/test_cache.py b/tests/test_cache.py
+index 710bc8d..e42566e 100644
+--- a/tests/test_cache.py
++++ b/tests/test_cache.py
+@@ -3,6 +3,14 @@ import pytest
+ from sessions.cache import Cache
+ 
+ 
++class FakeClock:
++    def __init__(self):
++        self.now = 0.0
++
++    def __call__(self):
++        return self.now
++
++
+ def test_put_then_get():
+     cache = Cache()
+     cache.put("a", 1)
+@@ -12,3 +20,27 @@ def test_put_then_get():
+ def test_missing_key_raises():
+     with pytest.raises(KeyError):
+         Cache().get("missing")
++
++
++def test_default_instead_of_raising():
++    assert Cache().get("missing", None) is None
++
++
++def test_entry_expires_after_ttl():
++    clock = FakeClock()
++    cache = Cache(ttl_seconds=10, clock=clock)
++    cache.put("a", 1)
++    clock.now = 10
++    assert cache.get("a", "gone") == "gone"
++
++
++def test_purge_drops_only_expired_entries():
++    clock = FakeClock()
++    cache = Cache(ttl_seconds=10, clock=clock)
++    cache.put("old", 1)
++    clock.now = 5
++    cache.put("new", 2)
++    clock.now = 12
++    cache.purge()
++    assert len(cache) == 1
++    assert cache.get("new") == 2

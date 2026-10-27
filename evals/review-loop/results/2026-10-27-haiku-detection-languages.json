@@ -1,0 +1,1639 @@
+{
+  "date": "2026-10-27T10:37:45.572Z",
+  "model": "haiku",
+  "claudeVersion": "2.1.311 (Claude Code)",
+  "reviewer": {
+    "path": "plugins/review-loop/agents/reviewer.md",
+    "sha256": "b500478811574f56bc8e9d823281a07dd4a10e1a0d26eaf18a92cb2121afabf6"
+  },
+  "label": "detection-languages",
+  "cases": "evals/review-loop/detection-languages",
+  "runsPerCase": 3,
+  "concurrency": 4,
+  "elapsedSeconds": 80,
+  "summary": {
+    "runs": 24,
+    "errors": 0,
+    "bugRuns": 18,
+    "found": 16,
+    "lowSeverity": 0,
+    "missed": 2,
+    "cleanRuns": 6,
+    "cleanWithFalseHigh": 0,
+    "falseHighFindings": 0,
+    "otherHighOnBugRuns": 2,
+    "otherLowFindings": 15,
+    "totalTokens": 487162,
+    "averageTokens": 20298,
+    "totalCostUsd": 0.0423,
+    "totalWallSeconds": 302,
+    "averageWallSeconds": 13
+  },
+  "scoredWith": {
+    "date": "2026-10-27T10:38:08.836Z",
+    "note": "sensor-smoothing: removed the keywords \"returns nothing\", \"returns empty\", and \"returns an empty\", which also matched findings about fewer than five readings giving no average (the window the author asked for), not the off-by-one.",
+    "originalSummary": {
+      "runs": 24,
+      "errors": 0,
+      "bugRuns": 18,
+      "found": 18,
+      "lowSeverity": 0,
+      "missed": 0,
+      "cleanRuns": 6,
+      "cleanWithFalseHigh": 0,
+      "falseHighFindings": 0,
+      "otherHighOnBugRuns": 0,
+      "otherLowFindings": 15,
+      "totalTokens": 487162,
+      "averageTokens": 20298,
+      "totalCostUsd": 0.0423,
+      "totalWallSeconds": 302,
+      "averageWallSeconds": 13
+    }
+  },
+  "runs": [
+    {
+      "case": "ledger-export",
+      "wallMs": 10585,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 7338,
+        "cacheRead": 11583,
+        "output": 1404,
+        "total": 20331
+      },
+      "costUsd": 0.00228603,
+      "apiMs": 9476,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 58,
+            "category": "correctness",
+            "title": "Gzip branch shadows err, so write and close errors are never returned"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 58,
+            "category": "correctness",
+            "title": "Gzip branch shadows err, so write and close errors are never returned",
+            "quote": "err := writeEntries(compressed, entries)",
+            "scenario": "Run with -gzip while the write fails (for example, disk full). writeEntries returns an error into the inner err, which is discarded. The outer err stays nil, Write returns nil, main does not call os.Remove, and the log reports success. A partial .gz file is left behind, which is the outcome the author asked to prevent. The same happens when compressed.Close() fails, because it also assigns to the inner err.",
+            "whyNotPrevented": "No type or compiler check catches the shadowed := declaration. The diff adds no test for the gzip path or for a write error in that path, and go vet's default checks do not flag this shadowing.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "ledger-export",
+      "wallMs": 7222,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 6385,
+        "cacheRead": 5203,
+        "output": 1049,
+        "total": 12641
+      },
+      "costUsd": 0.0018539300000000002,
+      "apiMs": 6011,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "export/export.go",
+            "line": 58,
+            "category": "correctness",
+            "title": "gzip path shadows err, so write and close errors are dropped"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "export/export.go",
+            "line": 58,
+            "category": "correctness",
+            "title": "gzip path shadows err, so write and close errors are dropped",
+            "quote": "err := writeEntries(compressed, entries)",
+            "scenario": "Run with -gzip when the disk fills mid-write. writeEntries fails inside the inner block, but the := declares a new err that is never returned. Write returns the outer nil, main skips its os.Remove branch, and a truncated .gz file is left behind. The same happens when compressed.Close() fails, because its error is also assigned to the inner err.",
+            "whyNotPrevented": "The outer `var err error` is still nil on this path, and nothing checks the return value of the gzip branch. No test covers -gzip with a failing writer.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "ledger-export",
+      "wallMs": 17727,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 7503,
+        "cacheRead": 11588,
+        "output": 2230,
+        "total": 21327
+      },
+      "costUsd": 0.00273208,
+      "apiMs": 16591,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 38,
+            "category": "correctness",
+            "title": "Gzip write errors are shadowed and dropped, so a failed export is reported as success and leaves a partial file"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 38,
+            "category": "correctness",
+            "title": "Gzip write errors are shadowed and dropped, so a failed export is reported as success and leaves a partial file",
+            "quote": "err := writeEntries(compressed, entries)",
+            "scenario": "Run with -gzip and the disk fills or the writer fails mid-write. writeEntries returns an error, but `:=` creates a new inner err. The `if err == nil` check and the Close call also use the inner variable. The function returns the outer err, which is still nil, so Write returns nil. main.go sees success, does not call os.Remove, and the truncated .gz file stays on disk.",
+            "whyNotPrevented": "The compiler accepts the shadowed variable, and go vet does not flag it by default. No test in the diff covers a failing writer on the gzip path, so nothing catches it.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "log-records",
+      "wallMs": 15363,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 7559,
+        "cacheRead": 11501,
+        "output": 2200,
+        "total": 21266
+      },
+      "costUsd": 0.0027274100000000004,
+      "apiMs": 14236,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/record.rs",
+          "line": 12,
+          "category": "correctness",
+          "title": "Sum checksum misses reordered bytes and offsetting multi-byte errors"
+        },
+        {
+          "severity": "P3",
+          "file": "src/record.rs",
+          "line": 19,
+          "category": "correctness",
+          "title": "No write path in the repo calls encode, so records written to the journal get no checksum"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/record.rs",
+            "line": 12,
+            "category": "correctness",
+            "title": "Sum checksum misses reordered bytes and offsetting multi-byte errors",
+            "quote": "bytes.iter().fold(0u8, |sum, byte| sum.wrapping_add(*byte))",
+            "scenario": "Two bytes swapped in a record, e.g. b\"ab\" stored as b\"ba\", keep the same sum and decode as valid. Two corruptions that offset each other mod 256 also pass.",
+            "whyNotPrevented": "A sum is order-independent and weak against compensating errors. The stated goal is single-byte corruption, which a sum does catch, so this is a limit of the design, not a failure of the requested behavior.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/record.rs",
+            "line": 19,
+            "category": "correctness",
+            "title": "No write path in the repo calls encode, so records written to the journal get no checksum",
+            "quote": "pub fn encode(body: &[u8]) -> Vec<u8> {",
+            "scenario": "A journal writer that appends bodies directly, without calling encode, produces records with no trailing checksum. Replay then reads the last body byte as the checksum and reports Corrupted for valid records.",
+            "whyNotPrevented": "Nothing in the diff or the tests connects encode to a writer. The only callers found are in record.rs tests, so this check cannot tell whether a writer exists elsewhere.",
+            "basis": "measured",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "log-records",
+      "wallMs": 11589,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3333,
+        "cacheRead": 15970,
+        "output": 1642,
+        "total": 20951
+      },
+      "costUsd": 0.0016479,
+      "apiMs": 10558,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/record.rs",
+          "line": 13,
+          "category": "correctness",
+          "title": "Sum checksum does not detect reordered bytes"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/record.rs",
+            "line": 13,
+            "category": "correctness",
+            "title": "Sum checksum does not detect reordered bytes",
+            "quote": "bytes.iter().fold(0u8, |sum, byte| sum.wrapping_add(*byte))",
+            "scenario": "Swapping two bytes in a body, for example b\"ab\" to b\"ba\", leaves the sum unchanged, so decode returns Ok with the wrong body and replay applies it",
+            "whyNotPrevented": "The checksum is order-independent, and the tests only flip a single byte (a_flipped_byte_is_caught)",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "log-records",
+      "wallMs": 12884,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3492,
+        "cacheRead": 15965,
+        "output": 1873,
+        "total": 21336
+      },
+      "costUsd": 0.0017951500000000001,
+      "apiMs": 11669,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/record.rs",
+          "line": 13,
+          "category": "correctness",
+          "title": "Sum checksum misses reordered bytes"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/record.rs",
+            "line": 13,
+            "category": "correctness",
+            "title": "Sum checksum misses reordered bytes",
+            "quote": "bytes.iter().fold(0u8, |sum, byte| sum.wrapping_add(*byte))",
+            "scenario": "body b\"ab\" and b\"ba\" have the same sum, so a record whose two bytes were swapped on disk still decodes as valid and replays wrong data",
+            "whyNotPrevented": "the sum is order-independent, and the tests only flip a single byte (a_flipped_byte_is_caught), so no test covers transposition",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "message-frames",
+      "wallMs": 11211,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2201,
+        "cacheRead": 15862,
+        "output": 1601,
+        "total": 19670
+      },
+      "costUsd": 0.00139992,
+      "apiMs": 9839,
+      "turns": 3,
+      "strictJson": false,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 18,
+            "category": "correctness",
+            "title": "Length truncated to u16 while the size limit allows up to 256 KiB"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 18,
+            "category": "correctness",
+            "title": "Length truncated to u16 while the size limit allows up to 256 KiB",
+            "quote": "out.extend_from_slice(&(message.len() as u16).to_be_bytes());",
+            "scenario": "A 70,000-byte message passes the MAX_MESSAGE_BYTES check (262,144 bytes), then the header is written as 70000 as u16 = 4464. The body of 70,000 bytes follows, so the decoder reads 4,464 bytes as one frame and treats the remaining bytes as the start of the next frame. The stream desyncs with no error. Any message over 65,535 bytes is affected.",
+            "whyNotPrevented": "encode only checks message.len() > MAX_MESSAGE_BYTES, and MAX_MESSAGE_BYTES is 256 * 1024 (src/limits.rs:2). Nothing checks the length against u16::MAX. The only test for the limit uses MAX + 1, and the new test uses a 5-byte message, so neither covers the 65,536 to 262,144 range.",
+            "basis": "measured",
+            "measuredBy": "Grep \"MAX_MESSAGE_BYTES\" in repo: src/limits.rs:2 defines it as 256 * 1024; src/frame.rs:12 is the only check in encode",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "message-frames",
+      "wallMs": 12413,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2211,
+        "cacheRead": 15862,
+        "output": 1832,
+        "total": 19911
+      },
+      "costUsd": 0.00151742,
+      "apiMs": 11223,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Lengths above 65535 bytes are silently truncated by the u16 cast"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Lengths above 65535 bytes are silently truncated by the u16 cast",
+            "quote": "out.extend_from_slice(&(message.len() as u16).to_be_bytes());",
+            "scenario": "A 65536-byte message passes the MAX_MESSAGE_BYTES check (256 * 1024 = 262144) and is encoded with length 0x0000. decode reads length 0, returns an empty message, and treats the 65536 payload bytes as the start of the next frame. Any message from 65536 to 262144 bytes is corrupted or desynchronizes the stream.",
+            "whyNotPrevented": "The only size check compares against MAX_MESSAGE_BYTES, which is 262144 in src/limits.rs, and nothing ties that limit to u16::MAX. The added test only encodes b\"hello\", and the existing TooLarge test only checks the 262145-byte boundary, so no test exercises 65536 or more bytes.",
+            "basis": "measured",
+            "measuredBy": "Grep \"MAX_MESSAGE_BYTES\" in src: src/limits.rs:2 defines it as 256 * 1024; src/frame.rs:18 casts message.len() to u16 with no range check",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "message-frames",
+      "wallMs": 12523,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2209,
+        "cacheRead": 15862,
+        "output": 1538,
+        "total": 19615
+      },
+      "costUsd": 0.00137002,
+      "apiMs": 11363,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 18,
+            "category": "correctness",
+            "title": "Messages over 65535 bytes get a truncated length header and corrupt the stream"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 18,
+            "category": "correctness",
+            "title": "Messages over 65535 bytes get a truncated length header and corrupt the stream",
+            "quote": "out.extend_from_slice(&(message.len() as u16).to_be_bytes());",
+            "scenario": "A 70,000-byte message passes the MAX_MESSAGE_BYTES check (256 KiB). The `as u16` cast writes a length of 4464 (70000 mod 65536), but all 70,000 bytes are appended. decode reads 4464 bytes as one message and treats the remaining 65,536 bytes as the start of the next frame, so the stream is misparsed with no error.",
+            "whyNotPrevented": "The only size check, at line 12, compares against MAX_MESSAGE_BYTES = 256 * 1024 (src/limits.rs:2), which is larger than u16::MAX. The new test uses b\"hello\" and the existing too-large test only covers MAX+1, so no test exercises lengths between 65536 and 262144.",
+            "basis": "measured",
+            "measuredBy": "Grep \"MAX_MESSAGE_BYTES\" in repo: src/limits.rs:2 defines it as 256 * 1024; src/frame.rs:12 is the only size check before the u16 cast on line 18",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "post-fields",
+      "wallMs": 11670,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 1851,
+        "cacheRead": 15545,
+        "output": 1429,
+        "total": 18831
+      },
+      "costUsd": 0.00124075,
+      "apiMs": 10442,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Late-binding lambda makes every field use the body limit of 5000"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Late-binding lambda makes every field use the body limit of 5000",
+            "quote": "    VALIDATORS[field] = lambda text: len(text) <= limit",
+            "scenario": "A title of 81 characters, which should fail the 80 limit, passes validate(). The lambdas read `limit` only when called, after the loop has finished, so every validator compares against 5000. The same happens to summary at 281 characters, which should fail the 280 limit and passes. validate({\"title\": \"x\" * 81}) returns [] instead of [\"title is too long\"].",
+            "whyNotPrevented": "The added test only checks body with 5001 characters. Nothing tests title or summary at their limits, and no type or lint check flags the closure over a loop variable.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "post-fields",
+      "wallMs": 11811,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 1867,
+        "cacheRead": 15545,
+        "output": 1605,
+        "total": 19023
+      },
+      "costUsd": 0.0013319500000000001,
+      "apiMs": 10497,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Loop lambdas all capture the last `limit`, so title and summary limits are lost"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "tests/test_rules.py",
+          "line": 39,
+          "category": "test-coverage",
+          "title": "No test covers title or summary over their limits"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Loop lambdas all capture the last `limit`, so title and summary limits are lost",
+            "quote": "    VALIDATORS[field] = lambda text: len(text) <= limit",
+            "scenario": "After the loop, `limit` is 5000 (the last LIMITS entry). A title of 81 characters, or a summary of 281 characters, gives len(text) <= 5000, which is True, so validate({\"title\": \"x\" * 81}) returns [] instead of [\"title is too long\"]. The same happens for summary. Only body is actually enforced at its own limit.",
+            "whyNotPrevented": "The only new test covers body with 5001 characters, and it passes because every validator uses 5000. No test exercises title or summary over their limits, and the existing test only uses short values.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "tests/test_rules.py",
+            "line": 39,
+            "category": "test-coverage",
+            "title": "No test covers title or summary over their limits",
+            "quote": "def test_long_body_is_rejected():",
+            "scenario": "A regression in the per-field limits, like the late-binding bug above, passes the whole suite because only the body limit is tested.",
+            "whyNotPrevented": "The added test only checks the body field, and the existing test only checks short inputs.",
+            "basis": "measured",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "post-fields",
+      "wallMs": 9085,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 1842,
+        "cacheRead": 15545,
+        "output": 875,
+        "total": 18268
+      },
+      "costUsd": 0.00096195,
+      "apiMs": 7691,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Lambda closure captures the loop variable, so every field uses the body limit of 5000"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Lambda closure captures the loop variable, so every field uses the body limit of 5000",
+            "quote": "    VALIDATORS[field] = lambda text: len(text) <= limit",
+            "scenario": "validate({\"title\": \"x\" * 81}) returns [] because all three lambdas read limit == 5000 after the loop ends. A 281-character summary also passes, and a title over 80 characters is never rejected.",
+            "whyNotPrevented": "The only new test uses a 5001-character body, which fails the 5000 limit whether or not the closure is bound correctly. No existing test checks title or summary above their limits, so nothing catches the late binding.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-stats",
+      "wallMs": 12378,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3158,
+        "cacheRead": 16590,
+        "output": 2123,
+        "total": 21877
+      },
+      "costUsd": 0.0018596,
+      "apiMs": 11109,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so the first Record call panics"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "server/server.go",
+          "line": 24,
+          "category": "speculative-guard",
+          "title": "clientOf falls back to the raw RemoteAddr when SplitHostPort fails"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so the first Record call panics",
+            "quote": "return &Stats{started: now, byStatus: make(map[int]int)}",
+            "scenario": "The server starts (main.go:13 calls stats.New), then the first request passes through Counted, which calls Record(clientOf(r), status). Record runs s.byClient[client]++ on a nil map, which panics with 'assignment to entry in nil map'. Every request fails before its count is recorded, so the summary never shows busiest clients.",
+            "whyNotPrevented": "New only makes byStatus. Grep for byClient finds only the field declaration, the increment in Record, and the read in Summary, with no make call. No test covers Record or New, so nothing catches the nil map.",
+            "basis": "measured",
+            "measuredBy": "Grep \"\\.Record\\(|stats\\.New\\(|byClient\" over the repo: byClient is declared at stats/stats.go:16 and written at :28, with no make or initialization anywhere",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "server/server.go",
+            "line": 24,
+            "category": "speculative-guard",
+            "title": "clientOf falls back to the raw RemoteAddr when SplitHostPort fails",
+            "quote": "return r.RemoteAddr",
+            "scenario": "net/http always sets RemoteAddr to host:port for server requests, so the error branch is not reached in practice. If it were reached, the raw string would become the client key without any report of the failure.",
+            "whyNotPrevented": "net/http sets RemoteAddr itself, so the branch is a fallback for a state the change does not show can happen.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-stats",
+      "wallMs": 10600,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3063,
+        "cacheRead": 16590,
+        "output": 1699,
+        "total": 21358
+      },
+      "costUsd": 0.0016286,
+      "apiMs": 9298,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "New() never initializes byClient, so the first Record call panics on a nil map write"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "New() never initializes byClient, so the first Record call panics on a nil map write",
+            "quote": "return &Stats{started: now, byStatus: make(map[int]int)}",
+            "scenario": "main.go calls stats.New(time.Now()); the first request through Counted calls Record, which runs s.byClient[client]++ on a nil map and panics. net/http recovers the panic per connection, so the client gets an aborted response and the request is never counted. Every counted request fails this way.",
+            "whyNotPrevented": "The diff adds the byClient field and writes to it in Record but does not change New, and the Stats struct literal is only built in New. Grep for Record and stats.New finds no test file that exercises Record, so no test catches the nil map.",
+            "basis": "measured",
+            "measuredBy": "Grep \"stats\\.Stats\\{|&Stats\\{|\\.Record\\(|stats\\.New\\(|byClient\" over the repo: New() at stats/stats.go:20 is the only constructor, byClient is never made, and no _test file references Record",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-stats",
+      "wallMs": 15595,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3068,
+        "cacheRead": 16595,
+        "output": 2258,
+        "total": 21927
+      },
+      "costUsd": 0.00190915,
+      "apiMs": 14274,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so every Record call panics"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "server/server.go",
+          "line": 24,
+          "category": "maintainability",
+          "title": "clientOf fallback to the raw RemoteAddr is an unneeded guard"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so every Record call panics",
+            "quote": "return &Stats{started: now, byStatus: make(map[int]int)}",
+            "scenario": "The server starts (main.go:13 calls stats.New) and the first request reaches Counted, which calls Record. Record runs s.byClient[client]++ on a nil map, which panics with 'assignment to entry in nil map'. net/http recovers the panic and drops the connection, so every request fails and the summary endpoint never reports any counts.",
+            "whyNotPrevented": "New was not changed to make byClient, and nothing else in the diff or the repo initializes it (Grep for byClient shows only the field declaration and its two uses). The code compiles, so the type checker does not catch it, and no test in the diff exercises Record or New.",
+            "basis": "measured",
+            "measuredBy": "Grep \"byClient\" in repo: only stats/stats.go:16 (declaration), :28 (write), :56-57 (read); no make() or initializer anywhere",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "server/server.go",
+            "line": 24,
+            "category": "maintainability",
+            "title": "clientOf fallback to the raw RemoteAddr is an unneeded guard",
+            "quote": "return r.RemoteAddr",
+            "scenario": "net/http always sets RemoteAddr to host:port for server requests, so the error branch is effectively unreachable. If it were reached, the raw address with its port would be counted as a separate client, which splits the counts.",
+            "whyNotPrevented": "No check in the diff confirms that RemoteAddr can be malformed here; the branch exists without a known cause.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "sensor-smoothing",
+      "wallMs": 13024,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2950,
+        "cacheRead": 16022,
+        "output": 1808,
+        "total": 20786
+      },
+      "costUsd": 0.00165482,
+      "apiMs": 11693,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "missed",
+      "expect": [
+        {
+          "status": "missed",
+          "finding": null
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/readings.rs",
+          "line": 11,
+          "category": "correctness",
+          "title": "Vents never open until five readings exist, even when the early readings are already hot"
+        },
+        {
+          "severity": "P3",
+          "file": "src/vents.rs",
+          "line": 9,
+          "category": "test-coverage",
+          "title": "should_open has no test for the threshold or for the newest-reading case"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/readings.rs",
+            "line": 11,
+            "category": "correctness",
+            "title": "Vents never open until five readings exist, even when the early readings are already hot",
+            "quote": "if window == 0 || values.len() < window {",
+            "scenario": "readings [35.0, 35.0, 35.0, 35.0] (four readings, all far above 28.0): trailing_average returns an empty Vec, so should_open returns false and the vents stay closed. The old mean-based code returned true for the same input.",
+            "whyNotPrevented": "no caller or test in the repo covers should_open with fewer than five readings; the new test too_few_readings_give_nothing asserts the empty result but nothing checks what the vents should do in that state",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/vents.rs",
+            "line": 9,
+            "category": "test-coverage",
+            "title": "should_open has no test for the threshold or for the newest-reading case",
+            "quote": ".is_some_and(|value| *value > OPEN_ABOVE_CELSIUS)",
+            "scenario": "a regression that averages the oldest five readings instead of the newest five would still pass, because the only new tests cover trailing_average on steady input and the empty case",
+            "whyNotPrevented": "the diff adds no test that calls should_open",
+            "basis": "measured",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "sensor-smoothing",
+      "wallMs": 15628,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 1910,
+        "cacheRead": 9658,
+        "output": 2628,
+        "total": 14200
+      },
+      "costUsd": 0.00179298,
+      "apiMs": 14295,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "missed",
+      "expect": [
+        {
+          "status": "missed",
+          "finding": null
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/vents.rs",
+          "line": 9,
+          "category": "correctness",
+          "title": "Vents never open on a hot start until five readings exist"
+        },
+        {
+          "severity": "P3",
+          "file": "src/vents.rs",
+          "line": 9,
+          "category": "test-gap",
+          "title": "No test covers the new should_open behavior"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/vents.rs",
+            "line": 9,
+            "category": "correctness",
+            "title": "Vents never open on a hot start until five readings exist",
+            "quote": "trailing_average(temperatures, SMOOTHING_WINDOW)",
+            "scenario": "temperatures = [35.0] or [35.0, 35.0, 35.0, 35.0]: trailing_average returns an empty Vec because values.len() < 5, so should_open returns false. The old mean-based code returned true for both, so the vents now stay shut during the first four readings even when they are very hot.",
+            "whyNotPrevented": "The early return in src/readings.rs (line 10) converts 'fewer than five readings' into an empty result, and should_open treats an empty result as 'not hot'. No test calls should_open, and the new readings tests only cover trailing_average.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/vents.rs",
+            "line": 9,
+            "category": "test-gap",
+            "title": "No test covers the new should_open behavior",
+            "quote": "    trailing_average(temperatures, SMOOTHING_WINDOW)",
+            "scenario": "A regression in should_open, such as using the first window instead of the last, or the short-input case above, would pass the current test suite.",
+            "whyNotPrevented": "The added tests in src/readings.rs exercise trailing_average only. Grep for 'should_open' in tests finds no test that calls it.",
+            "basis": "measured",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "sensor-smoothing",
+      "wallMs": 13862,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 1904,
+        "cacheRead": 9654,
+        "output": 2079,
+        "total": 13641
+      },
+      "costUsd": 0.00151724,
+      "apiMs": 12679,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Trailing window never includes the newest reading, and exactly `window` readings give no average"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Trailing window never includes the newest reading, and exactly `window` readings give no average",
+            "quote": "(window..values.len())",
+            "scenario": "should_open(&[20.0, 30.0, 30.0, 30.0, 30.0, 30.0]) computes windows only for end=5, which is values[0..5] = [20,30,30,30,30] with mean 28.0. That is not > 28.0, so the vents stay closed. The last five readings are all 30.0 and should open them. With exactly five readings, e.g. should_open(&[29.0; 5]), the range 5..5 is empty, so it returns false even though the average is 29.0.",
+            "whyNotPrevented": "The new tests only use steady readings ([21.5; 6]) or too-short input ([20.0, 21.0]), so they cannot tell which window is last. No test calls should_open at all.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-cache",
+      "wallMs": 16279,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 4560,
+        "cacheRead": 16883,
+        "output": 2450,
+        "total": 23899
+      },
+      "costUsd": 0.00230643,
+      "apiMs": 15251,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/sessions/cache.py",
+          "line": 20,
+          "category": "correctness",
+          "title": "Cache default TTL of 900 seconds contradicts the 30-minute session rule"
+        },
+        {
+          "severity": "P3",
+          "file": "src/sessions/lookup.py",
+          "line": 15,
+          "category": "tests",
+          "title": "Minutely purge wiring and 30-minute TTL have no test"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/sessions/cache.py",
+            "line": 20,
+            "category": "correctness",
+            "title": "Cache default TTL of 900 seconds contradicts the 30-minute session rule",
+            "quote": "def __init__(self, ttl_seconds=900, clock=time.monotonic):",
+            "scenario": "Any Cache() built without an explicit ttl expires entries after 15 minutes, not the 30 the author asked for. lookup.py passes 1800, so sessions are correct today, but a new session cache created with the default silently gets the wrong lifetime.",
+            "whyNotPrevented": "The default is not tied to the lookup setting, and no test checks the default TTL.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/sessions/lookup.py",
+            "line": 15,
+            "category": "tests",
+            "title": "Minutely purge wiring and 30-minute TTL have no test",
+            "quote": "    _sessions.purge()",
+            "scenario": "If forget_expired is removed from EVERY_MINUTE in jobs.py, or the TTL in lookup.py is changed, no test fails. The new tests only exercise Cache directly with a fake clock.",
+            "whyNotPrevented": "tests/test_cache.py tests the Cache class only; nothing imports lookup.py or jobs.py in a test.",
+            "basis": "measured",
+            "measuredBy": "Grep \"forget_expired\" in the repo: matches only src/sessions/jobs.py and src/sessions/lookup.py; no test file references it",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-cache",
+      "wallMs": 13739,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 4369,
+        "cacheRead": 25106,
+        "output": 2058,
+        "total": 31541
+      },
+      "costUsd": 0.00215466,
+      "apiMs": 12696,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/sessions/jobs.py",
+          "line": 17,
+          "category": "wiring",
+          "title": "Minutely purge job is defined but nothing in the repo calls it"
+        },
+        {
+          "severity": "P3",
+          "file": "tests/test_cache.py",
+          "line": 125,
+          "category": "test-coverage",
+          "title": "No test covers the forget_expired job or the lookup default path through user_for"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/sessions/jobs.py",
+            "line": 17,
+            "category": "wiring",
+            "title": "Minutely purge job is defined but nothing in the repo calls it",
+            "quote": "def run_minutely():",
+            "scenario": "If the external scheduler does not call run_minutely every minute, expired sessions are never purged. Lookups still return None for them, so only memory use grows.",
+            "whyNotPrevented": "No caller of run_minutely exists in the repository, so no test or type checks that the minute schedule is wired.",
+            "basis": "measured",
+            "measuredBy": "Grep \"run_minutely|EVERY_MINUTE|user_for\\(\" in repo: only the definitions in src/sessions/jobs.py and lookup.py, no call site",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "tests/test_cache.py",
+            "line": 125,
+            "category": "test-coverage",
+            "title": "No test covers the forget_expired job or the lookup default path through user_for",
+            "quote": "def test_purge_drops_only_expired_entries():",
+            "scenario": "A regression in forget_expired (for example, it stops calling purge) would not fail any test, since the job is never exercised.",
+            "whyNotPrevented": "The new tests call Cache directly and never import sessions.lookup or sessions.jobs.",
+            "basis": "measured",
+            "measuredBy": "Read tests/test_cache.py: all new tests construct Cache() directly; no import of lookup or jobs",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-cache",
+      "wallMs": 13806,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 4241,
+        "cacheRead": 25118,
+        "output": 1899,
+        "total": 31266
+      },
+      "costUsd": 0.00204968,
+      "apiMs": 12565,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/sessions/jobs.py",
+          "line": 17,
+          "category": "correctness",
+          "title": "Nothing in the repo calls run_minutely, so the purge job may never run"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/sessions/jobs.py",
+            "line": 17,
+            "category": "correctness",
+            "title": "Nothing in the repo calls run_minutely, so the purge job may never run",
+            "quote": "def run_minutely():",
+            "scenario": "If the external scheduler that calls run_minutely is missing or stopped, expired sessions are never purged and the cache keeps growing. Reads still return a default for expired entries, so this affects memory only.",
+            "whyNotPrevented": "A grep for run_minutely and EVERY_MINUTE finds only their definitions in jobs.py. The scheduler may live outside this repo, and report_size has no caller here either, so this may be expected.",
+            "basis": "measured",
+            "measuredBy": "Grep \"run_minutely|EVERY_MINUTE\" in the repo: matches only in src/sessions/jobs.py lines 14-18",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "weekly-digest",
+      "wallMs": 11772,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2349,
+        "cacheRead": 15820,
+        "output": 2230,
+        "total": 20405
+      },
+      "costUsd": 0.0017436,
+      "apiMs": 10710,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 11,
+            "category": "correctness",
+            "title": "Mutable default list accumulates TEAM_INBOX across calls"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 11,
+            "category": "correctness",
+            "title": "Mutable default list accumulates TEAM_INBOX across calls",
+            "quote": "def build_digest(entries, recipients=[]):",
+            "scenario": "build_digest([\"a\"]) then build_digest([\"b\"]) in the same process: the default list is shared and append mutates it, so the second digest has recipients [TEAM_INBOX, TEAM_INBOX]. A third call gives three copies. Each digest then sends the team inbox duplicate mail, and the list keeps growing.",
+            "whyNotPrevented": "test_team_inbox_gets_the_digest only checks the first call, and test_subject_counts_updates calls build_digest with no recipients and checks only the subject. No test calls build_digest twice without recipients and checks recipients.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "build_digest mutates the caller's recipients list",
+            "quote": "    recipients.append(TEAM_INBOX)",
+            "scenario": "send_weekly passes project.watchers() directly. If watchers() returns a stored list, each run appends TEAM_INBOX to that project's own watcher list, so the list changes after every digest build.",
+            "whyNotPrevented": "No code copies the list before appending. I could not locate a definition of watchers() under src/, so whether it returns a stored list is unverified.",
+            "basis": "guessed",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "weekly-digest",
+      "wallMs": 11364,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2379,
+        "cacheRead": 15815,
+        "output": 1978,
+        "total": 20178
+      },
+      "costUsd": 0.00162355,
+      "apiMs": 10078,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 11,
+            "category": "correctness",
+            "title": "Mutable default list shares recipients across calls and grows each time"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 11,
+            "category": "correctness",
+            "title": "Mutable default list shares recipients across calls and grows each time",
+            "quote": "    recipients.append(TEAM_INBOX)",
+            "scenario": "build_digest([\"a\"]) is called twice with no recipients argument. The first digest gets [TEAM_INBOX]. The second call reuses the same default list, which now holds TEAM_INBOX, so it gets [TEAM_INBOX, TEAM_INBOX] and the team inbox is duplicated. Over a long run in send_weekly the default list keeps growing.",
+            "whyNotPrevented": "The new test passes an explicit list, and the existing test only checks a single first call. Nothing calls build_digest twice with the default, so the shared state is never exercised. The existing test passes only because it runs first.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "append mutates the caller's watcher list in place",
+            "quote": "    recipients.append(TEAM_INBOX)",
+            "scenario": "send_weekly passes project.watchers() as recipients. If watchers() returns a list stored on the project, each run appends TEAM_INBOX to that stored list, so the project's own watcher list changes and later reads of it include the team inbox.",
+            "whyNotPrevented": "The diff does not show watchers(), and a grep of the repo for its definition found no match, so this cannot be confirmed here. Nothing in the diff copies the list before appending.",
+            "basis": "guessed",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "weekly-digest",
+      "wallMs": 10240,
+      "model": "claude-haiku-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 1700,
+        "cacheRead": 9661,
+        "output": 1549,
+        "total": 12914
+      },
+      "costUsd": 0.00121151,
+      "apiMs": 9078,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 11,
+            "category": "correctness",
+            "title": "Mutable default list accumulates TEAM_INBOX across calls"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/notices/digest.py",
+          "line": 12,
+          "category": "correctness",
+          "title": "Appending to the caller's recipients list mutates it"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 11,
+            "category": "correctness",
+            "title": "Mutable default list accumulates TEAM_INBOX across calls",
+            "quote": "def build_digest(entries, recipients=[]):",
+            "scenario": "build_digest([\"a\"]) returns recipients [TEAM_INBOX]. The default list is now [TEAM_INBOX]. A second build_digest([\"b\"]) call with no recipients appends again and returns [TEAM_INBOX, TEAM_INBOX], and each later call adds one more. Every digest built without recipients also shares the same list object, so they alias each other.",
+            "whyNotPrevented": "No test calls build_digest twice without recipients or checks the recipients list after repeated calls. test_subject_counts_updates calls it twice, but only checks the subject line, so the growing list goes unnoticed.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Appending to the caller's recipients list mutates it",
+            "quote": "recipients.append(TEAM_INBOX)",
+            "scenario": "send_weekly passes project.watchers() directly. If watchers() returns a stored list, each run adds TEAM_INBOX to that project's watcher list, so the list changes after every digest is built.",
+            "whyNotPrevented": "The diff does not show watchers(). Nothing copies the list before append.",
+            "basis": "guessed",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    }
+  ]
+}

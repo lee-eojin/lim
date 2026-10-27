@@ -1,0 +1,19 @@
+{
+  "intent": "Count requests per client and show the five busiest clients in the summary endpoint",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "nil map write: New does not initialize the new byClient map, so s.byClient[client]++ panics on every request",
+  "expect": [
+    {
+      "locations": [
+        { "file": "stats/stats.go", "lines": [16, 16] },
+        { "file": "stats/stats.go", "lines": [28, 28] },
+        { "file": "server/server.go", "lines": [26, 26] },
+        { "file": "stats/stats.go", "lines": [19, 21], "context": true }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["nil map", "nil-map", "entry in nil map", "uninitialized map", "uninitialised map", "not initialized", "not initialised", "never initialized", "never initialised", "isn't initialized", "uninitialized", "never made", "never allocated", "not allocated", "make(map[string]int)", "make(map", "byClient: make", "zero value", "panic", "panics", "panicking", "crash", "crashes", "New(", "constructor", "missing initialization", "missing make"]
+    }
+  ],
+  "forbid": []
+}

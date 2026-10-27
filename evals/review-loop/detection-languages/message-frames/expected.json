@@ -1,0 +1,17 @@
+{
+  "intent": "Shrink the frame length header from four bytes to two, since messages are usually a few hundred bytes. Client and server ship together, so there are no old peers to support",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "truncating cast: message.len() as u16 wraps lengths above 65535, but encode still accepts messages up to MAX_MESSAGE_BYTES (256 KiB), so the header states a shorter length and the reader splits the stream in the wrong place",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/frame.rs", "lines": [3, 27] },
+        { "file": "src/limits.rs", "lines": [1, 2], "context": true }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["as u16", "u16::MAX", "65,535", "65,536", "64 KiB", "64KiB", "64 KB", "64KB", "truncate", "truncates", "truncated", "truncation", "truncating", "wraps", "wrap around", "wraps around", "wrapping", "overflow", "overflows", "silently", "lossy", "MAX_MESSAGE_BYTES", "256 KiB", "256KiB", "256 * 1024", "262,144", "try_from", "too large for", "does not fit", "doesn't fit", "fit in u16", "fit in a u16", "fit in two bytes", "fits in two bytes", "two-byte header", "2-byte header", "2-byte length", "two-byte length", "high bits", "upper bits", "modulo", "desync", "desynchronize", "desynchronizes", "out of sync", "misframe", "misframes", "misframed", "corrupts the stream", "corrupt the stream", "wrong length"]
+    }
+  ],
+  "forbid": []
+}

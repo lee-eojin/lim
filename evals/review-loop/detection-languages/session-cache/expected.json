@@ -1,0 +1,10 @@
+{
+  "intent": "Expire sessions 30 minutes after they were stored, drop expired ones every minute, and let get() take a default instead of raising KeyError",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

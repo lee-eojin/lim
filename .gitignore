@@ -4,3 +4,6 @@ node_modules/
 .env.*
 *.local.json
 task_plan.md
+target/
+__pycache__/
+evals/**/Cargo.lock
