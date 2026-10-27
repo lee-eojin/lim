@@ -135,7 +135,7 @@ Note on earlier runs: the table is a full re-run after the final review: a progr
 
 Costs are list-price estimates reported by Claude Code. Run it yourself with `node evals/verify/run-benchmark.mjs`; `--dry-run` checks every project's reference map without a model.
 
-Token cost from `claude plugin details`: about 100 tokens in every session, about 3,500 each time the skill runs.
+Token cost from `claude plugin details`: about 100 tokens in every session, about 3,900 each time the skill runs.
 
 ## Data
 

@@ -36,8 +36,6 @@ Per-component (rounded)
   reviewer           ~60      ~1.8k
 ```
 
-The README's cost table gives an earlier estimate of about 5,600 and 1,700 tokens. The numbers above are from 0.10.0.
-
 The skill's on-invoke cost is paid once per review. The reviewer's is paid once per round, plus the diff and the code it reads. The detection benchmark measured that per reviewer run. Each run is one reviewer on one small change (12 to 39 diff lines in the regular set, 12 to 183 in the harder set), with Claude Code 2.1.310, from the files in [`evals/review-loop/results/`](../../evals/review-loop/results/):
 
 | Reviewer model | Set | Date | Runs | Tokens per run, average (range) | Seconds per run, average | Cost per run | Results file |

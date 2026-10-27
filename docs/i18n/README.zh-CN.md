@@ -22,7 +22,7 @@
 
 **反复提出的意见会变成规则。** 当你把某个发现项标记为“设为规则”时，Claude 会起草一条 lint 规则或一个测试，review-loop 会在修复之前的代码上运行它，证明它能捕获这个错误。bug 修复也会以同样的方式得到一个回归测试。
 
-**有意保持小巧。** review-loop 为一个会话增加约 212 个 token。在你为某个仓库开启它之前，它的 hook 不做任何事。安装任何东西之前，都会先告诉你它是什么、如何移除。
+**有意保持小巧。** review-loop 为一个会话增加约 275 个 token。在你为某个仓库开启它之前，它的 hook 不做任何事。安装任何东西之前，都会先告诉你它是什么、如何移除。
 
 Fork 它、修改它，把它变成你自己的。欢迎提交 issue 和 pull request。
 
@@ -239,8 +239,8 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 | 部分 | 始终加载（每个会话） | 每次运行 |
 |---|---|---|
-| review-loop skill | 约 140 个 token | 约 5,600 个 token |
-| 审查者 agent | 约 70 个 token | 约 1,700 个 token，另加 diff 和它读取的代码 |
+| review-loop skill | 约 210 个 token | 约 6,000 个 token |
+| 审查者 agent | 约 60 个 token | 约 1,800 个 token，另加 diff 和它读取的代码 |
 
 skill 的成本在每次运行时支付一次。审查者的成本在每轮支付一次，一个循环最多运行 3 轮。审查者模型会改变这项成本，上方的基准测试表列出了每个模型的费用。你的检查在你自己的机器上运行，不消耗 token。
 

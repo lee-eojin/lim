@@ -22,7 +22,7 @@ Les agents de code écrivent vite. Ils sont bien moins bons pour remarquer ce qu
 
 **Les remarques que vous répétez deviennent des règles.** Quand vous marquez un constat "en faire une règle", Claude rédige une règle de lint ou un test, et review-loop l'exécute sur le code d'avant la correction pour prouver qu'il détecte l'erreur. La correction d'un bug reçoit un test de régression de la même façon.
 
-**Petit par choix.** review-loop ajoute environ 212 tokens à une session. Son hook ne fait rien tant que vous ne l'activez pas dans un dépôt. Rien n'est installé sans vous dire ce que c'est et comment le supprimer.
+**Petit par choix.** review-loop ajoute environ 275 tokens à une session. Son hook ne fait rien tant que vous ne l'activez pas dans un dépôt. Rien n'est installé sans vous dire ce que c'est et comment le supprimer.
 
 Forkez-le, modifiez-le, faites-en le vôtre. Les issues et les pull requests sont les bienvenues.
 
@@ -239,8 +239,8 @@ Le tableau ci-dessus fonde le modèle par défaut du réviseur. Sur le jeu diffi
 
 | Partie | Toujours actif, à chaque session | À chaque exécution |
 |---|---|---|
-| skill review-loop | environ 140 tokens | environ 5600 tokens |
-| agent réviseur | environ 70 tokens | environ 1700 tokens, plus le diff et le code qu'il lit |
+| skill review-loop | environ 210 tokens | environ 6000 tokens |
+| agent réviseur | environ 60 tokens | environ 1800 tokens, plus le diff et le code qu'il lit |
 
 Le coût de la skill est payé une fois par exécution. Celui du réviseur est payé une fois par tour, et une boucle compte au maximum 3 tours. Le modèle du réviseur change ce coût ; le tableau du benchmark ci-dessus le montre pour chaque modèle. Vos vérifications s'exécutent sur votre machine et ne coûtent aucun token.
 

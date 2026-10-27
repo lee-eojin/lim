@@ -22,7 +22,7 @@ Los agentes de programación escriben código rápido. Se les da mucho peor dars
 
 **Los comentarios que repites se convierten en reglas.** Cuando marcas un hallazgo como "convertirlo en una regla", Claude redacta una regla de lint o un test, y review-loop lo ejecuta contra el código de antes de la corrección para demostrar que detecta el error. La corrección de un bug recibe un test de regresión de la misma forma.
 
-**Pequeño a propósito.** review-loop agrega unos 212 tokens a una sesión. Su hook no hace nada hasta que lo activas en un repositorio. No se instala nada sin decirte qué es y cómo eliminarlo.
+**Pequeño a propósito.** review-loop agrega unos 275 tokens a una sesión. Su hook no hace nada hasta que lo activas en un repositorio. No se instala nada sin decirte qué es y cómo eliminarlo.
 
 Haz un fork, cámbialo, hazlo tuyo. Los issues y los pull requests son bienvenidos.
 
@@ -239,8 +239,8 @@ La tabla de arriba es la base del modelo por defecto del revisor. En el conjunto
 
 | Parte | Siempre activo, en cada sesión | Cada vez que se ejecuta |
 |---|---|---|
-| skill review-loop | unos 140 tokens | unos 5600 tokens |
-| agente revisor | unos 70 tokens | unos 1700 tokens, más el diff y el código que lee |
+| skill review-loop | unos 210 tokens | unos 6000 tokens |
+| agente revisor | unos 60 tokens | unos 1800 tokens, más el diff y el código que lee |
 
 El costo de la skill se paga una vez por ejecución. El del revisor se paga una vez por ronda, y un ciclo tiene como máximo 3 rondas. El modelo del revisor cambia ese costo; la tabla del benchmark de arriba lo muestra para cada modelo. Tus comprobaciones se ejecutan en tu máquina y no cuestan tokens.
 
