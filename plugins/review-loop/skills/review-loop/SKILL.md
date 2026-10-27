@@ -52,21 +52,21 @@ If the script says the JSON is invalid, the file stays. Ask the reviewer once to
 
 Show `report` first, as the Rules say.
 
-Then reproduce, before fixing anything: for each id in `reproducible` (open findings and cards, P1 or P2, with a `check`), run the verify skill's `run --id <check>` as that skill says, then `loop reproduce --id <id>`. If the verify skill is not installed, mark reproduce `skip: verify is not installed` and say so. `fail` marks the finding reproduced, the strongest evidence it can have. `pass` marks it not reproduced and changes nothing else, because the check may not cover the scenario. `not-verified` records nothing; say why.
+Then reproduce, before fixing anything: for each id in `reproducible` (open findings, deferred findings, and cards, P1 or P2, with a `check`), run the verify skill's `run --id <check>` as that skill says, then `loop reproduce --id <id>`. If the verify skill is not installed, mark reproduce `skip: verify is not installed` and say so. `fail` marks the finding reproduced, the strongest evidence it can have. `pass` marks it not reproduced and changes nothing else, because the check may not cover the scenario. `not-verified` records nothing; say why.
 
 ## 4. Continue or stop
 
 When `decision` is `continue`:
 1. Say in one line what you will fix, for example "Fixing F-1 and F-3, then re-reviewing."
-2. If `ask` is not empty, ask once with AskUserQuestion before fixing: one question per finding, options are concrete fixes, your recommendation first. These are findings where the fix needs a design choice, a first fix did not work, or the user asked to confirm that severity before any fix.
-3. Fix the `fix` and `ask` findings.
+2. If `ask` is not empty, ask once with AskUserQuestion before fixing: one question per finding, options are concrete fixes, your recommendation first, and "Keep as is" last. These are findings where the fix needs a design choice, a first fix did not work, or the user asked to confirm that severity before any fix. For each finding the user keeps, run `loop decide --id <id> --choice keep` before `loop next`; the script then stops looping it and lists it as kept.
+3. Fix the `fix` and `ask` findings, except those the user chose to keep.
 4. Prove each P1 or P2 fix with a regression test, without asking. This includes a P1 or P2 in `deferred` that your fix also resolves, but only when the fixed code already passes its scenario: if the test fails on the fixed code, delete it and leave the finding waiting, never change code to make it pass. Skip findings with category `checks`: the failing check is their test. If the project has no test check, skip this step; the report says so.
    - Write a test from the finding's `scenario`, in a test file, never in the finding's own file. It must fail on the old code for the reason the scenario gives.
    - Run `loop rule --id <id> --draft <test file>` with a Bash timeout of 600000 ms. It runs the tests on the code before the fix, with and without the test. The checks on the fixed code run with `loop next`.
    - `caught`: read `withDrafts[].tail` and confirm the failure is the test's own assertion. `missed`: revise the test once and run `loop rule` again. `unproven`: keep the test; the report shows it. If its `reason` says only lint or typecheck failed and the test did not, treat it like `missed`.
    - If the scenario cannot be tested cheaply (it needs a network, a browser, real time, or a large setup), or the test is still `missed`, delete the test and run `loop rule --id <id> --no-test "<reason>"`.
 5. For each finding with `reproduced`, run the same verify check again (`run --id <check>`) after the fix and its test, as the last change to the files before `loop next`. `loop next` reads that run: a reproduced finding whose check did not pass on the fixed code stays open even if the reviewer resolves it.
-6. Run `loop next`. If `status` is `stopped`, show `report` and go to section 5 (Decide). Otherwise go back to section 2 (Review). If `next` refuses because nothing changed and nothing should (the user kept an `ask` finding as is, or a check fails only because of the environment), run `loop next --unchanged "<why>"`.
+6. Run `loop next`. If `status` is `stopped`, show `report` and go to section 5 (Decide). Otherwise go back to section 2 (Review). If `next` refuses because nothing changed and nothing should (the user kept every `ask` finding as is and you recorded each keep with `loop decide`, or a check fails only because of the environment), run `loop next --unchanged "<why>"`.
 
 When `decision` is `stop`, go to section 5 (Decide).
 
@@ -81,7 +81,7 @@ Ask once with AskUserQuestion. It takes at most 4 questions. With more items, as
 
 Mark the option you recommend and give one reason and the cost of undoing it in its description. Recommend "Make it a rule" for findings with `ruleCandidate: true`, but only if the last `checks` list is not empty. With no checks, nothing would run a rule: do not recommend it, and say so in that option's description.
 
-Items with `repeat` are a kind of finding (`repeat.category`) that earlier reviews in this repository raised `repeat.seenBefore` times. Say so in the question, for example "speculative-guard, seen 3 times before". Recommend "Make it a rule" for them under the same condition, and name in its description the strongest layer that fits: a type or architecture change that makes the mistake impossible to write, then a lint rule, then a test. Never offer a line in CLAUDE.md or another rules file as the rule. For a P1 or P2 with `repeat` that you fixed this run (`resolvedRepeats` in `loop status`), tell the user in one line that this kind keeps coming back and name the strongest layer that fits; the rule flow runs when a finding of that kind reaches a card.
+Items with `repeat` are a kind of finding (`repeat.category`) that earlier reviews in this repository raised `repeat.seenBefore` times. Say so in the question, for example "speculative-guard, seen 3 times before". Recommend "Make it a rule" for them under the same condition, and name in its description the strongest layer that fits: a type or architecture change that makes the mistake impossible to write, then a lint rule, then a test. Never offer a line in CLAUDE.md or another rules file as the rule. For a P1 or P2 with `repeat` that you fixed this run (`review.resolvedRepeats` in `loop status`), tell the user in one line that this kind keeps coming back and name the strongest layer that fits; the rule flow runs when a finding of that kind reaches a card.
 
 Record every answer with `loop decide --id <id> --choice keep|once|rule`. If the result has `ruleSkipped`, the choice was recorded as `once`: tell the user why in one line and do not draft a rule.
 
@@ -100,13 +100,13 @@ Then run `loop checks` on the fixed code. If a check fails, say which one and as
 ## 6. Commit
 
 Run `loop status`.
-- Compare your todo list with `doneSteps`, the steps the script saw done (it cannot see commit). Steps marked `skip: <reason>` are not in it and need nothing. If a step you marked done without `skip:` is missing from it, do that step now or mark it `skip: <reason>` and tell the user why.
-- If `pendingDecisions` is not empty, go back to section 5 (Decide) for those ids.
+- Compare your todo list with `review.doneSteps`, the steps the script saw done (it cannot see commit). Steps marked `skip: <reason>` are not in it and need nothing. If a step you marked done without `skip:` is missing from it, do that step now or mark it `skip: <reason>` and tell the user why.
+- If `review.pendingDecisions` is not empty, go back to section 5 (Decide) for those ids.
 - If `gate.configured` is false, ask once whether to turn on the commit gate in this repository: "Turn on" or "Not in this repo". Run `loop gate --on` or `loop gate --off`. With the gate on, a hook blocks Claude's commits until a review passes and asks before each commit unless commits are delegated.
-- If `notVerifiedChecks` is not empty, say which checks timed out or could not run and were not verified, and ask whether the user wants to run them before committing.
+- If `review.notVerifiedChecks` is not empty, say which checks timed out or could not run and were not verified, and ask whether the user wants to run them before committing.
 - If `treeMatchesReview` is false, first list what changed after the last review, such as the fixes from section 5 (Decide) or a fix that stopped the loop for weakening a test.
 - Never commit while a P1 or P2 is open unless the user chose "Keep as is" for it.
-- If `rules` is not empty, list each rule's drafts and `proof`, and name the rules in the commit message. The drafts go into the same commit as the change. With the gate on, files that `loop rule` checked count as known while their content is unchanged, so the gate asks instead of blocking. If you edit a draft after `loop rule`, run `loop rule` again; otherwise the gate blocks it like any file the review did not cover.
+- If `review.rules` is not empty, list each rule's drafts and `proof`, and name the rules in the commit message. The drafts go into the same commit as the change. With the gate on, files that `loop rule` checked count as known while their content is unchanged, so the gate asks instead of blocking. If you edit a draft after `loop rule`, run `loop rule` again; otherwise the gate blocks it like any file the review did not cover.
 - If `delegation.scope` is `repo` and nothing above needs the user, commit and say so in one line.
 - If `gate.enabled` is true and commits are not delegated, do not ask with AskUserQuestion. Run the commit; the gate shows the user one confirmation prompt.
 - Otherwise ask once with AskUserQuestion: "Commit now", "Commit, and stop asking in this repo", or "Not now". For the second option, run `loop delegate --scope repo` before committing.
@@ -117,7 +117,7 @@ Use the repository's commit message convention. If it has none, use `<type>: <su
 
 The user can turn delegation off with `loop delegate --scope off`.
 
-If the user asks to commit without a review just this once, run `loop gate --skip-once` before the commit. If the gate blocks a commit, follow the reason it gives; it names the step to take.
+If the user asks to commit without a review just this once and `gate.enabled` is true in `loop status`, run `loop gate --skip-once` before the commit. With the gate off, nothing blocks the commit, so skip that command. If the gate blocks a commit, follow the reason it gives; it names the step to take.
 
 ## Unattended
 
@@ -131,7 +131,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs note --phase <step> --decision "<what 
 - section 4 (Continue or stop): skip the `ask` step. The script moved those findings to `deferred` with the reason; do not fix them. A `fix` finding whose `note` says to use the fix that changes the least had several possible fixes: use the smallest one and record it with `loop note`.
 - section 5 (Decide): ask nothing and decide nothing. Cards and `deferred` findings stay pending for the user.
 - A rule or regression test draft that is `unproven`: keep it.
-- section 6 (Commit): do not ask about the commit gate; leave it unconfigured. Commit only if `delegation.scope` is `repo` and `pendingDecisions` is empty; otherwise leave the change uncommitted. Never push.
+- section 6 (Commit): do not ask about the commit gate; leave it unconfigured. Commit only if `delegation.scope` is `repo` and `review.pendingDecisions` is empty; otherwise leave the change uncommitted. Never push.
 - Anything else this skill would ask about, such as a fix that needs a weakened test: take the choice that changes the least and is easy to undo.
 
 Nobody reads round reports as they come, so you need not show each one; `loop summary` lists every round. End with `loop summary` and show its `report` as the Rules say. When the user later asks what happened, run `loop summary` again; `--since <ISO time>` changes where it starts.
@@ -140,7 +140,7 @@ Nobody reads round reports as they come, so you need not show each one; `loop su
 
 If the user asks for every review in this repository to run unattended, run `loop unattended --on`; `loop unattended --off` turns it off.
 
-If the user asks to see every P2 (or every P1 and P2) before anything is fixed, run `loop confirm --severity P2` (or `--severity all`). `loop confirm --off` turns it off. The setting applies to the whole repository. If a round is waiting for fixes, the command also moves findings at that severity from the fix list to the ask list and returns their ids in `rerouted`; ask about those before fixing anything.
+If the user asks to see every P2 (or every P1 and P2) before anything is fixed, run `loop confirm --severity P2` (or `--severity all`). `loop confirm --off` turns it off. The setting applies to the whole repository. If a round is waiting for fixes, the command also moves findings at that severity from the fix list to the ask list and returns their ids in `rerouted`; ask about those before fixing anything. In an unattended run it defers them instead and returns their ids in `deferred`.
 
 If the user asks to turn the commit gate on or off, run `loop gate --on` or `loop gate --off`. A request like this is not a review: do not run `loop start`.
 

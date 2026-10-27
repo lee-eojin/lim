@@ -5,6 +5,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 ## Unreleased
 
 - Fixed: A `package.json` that is not a JSON object, or has a script that is not a string, is reported as a package.json problem instead of stopping `loop start`, and a Ruby subfolder project runs its tools through `bundle exec` when a `Gemfile` is in a folder above it. (#139)
+- Fixed: Round logic found in an audit. A finding kept during the loop is no longer retried or stopped as stuck, and it can still be decided again and its failing check keeps running; a card raised again stays one card, unless it now needs a fix, then it is looped in place of the card; `start --fresh` with nothing to review ends the old loop; an open failing check in a subfolder project runs every round, after the projects the fix touched; `unattended --on` or `confirm` during an unattended fix round defers findings with the right reason and stops as waiting when nothing is left to fix; a P1 or P2 fixed once without a scenario can take `rule --no-test`; a finding that is not an object is rejected with a clear error. (#138)
 
 ## 0.11.3 (2026-10-27)
 
