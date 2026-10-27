@@ -535,6 +535,24 @@ describe('check detection', () => {
     ]);
   });
 
+  test('a package.json that is not an object, or has a script that is not a string, becomes a package.json problem', () => {
+    const problems = (manifest) => detectChecks(projectFolder({ 'package.json': manifest })).map(({ name, problem }) => [name, problem]);
+    assert.deepEqual(problems('null'), [['package.json', 'package.json is not a JSON object']]);
+    assert.deepEqual(problems('[]'), [['package.json', 'package.json is not a JSON object']]);
+    assert.deepEqual(problems('{"scripts":{"test":1}}'), [['package.json', 'package.json "scripts" is not an object of strings']]);
+    assert.deepEqual(problems('{"scripts":"node --test"}'), [['package.json', 'package.json "scripts" is not an object of strings']]);
+    assert.deepEqual(problems('{"scripts":{"//":["a comment npm ignores"],"test":"node --test"}}'), [['test', undefined]]);
+    const root = createRepository({ 'web/package.json': '{}\n', 'web/cart.js': correctCart });
+    writeFiles(root, { 'web/package.json': 'null\n', 'web/cart.js': brokenCart });
+    assert.deepEqual(changedProjects(root, ['web/cart.js']), ['web']);
+  });
+
+  test('a Ruby subfolder project uses the Gemfile of a folder above it', () => {
+    const root = projectFolder({ Gemfile: '', 'services/billing/.rspec': '', 'services/billing/.rubocop.yml': '' });
+    const folderCommands = (folder) => detectFolderChecks(root, folder).map(({ name, command }) => [name, command.join(' ')]);
+    assert.deepEqual(folderCommands('services/billing'), [['lint', 'bundle exec rubocop'], ['test', 'bundle exec rspec']]);
+  });
+
   test('a tool uv or python cannot find is read as not installed and other failures are not', () => {
     const spawnFailure = 'error: Failed to spawn: `pytest`\n  Caused by: No such file or directory (os error 2)\n';
     assert.equal(missingProgram(['uv', 'run', '--frozen', '--no-sync', 'pytest'], spawnFailure), 'pytest');

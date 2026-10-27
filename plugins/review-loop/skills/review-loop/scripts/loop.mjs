@@ -401,6 +401,8 @@ function lockfileRunner(directory, root) {
   }
 }
 
+const isJsonObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
+
 function packageScripts(directory, root = directory) {
   const manifestPath = path.join(directory, 'package.json');
   if (!existsSync(manifestPath)) return [];
@@ -410,7 +412,12 @@ function packageScripts(directory, root = directory) {
   } catch (error) {
     return [{ name: 'package.json', problem: `package.json is not valid JSON: ${error.message}` }];
   }
+  if (!isJsonObject(manifest)) return [{ name: 'package.json', problem: 'package.json is not a JSON object' }];
   const scripts = manifest.scripts ?? {};
+  const candidates = CHECK_SCRIPTS.flatMap(([, names]) => names).filter((name) => name in Object(scripts));
+  if (!isJsonObject(scripts) || candidates.some((name) => typeof scripts[name] !== 'string')) {
+    return [{ name: 'package.json', problem: 'package.json "scripts" is not an object of strings' }];
+  }
   const runner = lockfileRunner(directory, root);
   return CHECK_SCRIPTS.flatMap(([name, candidates]) => {
     const script = candidates.find((candidate) => scripts[candidate] && !scripts[candidate].includes('no test specified'));
@@ -514,10 +521,15 @@ function dotnetChecks(folder, repositoryRoot = folder) {
   return [{ name: 'test', command: ['dotnet', 'test', ...(projects.length > 1 ? [projects[0]] : [])] }];
 }
 
-function rubyChecks(folder) {
+function existsHereOrAbove(folder, repositoryRoot, file) {
+  return [folder, ...ancestorsOf(folder, repositoryRoot)].some((parent) => existsSync(path.join(parent, file)));
+}
+
+function rubyChecks(folder, repositoryRoot = folder) {
   const has = (file) => existsSync(path.join(folder, file));
   const hasFolder = (name) => has(name) && statSync(path.join(folder, name)).isDirectory();
-  const tool = (...command) => (has('Gemfile') ? ['bundle', 'exec', ...command] : command);
+  const viaBundler = existsHereOrAbove(folder, repositoryRoot, 'Gemfile');
+  const tool = (...command) => (viaBundler ? ['bundle', 'exec', ...command] : command);
   const checks = [];
   if (has('.rubocop.yml')) checks.push({ name: 'lint', command: tool('rubocop') });
   // A spec/ folder alone is common outside Ruby (OpenAPI specs, Jasmine), so it counts only next to a Gemfile or Rakefile.
