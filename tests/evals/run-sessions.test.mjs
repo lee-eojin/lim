@@ -161,7 +161,7 @@ test('sessions load all three plugins with no user settings and allow Bash only 
   assert.equal(args.filter((arg) => arg === '--plugin-dir').length, 3);
   const bash = ALLOWED_TOOLS.filter((tool) => tool.startsWith('Bash'));
   assert.equal(bash.length, 3);
-  assert.ok(bash.every((tool) => /^Bash\(node \/.+\/scripts\/[\w-]+\.mjs:\*\)$/.test(tool)), bash.join(', '));
+  assert.ok(bash.every((tool) => /^Bash\(node (?:[A-Za-z]:)?\/.+\/scripts\/[\w-]+\.mjs:\*\)$/.test(tool)), bash.join(', '));
 });
 
 test('a truncated last line of a stream is dropped, not fatal', () => {

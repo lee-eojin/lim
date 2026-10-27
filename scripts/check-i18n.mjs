@@ -10,7 +10,7 @@ const sourceFile = path.join(root, 'README.md');
 const translationDir = path.join(root, 'docs', 'i18n');
 const problems = [];
 
-const relative = (file) => path.relative(root, file);
+const relative = (file) => path.relative(root, file).split(path.sep).join('/');
 const report = (file, line, message) => problems.push(`${relative(file)}:${line}: ${message}`);
 
 export function proseLines(file) {

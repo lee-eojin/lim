@@ -24,3 +24,15 @@ jobs:
         run: scripts/check.sh
       - name: Translation checks
         run: node scripts/check-i18n.mjs
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Keep line endings as committed
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Unit tests
+        run: node --test

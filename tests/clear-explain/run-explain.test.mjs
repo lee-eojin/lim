@@ -52,7 +52,7 @@ test('both arms run with no user settings and only the with arm loads the plugin
     assert.ok(args.includes('--strict-mcp-config'));
     assert.equal(args[args.indexOf('--model') + 1], 'opus');
   }
-  assert.match(withArgs[withArgs.indexOf('--plugin-dir') + 1], /plugins\/clear-explain$/);
+  assert.match(withArgs[withArgs.indexOf('--plugin-dir') + 1], /plugins[\\/]clear-explain$/);
   assert.ok(!withoutArgs.includes('--plugin-dir'));
 });
 
@@ -62,7 +62,7 @@ test('a trigger run loads the plugin with the tools of a normal session and no u
   assert.ok(!args.includes('--tools'));
   assert.equal(args[args.indexOf('--setting-sources') + 1], '');
   assert.equal(args[args.indexOf('--max-turns') + 1], '6');
-  assert.match(args[args.indexOf('--plugin-dir') + 1], /plugins\/clear-explain$/);
+  assert.match(args[args.indexOf('--plugin-dir') + 1], /plugins[\\/]clear-explain$/);
 });
 
 test('the trigger summary counts how often the skill started for explanations and for other requests', () => {

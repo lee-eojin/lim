@@ -20,7 +20,7 @@ const SCRIPTS = {
 // Only the skills' own scripts may run in Bash; everything else a session tries is denied and recorded.
 export const ALLOWED_TOOLS = [
   'Skill', 'Agent', 'Read', 'Grep', 'Glob', 'Write', 'Edit', 'TodoWrite',
-  ...Object.values(SCRIPTS).map((script) => `Bash(node ${script}:*)`),
+  ...Object.values(SCRIPTS).map((script) => `Bash(node ${script.split(path.sep).join('/')}:*)`),
 ];
 const FORBIDDEN_CHARS = new RegExp(`[${String.fromCharCode(0x2014, 0xb7)}]`);
 

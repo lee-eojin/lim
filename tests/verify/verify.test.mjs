@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, test } from 'node:test';
@@ -8,6 +10,11 @@ import { fileURLToPath } from 'node:url';
 import { definitionOf, judge, satisfies, validateMap } from '../../plugins/verify/skills/verify/scripts/verify.mjs';
 
 const script = fileURLToPath(new URL('../../plugins/verify/skills/verify/scripts/verify.mjs', import.meta.url));
+const windows = process.platform === 'win32';
+// A #! line names a POSIX path, so on Windows one that names a file by its C:\ path is not a #! line that runs node or python3.
+const insideInterpreter = (line, name) => (windows
+  ? `whose first line ${JSON.stringify(line)} does not run node or python3 without options`
+  : `whose first line runs "${line.slice(2)}", a file in the repository, not an installed ${name}`);
 
 const cli = `const fs = require('node:fs');
 const [command, value] = process.argv.slice(2);
@@ -56,7 +63,7 @@ function createRepository(features, extraFiles = {}) {
 }
 
 function verifyWith(env, root, ...args) {
-  const result = spawnSync('node', [script, ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...env } });
+  const result = spawnSync(process.execPath, [script, ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...env } });
   const text = result.stdout.trim() || result.stderr.trim();
   return { exit: result.status, ...JSON.parse(text) };
 }
@@ -79,6 +86,15 @@ function writeMap(root, features) {
 const evidenceFiles = (root) => readdirSync(path.join(root, '.git', 'lim', 'verify', 'runs'));
 
 describe('run', () => {
+  test('a node.exe or git.exe in the repository does not run in place of the installed one', {
+    skip: !windows && 'only Windows looks for a bare program name in the working folder before PATH',
+  }, () => {
+    const root = createRepository([upper]);
+    for (const name of ['node.exe', 'git.exe']) copyFileSync(process.env.ComSpec, path.join(root, name));
+    const result = verify(root, 'run');
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [['pass', []]]);
+  });
+
   test('a check whose output matches passes and exits 0', () => {
     const root = createRepository([upper]);
     const result = verify(root, 'run');
@@ -173,7 +189,7 @@ describe('run', () => {
       { ...upper, id: 'option-after-script', run: ['node', 'cli.js', 'upper', '--import'], expect: { exitCode: 0, stdout: { equals: '--IMPORT' } } },
     ];
     const root = createRepository(entries, { 'bin/tool': tool });
-    execFileSync('chmod', ['755', path.join(root, 'bin/tool')]);
+    chmodSync(path.join(root, 'bin/tool'), 0o755);
     const result = verify(root, 'run');
     assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [['pass', []], ['pass', []]]);
   });
@@ -461,7 +477,7 @@ describe('only the project\'s own scripts and executables run', () => {
     writeFileSync(path.join(root, file), '#!/usr/bin/env node\n', { mode: 0o755 });
   }
   mkdirSync(path.join(root, 'verify-checks'));
-  symlinkSync('/bin/sh', path.join(root, 'verify-checks/shell'));
+  symlinkSync(process.execPath, path.join(root, 'verify-checks/shell'));
   const problemsFor = (entry) => validateMap({ features: [{ ...upper, ...entry }] }, root);
   const allowedForms = '; a check runs only node or python3 with a script file in the repository, as ["node", "<script>", ...arguments] or ["python3", "<script>", ...arguments], or a script file in the repository whose first line is #!/usr/bin/env node, #!/usr/bin/env python3, #!/<path>/node, or #!/<path>/python3 with no option, as ["./bin/<tool>", ...arguments]';
 
@@ -473,7 +489,7 @@ describe('only the project\'s own scripts and executables run', () => {
       ['/bin/sh', '-c', 'true'], ['/usr/bin/env', 'node', 'cli.js'],
     ]) {
       const [problem] = problemsFor({ run });
-      assert.match(problem ?? '', /^features\[0\] \(upper\)\.run starts "[^"]+", (a program found on PATH|which resolves to \/)/, run.join(' '));
+      assert.match(problem ?? '', /^features\[0\] \(upper\)\.run starts "[^"]+", (a program found on PATH|which resolves to (\/|[A-Z]:\\))/, run.join(' '));
       assert.ok(problem.endsWith(allowedForms), problem);
     }
   });
@@ -499,7 +515,7 @@ describe('only the project\'s own scripts and executables run', () => {
     }
     assert.match(problemsFor({ run: ['node', 'node_modules/eslint/bin/eslint.js'] })[0], /on "node_modules\/eslint\/bin\/eslint\.js", which resolves to node_modules\/eslint\/bin\/eslint\.js, not a file/);
     assert.ok(problemsFor({ run: ['verify-checks/shell', '-c', 'exit 0'] })[0]
-      .includes(`starts "verify-checks/shell", which resolves to verify-checks/shell, a link to ${realpathSync('/bin/sh')}, not a file`));
+      .includes(`starts "verify-checks/shell", which resolves to verify-checks/shell, a link to ${realpathSync(process.execPath)}, not a file`));
   });
 
   test('env names that change how a program loads or runs code are refused', () => {
@@ -510,6 +526,16 @@ describe('only the project\'s own scripts and executables run', () => {
       assert.deepEqual(problemsFor({ env: { [name]: '--import=data:text/javascript,0' } }), [`features[0] (upper).env cannot set ${name}, which changes how a program loads or runs code`], name);
     }
     assert.deepEqual(problemsFor({ env: { NODE_ENV: 'test', TZ: 'UTC', LANG: 'C' } }), []);
+  });
+
+  test('env names are refused in any case, because Windows reads a name in any case', () => {
+    for (const name of ['node_options', 'Node_Options', 'PythonPath', 'ld_preload', 'Home']) {
+      assert.deepEqual(problemsFor({ env: { [name]: 'x' } }), [`features[0] (upper).env cannot set ${name}, which changes how a program loads or runs code`], name);
+    }
+    for (const name of ['Path', 'path']) {
+      assert.deepEqual(problemsFor({ env: { [name]: 'x' } }), ['features[0] (upper).env cannot set PATH, so the program that runs is the one the map names'], name);
+    }
+    assert.deepEqual(problemsFor({ env: { node_env: 'test' } }), []);
   });
 
   test('HOME and USERPROFILE and OPENSSL_CONF in env are refused', () => {
@@ -536,7 +562,7 @@ describe('only the project\'s own scripts and executables run', () => {
       'verify-checks/node-option': ['#!/usr/local/bin/node -r ./setup.js\n', 'whose first line "#!/usr/local/bin/node -r ./setup.js" does not run node or python3 without options'],
       'verify-checks/python': ['#!/usr/bin/python\nprint(1)\n', 'whose first line "#!/usr/bin/python" does not run node or python3 without options'],
       'verify-checks/plain.js': ['console.log(1);\n', 'whose first line is not a #! line that runs node or python3'],
-      'verify-checks/in-repo': [`#!${root}/verify-checks/node\n`, `whose first line runs "${root}/verify-checks/node", a file in the repository, not an installed node`],
+      'verify-checks/in-repo': [`#!${root}/verify-checks/node\n`, insideInterpreter(`#!${root}/verify-checks/node`, 'node')],
     };
     for (const [file, [content]] of Object.entries(scripts)) writeFileSync(path.join(root, file), content, { mode: 0o755 });
     for (const [file, [, problem]] of Object.entries(scripts)) {
@@ -551,7 +577,7 @@ describe('only the project\'s own scripts and executables run', () => {
       { ...upper, id: 'joined-zero', run: ['./bin/join', 'a', 'b'], expect: { exitCode: 0, stdout: { equals: 'a+b' } } },
     ];
     const repository = createRepository(entries, { 'bin/join': tool });
-    execFileSync('chmod', ['755', path.join(repository, 'bin/join')]);
+    chmodSync(path.join(repository, 'bin/join'), 0o755);
     const result = verify(repository, 'run');
     assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [['pass', []], ['fail', ['exit code 4, expected 0']]]);
     for (const line of ['#!/usr/local/bin/node', '#!/opt/node/bin/node \t']) {
@@ -689,6 +715,14 @@ describe('python3 scripts', () => {
     assert.deepEqual(result.checks.map((check) => [check.id, check.status, check.reasons]), [['python-env', 'pass', []], ['node-env', 'pass', []]]);
   });
 
+  test('an inherited PYTHONPATH written in another case does not reach a python3 run', () => {
+    const show = 'import os\nprint(os.environ.get("PYTHONPATH", "unset"))\n';
+    const entry = { id: 'python-path', feature: 'Shows PYTHONPATH', run: ['python3', 'verify-checks/show_path.py'], expect: { exitCode: 0, stdout: { equals: 'unset' } } };
+    const root = createRepository([entry], { 'verify-checks/show_path.py': show });
+    const result = verifyWith({ PythonPath: '/opt/shelf-lib' }, root, 'run');
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [['pass', []]]);
+  });
+
   test('a script whose first line is #!/usr/bin/env python3 runs as an executable and its exit code is judged', () => {
     const tool = `#!/usr/bin/env python3\nimport sys\nfrom pathlib import Path\n${rootOnPath}\nfrom shelf.stock import restock\nprint(" ".join(restock({"pins": 0, "clips": 9}, int(sys.argv[1]))))\nsys.exit(4)\n`;
     const entries = [
@@ -696,7 +730,7 @@ describe('python3 scripts', () => {
       { id: 'restock-zero', feature: 'Prints what to restock', run: ['./bin/restock', '2'], expect: { exitCode: 0, stdout: { equals: 'pins' } } },
     ];
     const root = createRepository(entries, { ...library, 'bin/restock': tool });
-    execFileSync('chmod', ['755', path.join(root, 'bin/restock')]);
+    chmodSync(path.join(root, 'bin/restock'), 0o755);
     const result = verify(root, 'run');
     assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [['pass', []], ['fail', ['exit code 4, expected 0']]]);
     assert.deepEqual(foldersNamed(root, '__pycache__'), []);
@@ -766,7 +800,7 @@ describe('python3 scripts', () => {
         'bin/isolated': 'whose first line "#!/usr/bin/env python3 -I" does not run node or python3 without options',
         'bin/split': 'whose first line "#!/usr/bin/env -S python3 -I" does not run node or python3 without options',
         'bin/unversioned': 'whose first line "#!/usr/bin/env python" does not run node or python3 without options',
-        'bin/inside': `whose first line runs "${root}/bin/python3", a file in the repository, not an installed python3`,
+        'bin/inside': insideInterpreter(`#!${root}/bin/python3`, 'python3'),
       };
       for (const [file, problem] of Object.entries(refused)) {
         assert.deepEqual(problemsFor({ run: [file] }), [`features[0] (upper).run starts "${file}", ${problem}${allowedForms}`], file);
@@ -803,8 +837,8 @@ describe('paths in an entry are read from the repository root', () => {
   });
 
   test('stdin.file and the script or executable in run are read from the repository root when cwd is a subfolder', () => {
-    const shout = "let text = '';\nprocess.stdin.setEncoding('utf8').on('data', (chunk) => { text += chunk; })\n  .on('end', () => console.log(`${text.trim().toUpperCase()} in ${process.cwd().split('/').pop()}`));\n";
-    const where = '#!/usr/bin/env node\nconsole.log(`${process.cwd().split("/").pop()}: ${require("node:fs").readFileSync(process.argv[2], "utf8").trim()}`);\n';
+    const shout = "let text = '';\nprocess.stdin.setEncoding('utf8').on('data', (chunk) => { text += chunk; })\n  .on('end', () => console.log(`${text.trim().toUpperCase()} in ${process.cwd().split(/[\\\\/]/).pop()}`));\n";
+    const where = '#!/usr/bin/env node\nconsole.log(`${require("node:path").basename(process.cwd())}: ${require("node:fs").readFileSync(process.argv[2], "utf8").trim()}`);\n';
     const entries = [
       { ...upper, id: 'shout', cwd: 'app', run: ['node', 'tools/shout.mjs'], stdin: { file: 'verify-checks/words.txt' }, expect: { exitCode: 0, stdout: { equals: 'QUIET WORDS in app' } } },
       { ...upper, id: 'where', cwd: 'app', run: ['./bin/where', 'note.txt'], expect: { exitCode: 0, stdout: { equals: 'app: from the app folder' } } },
@@ -812,7 +846,7 @@ describe('paths in an entry are read from the repository root', () => {
     const root = createRepository(entries, {
       'tools/shout.mjs': shout, 'bin/where': where, 'verify-checks/words.txt': 'quiet words\n', 'app/note.txt': 'from the app folder\n',
     });
-    execFileSync('chmod', ['755', path.join(root, 'bin/where')]);
+    chmodSync(path.join(root, 'bin/where'), 0o755);
     const result = verify(root, 'run');
     assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [['pass', []], ['pass', []]]);
   });
