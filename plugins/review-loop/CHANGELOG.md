@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.10.0 (2026-10-27)
 
 - Added: .NET and Ruby projects run their checks, at the root or in a subfolder project, after the project's own scripts and Makefile targets: `dotnet test` for a `*.sln`, `*.csproj`, or `*.fsproj` file, and rspec, `rake test`, or rubocop when a Ruby project uses them, through `bundle exec` when a `Gemfile` exists. A .NET project under a solution runs no build of its own, and a missing `dotnet`, `bundle`, tool, or gem is not verified. A folder with several solution or project files passes one to `dotnet test`, and a gem Bundler cannot find is named in the report. (#94)
 
