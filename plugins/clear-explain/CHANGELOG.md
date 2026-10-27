@@ -2,9 +2,9 @@
 
 All notable changes to clear-explain. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.1.1 (2026-10-27)
 
-- Changed: Answers open with what the thing does, or with the reason for a "why" question, define terms where they first appear and skip terms from the question, and in Korean name the action instead of 처리하다, 반영하다, or 관리하다. (#102)
+- Changed: Answers open with what the thing does, or with the reason for a "why" question, define terms where they first appear and skip terms the question uses only as context, and in Korean name the action instead of 처리하다, 반영하다, or 관리하다. (#102)
 
 ## 0.1.0 (2026-10-25)
 
