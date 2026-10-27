@@ -536,6 +536,7 @@ async function main() {
     model: values.model,
     claudeVersion: execFileSync('claude', ['--version'], { encoding: 'utf8' }).trim(),
     commit: git(repoRoot, 'rev-parse', '--short', 'HEAD').trim(),
+    uncommittedPluginFiles: git(repoRoot, 'status', '--porcelain', '--', 'plugins').split('\n').filter(Boolean).map((line) => line.slice(3)),
     allowedTools: ALLOWED_TOOLS,
     totalCostUsd,
     runs,

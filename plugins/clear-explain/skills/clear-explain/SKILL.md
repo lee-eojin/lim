@@ -52,7 +52,7 @@ Word lists: `references/english-rules.md` and `references/korean-rules.md`.
 | Abbreviations | Capitals, spelled out on first use | CORS (Cross-Origin Resource Sharing) |
 | Basic terms settled in the reply language | The reply language's usual word | component, rendering, function, error; in Korean, 컴포넌트, 렌더링, 함수, 에러 |
 
-- In a reply in any language, do not translate or transliterate a named concept. The English name is the one the reader can search for.
+- In a reply in any language, do not translate or transliterate a named concept, even when the question does (클로저, 이벤트 루프): answer with the English name (closure, event loop). The English name is the one the reader can search for.
 - Define a named concept in one line the first time it appears. Example: an Error Boundary is a component that catches errors its children throw during rendering and shows a fallback UI instead.
 - Keep one spelling for the whole answer. If you wrote Effect, it stays Effect.
 - Case follows the official documentation, even at the start of a sentence (closure, not Closure).
