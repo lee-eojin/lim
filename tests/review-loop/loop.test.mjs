@@ -1296,6 +1296,17 @@ describe('regression tests', () => {
     assert.match(report, /- F-1 \[P2\] Price is doubled \(fixed, inferred: the re-review read the fix\)\n {2}test: checks\/cart\.cjs \(before the fix: caught, after: passed\)/);
   });
 
+  test('a deferred finding that a fix also resolves can get a regression test or a no-test reason', () => {
+    const designChoice = { ...doubledPrice, title: 'Pick a rounding rule', quote: 'items.reduce', behaviorChange: true };
+    const { root } = fixing({ findings: [doubledPrice, designChoice], startArgs: ['--unattended'] });
+    writeFiles(root, { 'checks/cart.cjs': totalTest });
+    assert.equal(loop(root, ['rule', '--id', 'F-2', '--draft', 'checks/cart.cjs']).proof, 'caught');
+    assert.equal(loop(root, ['rule', '--id', 'F-2', '--no-test', 'the rounding rule is a product choice']).noTest, 'the rounding rule is a product choice');
+    loop(root, ['next']);
+    const { report } = loop(root, ['record'], { resolved: ['F-1', 'F-2'], findings: [] });
+    assert.match(report, /- F-2 \[P2\] Pick a rounding rule .*\n {2}no test: the rounding rule is a product choice/);
+  });
+
   test('the report says why a fixed P1 or P2 has no regression test', () => {
     const { root } = fixing();
     const skipped = loop(root, ['rule', '--id', 'F-1', '--no-test', 'the total is only visible in the browser']);

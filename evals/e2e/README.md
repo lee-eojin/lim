@@ -69,6 +69,16 @@ In `report-123` the session appended `; echo "exit=$?"` to the verify command, t
 - **The record report is not shown first.** In 4 of 4 review sessions the next step after `loop record` was a tool call (a verify skill call, a task update, or a read of the diff) before the report. `loop summary`'s report was shown first in 3 of 4. These are unattended runs, where nobody reads a round report as it comes, so the skill now says an unattended run need not show each one, and the scenario no longer checks it; the results above were scored with that check (12 for `review-with-verify`), and the summary is still checked.
 - **clear-explain mirrors the user's word.** When the question says 클로저, the answer wrote 클로저 in 2 of 3 sessions (one was a smoke run), against the skill's "do not transliterate". With closure in the question, one probe session wrote closure 7 times and 클로저 never.
 
+Three more sessions of each review scenario on review-loop 0.11.2 (commit `d0c0e38`), in `results/2026-10-27-claude-opus-5-5-sample-1.json` to `-3.json`, then three `failing-check` sessions with the fix from #134, in `results/2026-10-27-claude-opus-5-5-fix-134-1.json` to `-3.json`:
+
+| Scenario | Skill | Scores | Cost |
+|---|---|---|---|
+| `review-with-verify` | 0.11.2 | 11/11, 11/11, 11/11 | $0.59, $0.59, $0.68 |
+| `failing-check` | 0.11.2 | 11/11, 10/11, 9/11 | $0.54, $0.53, $0.48 |
+| `failing-check` | with #134 | 11/11, 11/11, 10/11 | $0.51, $0.49, $0.46 |
+
+On 0.11.2, two `failing-check` sessions missed `regression-or-reason`: the reviewer deferred a P1 (`behaviorChange`) that was the same bug as the failing test, the fix resolved it, and `loop rule` refused it because it was not in `open`, so it ended with neither a regression test nor a no-test reason. With #134 all three sessions gave it one. The other misses, one in each group, are `second-review-clean`: the reviewer also marked the `maxLength` finding `behaviorChange`, so the unattended run correctly left it waiting for you and stopped as `waiting`, not `clean`. That depends on the reviewer's call, not on the skill.
+
 ### Harness limits
 
 - Claude Code runs read-only shell commands such as `git diff` and `cat` even under `dontAsk` with an allow list that does not name them, so sessions could read the diff with Bash. A chained command such as `L=...; node $L checks; node $L status` was denied.

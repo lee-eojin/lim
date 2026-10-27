@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: A P1 or P2 that an unattended run deferred, but that a fix of another finding also resolved, can get a regression test or a no-test reason. `loop rule` refused it before, so it ended with neither. (#134)
+
 ## 0.11.2 (2026-10-27)
 
 - Changed: Folders named `testdata`, `fixtures`, or `__fixtures__` are not subfolder projects, so a change to a test fixture runs the checks of the project around it instead of the fixture's own build and tests. (#131)

@@ -1538,7 +1538,8 @@ function checkRule(repository, beforeTree, drafts, files) {
 
 function isBeingFixed(state, item) {
   if (!BLOCKING.has(item.severity) || item.fromChecks || !normalize(item.scenario)) return false;
-  return (state.awaiting === 'fix' && state.open.includes(item)) || item.decision === 'once';
+  // A fix can also resolve a deferred finding, which then needs the same proof as the findings it was meant for.
+  return (state.awaiting === 'fix' && [...state.open, ...(state.deferred ?? [])].includes(item)) || item.decision === 'once';
 }
 
 function isTestCheck(id) {
