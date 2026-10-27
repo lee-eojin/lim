@@ -9,7 +9,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 - Fixed: `loop next` refuses when nothing changed since the review, instead of counting it as a failed fix and leaving the finding waiting for you. (#114)
 - Added: `loop next --unchanged "<why>"` runs the next round on an unchanged tree when nothing should change, such as a finding you chose to keep or a check that fails only because of the environment. The reason goes to the ledger and the round still counts toward the stall and stuck stops. (#114)
 - Fixed: An unattended run fixes a finding whose only open question is which of several fixes to use, with the fix that changes the least, and logs the choice; findings that change behavior, remove a feature, or change a test still wait for you. (#114)
-- Added: Windows support. Checks find their program through `PATHEXT` and run `npm` and other `.cmd` or `.bat` programs through `cmd.exe`, Gradle and Maven use `gradlew.bat` and `mvnw.cmd`, the commit gate reads Git Bash paths such as `/c/repo` and `~`, and a finding's quote is found in its file. Before, every `npm` check on Windows was reported as not installed. (#112)
+- Added: Windows support. Checks and `git` start from `PATH` through `PATHEXT`, never from the project folder, and checks run `npm` and other `.cmd` or `.bat` programs through `cmd.exe`, Gradle and Maven use `gradlew.bat` and `mvnw.cmd`, the commit gate reads Git Bash paths such as `/c/repo` and `~`, and a finding's quote is found in its file. Before, every `npm` check on Windows was reported as not installed. (#112)
 
 ## 0.10.0 (2026-10-27)
 

@@ -635,13 +635,22 @@ function runCheck(root, check, timeout) {
 // cmd.exe reads these characters itself, so each is escaped with ^ to reach the program unchanged.
 const CMD_SPECIAL = /([()\][%!^"`<>&|;, *?])/g;
 
-// Windows finds a program by the extensions in PATHEXT, not by an executable bit.
+const isFile = (target) => {
+  try {
+    return statSync(target).isFile();
+  } catch {
+    return false;
+  }
+};
+
+// Windows finds a program by the extensions in PATHEXT, not by an executable bit. A bare name is looked up on PATH
+// alone: Windows would try the working folder first, where a git.exe in the repository would run instead.
 function windowsProgram(program, cwd) {
   const extensions = (process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD').toLowerCase().split(';').filter(Boolean);
   const names = extensions.includes(path.extname(program).toLowerCase()) ? [program] : extensions.map((extension) => program + extension);
-  const folders = /[\\/]/.test(program) ? [cwd] : (process.env.PATH ?? '').split(path.delimiter).filter(Boolean);
+  const folders = /[\\/]/.test(program) ? [cwd] : (process.env.PATH ?? '').split(path.delimiter).filter((folder) => path.isAbsolute(folder));
   for (const folder of folders) {
-    const found = names.map((name) => path.resolve(folder, name)).find((candidate) => existsSync(candidate) && statSync(candidate).isFile());
+    const found = names.map((name) => path.resolve(folder, name)).find(isFile);
     if (found) return found;
   }
   return null;
@@ -656,7 +665,7 @@ function launchOf(command, cwd) {
   if (!program) return null;
   if (!/\.(?:cmd|bat)$/i.test(program)) return { file: program, args: command.slice(1) };
   const line = [program.replace(CMD_SPECIAL, '^$1'), ...command.slice(1).map(cmdArgument)].join(' ');
-  return { file: process.env.ComSpec || 'cmd.exe', args: ['/d', '/s', '/c', `"${line}"`], windowsVerbatimArguments: true };
+  return { file: process.env.ComSpec || path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'cmd.exe'), args: ['/d', '/s', '/c', `"${line}"`], windowsVerbatimArguments: true };
 }
 
 function notInstalled(label, missing) {
@@ -668,9 +677,9 @@ function runCommand(root, { command, problem, folder }, timeout) {
   const label = command.join(' ');
   if (timeout <= 0) return { command: label, exitCode: null, timedOut: true, output: 'not run: the time budget for checks was used up' };
   const cwd = path.join(root, folder ?? '');
-  const launch = launchOf(command, cwd);
-  if (!launch) return notInstalled(label, command[0]);
   try {
+    const launch = launchOf(command, cwd);
+    if (!launch) return notInstalled(label, command[0]);
     const output = execFileSync(launch.file, launch.args, {
       cwd,
       env: { ...process.env, CI: '1' },
@@ -763,7 +772,11 @@ function evidenceSources(root, finding, diffText) {
 }
 
 function git(args, options = {}) {
-  return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...options });
+  const launch = launchOf(['git', ...args], options.cwd ?? process.cwd());
+  if (!launch) throw Object.assign(new Error('git was not found on PATH'), { code: 'ENOENT' });
+  return execFileSync(launch.file, launch.args, {
+    encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, windowsVerbatimArguments: launch.windowsVerbatimArguments, ...options,
+  });
 }
 
 function openRepository(cwd, { create = true } = {}) {
@@ -1457,8 +1470,8 @@ function restoreDrafts(repository, tree, folder, drafts) {
   for (const draft of drafts) {
     const target = path.join(folder, draft);
     try {
-      writeFileSync(target, execFileSync('git', ['cat-file', 'blob', `${tree}:${draft}`], {
-        cwd: repository.root, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024,
+      writeFileSync(target, git(['cat-file', 'blob', `${tree}:${draft}`], {
+        cwd: repository.root, encoding: 'buffer', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024,
       }));
     } catch {
       rmSync(target, { force: true });
@@ -1987,7 +2000,7 @@ const ALIAS_DEPTH = 5;
 
 function aliasOf(directory, name) {
   try {
-    return execFileSync('git', ['config', '--get', `alias.${name}`], { cwd: directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return git(['config', '--get', `alias.${name}`], { cwd: directory, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   } catch {
     return null;
   }

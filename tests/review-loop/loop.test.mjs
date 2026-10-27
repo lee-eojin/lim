@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
-  chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
+  chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
@@ -689,6 +689,15 @@ describe('loop.mjs in a git repository', () => {
     const second = loop(root, ['record'], { resolved: ['F-1'], findings: [] });
     assert.equal(second.reason, 'clean');
     assert.match(second.report, /Resolved since last round:\n- F-1/);
+  });
+
+  test('a git.exe in the repository does not run in place of the installed one', {
+    skip: !windows && 'only Windows looks for a bare program name in the working folder before PATH',
+  }, () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    copyFileSync(process.env.ComSpec, path.join(root, 'git.exe'));
+    assert.equal(loop(root, ['start']).status, 'review');
   });
 
   test('empty review stops clean', () => {
