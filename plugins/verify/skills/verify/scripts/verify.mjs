@@ -240,10 +240,12 @@ export function runProblem(run, root) {
   return problem && `starts ${quote(program)}, ${problem}`;
 }
 
+// Windows reads variable names in any case, so names are compared upper-cased; on other systems a lowercase copy does nothing.
 export function envProblem(name) {
-  if (name === 'PATH') return 'cannot set PATH, so the program that runs is the one the map names';
-  if (ALLOWED_NODE_NAMES.has(name)) return null;
-  if (LOADER_NAMES.has(name) || LOADER_PREFIXES.some((prefix) => name.startsWith(prefix))) {
+  const upperName = name.toUpperCase();
+  if (upperName === 'PATH') return 'cannot set PATH, so the program that runs is the one the map names';
+  if (ALLOWED_NODE_NAMES.has(upperName)) return null;
+  if (LOADER_NAMES.has(upperName) || LOADER_PREFIXES.some((prefix) => upperName.startsWith(prefix))) {
     return `cannot set ${name}, which changes how a program loads or runs code`;
   }
   return null;
@@ -467,21 +469,47 @@ function hashOf(target) {
   return state.exists ? state.hash.slice(0, 12) : null;
 }
 
+const isFile = (target) => {
+  try {
+    return statSync(target).isFile();
+  } catch {
+    return false;
+  }
+};
+
+// Windows starts a bare program name from the working folder before PATH, so there a node.exe or git.exe in the
+// repository would run instead of the installed one. The name is looked up on PATH alone, with the extensions spawn starts.
+function installedProgram(name) {
+  if (!WINDOWS) return name;
+  for (const folder of (process.env.PATH ?? '').split(path.delimiter).filter((entry) => path.isAbsolute(entry))) {
+    const found = ['.com', '.exe'].map((extension) => path.join(folder, name + extension)).find(isFile);
+    if (found) return found;
+  }
+  return null;
+}
+
 // The program is started by its path from the repository root, so cwd changes only the folder it starts in.
 function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
+  // Windows does not read #! lines, so there the interpreter the line names runs the script.
+  const [name, ...args] = INTERPRETERS.includes(run[0])
+    ? [run[0], path.resolve(root, run[1]), ...run.slice(2)]
+    : [...(WINDOWS ? [interpreterOf(root, run)] : []), path.resolve(root, run[0]), ...run.slice(1)];
+  const program = WINDOWS ? installedProgram(name) : name;
+  if (!program) {
+    return Promise.resolve({
+      stdout: '', stderr: '', truncated: false, timedOut: false, durationMs: 0, exitCode: null, signal: null, startError: `${quote(name)} was not found on PATH`,
+    });
+  }
   return new Promise((resolve) => {
     const started = Date.now();
     const output = { stdout: '', stderr: '' };
     let truncated = false;
     let timedOut = false;
     let settled = false;
-    // Windows does not read #! lines, so there the interpreter the line names runs the script.
-    const [program, ...args] = INTERPRETERS.includes(run[0])
-      ? [run[0], path.resolve(root, run[1]), ...run.slice(2)]
-      : [...(WINDOWS ? [interpreterOf(root, run)] : []), path.resolve(root, run[0]), ...run.slice(1)];
     const env = { ...process.env, CI: '1', NO_COLOR: '1', FORCE_COLOR: '0', ...extraEnv };
     if (interpreterOf(root, run) === 'python3') {
-      for (const name of REMOVED_PYTHON_NAMES) delete env[name];
+      const removed = (variable) => REMOVED_PYTHON_NAMES.includes(WINDOWS ? variable.toUpperCase() : variable);
+      for (const variable of Object.keys(env).filter(removed)) delete env[variable];
       Object.assign(env, PYTHON_ENVIRONMENT);
     }
     const child = spawn(program, args, {
@@ -648,9 +676,15 @@ function filesChangedAfterFail(failed, checkFiles) {
     && ![recorded[file].before, recorded[file].after].includes(checkFiles[file].before));
 }
 
-function git(args, cwd, env = process.env) {
-  return execFileSync('git', args, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+let gitPath;
+
+function gitOutput(args, cwd, env = process.env) {
+  gitPath ??= installedProgram('git');
+  if (!gitPath) throw new Error('git was not found on PATH');
+  return execFileSync(gitPath, args, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 }
+
+const git = (args, cwd, env) => gitOutput(args, cwd, env).trim();
 
 function openRepository(cwd) {
   let root;
@@ -672,9 +706,7 @@ function gitStateOf(root, mapPath) {
   } catch {
     head = null;
   }
-  const entries = execFileSync('git', ['status', '--porcelain', '-z', '--untracked-files=all'], {
-    cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
-  }).split('\0').filter(Boolean);
+  const entries = gitOutput(['status', '--porcelain', '-z', '--untracked-files=all'], root).split('\0').filter(Boolean);
   const files = [];
   for (let index = 0; index < entries.length; index += 1) {
     files.push(entries[index].slice(3));

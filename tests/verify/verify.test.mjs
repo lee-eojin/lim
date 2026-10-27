@@ -63,7 +63,7 @@ function createRepository(features, extraFiles = {}) {
 }
 
 function verifyWith(env, root, ...args) {
-  const result = spawnSync('node', [script, ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...env } });
+  const result = spawnSync(process.execPath, [script, ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, ...env } });
   const text = result.stdout.trim() || result.stderr.trim();
   return { exit: result.status, ...JSON.parse(text) };
 }
@@ -86,6 +86,15 @@ function writeMap(root, features) {
 const evidenceFiles = (root) => readdirSync(path.join(root, '.git', 'lim', 'verify', 'runs'));
 
 describe('run', () => {
+  test('a node.exe or git.exe in the repository does not run in place of the installed one', {
+    skip: !windows && 'only Windows looks for a bare program name in the working folder before PATH',
+  }, () => {
+    const root = createRepository([upper]);
+    for (const name of ['node.exe', 'git.exe']) copyFileSync(process.env.ComSpec, path.join(root, name));
+    const result = verify(root, 'run');
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [['pass', []]]);
+  });
+
   test('a check whose output matches passes and exits 0', () => {
     const root = createRepository([upper]);
     const result = verify(root, 'run');
@@ -519,6 +528,16 @@ describe('only the project\'s own scripts and executables run', () => {
     assert.deepEqual(problemsFor({ env: { NODE_ENV: 'test', TZ: 'UTC', LANG: 'C' } }), []);
   });
 
+  test('env names are refused in any case, because Windows reads a name in any case', () => {
+    for (const name of ['node_options', 'Node_Options', 'PythonPath', 'ld_preload', 'Home']) {
+      assert.deepEqual(problemsFor({ env: { [name]: 'x' } }), [`features[0] (upper).env cannot set ${name}, which changes how a program loads or runs code`], name);
+    }
+    for (const name of ['Path', 'path']) {
+      assert.deepEqual(problemsFor({ env: { [name]: 'x' } }), ['features[0] (upper).env cannot set PATH, so the program that runs is the one the map names'], name);
+    }
+    assert.deepEqual(problemsFor({ env: { node_env: 'test' } }), []);
+  });
+
   test('HOME and USERPROFILE and OPENSSL_CONF in env are refused', () => {
     for (const name of ['HOME', 'USERPROFILE', 'OPENSSL_CONF']) {
       assert.deepEqual(problemsFor({ env: { [name]: '/tmp/elsewhere' } }), [`features[0] (upper).env cannot set ${name}, which changes how a program loads or runs code`], name);
@@ -694,6 +713,14 @@ describe('python3 scripts', () => {
     };
     const result = verifyWith(inherited, root, 'run');
     assert.deepEqual(result.checks.map((check) => [check.id, check.status, check.reasons]), [['python-env', 'pass', []], ['node-env', 'pass', []]]);
+  });
+
+  test('an inherited PYTHONPATH written in another case does not reach a python3 run', () => {
+    const show = 'import os\nprint(os.environ.get("PYTHONPATH", "unset"))\n';
+    const entry = { id: 'python-path', feature: 'Shows PYTHONPATH', run: ['python3', 'verify-checks/show_path.py'], expect: { exitCode: 0, stdout: { equals: 'unset' } } };
+    const root = createRepository([entry], { 'verify-checks/show_path.py': show });
+    const result = verifyWith({ PythonPath: '/opt/shelf-lib' }, root, 'run');
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [['pass', []]]);
   });
 
   test('a script whose first line is #!/usr/bin/env python3 runs as an executable and its exit code is judged', () => {
