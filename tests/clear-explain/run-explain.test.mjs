@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
-  answerArgs, compareJudgePasses, heldOutRequests, judgePrompt, opensWithAnswer, parseJudgeOutput, parseStream, redact, rejudge, rescore, serialize,
-  skillVersion, summarize, summarizeTriggers, swapOrder, triggerArgs, triggerRequests, unblind,
+  answerArgs, compareJudgePasses, heldOutRequests, judgePrompt, opensWithAnswer, parseJudgeOutput, parseOptions, parseStream, redact, rejudge, rescore, selectQuestions,
+  serialize, skillVersion, summarize, summarizeTriggers, swapOrder, triggerArgs, triggerRequests, unblind,
 } from '../../evals/clear-explain/run-explain.mjs';
 
 const questionsFile = fileURLToPath(new URL('../../evals/clear-explain/questions.json', import.meta.url));
@@ -222,4 +222,23 @@ test('the skill version records the body hash without the frontmatter and the de
   assert.equal(first.bodySha256, second.bodySha256);
   assert.deepEqual([first.description, second.description], ['Old words.', 'New words.']);
   assert.notEqual(skillVersion(`---\nname: clear-explain\ndescription: Old words.\n---\n${body}More.\n`).bodySha256, first.bodySha256);
+});
+
+test('counts must be whole numbers above 0 and each mode refuses the flags it would ignore', () => {
+  for (const args of [['-j', '0'], ['--rejudge', 'old.json', '-j', 'four'], ['--timeout', '0'], ['--triggers', '--max-turns', 'x']]) {
+    assert.throws(() => parseOptions(args), /must be a whole number above 0/, args.join(' '));
+  }
+  assert.throws(() => parseOptions(['--rescore', 'old.json', '-j', '2']), /-j is not used by --rescore/);
+  assert.throws(() => parseOptions(['--rejudge', 'old.json', '--model', 'opus']), /--model is not used by --rejudge/);
+  assert.throws(() => parseOptions(['--held-out', 'held.json', '--question', 'en-cors']), /--question is not used by --held-out/);
+  assert.throws(() => parseOptions(['--max-turns', '3']), /--max-turns is not used by a judged run/);
+  assert.equal(parseOptions(['--triggers', '--question', 'en-cors', '--max-turns', '3']).mode, '--triggers');
+  assert.equal(parseOptions(['--help', '-j', '0']).mode, 'help');
+});
+
+test('an unknown question id is refused instead of being dropped', () => {
+  const questions = JSON.parse(readFileSync(questionsFile, 'utf8'));
+  assert.deepEqual(selectQuestions(questions, ['en-cors']).map((question) => question.id), ['en-cors']);
+  assert.equal(selectQuestions(questions, undefined).length, questions.length);
+  assert.throws(() => selectQuestions(questions, ['en-cors', 'en-typo']), /unknown question: en-typo/);
 });

@@ -5,8 +5,8 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs } from 'node:util';
 import { compareRunFiles } from '../../plugins/verify/skills/verify/scripts/verify.mjs';
+import { parseRunnerArgs } from '../clear-explain/run-explain.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
@@ -414,8 +414,13 @@ function defaultOut(model, label) {
   return file;
 }
 
-async function main() {
-  const { values } = parseArgs({
+const MODES = {
+  '--dry-run': ['dry-run', 'case'],
+  'a model run': ['case', 'model', 'concurrency', 'label', 'out', 'timeout', 'keep'],
+};
+
+export function parseOptions(args) {
+  return parseRunnerArgs(args, {
     options: {
       case: { type: 'string', multiple: true },
       model: { type: 'string' },
@@ -427,13 +432,25 @@ async function main() {
       keep: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
+    modes: MODES,
+    modeOf: (values) => (values['dry-run'] ? '--dry-run' : 'a model run'),
+    counts: ['concurrency', 'timeout'],
   });
-  if (values.help) {
+}
+
+export function selectCases(cases, names) {
+  const unknown = (names ?? []).filter((name) => !cases.some((entry) => entry.case === name));
+  if (unknown.length) throw new Error(`unknown case: ${unknown.join(', ')}`);
+  return cases.filter((entry) => !names || names.includes(entry.case));
+}
+
+async function main() {
+  const { mode, values } = parseOptions(process.argv.slice(2));
+  if (mode === 'help') {
     process.stdout.write(usage);
     return;
   }
-  const cases = JSON.parse(readFileSync(path.join(here, 'cases.json'), 'utf8'))
-    .filter((entry) => !values.case || values.case.includes(entry.case));
+  const cases = selectCases(JSON.parse(readFileSync(path.join(here, 'cases.json'), 'utf8')), values.case);
   if (!cases.length) throw new Error('no cases selected');
   if (values['dry-run']) {
     let ok = true;

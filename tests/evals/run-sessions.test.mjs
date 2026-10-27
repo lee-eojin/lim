@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import {
-  ALLOWED_TOOLS, SCENARIOS, buildSession, checkScenario, inOrder, parseEvents, reportShownAfter, scriptCall, sessionArgs, uncommittedPluginFiles,
+  ALLOWED_TOOLS, SCENARIOS, buildSession, checkScenario, inOrder, parseEvents, parseOptions, reportShownAfter, scriptCall, sessionArgs, uncommittedPluginFiles,
 } from '../../evals/e2e/run-sessions.mjs';
 
 const WORK = '/tmp/cents-abc';
@@ -130,6 +130,15 @@ test('a report counts as shown first only when the next text opens a code block 
   assert.equal(reportShownAfter(prose, /^verify run/).pass, false);
 });
 
+test('report-first fails when an earlier verify run is not followed by its report, even if the last one is', () => {
+  const steps = [verify('run'), 'Two checks failed.', verify('run --id slug'), '```\nreport\n```'];
+  const result = outcome(checkScenario(scenario('verify-tool'), buildSession(stream(steps))), 'report-first');
+  assert.equal(result.pass, false);
+  assert.match(result.evidence, /Two checks failed/);
+  const shown = [verify('run'), '```\nfirst report\n```', verify('run --id slug'), '```\nsecond report\n```'];
+  assert.equal(outcome(checkScenario(scenario('verify-tool'), buildSession(stream(shown))), 'report-first').pass, true);
+});
+
 test('the checks scenario accepts a checks P1 as its own proof and rejects another fixed P2 without a regression step', () => {
   const checksOnly = {
     ...happyRepository,
@@ -195,4 +204,28 @@ test('the uncommitted plugin files are listed one by one with a hash, including 
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('deleting the existing test file fails tests-not-weakened', () => {
+  const weakened = (repository) => outcome(checkScenario(scenario('failing-check'), buildSession([], repository)), 'tests-not-weakened');
+  assert.equal(weakened({ changedFiles: ['src/slug.js'] }).pass, true);
+  const deleted = weakened({ changedFiles: ['src/slug.js', 'test/slug.test.js'], files: { 'src/slug.js': 'fixed' } });
+  assert.equal(deleted.pass, false);
+  assert.match(deleted.evidence, /deleted/);
+});
+
+test('ends-with-summary checks the report after the last loop summary, not the first', () => {
+  const steps = [loop('summary'), '```\nfirst report\n```', loop('next'), loop('summary'), 'All done.'];
+  const result = outcome(checkScenario(scenario('failing-check'), buildSession(stream(steps))), 'ends-with-summary');
+  assert.equal(result.pass, false);
+  assert.match(result.evidence, /All done/);
+  const lastShown = [loop('summary'), 'Not done yet.', loop('next'), loop('summary'), '```\nfinal report\n```'];
+  assert.equal(outcome(checkScenario(scenario('failing-check'), buildSession(stream(lastShown))), 'ends-with-summary').pass, true);
+});
+
+test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {
+  for (const value of ['0', 'two', '1.5']) assert.throws(() => parseOptions(['-j', value]), /must be a whole number above 0/, value);
+  assert.throws(() => parseOptions(['--scenario', 'verify-tool', '--scenario', 'nope']), /unknown scenario: nope/);
+  assert.deepEqual(parseOptions(['--scenario', 'verify-tool', '-j', '2']).values.scenario, ['verify-tool']);
+  assert.equal(parseOptions(['--help']).mode, 'help');
 });

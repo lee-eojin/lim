@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { copyFixtures, dryRun, parseStream, prepareProject, scoreCase, summarize, toolActivity, writtenContents } from '../../evals/verify/run-benchmark.mjs';
+import { copyFixtures, dryRun, parseOptions, parseStream, prepareProject, scoreCase, selectCases, summarize, toolActivity, writtenContents } from '../../evals/verify/run-benchmark.mjs';
 
 const evalsDir = fileURLToPath(new URL('../../evals/verify/', import.meta.url));
 const projectsDir = path.join(evalsDir, 'projects');
@@ -181,4 +181,19 @@ test('a run that never finished has no result but keeps what Claude tried', () =
   const { events, result } = parseStream(JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 't', name: 'Bash', input: { command: 'node x.js' } }] } }));
   assert.equal(result, undefined);
   assert.deepEqual(toolActivity(events).bashCommands, [{ command: 'node x.js', denied: false, isError: null }]);
+});
+
+test('benchmark options refuse a count that is not a whole number above 0 and an option the mode does not use', () => {
+  for (const args of [['-j', '0'], ['--concurrency', 'two'], ['--timeout', '1.5']]) {
+    assert.throws(() => parseOptions(args), /must be a whole number above 0/, args.join(' '));
+  }
+  assert.throws(() => parseOptions(['--dry-run', '--model', 'opus']), /--model is not used by --dry-run/);
+  assert.equal(parseOptions(['--dry-run', '--case', cases[0].case]).mode, '--dry-run');
+  assert.equal(parseOptions(['--help', '-j', '0']).mode, 'help');
+});
+
+test('an unknown --case name is refused instead of dropped', () => {
+  assert.throws(() => selectCases(cases, [cases[0].case, 'nope']), /unknown case: nope/);
+  assert.deepEqual(selectCases(cases, [cases[0].case]).map((entry) => entry.case), [cases[0].case]);
+  assert.equal(selectCases(cases, undefined).length, cases.length);
 });

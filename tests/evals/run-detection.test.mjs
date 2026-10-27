@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { casesDirFor, compareResults, locationsOf, parseAgentFile, parseReviewerOutput, pool, prepareCase, rescoreResults, rescoreRuns, runOne, scoreCase, serializeResults, summarize } from '../../evals/review-loop/run-detection.mjs';
+import { casesDirFor, compareResults, locationsOf, parseAgentFile, parseOptions, parseReviewerOutput, pool, prepareCase, rescoreResults, rescoreRuns, runOne, scoreCase, serializeResults, summarize } from '../../evals/review-loop/run-detection.mjs';
 
 const evalsDir = fileURLToPath(new URL('../../evals/review-loop/', import.meta.url));
 const casesDir = path.join(evalsDir, 'detection');
@@ -41,6 +41,12 @@ test('a quoted line inside the expected range counts when the reported line is o
   const lines = ['a', 'b', 'c', '  const end = items.length - 1;', 'e'];
   const review = { findings: [finding({ line: 40, quote: '+  const end = items.length - 1;' })] };
   assert.equal(scoreCase(seeded, review, () => lines).result, 'found');
+});
+
+test('a short quote such as a lone bracket does not place a finding at the expected lines', () => {
+  const lines = ['a', 'b', 'c', '  const end = items.length - 1;', 'e'];
+  assert.equal(scoreCase(seeded, { findings: [finding({ line: 90, quote: '(' })] }, () => lines).result, 'missed');
+  assert.equal(scoreCase(seeded, { findings: [finding({ line: 90, quote: '- 1;' })] }, () => lines).result, 'missed');
 });
 
 test('a clean change fails only on a P1 or P2 and keeps the rest as other findings', () => {
@@ -352,4 +358,32 @@ test('a case copy leaves out files git ignores, such as build output from runnin
     rmSync(workDir, { recursive: true, force: true });
     if (!existed) rmSync(path.join(dir, 'repo', 'target'), { recursive: true, force: true });
   }
+});
+
+test('run counts must be whole numbers above 0 and each mode refuses the flags it would ignore', () => {
+  for (const args of [['--runs', '0'], ['-j', 'four'], ['--timeout', '1.5'], ['--dry-run', '--runs=-2']]) {
+    assert.throws(() => parseOptions(args), /must be a whole number above 0/, args.join(' '));
+  }
+  assert.throws(() => parseOptions(['--rescore', 'old.json', '--runs', '3']), /--runs is not used by --rescore/);
+  assert.throws(() => parseOptions(['--compare', 'a.json', 'b.json', '-j', '2']), /-j is not used by --compare/);
+  assert.throws(() => parseOptions(['--dry-run', '--model', 'opus', '--label', 'x']), /--model, --label are not used by --dry-run/);
+  assert.throws(() => parseOptions(['--note', 'why']), /--note is not used by a model run/);
+  assert.equal(parseOptions(['--rescore', 'old.json', '--note', 'why']).mode, '--rescore');
+  assert.equal(parseOptions(['--case', 'cache', '--runs', '3', '-j', '2', '--timeout', '60']).mode, 'a model run');
+  assert.equal(parseOptions(['--help', '--rescore', 'old.json', '--runs', '0']).mode, 'help');
+});
+
+test('an unknown --case name stops the run before any case runs', () => {
+  const script = fileURLToPath(new URL('../../evals/review-loop/run-detection.mjs', import.meta.url));
+  const run = spawnSync(process.execPath, [script, '--dry-run', '--case', caseSets[0].names[0], '--case', 'no-such-case'], { encoding: 'utf8' });
+  assert.notEqual(run.status, 0);
+  assert.match(run.stderr, /unknown case: no-such-case/);
+  assert.equal(run.stdout, '');
+});
+
+test('--help still prints the usage', () => {
+  const script = fileURLToPath(new URL('../../evals/review-loop/run-detection.mjs', import.meta.url));
+  const run = spawnSync(process.execPath, [script, '--help'], { encoding: 'utf8' });
+  assert.equal(run.status, 0);
+  assert.match(run.stdout, /^Usage: /);
 });

@@ -2,6 +2,10 @@
 
 All notable changes to clear-explain. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: `check-clarity.mjs` closes a fenced code block only on a fence of the same character that is at least as long, skips an indented code block after a list and a fenced block (also when the fence sits right under a list item), finds the double negatives 안 되는 and 안 되지, and finds possessive chains written with a curly apostrophe. (#141)
+
 ## 0.1.3 (2026-10-27)
 
 - Fixed: A Korean question that writes a concept in Hangul, such as 클로저, gets an answer that uses the English name (closure). In three headless sessions after the change, none used 클로저; before, one of the two saved sessions did. (#116)

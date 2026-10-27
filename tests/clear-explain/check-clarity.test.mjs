@@ -182,3 +182,28 @@ test('an indented line that looks like a fence does not hide the rest of the fil
   const inList = '- Run this:\n\n    ```js\n    simply.handle(etc);\n    ```\n\nThe end.\n';
   assert.deepEqual(findingsOf(inList), []);
 });
+
+test('a fence closes only on a fence of the same character at least as long as the one that opened it', () => {
+  const vagueLines = (text) => findingsOf(text, 'vague-word').map((finding) => finding.line);
+  assert.deepEqual(vagueLines('Intro.\n\n````md\n```js\nconst x = simply(just);\n```\n````\n'), []);
+  assert.deepEqual(vagueLines('Intro.\n\n~~~\n```\nconst y = simply(just);\n~~~\n'), []);
+  assert.deepEqual(vagueLines('````\n```\n````\nIt simply works.\n'), [4]);
+});
+
+test('an indented code block after a list and a fenced block is not checked as prose', () => {
+  assert.deepEqual(findingsOf('- item one\n\n```\ncode\n```\n\n    const z = simply(just);\n', 'vague-word'), []);
+});
+
+test('a fence right under a list item ends the list, so a later indented block is code', () => {
+  assert.deepEqual(findingsOf('- item\n```\ncode\n```\n\n    const z = simply(just);\n', 'vague-word'), []);
+  assert.deepEqual(findingsOf('- item\n  ```\n  code\n  ```\n\n    It simply works.\n', 'vague-word').map((finding) => finding.line), [6]);
+});
+
+test('a Korean double negative is found with 되는 and 되지 too', () => {
+  const found = findingsOf('반드시 저장하지 않으면 안 되는 값이다.\n저장하지 않으면 안 되지.\n', 'double-negative');
+  assert.deepEqual(found.map((finding) => finding.line), [1, 2]);
+});
+
+test('an English possessive chain with a curly apostrophe is found', () => {
+  assert.equal(findingsOf('The user’s order’s status changes.\n', 'possessive-chain').length, 1);
+});
