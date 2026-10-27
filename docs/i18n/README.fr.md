@@ -8,7 +8,7 @@
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-Ce document est une traduction du [README en anglais](../../README.md) dans sa version du 2026-10-24. Si les deux documents sont différents, le README en anglais est la référence correcte.
+Ce document est une traduction du [README en anglais](../../README.md) dans sa version du 2026-10-27. Si les deux documents sont différents, le README en anglais est la référence correcte.
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | Français | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
@@ -301,7 +301,7 @@ review-loop ne fait aucun appel réseau par lui-même. Claude et le réviseur li
 - Le commit gate vérifie uniquement les commandes que Claude exécute avec son outil Bash. Les commits que vous tapez dans votre propre terminal ne sont pas vérifiés. Un commit passé par un alias git comme `git ci` est vérifié comme `git commit`, un alias shell (`!...`) qui fait un commit déclenche une question, car le gate ne peut pas voir à l'intérieur, et un alias défini en ligne avec `git -c alias.ci=commit` n'est pas reconnu.
 - Si vous lancez Claude Code dans un dossier qui n'est pas un dépôt, le gate ne peut pas vérifier un commit dont il ne peut pas identifier le dépôt, par exemple après `cd "$(...)"`.
 - review-loop fait la revue de tout ce que `git add -A` inclurait, et non d'un ensemble de modifications en stage que vous choisissez à la main.
-- Une règle ou un test de régression est vérifié dans une copie temporaire qui contient vos fichiers suivis par git et un lien vers le `node_modules` à la racine. Les autres fichiers ignorés, comme `.env` ou un `node_modules` imbriqué, n'y sont pas, donc une vérification qui en a besoin le signale comme non prouvé ou comme détecté pour une mauvaise raison. Claude lit l'échec pour savoir de quel cas il s'agit.
+- Une règle ou un test de régression est vérifié dans une copie temporaire qui contient vos fichiers suivis par git et des liens vers le `node_modules` de la racine et des projets qui contiennent le constat et les brouillons. Les autres fichiers ignorés, comme `.env`, n'y sont pas, donc une vérification qui en a besoin le signale comme non prouvé ou comme détecté pour une mauvaise raison. Claude lit l'échec pour savoir de quel cas il s'agit.
 
 ## Questions fréquentes
 

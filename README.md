@@ -299,7 +299,7 @@ review-loop makes no network calls of its own. Claude and the reviewer read the 
 - The commit gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked. A commit through a git alias such as `git ci` is checked like `git commit`, a shell alias (`!...`) that commits is asked about because the gate cannot see inside it, and an alias set inline with `git -c alias.ci=commit` is not recognized.
 - If you start Claude Code in a folder that is not a repository, the gate cannot check a commit whose repository it cannot tell, for example after `cd "$(...)"`.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
-- A rule or a regression test is checked in a temporary copy that has your tracked files and a link to the root `node_modules`. Other ignored files, such as `.env` or a nested `node_modules`, are not there, so a check that needs them reports it as unproven or caught for the wrong reason. Claude reads the failure to tell which.
+- A rule or a regression test is checked in a temporary copy that has your tracked files and links to the `node_modules` of the root and of the projects that hold the finding and the drafts. Other ignored files, such as `.env`, are not there, so a check that needs them reports it as unproven or caught for the wrong reason. Claude reads the failure to tell which.
 
 ## FAQ
 

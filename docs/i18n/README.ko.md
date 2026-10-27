@@ -8,7 +8,7 @@
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-> 이 문서는 2026-10-24 시점의 [영어 README](../../README.md)를 번역한 문서입니다. 두 문서의 내용이 다르면 영어 README가 맞습니다.
+> 이 문서는 2026-10-27 시점의 [영어 README](../../README.md)를 번역한 문서입니다. 두 문서의 내용이 다르면 영어 README가 맞습니다.
 
 [English](../../README.md) | 한국어 | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
@@ -301,7 +301,7 @@ review-loop는 자체적으로 네트워크 요청을 보내지 않습니다. Cl
 - 커밋 게이트는 Claude가 Bash 도구로 실행하는 명령만 검사합니다. 사용자가 자신의 터미널에서 직접 입력한 커밋은 검사하지 않습니다. `git ci` 같은 git alias를 거친 커밋은 `git commit`처럼 검사합니다. 커밋하는 shell alias(`!...`)는 게이트가 그 안을 볼 수 없어서 사용자에게 묻습니다. `git -c alias.ci=commit`처럼 명령 안에서 바로 정한 alias는 인식하지 않습니다.
 - 저장소가 아닌 폴더에서 Claude Code를 시작하면, 게이트는 어느 저장소인지 알 수 없는 커밋을 검사하지 못합니다. 예: `cd "$(...)"` 뒤의 커밋.
 - 리뷰 범위는 `git add -A`가 포함할 모든 변경입니다. 사용자가 직접 골라서 stage한 변경만 리뷰하지는 않습니다.
-- 규칙과 회귀 테스트는 임시 복사본에서 확인합니다. 이 복사본에는 추적 중인(tracked) 파일과, 최상위 `node_modules`로 연결되는 링크가 들어 있습니다. `.env`나 중첩된 `node_modules` 같은 그 밖의 무시된(ignored) 파일은 없습니다. 그래서 그런 파일이 필요한 검사는 규칙이나 테스트를 증명하지 못했다고 보고하거나, 잘못된 이유로 잡았다고 보고합니다. 어느 쪽인지는 Claude가 실패 내용을 읽고 판단합니다.
+- 규칙과 회귀 테스트는 임시 복사본에서 확인합니다. 이 복사본에는 추적 중인(tracked) 파일과, 최상위 폴더 및 지적 사항과 초안이 들어 있는 프로젝트의 `node_modules`로 연결되는 링크가 들어 있습니다. `.env` 같은 그 밖의 무시된(ignored) 파일은 없습니다. 그래서 그런 파일이 필요한 검사는 규칙이나 테스트를 증명하지 못했다고 보고하거나, 잘못된 이유로 잡았다고 보고합니다. 어느 쪽인지는 Claude가 실패 내용을 읽고 판단합니다.
 
 ## FAQ
 

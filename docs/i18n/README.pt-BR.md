@@ -8,7 +8,7 @@
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-Este documento é uma tradução do [README em inglês](../../README.md) na versão de 2026-10-24. Se os dois documentos forem diferentes, o README em inglês é o correto.
+Este documento é uma tradução do [README em inglês](../../README.md) na versão de 2026-10-27. Se os dois documentos forem diferentes, o README em inglês é o correto.
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | Português (Brasil) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
@@ -301,7 +301,7 @@ O review-loop não faz chamadas de rede próprias. O Claude e o revisor leem o d
 - O commit gate verifica apenas os comandos que o Claude executa pela ferramenta Bash dele. Os commits que você digita no seu próprio terminal não são verificados. Um commit feito por um alias do git como `git ci` é verificado como `git commit`, um alias de shell (`!...`) que faz commit gera uma pergunta porque o gate não consegue ver dentro dele, e um alias definido inline com `git -c alias.ci=commit` não é reconhecido.
 - Se você iniciar o Claude Code em uma pasta que não é um repositório, o gate não consegue verificar um commit cujo repositório ele não consegue identificar, por exemplo depois de `cd "$(...)"`.
 - O review-loop revisa tudo o que `git add -A` incluiria, e não um conjunto de alterações em stage que você escolhe manualmente.
-- Uma regra ou um teste de regressão é verificado em uma cópia temporária que tem os seus arquivos rastreados pelo git e um link para o `node_modules` da raiz. Outros arquivos ignorados, como `.env` ou um `node_modules` aninhado, não estão lá, então uma verificação que precisa deles o informa como não comprovado ou como detectado pelo motivo errado. O Claude lê a falha para saber qual é o caso.
+- Uma regra ou um teste de regressão é verificado em uma cópia temporária que tem os seus arquivos rastreados pelo git e links para o `node_modules` da raiz e dos projetos que contêm o achado e os rascunhos. Outros arquivos ignorados, como `.env`, não estão lá, então uma verificação que precisa deles o informa como não comprovado ou como detectado pelo motivo errado. O Claude lê a falha para saber qual é o caso.
 
 ## Perguntas frequentes
 

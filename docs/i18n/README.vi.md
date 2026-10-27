@@ -8,7 +8,7 @@
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-Đây là bản dịch của [README tiếng Anh](../../README.md) tại ngày 2026-10-24. Nếu hai bản khác nhau, README tiếng Anh là bản đúng.
+Đây là bản dịch của [README tiếng Anh](../../README.md) tại ngày 2026-10-27. Nếu hai bản khác nhau, README tiếng Anh là bản đúng.
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | Tiếng Việt | [Bahasa Indonesia](README.id.md)
 
@@ -301,7 +301,7 @@ review-loop không tự thực hiện lệnh gọi mạng nào. Claude và revie
 - Commit gate chỉ kiểm tra các lệnh mà Claude chạy qua công cụ Bash của nó. Các commit bạn tự gõ trong terminal của mình không được kiểm tra. Một commit qua git alias như `git ci` được kiểm tra giống như `git commit`, một shell alias (`!...`) có commit sẽ được hỏi lại vì gate không thể nhìn vào bên trong nó, và alias đặt trực tiếp bằng `git -c alias.ci=commit` không được nhận diện.
 - Nếu bạn khởi động Claude Code trong một thư mục không phải repository, gate không thể kiểm tra commit mà nó không xác định được repository, ví dụ sau `cd "$(...)"`.
 - Nó review mọi thứ mà `git add -A` sẽ bao gồm, không phải một tập thay đổi đã stage do bạn tự chọn.
-- Một quy tắc hoặc một regression test được kiểm tra trong một bản sao tạm có các file được track của bạn và một liên kết tới `node_modules` ở thư mục gốc. Các file bị ignore khác, như `.env` hoặc một `node_modules` lồng bên trong, không có ở đó. Vì vậy, một check cần các file đó sẽ báo kết quả là chưa được chứng minh, hoặc là bắt được nhưng vì sai lý do. Claude đọc lỗi để biết đó là trường hợp nào.
+- Một quy tắc hoặc một regression test được kiểm tra trong một bản sao tạm có các file được track của bạn và các liên kết tới `node_modules` ở thư mục gốc và ở các dự án chứa phát hiện và bản nháp. Các file bị ignore khác, như `.env`, không có ở đó. Vì vậy, một check cần các file đó sẽ báo kết quả là chưa được chứng minh, hoặc là bắt được nhưng vì sai lý do. Claude đọc lỗi để biết đó là trường hợp nào.
 
 ## FAQ
 

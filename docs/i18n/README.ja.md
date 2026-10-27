@@ -8,7 +8,7 @@
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-> このドキュメントは、2026-10-24時点の[英語版README](../../README.md)の翻訳です。両者の内容が異なる場合は、英語版READMEが正しい内容です。
+> このドキュメントは、2026-10-27時点の[英語版README](../../README.md)の翻訳です。両者の内容が異なる場合は、英語版READMEが正しい内容です。
 
 [English](../../README.md) | [한국어](README.ko.md) | 日本語 | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
@@ -301,7 +301,7 @@ review-loop自体はネットワーク通信を行いません。Claudeとレビ
 - コミットゲートがチェックするのは、ClaudeがBashツールで実行するコマンドだけです。ユーザーが自分のターミナルで入力したコミットはチェックしません。`git ci`のようなgitのエイリアスを通したコミットは、`git commit`と同じようにチェックします。コミットするシェルエイリアス(`!...`)は、ゲートが中身を見られないため確認を求めます。`git -c alias.ci=commit`のようにその場で設定したエイリアスは認識しません。
 - リポジトリではないフォルダーでClaude Codeを起動した場合、ゲートはリポジトリを特定できないコミットをチェックできません。例: `cd "$(...)"`の後のコミット。
 - レビュー対象は、`git add -A`が含めるすべての変更です。手動で選んでステージした変更だけをレビューするわけではありません。
-- ルールと回帰テストは一時的なコピーで確認します。このコピーには、追跡対象のファイルと、ルートの`node_modules`へのリンクが含まれます。`.env`やネストされた`node_modules`など、その他の無視されたファイルは含まれません。そのため、それらが必要なチェックでは、ルールやテストが未証明、または誤った理由で検出されたと報告されます。どちらなのかは、Claudeが失敗の内容を読んで判断します。
+- ルールと回帰テストは一時的なコピーで確認します。このコピーには、追跡対象のファイルと、ルートおよび指摘と下書きがあるプロジェクトの`node_modules`へのリンクが含まれます。`.env`など、その他の無視されたファイルは含まれません。そのため、それらが必要なチェックでは、ルールやテストが未証明、または誤った理由で検出されたと報告されます。どちらなのかは、Claudeが失敗の内容を読んで判断します。
 
 ## FAQ
 
