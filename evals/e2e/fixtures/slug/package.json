@@ -1,0 +1,8 @@
+{
+  "name": "slug",
+  "version": "1.0.0",
+  "description": "Turn a title into a URL slug",
+  "type": "module",
+  "main": "src/slug.js",
+  "scripts": { "test": "node --test" }
+}

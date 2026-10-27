@@ -1,0 +1,22 @@
+{
+  "features": [
+    {
+      "id": "dollars-and-cents",
+      "feature": "Formats an amount in cents as dollars",
+      "run": ["node", "bin/cents.js", "1999"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "$19.99" } }
+    },
+    {
+      "id": "two-decimal-places",
+      "feature": "Always shows two decimal places",
+      "run": ["node", "bin/cents.js", "5"],
+      "expect": { "exitCode": 0, "stdout": { "equals": "$0.05" } }
+    },
+    {
+      "id": "rejects-non-numeric",
+      "feature": "Rejects an amount that is not a whole number of cents",
+      "run": ["node", "bin/cents.js", "abc"],
+      "expect": { "exitCode": 2, "stderr": { "includes": "amount must be a whole number of cents" } }
+    }
+  ]
+}
