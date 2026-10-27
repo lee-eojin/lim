@@ -1,0 +1,8 @@
+{
+  "name": "lim",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "lint": "node scripts/check-i18n.mjs"
+  }
+}

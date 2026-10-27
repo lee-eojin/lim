@@ -32,6 +32,8 @@ node scripts/check-i18n.mjs
 
 All four must pass. CI runs `node --test`, `scripts/check.sh`, and `node scripts/check-i18n.mjs` on every pull request.
 
+`npm test` runs `node --test`, and `npm run lint` runs `node scripts/check-i18n.mjs`. review-loop finds these scripts in the root `package.json`, so it runs them when it reviews a change here. `scripts/check.sh` is left out of `npm run lint` because it needs bash and python3, which Windows may not have.
+
 ### Changing review-loop's SKILL.md or reviewer.md
 
 These files are instructions to a model, so unit tests cannot tell whether a change made reviews better or worse. Before and after the change, run the detection benchmark and put both sets of numbers in the pull request:
