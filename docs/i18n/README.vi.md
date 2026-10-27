@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
+[![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
+[![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 Đây là bản dịch của [README tiếng Anh](../../README.md) tại ngày 2026-10-24. Nếu hai bản khác nhau, README tiếng Anh là bản đúng.
@@ -12,9 +14,11 @@
 
 Coding agent viết code rất nhanh. Nhưng chúng kém hơn nhiều trong việc nhận ra mình đã sai ở đâu. Agent đã viết một thay đổi là reviewer yếu nhất cho thay đổi đó, vì nó đọc thay đổi qua chính lập luận của mình và đồng ý với chính mình. Vì vậy, code được commit mà không có review, hoặc với một lần review từ chính ngữ cảnh đã viết ra nó.
 
-**LIM là câu trả lời của tôi: những plugin nhỏ, mỗi plugin làm một việc, kèm theo con số để chứng minh.** Plugin đầu tiên là review-loop.
+**LIM là câu trả lời của tôi: những plugin nhỏ, mỗi plugin làm một việc, kèm theo con số để chứng minh.** review-loop là trung tâm, còn verify và clear-explain làm việc bên cạnh nó.
 
-**review-loop khiến "sẵn sàng để commit" có nghĩa là đã được review.** Test, kiểm tra kiểu và lint của bạn chạy trước. Sau đó, một reviewer với ngữ cảnh mới, không bao giờ thấy lập luận của Claude, gắn nhãn các phát hiện từ P1 đến P5 và phải đưa ra bằng chứng cho những phát hiện nghiêm trọng. Claude sửa P1 và P2, một reviewer mới kiểm tra các bản sửa, và một script, không phải mô hình, quyết định khi nào dừng. Bạn quyết định phần còn lại một lần, ở cuối.
+**review-loop khiến "sẵn sàng để commit" có nghĩa là đã được review.** Test, kiểm tra kiểu và lint của bạn chạy trước, trong các dự án Node.js, Python, Go, Rust, Java (Gradle hoặc Maven), .NET, Ruby và Makefile, kể cả tối đa 4 dự án trong thư mục con mà thay đổi chạm tới mỗi vòng. Sau đó, một reviewer với ngữ cảnh mới, không bao giờ thấy lập luận của Claude, gắn nhãn các phát hiện từ P1 đến P5 và phải đưa ra bằng chứng cho những phát hiện nghiêm trọng. Claude sửa P1 và P2, một reviewer mới kiểm tra các bản sửa, và một script, không phải mô hình, quyết định khi nào dừng. Bạn quyết định phần còn lại một lần, ở cuối.
+
+**Chứng minh bằng cách chạy tính năng.** Với [verify](../../plugins/verify), một phát hiện được xem là tái hiện khi một bước kiểm tra chạy tính năng đó thất bại trên code được review, và bản sửa của nó chỉ được tính khi chính bước kiểm tra đó chạy đạt trở lại.
 
 **Những nhận xét bạn cứ phải lặp lại sẽ trở thành quy tắc.** Khi bạn đánh dấu một phát hiện là "biến nó thành một quy tắc", Claude soạn bản nháp một quy tắc lint hoặc một test, và review-loop chạy nó trên code từ trước bản sửa để chứng minh rằng nó bắt được lỗi đó. Một bản sửa bug cũng nhận được một regression test theo cùng cách.
 

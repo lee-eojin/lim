@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
+[![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
+[![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 Ini adalah terjemahan dari [README bahasa Inggris](../../README.md) per 2026-10-24. Jika keduanya berbeda, README bahasa Inggris yang benar.
@@ -12,9 +14,11 @@ Ini adalah terjemahan dari [README bahasa Inggris](../../README.md) per 2026-10-
 
 Coding agent menulis kode dengan cepat. Namun, mereka jauh lebih buruk dalam menyadari kesalahan mereka sendiri. Agent yang menulis sebuah perubahan adalah reviewer terlemah untuk perubahan itu, karena agent tersebut membacanya melalui penalarannya sendiri dan setuju dengan dirinya sendiri. Akibatnya, pekerjaan di-commit tanpa review, atau dengan review dari konteks yang sama yang menulisnya.
 
-**LIM adalah jawaban saya: plugin kecil yang masing-masing mengerjakan satu tugas, disertai angka yang mendukungnya.** Plugin pertama adalah review-loop.
+**LIM adalah jawaban saya: plugin kecil yang masing-masing mengerjakan satu tugas, disertai angka yang mendukungnya.** review-loop adalah pusatnya, dan verify serta clear-explain bekerja di sampingnya.
 
-**review-loop membuat "siap di-commit" berarti sudah di-review.** Test, pemeriksaan tipe, dan lint milikmu berjalan lebih dulu. Lalu sebuah reviewer dengan konteks baru, yang tidak pernah melihat penalaran Claude, memberi label P1 sampai P5 pada temuan dan harus menunjukkan bukti untuk temuan yang serius. Claude memperbaiki P1 dan P2, reviewer baru memeriksa perbaikannya, dan sebuah script, bukan model, yang memutuskan kapan berhenti. Kamu memutuskan sisanya satu kali, di akhir.
+**review-loop membuat "siap di-commit" berarti sudah di-review.** Test, pemeriksaan tipe, dan lint milikmu berjalan lebih dulu, di proyek Node.js, Python, Go, Rust, Java (Gradle atau Maven), .NET, Ruby, dan Makefile, termasuk paling banyak 4 proyek subfolder yang tersentuh perubahan per putaran. Lalu sebuah reviewer dengan konteks baru, yang tidak pernah melihat penalaran Claude, memberi label P1 sampai P5 pada temuan dan harus menunjukkan bukti untuk temuan yang serius. Claude memperbaiki P1 dan P2, reviewer baru memeriksa perbaikannya, dan sebuah script, bukan model, yang memutuskan kapan berhenti. Kamu memutuskan sisanya satu kali, di akhir.
+
+**Bukti dengan menjalankan fiturnya.** Dengan [verify](../../plugins/verify), sebuah temuan dianggap tereproduksi saat pemeriksaan yang menjalankan fitur itu gagal pada kode yang di-review, dan perbaikannya baru dihitung saat pemeriksaan yang sama lulus lagi.
 
 **Komentar yang terus kamu ulangi menjadi aturan.** Saat kamu menandai sebuah temuan dengan "jadikan aturan", Claude menyusun draf aturan lint atau test, dan review-loop menjalankannya pada kode dari sebelum perbaikan untuk membuktikan bahwa draf itu menangkap kesalahannya. Perbaikan bug mendapat regression test dengan cara yang sama.
 

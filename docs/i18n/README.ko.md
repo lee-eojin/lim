@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
+[![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
+[![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 > 이 문서는 2026-10-24 시점의 [영어 README](../../README.md)를 번역한 문서입니다. 두 문서의 내용이 다르면 영어 README가 맞습니다.
@@ -12,9 +14,11 @@
 
 코딩 에이전트는 코드를 빨리 씁니다. 하지만 자기가 틀린 곳을 알아차리는 데는 훨씬 서툽니다. 변경을 작성한 에이전트는 그 변경의 가장 약한 리뷰어입니다. 자기 추론을 따라 변경을 읽고, 스스로에게 동의하기 때문입니다. 그래서 작업은 리뷰 없이 커밋되거나, 그 작업을 쓴 바로 그 맥락에서 나온 리뷰만 거쳐 커밋됩니다.
 
-**제가 내놓은 답이 LIM입니다. 플러그인마다 한 가지 일만 하고, 그 근거를 숫자로 보여 줍니다.** 첫 번째 플러그인은 review-loop입니다.
+**제가 내놓은 답이 LIM입니다. 플러그인마다 한 가지 일만 하고, 그 근거를 숫자로 보여 줍니다.** 중심에는 review-loop가 있고, 그 옆에서 verify와 clear-explain이 함께 일합니다.
 
-**review-loop를 쓰면 "커밋할 준비가 됨"이 곧 "리뷰를 마침"이 됩니다.** 프로젝트의 테스트, 타입 검사, lint가 먼저 실행됩니다. 그다음 새 맥락의 리뷰어가 지적 사항에 P1부터 P5까지 등급을 붙입니다. 이 리뷰어는 Claude의 추론을 보지 않으며, 심각한 지적 사항에는 근거를 보여야 합니다. Claude가 P1과 P2를 수정하면, 새 리뷰어가 그 수정을 확인합니다. 멈출 시점은 모델이 아니라 스크립트가 정합니다. 나머지는 마지막에 사용자가 한 번만 결정합니다.
+**review-loop를 쓰면 "커밋할 준비가 됨"이 곧 "리뷰를 마침"이 됩니다.** 프로젝트의 테스트, 타입 검사, lint가 먼저 실행됩니다. 대상은 Node.js, Python, Go, Rust, Java(Gradle 또는 Maven), .NET, Ruby, Makefile 프로젝트이고, 변경이 닿은 하위 폴더 프로젝트도 라운드마다 최대 4개까지 포함합니다. 그다음 새 맥락의 리뷰어가 지적 사항에 P1부터 P5까지 등급을 붙입니다. 이 리뷰어는 Claude의 추론을 보지 않으며, 심각한 지적 사항에는 근거를 보여야 합니다. Claude가 P1과 P2를 수정하면, 새 리뷰어가 그 수정을 확인합니다. 멈출 시점은 모델이 아니라 스크립트가 정합니다. 나머지는 마지막에 사용자가 한 번만 결정합니다.
+
+**기능을 실행해서 증명합니다.** [verify](../../plugins/verify)를 쓰면, 기능을 실행하는 검사가 리뷰한 코드에서 실패할 때 지적 사항이 재현된 것으로 봅니다. 그 수정은 같은 검사가 다시 통과할 때만 인정됩니다.
 
 **되풀이하는 리뷰 코멘트는 규칙이 됩니다.** 지적 사항에 "규칙으로 만들기"(make it a rule)를 고르면, Claude가 lint 규칙이나 테스트 초안을 씁니다. review-loop는 그 초안을 수정 전 코드에 실행해서, 초안이 그 실수를 잡아낸다는 것을 증명합니다. 버그 수정에도 같은 방식으로 회귀 테스트가 붙습니다.
 

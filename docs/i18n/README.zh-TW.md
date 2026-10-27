@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
+[![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
+[![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 本文是截至 2026-10-24 的 [英文 README](../../README.md) 的翻譯。如果兩者內容不一致，以英文 README 為準。
@@ -12,9 +14,11 @@
 
 程式設計 agent 寫程式碼很快，但要察覺自己哪裡寫錯卻差得多。寫出變更的 agent 是這次變更最弱的審查者，因為它透過自己的推理來讀這次變更，總會認同自己。結果，程式碼要不是沒經過審查就被提交，就是只經過寫出它的同一個脈絡所做的審查。
 
-**LIM 是我給出的答案：每個小外掛只做一件事，並附上支撐它的數字。** 第一個外掛是 review-loop。
+**LIM 是我給出的答案：每個小外掛只做一件事，並附上支撐它的數字。** review-loop 是核心，verify 和 clear-explain 在它旁邊配合運作。
 
-**review-loop 讓「可以提交」真正代表「已經審查」。** 首先執行你自己的測試、型別檢查和 lint。接著，一個擁有全新脈絡、從不接觸 Claude 推理的審查者把發現項目標記為 P1 到 P5，而且必須為嚴重的發現項目提出證據。Claude 修正 P1 和 P2，一個新的審查者檢查這些修正，何時停止由腳本而不是模型決定。其餘的由你在最後一次決定。
+**review-loop 讓「可以提交」真正代表「已經審查」。** 首先執行你自己的測試、型別檢查和 lint，支援 Node.js、Python、Go、Rust、Java（Gradle 或 Maven）、.NET、Ruby 和 Makefile 專案，也包括變更涉及的子資料夾專案（每輪最多 4 個）。接著，一個擁有全新脈絡、從不接觸 Claude 推理的審查者把發現項目標記為 P1 到 P5，而且必須為嚴重的發現項目提出證據。Claude 修正 P1 和 P2，一個新的審查者檢查這些修正，何時停止由腳本而不是模型決定。其餘的由你在最後一次決定。
+
+**透過執行功能來證明。** 使用 [verify](../../plugins/verify) 時，如果一個執行該功能的檢查在被審查的程式碼上失敗，發現項目就算重現；只有同一個檢查再次通過，它的修正才算數。
 
 **反覆提出的意見會變成規則。** 當你把某個發現項目標記為「設為規則」時，Claude 會起草一條 lint 規則或一個測試，review-loop 會在修正之前的程式碼上執行它，證明它能抓到這個錯誤。bug 修正也會以同樣的方式得到一個回歸測試。
 

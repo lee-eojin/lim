@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
+[![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
+[![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 本文是截至 2026-10-24 的 [英文 README](../../README.md) 的翻译。如果两者内容不一致，以英文 README 为准。
@@ -12,9 +14,11 @@
 
 编程 agent 写代码很快，但发现自己哪里写错了却要差得多。写出改动的 agent 是这次改动最弱的审查者，因为它透过自己的推理来读这次改动，总会认同自己。结果，代码要么未经审查就被提交，要么只经过写出它的同一个上下文的审查。
 
-**LIM 是我给出的答案：每个小插件只做一件事，并附上支撑它的数字。** 第一个插件是 review-loop。
+**LIM 是我给出的答案：每个小插件只做一件事，并附上支撑它的数字。** review-loop 是核心，verify 和 clear-explain 在它旁边配合工作。
 
-**review-loop 让“可以提交”真正意味着“已经审查”。** 首先运行你自己的测试、类型检查和 lint。然后，一个拥有全新上下文、从不接触 Claude 推理的审查者把发现项标记为 P1 到 P5，并且必须为严重的发现项给出证据。Claude 修复 P1 和 P2，一个新的审查者检查这些修复，何时停止由脚本而不是模型决定。其余的由你在最后一次性决定。
+**review-loop 让“可以提交”真正意味着“已经审查”。** 首先运行你自己的测试、类型检查和 lint，支持 Node.js、Python、Go、Rust、Java（Gradle 或 Maven）、.NET、Ruby 和 Makefile 项目，也包括变更涉及的子文件夹项目（每轮最多 4 个）。然后，一个拥有全新上下文、从不接触 Claude 推理的审查者把发现项标记为 P1 到 P5，并且必须为严重的发现项给出证据。Claude 修复 P1 和 P2，一个新的审查者检查这些修复，何时停止由脚本而不是模型决定。其余的由你在最后一次性决定。
+
+**通过运行功能来证明。** 使用 [verify](../../plugins/verify) 时，如果一个运行该功能的检查在被审查的代码上失败，发现项就算复现；只有同一个检查再次通过，它的修复才算数。
 
 **反复提出的意见会变成规则。** 当你把某个发现项标记为“设为规则”时，Claude 会起草一条 lint 规则或一个测试，review-loop 会在修复之前的代码上运行它，证明它能捕获这个错误。bug 修复也会以同样的方式得到一个回归测试。
 

@@ -4,6 +4,8 @@
 
 [![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
+[![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
+[![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 > このドキュメントは、2026-10-24時点の[英語版README](../../README.md)の翻訳です。両者の内容が異なる場合は、英語版READMEが正しい内容です。
@@ -12,9 +14,11 @@
 
 コーディングエージェントはコードを速く書きます。しかし、自分の間違いに気づくのはずっと苦手です。変更を書いたエージェントは、その変更の最も弱いレビュアーです。自分の推論を通して変更を読むので、自分自身に同意してしまうからです。その結果、作業はレビューなしでコミットされるか、変更を書いたのと同じコンテキストによるレビューだけでコミットされます。
 
-**LIMはこの問題への私の答えです。1つの仕事だけを行う小さなプラグインを、裏付けとなる数値と一緒に提供します。** 最初のプラグインはreview-loopです。
+**LIMはこの問題への私の答えです。1つの仕事だけを行う小さなプラグインを、裏付けとなる数値と一緒に提供します。** 中心はreview-loopで、その隣でverifyとclear-explainが働きます。
 
-**review-loopは「コミットしてよい」を「レビュー済み」という意味にします。** まずプロジェクトのテスト、型チェック、lintを実行します。次に、Claudeの推論を一切見ない新しいコンテキストのレビュアーが、指摘にP1からP5のラベルを付けます。重大な指摘には根拠を示さなければなりません。ClaudeがP1とP2を修正し、新しいレビュアーがその修正を確認します。いつ停止するかは、モデルではなくスクリプトが決めます。残りは、最後にユーザーが1回だけ判断します。
+**review-loopは「コミットしてよい」を「レビュー済み」という意味にします。** まずプロジェクトのテスト、型チェック、lintを実行します。対象はNode.js、Python、Go、Rust、Java(GradleまたはMaven)、.NET、Ruby、Makefileのプロジェクトで、変更が触れるサブフォルダのプロジェクトも1ラウンドに最大4つまで含みます。次に、Claudeの推論を一切見ない新しいコンテキストのレビュアーが、指摘にP1からP5のラベルを付けます。重大な指摘には根拠を示さなければなりません。ClaudeがP1とP2を修正し、新しいレビュアーがその修正を確認します。いつ停止するかは、モデルではなくスクリプトが決めます。残りは、最後にユーザーが1回だけ判断します。
+
+**機能を実行して証明します。** [verify](../../plugins/verify)を使うと、機能を実行するチェックがレビュー対象のコードで失敗したときに、指摘が再現されたとみなします。その修正は、同じチェックが再び通ったときにだけ認められます。
 
 **何度も繰り返す指摘はルールになります。** 指摘に「ルールにする」を選ぶと、Claudeがlintルールかテストの下書きを書きます。review-loopはその下書きを修正前のコードに対して実行し、間違いを検出できることを証明します。バグ修正にも、同じ方法で回帰テストが付きます。
 

@@ -4,15 +4,19 @@
 
 [![CI](https://github.com/lee-eojin/lim/actions/workflows/ci.yml/badge.svg)](https://github.com/lee-eojin/lim/actions/workflows/ci.yml)
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](plugins/review-loop/CHANGELOG.md)
+[![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](plugins/verify/CHANGELOG.md)
+[![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](plugins/clear-explain/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 English | [한국어](docs/i18n/README.ko.md) | [日本語](docs/i18n/README.ja.md) | [简体中文](docs/i18n/README.zh-CN.md) | [繁體中文](docs/i18n/README.zh-TW.md) | [Español](docs/i18n/README.es.md) | [Português (Brasil)](docs/i18n/README.pt-BR.md) | [Français](docs/i18n/README.fr.md) | [Deutsch](docs/i18n/README.de.md) | [Русский](docs/i18n/README.ru.md) | [Tiếng Việt](docs/i18n/README.vi.md) | [Bahasa Indonesia](docs/i18n/README.id.md)
 
 Coding agents write code fast. They are much worse at noticing what they got wrong. The agent that wrote a change is its weakest reviewer, because it reads the change through its own reasoning and agrees with itself. So work gets committed with no review, or with a review from the same context that wrote it.
 
-**LIM is my answer: small plugins that each do one job, with the numbers to back them.** The first one is review-loop.
+**LIM is my answer: small plugins that each do one job, with the numbers to back them.** review-loop is the center, and verify and clear-explain work next to it.
 
-**review-loop makes "ready to commit" mean reviewed.** Your own tests, types, and lint run first. Then a reviewer with a fresh context, which never sees Claude's reasoning, labels findings P1 to P5 and has to show evidence for the serious ones. Claude fixes P1 and P2, a new reviewer checks the fixes, and a script, not the model, decides when to stop. You decide the rest once, at the end.
+**review-loop makes "ready to commit" mean reviewed.** Your own tests, types, and lint run first, in Node.js, Python, Go, Rust, Java (Gradle or Maven), .NET, Ruby, and Makefile projects, including up to 4 subfolder projects a change touches per round. Then a reviewer with a fresh context, which never sees Claude's reasoning, labels findings P1 to P5 and has to show evidence for the serious ones. Claude fixes P1 and P2, a new reviewer checks the fixes, and a script, not the model, decides when to stop. You decide the rest once, at the end.
+
+**Proof by running the feature.** With [verify](plugins/verify), a finding is reproduced when a check that runs the feature fails on the reviewed code, and its fix counts only when the same check passes again.
 
 **Comments you keep repeating become rules.** When you mark a finding "make it a rule", Claude drafts a lint rule or a test, and review-loop runs it against the code from before the fix to prove that it catches the mistake. A bug fix gets a regression test the same way.
 
