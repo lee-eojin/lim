@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
 import {
-  ALLOWED_TOOLS, SCENARIOS, buildSession, checkScenario, inOrder, parseEvents, reportShownAfter, scriptCall, sessionArgs,
+  ALLOWED_TOOLS, SCENARIOS, buildSession, checkScenario, inOrder, parseEvents, reportShownAfter, scriptCall, sessionArgs, uncommittedPluginFiles,
 } from '../../evals/e2e/run-sessions.mjs';
 
 const WORK = '/tmp/cents-abc';
@@ -166,4 +170,29 @@ test('sessions load all three plugins with no user settings and allow Bash only 
 
 test('a truncated last line of a stream is dropped, not fatal', () => {
   assert.equal(parseEvents('{"type":"result"}\n{"type":"assis').length, 1);
+});
+
+test('the uncommitted plugin files are listed one by one with a hash, including new folders and renames, and a deleted one is marked', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'e2e-plugins-'));
+  try {
+    const run = (...args) => execFileSync('git', ['-c', 'user.name=a', '-c', 'user.email=a@a', ...args], { cwd: root });
+    run('init', '-q');
+    mkdirSync(path.join(root, 'plugins/tool/skills'), { recursive: true });
+    writeFileSync(path.join(root, 'plugins/tool/skills/SKILL.md'), 'old\n');
+    writeFileSync(path.join(root, 'plugins/tool/a.md'), 'a\n');
+    writeFileSync(path.join(root, 'plugins/tool/gone.md'), 'gone\n');
+    run('add', '-A');
+    run('commit', '-qm', 'init');
+    writeFileSync(path.join(root, 'plugins/tool/skills/SKILL.md'), 'new\n');
+    mkdirSync(path.join(root, 'plugins/tool/skills/references'));
+    writeFileSync(path.join(root, 'plugins/tool/skills/references/rules.md'), 'rules\n');
+    run('mv', 'plugins/tool/a.md', 'plugins/tool/b.md');
+    rmSync(path.join(root, 'plugins/tool/gone.md'));
+    const { 'plugins/tool/gone.md': gone, ...present } = uncommittedPluginFiles(root);
+    assert.equal(gone, 'deleted');
+    assert.deepEqual(Object.keys(present).sort(), ['plugins/tool/b.md', 'plugins/tool/skills/SKILL.md', 'plugins/tool/skills/references/rules.md']);
+    assert.ok(Object.values(present).every((hash) => /^[0-9a-f]{12}$/.test(hash)), JSON.stringify(present));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

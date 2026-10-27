@@ -2,6 +2,11 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Changed: An unattended run need not show each round report as it goes; it ends with `loop summary`, which lists every round. Headless sessions never showed them, and nobody reads them during the run. (#123)
+- Fixed: The skill says to run each `loop` and verify command alone in its own Bash call. A headless session that appended `; echo` to a verify command was refused by its permission rule and reproduced nothing. It also says to keep `$`, backticks, and `!` out of free-text arguments such as `loop note`, which Claude Code refuses when they could expand. (#123)
+
 ## 0.11.0 (2026-10-27)
 
 - Fixed: An unattended review fixes a P1 or P2 whose fix only adds a regression test. The reviewer now marks `touchesTests` only when an existing test, snapshot, or threshold must change, so these findings no longer wait for you. (#114)
