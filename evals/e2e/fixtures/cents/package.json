@@ -1,0 +1,8 @@
+{
+  "name": "cents",
+  "version": "1.0.0",
+  "description": "Format an amount in cents as dollars",
+  "type": "module",
+  "bin": { "cents": "bin/cents.js" },
+  "scripts": { "test": "node --test" }
+}

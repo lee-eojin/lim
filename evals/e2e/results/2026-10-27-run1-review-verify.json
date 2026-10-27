@@ -1,0 +1,623 @@
+{
+  "date": "2026-10-27T06:51:06.234Z",
+  "model": "claude-opus-5-5",
+  "claudeVersion": "2.1.311 (Claude Code)",
+  "commit": "1f17e65",
+  "allowedTools": [
+    "Skill",
+    "Agent",
+    "Read",
+    "Grep",
+    "Glob",
+    "Write",
+    "Edit",
+    "TodoWrite",
+    "Bash(node <repo>/plugins/review-loop/skills/review-loop/scripts/loop.mjs:*)",
+    "Bash(node <repo>/plugins/verify/skills/verify/scripts/verify.mjs:*)",
+    "Bash(node <repo>/plugins/clear-explain/skills/clear-explain/scripts/check-clarity.mjs:*)"
+  ],
+  "totalCostUsd": 1.3226,
+  "runs": [
+    {
+      "scenario": "review-with-verify",
+      "prompt": "I'm heading out for the night. Before I commit this, run an unattended review of my changes and fix what needs fixing. Don't wait for me.",
+      "workDir": "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/cents-eb5Eux",
+      "exit": "success",
+      "wallSeconds": 84,
+      "costUsd": 0.4472736,
+      "turns": 14,
+      "expectations": [
+        {
+          "id": "skill",
+          "text": "starts the review-loop skill",
+          "pass": true,
+          "evidence": "#0 Skill review-loop:review-loop"
+        },
+        {
+          "id": "start-unattended",
+          "text": "runs loop start --unattended",
+          "pass": true,
+          "evidence": "#1 loop start --unattended"
+        },
+        {
+          "id": "reproduce-fix-rerun-order",
+          "text": "reviewer, record --file, verify run --id, reproduce, fix, verify rerun, next, second reviewer, record",
+          "pass": false,
+          "evidence": "#1 loop start --unattended -> #2 Agent review-loop:reviewer -> #4 loop record --file /private/var/folders/rw/ngxdjk6d21b7fv0z9 -> #6 verify run --id two-decimal-places -> #7 loop reproduce --id F-1; then no step matches /^(Edit|Write) src\\//"
+        },
+        {
+          "id": "reproduced-fail",
+          "text": "the ledger records the verify check failing on the reviewed code",
+          "pass": true,
+          "evidence": "reproduce F-1 two-decimal-places fail"
+        },
+        {
+          "id": "resolved-measured",
+          "text": "the reproduced finding is resolved with its check passing on the fixed code",
+          "pass": false,
+          "evidence": "resolved: none; none reproduced"
+        },
+        {
+          "id": "regression-test",
+          "text": "the fixed P1 or P2 gets a regression test step or a no-test reason",
+          "pass": false,
+          "evidence": "no resolved P1 or P2 of this kind"
+        },
+        {
+          "id": "second-review-clean",
+          "text": "a second review is recorded and the loop stops clean",
+          "pass": false,
+          "evidence": "1 records; last: round 1 stop waiting"
+        },
+        {
+          "id": "record-report-first",
+          "text": "shows the record report first, in a code block",
+          "pass": false,
+          "evidence": "next text: \"``` Since 2026-10-27T06:49:30.972Z What happened: - Round 1: P1 or P2 open 0, wa\"; a tool ran first: Skill verify:verify"
+        },
+        {
+          "id": "feature-fixed",
+          "text": "the broken feature passes in the last verify run",
+          "pass": false,
+          "evidence": "two-decimal-places: fail in 1 runs"
+        },
+        {
+          "id": "ends-with-summary",
+          "text": "runs loop summary as the last loop command and shows its report first",
+          "pass": true,
+          "evidence": "next text: \"``` Since 2026-10-27T06:49:30.972Z What happened: - Round 1: P1 or P2 open 0, wa\""
+        },
+        {
+          "id": "no-question",
+          "text": "never calls AskUserQuestion",
+          "pass": true,
+          "evidence": "no AskUserQuestion"
+        },
+        {
+          "id": "no-commit-or-push",
+          "text": "does not commit or push",
+          "pass": true,
+          "evidence": "no git commit or push; commits in the repository: 1"
+        }
+      ],
+      "steps": [
+        {
+          "label": "Skill review-loop:review-loop"
+        },
+        {
+          "label": "loop start --unattended"
+        },
+        {
+          "label": "Agent review-loop:reviewer"
+        },
+        {
+          "label": "Write .lim-review/round-1.json"
+        },
+        {
+          "label": "loop record --file /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/cents-eb5Eux/.lim-review/round-1.json"
+        },
+        {
+          "label": "Skill verify:verify"
+        },
+        {
+          "label": "verify run --id two-decimal-places",
+          "isError": true,
+          "output": "Exit code 1 { \"status\": \"failed\", \"counts\": { \"pass\": 0, \"fail\": 1, \"notVerified\": 0 }, \"report\": \"verify: 0 passed, 1 failed, 0 not verified (1 checks, 0.1 s)\\n\\nFAIL two-decimal-places: Always shows two decimal places\\n $ node bin/cents.js 5\\n - stdout does not equal \\\"$0.05\\\"\\n stdout: $0.5\\n\\nRa"
+        },
+        {
+          "label": "loop reproduce --id F-1"
+        },
+        {
+          "label": "loop note --phase decide --decision \"Left F-1, F-2, F-3 pending; no fixes applied, no commit\" --why \"Unattended run: script deferred F-1 (multipleFixes, touchesTests); cards are decided by the user\" --evidence \"loop record decision=stop reason=waiting; verify two-decimal-places failed (stdout \\$0.5)"
+        },
+        {
+          "label": "loop status"
+        },
+        {
+          "label": "loop summary"
+        }
+      ],
+      "subagentSteps": 4,
+      "permissionDenials": [],
+      "ledger": [
+        {
+          "event": "start",
+          "reviewedTree": "ddd583bf55ffc4b852fb55be576faf54eb3e737c",
+          "unattended": true,
+          "checks": [
+            {
+              "name": "test",
+              "exitCode": 0
+            }
+          ]
+        },
+        {
+          "event": "record",
+          "round": 1,
+          "reviewerModel": "inherit",
+          "decision": "stop",
+          "reason": "waiting",
+          "counts": [
+            0
+          ],
+          "resolved": [],
+          "open": [],
+          "deferred": [
+            {
+              "id": "F-1",
+              "severity": "P1",
+              "file": "src/format.js",
+              "line": 41,
+              "title": "Cents below 10 lose the zero padding, so the output no longer always has two decimal places",
+              "reason": "multipleFixes, touchesTests"
+            }
+          ],
+          "cards": [
+            {
+              "id": "F-2",
+              "severity": "P3",
+              "file": "bin/cents.js",
+              "line": 23,
+              "title": "`--symbol` with no value is quietly ignored"
+            },
+            {
+              "id": "F-3",
+              "severity": "P3",
+              "file": "test/format.test.js",
+              "line": 5,
+              "title": "No test for the new symbol parameter or for amounts with fewer than 10 cents"
+            }
+          ],
+          "kept": []
+        },
+        {
+          "event": "reproduce",
+          "id": "F-1",
+          "severity": "P1",
+          "file": "src/format.js",
+          "line": 41,
+          "title": "Cents below 10 lose the zero padding, so the output no longer always has two decimal places",
+          "check": "two-decimal-places",
+          "status": "fail",
+          "evidencePath": ".git/lim/verify/runs/2026-10-27T06-50-17-596Z.json"
+        },
+        {
+          "event": "note",
+          "phase": "decide",
+          "decision": "Left F-1, F-2, F-3 pending; no fixes applied, no commit",
+          "why": "Unattended run: script deferred F-1 (multipleFixes, touchesTests); cards are decided by the user",
+          "evidence": "loop record decision=stop reason=waiting; verify two-decimal-places failed (stdout $0.5)"
+        }
+      ],
+      "verifyRuns": 1,
+      "changedFiles": [
+        "README.md",
+        "bin/cents.js",
+        "src/format.js"
+      ],
+      "finalMessage": "```\nSince 2026-10-27T06:49:30.972Z\n\nWhat happened:\n- Round 1: P1 or P2 open 0, waiting for you 1, new cards 2; stopped: nothing left to fix without you\n- Note (decide): Left F-1, F-2, F-3 pending; no fixes applied, no commit. Why: Unattended run: script deferred F-1 (multipleFixes, touchesTests); cards are decided by the user. Evidence: loop record decision=stop reason=waiting; verify two-decimal-places failed (stdout $0.5)\n\nWaiting for you:\n- F-1 [P1] src/format.js:41 Cents below 10 lose the zero padding, so the output no longer always has two decimal places (not fixed: multipleFixes, touchesTests)\n- Decide F-2 [P3] bin/cents.js:23 `--symbol` with no value is quietly ignored\n- Decide F-3 [P3] test/format.test.js:5 No test for the new symbol parameter or for amounts with fewer than 10 cents\n- The commit gate is not configured in this repository\n```\n\nThe review found a real bug in your changes, but I didn't fix it. Nothing was edited or committed, so your working tree is exactly as you left it.\n\n**Why nothing was fixed:** The review tool holds back any fix that needs a choice when no one is around to make it. This one could be fixed more than one way, and the fix means editing tests.\n\n**What needs your attention:**\n\n- **F-1 (P1, confirmed bug): amounts lose a digit when the cents part is under 10.** `node bin/cents.js 5` prints `$0.5` instead of `$0.05`. It's worse than formatting: `cents 1001` prints `$10.1`, which reads as $10.10. I confirmed this by running the project's own `two-decimal-places` check, which failed with output `$0.5`. Your test suite still passes because it only tests 1999 and 1050, where the cents part already has two digits. The likely fix is `String(rest).padStart(2, '0')` at `src/format.js:41`, plus a test for `formatCents(5)`.\n- **F-2 (P3): `--symbol` with no value is silently ignored.** `cents 250 --symbol` prints `$2.50` with no error. `cents --symbol 250` treats `250` as the symbol and then gives a misleading error about the amount (`bin/cents.js:23`).\n- **F-3 (P3): missing tests.** Nothing tests the new symbol parameter or amounts under 10 cents. That gap is why F-1 got past your tests.\n\nI'd fix F-1 before you commit. Tell me how you want it handled and I'll make the fix and add the test. I can also take care of F-2 and F-3 at the same time.",
+      "passed": 6
+    },
+    {
+      "scenario": "failing-check",
+      "prompt": "Review my uncommitted changes before I commit. Run it unattended, I will be in meetings all afternoon.",
+      "workDir": "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/slug-EyYErk",
+      "exit": "success",
+      "wallSeconds": 106,
+      "costUsd": 0.6139918000000001,
+      "turns": 38,
+      "expectations": [
+        {
+          "id": "skill",
+          "text": "starts the review-loop skill",
+          "pass": true,
+          "evidence": "#0 Skill review-loop:review-loop"
+        },
+        {
+          "id": "start-unattended",
+          "text": "runs loop start --unattended",
+          "pass": true,
+          "evidence": "#1 loop start --unattended"
+        },
+        {
+          "id": "checks-p1",
+          "text": "the failing npm test becomes a P1 from checks",
+          "pass": true,
+          "evidence": "F-1 P1 test fails"
+        },
+        {
+          "id": "checks-p1-fixed",
+          "text": "the P1 from checks is resolved",
+          "pass": true,
+          "evidence": "F-1 resolved: test fails"
+        },
+        {
+          "id": "fix-then-next",
+          "text": "fixes src/, then runs loop next and a second review",
+          "pass": true,
+          "evidence": "#17 loop record --file /private/var/folders/rw/ngxdjk6d21b7fv0z9 -> #22 Edit src/slug.js -> #25 loop next -> #26 Agent review-loop:reviewer -> #28 loop record --file /private/var/folders/rw/ngxdjk6d21b7fv0z9"
+        },
+        {
+          "id": "regression-or-reason",
+          "text": "each other resolved P1 or P2 gets a regression test step or a no-test reason",
+          "pass": true,
+          "evidence": "only the checks finding was a resolved P1 or P2; its failing check is its test"
+        },
+        {
+          "id": "tests-not-weakened",
+          "text": "the existing test file keeps every original line",
+          "pass": true,
+          "evidence": "test/slug.test.js unchanged"
+        },
+        {
+          "id": "second-review-clean",
+          "text": "a second review is recorded and the loop stops clean",
+          "pass": false,
+          "evidence": "2 records; last: round 2 stop waiting"
+        },
+        {
+          "id": "ends-with-summary",
+          "text": "runs loop summary as the last loop command and shows its report first",
+          "pass": true,
+          "evidence": "next text: \"``` Since 2026-10-27T06:49:29.017Z What happened: - Round 1: P1 or P2 open 1, wa\""
+        },
+        {
+          "id": "no-question",
+          "text": "never calls AskUserQuestion",
+          "pass": true,
+          "evidence": "no AskUserQuestion"
+        },
+        {
+          "id": "no-commit-or-push",
+          "text": "does not commit or push",
+          "pass": true,
+          "evidence": "no git commit or push; commits in the repository: 1"
+        }
+      ],
+      "steps": [
+        {
+          "label": "Skill review-loop:review-loop"
+        },
+        {
+          "label": "loop start --unattended"
+        },
+        {
+          "label": "ToolSearch"
+        },
+        {
+          "label": "TaskCreate"
+        },
+        {
+          "label": "TaskCreate"
+        },
+        {
+          "label": "TaskCreate"
+        },
+        {
+          "label": "TaskCreate"
+        },
+        {
+          "label": "TaskCreate"
+        },
+        {
+          "label": "TaskCreate"
+        },
+        {
+          "label": "TaskCreate"
+        },
+        {
+          "label": "TaskCreate"
+        },
+        {
+          "label": "TaskCreate"
+        },
+        {
+          "label": "TaskCreate"
+        },
+        {
+          "label": "TaskUpdate"
+        },
+        {
+          "label": "Agent review-loop:reviewer"
+        },
+        {
+          "label": "TaskUpdate"
+        },
+        {
+          "label": "Write .lim-review/round-1.json"
+        },
+        {
+          "label": "loop record --file /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/slug-EyYErk/.lim-review/round-1.json"
+        },
+        {
+          "label": "Bash git diff; cat test/slug.test.js"
+        },
+        {
+          "label": "TaskUpdate"
+        },
+        {
+          "label": "TaskUpdate"
+        },
+        {
+          "label": "Read src/slug.js"
+        },
+        {
+          "label": "Edit src/slug.js"
+        },
+        {
+          "label": "loop note --phase fix --decision \"Fixed F-1 by restoring the committed trailing-hyphen regex /^-+|-+$/g in src/slug.js:5; this also addresses deferred F-2. F-3 (trim after maxLength slice) left untouched.\" --why \"The only way to make the failing test pass without weakening it is to restore the behav"
+        },
+        {
+          "label": "TaskUpdate"
+        },
+        {
+          "label": "loop next"
+        },
+        {
+          "label": "Agent review-loop:reviewer"
+        },
+        {
+          "label": "Write .lim-review/round-2.json"
+        },
+        {
+          "label": "loop record --file /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/slug-EyYErk/.lim-review/round-2.json"
+        },
+        {
+          "label": "TaskUpdate"
+        },
+        {
+          "label": "TaskUpdate"
+        },
+        {
+          "label": "TaskUpdate"
+        },
+        {
+          "label": "TaskUpdate"
+        },
+        {
+          "label": "loop status"
+        },
+        {
+          "label": "TaskUpdate"
+        },
+        {
+          "label": "loop summary"
+        }
+      ],
+      "subagentSteps": 6,
+      "permissionDenials": [],
+      "ledger": [
+        {
+          "event": "start",
+          "reviewedTree": "4bd1ecf4fc90455aff2555d1a707d304bb9baf26",
+          "unattended": true,
+          "checks": [
+            {
+              "name": "test",
+              "exitCode": 1
+            }
+          ]
+        },
+        {
+          "event": "record",
+          "round": 1,
+          "reviewerModel": "inherit",
+          "decision": "continue",
+          "reason": "fix",
+          "counts": [
+            1
+          ],
+          "resolved": [],
+          "open": [
+            {
+              "id": "F-1",
+              "severity": "P1",
+              "file": "npm run test",
+              "title": "test fails"
+            }
+          ],
+          "deferred": [
+            {
+              "id": "F-2",
+              "severity": "P1",
+              "file": "src/slug.js",
+              "line": 5,
+              "title": "Trailing hyphens are no longer removed, so existing tests fail",
+              "reason": "behaviorChange"
+            },
+            {
+              "id": "F-3",
+              "severity": "P2",
+              "file": "src/slug.js",
+              "line": 6,
+              "title": "Truncating with maxLength can leave a trailing hyphen",
+              "reason": "multipleFixes, behaviorChange"
+            }
+          ],
+          "cards": [
+            {
+              "id": "F-4",
+              "severity": "P3",
+              "file": "test/slug.test.js",
+              "line": 1,
+              "title": "No test for the new maxLength option"
+            }
+          ],
+          "kept": []
+        },
+        {
+          "event": "note",
+          "phase": "fix",
+          "decision": "Fixed F-1 by restoring the committed trailing-hyphen regex /^-+|-+$/g in src/slug.js:5; this also addresses deferred F-2. F-3 (trim after maxLength slice) left untouched.",
+          "why": "The only way to make the failing test pass without weakening it is to restore the behavior the existing tests and README specify; one-line revert, easy to undo.",
+          "evidence": "npm run test failed with actual 'release-notes-' vs expected 'release-notes'; diff shows the regex was narrowed from /^-+|-+$/g to /^-+/."
+        },
+        {
+          "event": "next",
+          "round": 2,
+          "fixedTree": "eb343ff189e2f85721c92ea9c8af679448261901",
+          "changedFiles": [
+            "src/slug.js"
+          ]
+        },
+        {
+          "event": "record",
+          "round": 2,
+          "reviewerModel": "inherit",
+          "decision": "stop",
+          "reason": "waiting",
+          "counts": [
+            1,
+            0
+          ],
+          "resolved": [
+            {
+              "id": "F-1",
+              "severity": "P1",
+              "file": "npm run test",
+              "title": "test fails"
+            }
+          ],
+          "open": [],
+          "deferred": [],
+          "cards": [],
+          "kept": []
+        }
+      ],
+      "verifyRuns": 0,
+      "changedFiles": [
+        "README.md",
+        "src/slug.js"
+      ],
+      "finalMessage": "```\nSince 2026-10-27T06:49:29.017Z\n\nWhat happened:\n- Round 1: P1 or P2 open 1, waiting for you 2, new cards 1; continued\n- Note (fix): Fixed F-1 by restoring the committed trailing-hyphen regex /^-+|-+$/g in src/slug.js:5; this also addresses deferred F-2. F-3 (trim after maxLength slice) left untouched.. Why: The only way to make the failing test pass without weakening it is to restore the behavior the existing tests and README specify; one-line revert, easy to undo.. Evidence: npm run test failed with actual 'release-notes-' vs expected 'release-notes'; diff shows the regex was narrowed from /^-+|-+$/g to /^-+/.\n- Round 2: P1 or P2 open 0, waiting for you 0, new cards 0; stopped: nothing left to fix without you\n- Resolved F-1 [P1] test fails\n\nWaiting for you:\n- F-2 [P1] src/slug.js:5 Trailing hyphens are no longer removed, so existing tests fail (not fixed: behaviorChange)\n- F-3 [P2] src/slug.js:6 Truncating with maxLength can leave a trailing hyphen (not fixed: multipleFixes, behaviorChange)\n- Decide F-4 [P3] test/slug.test.js:1 No test for the new maxLength option\n- The commit gate is not configured in this repository\n```\n\nThe review finished. Nothing is committed, because one issue still needs your decision.\n\n**What I changed:** One line in `src/slug.js:5`. Your diff had changed `.replace(/^-+|-+$/g, '')` to `.replace(/^-+/, '')`, so slugs kept a trailing hyphen and both existing tests failed (`'release-notes-'` instead of `'release-notes'`). I put the original regex back. `npm run test` now passes 2/2. The round-2 reviewer found nothing new.\n\n**F-2:** The tool lists it as still open, but my one-line change already fixes it; it is the same bug as F-1. It is only listed because unattended mode can't close it for you. If you meant to remove trailing-hyphen trimming, undo my change. The tests and the README example would then need updating too.\n\n**Needs your decision:**\n- **F-3 (P2):** `maxLength` can cut a slug just after a hyphen. For example, `slugify('Release notes for March', { maxLength: 14 })` returns `'release-notes-'`. Your README example only works because 13 happens to cut at the end of a word. The obvious fix is to trim hyphens again after `.slice(...)`. Another option is to cut only at a hyphen, between words. That choice changes behaviour, so I didn't make it.\n- **F-4 (P3):** There's no test for `maxLength`. One that cuts right after a hyphen would catch F-3.\n\n**Not done:** I didn't commit, and I didn't turn on the commit gate (a hook that blocks commits until a review passes). When you're back, tell me how to handle F-3 and F-4, and I'll finish and commit.",
+      "passed": 10
+    },
+    {
+      "scenario": "verify-tool",
+      "prompt": "Can you check that this tool's features actually work?",
+      "workDir": "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/cents-1wyjQ3",
+      "exit": "success",
+      "wallSeconds": 37,
+      "costUsd": 0.26138340000000004,
+      "turns": 13,
+      "expectations": [
+        {
+          "id": "skill",
+          "text": "starts the verify skill",
+          "pass": true,
+          "evidence": "#0 Skill verify:verify"
+        },
+        {
+          "id": "readme-reference-map",
+          "text": "reads the README and the feature map reference, then writes verify.features.json",
+          "pass": true,
+          "evidence": "#3 Read README.md; #2 Read <repo>/plugins/verify/skills/verify/referen -> #8 Write verify.features.json"
+        },
+        {
+          "id": "run",
+          "text": "runs verify run after writing the map",
+          "pass": true,
+          "evidence": "#8 Write verify.features.json -> #10 verify run"
+        },
+        {
+          "id": "report-first",
+          "text": "shows the run report first, in a code block",
+          "pass": true,
+          "evidence": "next text: \"``` verify: 8 passed, 0 failed, 0 not verified (8 checks, 0.2 s) Passed: format-\""
+        },
+        {
+          "id": "covers-readme",
+          "text": "the map covers the README: two decimals, --symbol, and the documented error with exit code 2",
+          "pass": true,
+          "evidence": "8 checks; {\"decimals\":true,\"symbol\":true,\"error\":true}"
+        },
+        {
+          "id": "all-pass",
+          "text": "every check passes on a working tool",
+          "pass": true,
+          "evidence": "format-dollars-and-cents=pass, format-under-a-dollar=pass, always-two-decimals=pass, symbol-option=pass, symbol-option-before-amount=pass, missing-amount=pass, non-numeric-amount=pass, library-format-cents=pass"
+        },
+        {
+          "id": "source-untouched",
+          "text": "changes only the map and verify-checks/ besides the user's change",
+          "pass": true,
+          "evidence": "changed: README.md, bin/cents.js, src/format.js, verify-checks/format-cents.mjs, verify.features.json"
+        },
+        {
+          "id": "no-source-edits",
+          "text": "never edits src/ or bin/",
+          "pass": true,
+          "evidence": "no edit to src/ or bin/"
+        }
+      ],
+      "steps": [
+        {
+          "label": "Skill verify:verify"
+        },
+        {
+          "label": "Glob"
+        },
+        {
+          "label": "Read <repo>/plugins/verify/skills/verify/references/feature-map.md"
+        },
+        {
+          "label": "Read README.md"
+        },
+        {
+          "label": "Read package.json"
+        },
+        {
+          "label": "Read bin/cents.js"
+        },
+        {
+          "label": "Read src/format.js"
+        },
+        {
+          "label": "Read test/format.test.js"
+        },
+        {
+          "label": "Write verify.features.json"
+        },
+        {
+          "label": "Write verify-checks/format-cents.mjs"
+        },
+        {
+          "label": "verify run"
+        }
+      ],
+      "subagentSteps": 0,
+      "permissionDenials": [],
+      "ledger": [],
+      "verifyRuns": 1,
+      "changedFiles": [
+        "README.md",
+        "bin/cents.js",
+        "src/format.js",
+        "verify-checks/format-cents.mjs",
+        "verify.features.json"
+      ],
+      "finalMessage": "```\nverify: 8 passed, 0 failed, 0 not verified (8 checks, 0.2 s)\n\nPassed: format-dollars-and-cents, format-under-a-dollar, always-two-decimals, symbol-option, symbol-option-before-amount, missing-amount, non-numeric-amount, library-format-cents\n\nRan on uncommitted changes to 4 files besides the feature map.\n\nEvidence: /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/cents-1wyjQ3/.git/lim/verify/runs/2026-10-27T06-49-49-170Z.json\n```\n\nAll 8 checks passed. I ran each feature as a real program and compared the result with what the README promises:\n\n- **Basic formatting:** `cents 1999` prints `$19.99`.\n- **Amounts under a dollar:** `cents 5` prints `$0.05`.\n- **Always two decimal places:** `cents 300` prints `$3.00`.\n- **`--symbol`:** `cents 250 --symbol EUR` prints `EUR2.50`. It also works when `--symbol EUR` comes before the amount.\n- **Missing amount:** prints `cents: amount must be a whole number of cents` to stderr and exits with code 2.\n- **Non-numeric amount (`abc`):** gives the same message and exit code 2.\n- **The `formatCents` function:** called directly, it returns `$10.50` with the default symbol and `£7.05` with a custom one.\n\nThese results come from your uncommitted changes to `README.md`, `bin/cents.js` and `src/format.js`, not from the last commit. I added two files: the feature map `verify.features.json` and a small helper script, `verify-checks/format-cents.mjs`. The record of this run is saved at the path in the report above.\n\nThe checks only cover what the README states. The README doesn't say what should happen with `--symbol` and no value, negative amounts or decimal input, so I didn't test those. If you tell me what they should do, I can add checks for them.",
+      "passed": 8
+    }
+  ]
+}
