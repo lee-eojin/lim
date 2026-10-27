@@ -1,0 +1,314 @@
+{
+  "date": "2026-10-27T06:00:02.651Z",
+  "model": "opus",
+  "claudeVersion": "2.1.311 (Claude Code)",
+  "skill": {
+    "path": "plugins/clear-explain/skills/clear-explain/SKILL.md",
+    "sha256": "57f6346e52b192c4b9ec1ec055e921c543f19bbdc8f60c762e82c5a1a37dba67",
+    "bodySha256": "163d8d764491952062661c5159282327bc25ec43a90724db2094ee92d8b722e3",
+    "description": "Writes explanations that a reader understands the same way after one read, with the answer first, a one-line definition for each new term, one meaning per word, one idea per sentence, and technical concepts in their official English names, adapted from ASD-STE100 Simplified Technical English. Use when the user asks for an explanation, such as what a concept is, what code does, why an error happens, how something works, or how two things differ, in any language, and not when the user asks to fix, change, or write code or text, to translate, or to look up a fact such as a version number."
+  },
+  "set": "held-out",
+  "requestsFile": "evals/clear-explain/triggers-held-out.json",
+  "maxTurns": 6,
+  "elapsedSeconds": 55,
+  "summary": {
+    "explain": {
+      "prompts": 8,
+      "started": 8
+    },
+    "other": {
+      "prompts": 11,
+      "started": 0
+    },
+    "trueTriggerRate": 1,
+    "falseTriggerRate": 0,
+    "errors": 0,
+    "costUsd": 1.5639,
+    "wallSeconds": 201
+  },
+  "items": [
+    {
+      "id": "ho-en-review-diff",
+      "lang": "en",
+      "kind": "review",
+      "explain": false,
+      "prompt": "Review this diff before I merge it and list anything that should change.\n\n```diff\n-const timeout = 5000;\n+const timeout = process.env.TIMEOUT || 5000;\n fetch(url, { signal: AbortSignal.timeout(timeout) });\n```",
+      "skills": [],
+      "started": false,
+      "wallMs": 13040,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.07456940000000001
+    },
+    {
+      "id": "ho-en-write-test",
+      "lang": "en",
+      "kind": "test",
+      "explain": false,
+      "prompt": "Write Vitest tests for this function, including an empty string and extra spaces.\n\n```js\nexport function slugify(title) {\n  return title.trim().toLowerCase().replace(/\\s+/g, '-');\n}\n```",
+      "skills": [],
+      "started": false,
+      "wallMs": 9203,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0697934
+    },
+    {
+      "id": "ho-en-summarize-log",
+      "lang": "en",
+      "kind": "summarize",
+      "explain": false,
+      "prompt": "Summarize this log in two lines.\n\n```\n10:02:11 INFO  worker started, 4 threads\n10:02:15 WARN  queue depth 950 (limit 1000)\n10:02:16 ERROR job 8812 failed: connection reset by peer\n10:02:16 INFO  retrying job 8812 (1/3)\n10:02:19 INFO  job 8812 done in 2.9 s\n10:03:00 INFO  queue depth 120\n```",
+      "skills": [],
+      "started": false,
+      "wallMs": 3271,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0528454
+    },
+    {
+      "id": "ho-en-rename",
+      "lang": "en",
+      "kind": "rename",
+      "explain": false,
+      "prompt": "Rename `d` to something clearer and give me the snippet back.\n\n```js\nconst d = Date.now() - start;\nconsole.log(`took ${d} ms`);\n```",
+      "skills": [],
+      "started": false,
+      "wallMs": 3540,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.052057400000000004
+    },
+    {
+      "id": "ho-en-continue",
+      "lang": "en",
+      "kind": "continue",
+      "explain": false,
+      "prompt": "continue",
+      "skills": [],
+      "started": false,
+      "wallMs": 8195,
+      "stop": "success",
+      "turns": 2,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.061269
+    },
+    {
+      "id": "ho-en-date",
+      "lang": "en",
+      "kind": "date",
+      "explain": false,
+      "prompt": "What day of the week is December 25, 2026?",
+      "skills": [],
+      "started": false,
+      "wallMs": 8019,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0511294
+    },
+    {
+      "id": "ho-ko-jsdoc",
+      "lang": "ko",
+      "kind": "docs",
+      "explain": false,
+      "prompt": "이 함수에 JSDoc 주석 달아줘.\n\n```ts\nexport function clamp(value: number, min: number, max: number) {\n  return Math.min(Math.max(value, min), max);\n}\n```",
+      "skills": [],
+      "started": false,
+      "wallMs": 9403,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0627894
+    },
+    {
+      "id": "ho-ko-summarize-notes",
+      "lang": "ko",
+      "kind": "summarize",
+      "explain": false,
+      "prompt": "이 회의 메모 세 줄로 요약해줘.\n\n- 결제 페이지 로딩이 3초 넘게 걸린다는 문의가 이번 주 12건\n- 이미지 압축은 다음 스프린트에 하기로 함\n- 쿠폰 API 응답 형식은 프론트가 맞추기로 결정\n- 다음 회의는 목요일 오후 2시",
+      "skills": [],
+      "started": false,
+      "wallMs": 4255,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.055209400000000006
+    },
+    {
+      "id": "ho-ko-weather",
+      "lang": "ko",
+      "kind": "weather",
+      "explain": false,
+      "prompt": "내일 서울 날씨 어때?",
+      "skills": [],
+      "started": false,
+      "wallMs": 13215,
+      "stop": "success",
+      "turns": 4,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.09221380000000001
+    },
+    {
+      "id": "ho-ko-rename",
+      "lang": "ko",
+      "kind": "rename",
+      "explain": false,
+      "prompt": "이 함수 이름 더 알맞게 바꿔줘.\n\n```js\nfunction doIt(list) {\n  return list.filter((user) => user.active);\n}\n```",
+      "skills": [],
+      "started": false,
+      "wallMs": 4421,
+      "stop": "success",
+      "turns": 1,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0558454
+    },
+    {
+      "id": "ho-ko-continue",
+      "lang": "ko",
+      "kind": "continue",
+      "explain": false,
+      "prompt": "계속해",
+      "skills": [],
+      "started": false,
+      "wallMs": 10007,
+      "stop": "success",
+      "turns": 2,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0706328
+    },
+    {
+      "id": "ho-en-hoisting",
+      "lang": "en",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "How does hoisting work for let and const?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 12568,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.1070354
+    },
+    {
+      "id": "ho-en-regex",
+      "lang": "en",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "What does this regex check? /^(?=.*\\d)(?=.*[a-z]).{8,}$/",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 8643,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.0979874
+    },
+    {
+      "id": "ho-en-update-depth",
+      "lang": "en",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "I keep getting \"Maximum update depth exceeded\" in React. What causes it?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 14204,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.1033862
+    },
+    {
+      "id": "ho-en-cookie-storage",
+      "lang": "en",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "Cookies or localStorage for a login token: how are they different?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 16808,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.11589200000000001
+    },
+    {
+      "id": "ho-ko-index",
+      "lang": "ko",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "DB 인덱스는 어떻게 조회를 빠르게 해?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 19945,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.12002600000000001
+    },
+    {
+      "id": "ho-ko-docker",
+      "lang": "ko",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "도커 이미지랑 컨테이너는 뭐가 달라?",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 14970,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.1078218
+    },
+    {
+      "id": "ho-ko-gc",
+      "lang": "ko",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "자바 가비지 컬렉션이 뭔지 모르겠어",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 15706,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.1153182
+    },
+    {
+      "id": "ho-ko-rest",
+      "lang": "ko",
+      "kind": "explain",
+      "explain": true,
+      "prompt": "이 코드가 뭘 하는 건지 감이 안 와: `const [first, ...rest] = items;`",
+      "skills": [
+        "clear-explain:clear-explain"
+      ],
+      "started": true,
+      "wallMs": 12022,
+      "stop": "success",
+      "turns": 3,
+      "model": "claude-opus-5-5",
+      "costUsd": 0.09810440000000001
+    }
+  ]
+}

@@ -11,6 +11,7 @@ const questionsFile = fileURLToPath(new URL('../../evals/clear-explain/questions
 const triggersFile = fileURLToPath(new URL('../../evals/clear-explain/triggers.json', import.meta.url));
 const heldOutFile = fileURLToPath(new URL('../../evals/clear-explain/triggers-held-out.json', import.meta.url));
 const MIDDLE_DOT = String.fromCharCode(0x00b7);
+const EM_DASH = String.fromCharCode(0x2014);
 
 test('the question set has at least 12 questions in English and Korean with unique ids', () => {
   const questions = JSON.parse(readFileSync(questionsFile, 'utf8'));
@@ -181,9 +182,11 @@ test('the comparison counts both passes for the skill, both for the baseline, an
 });
 
 test('saved results write the two characters as JSON escapes that read back as the same text', () => {
-  const text = serialize({ answer: `A ${MIDDLE_DOT} B` });
+  const answer = `A ${MIDDLE_DOT} B ${EM_DASH} C`;
+  const text = serialize({ items: [{ answers: { with: { answer } } }] });
   assert.ok(!text.includes(MIDDLE_DOT));
-  assert.equal(JSON.parse(text).answer, `A ${MIDDLE_DOT} B`);
+  assert.ok(!text.includes(EM_DASH));
+  assert.equal(JSON.parse(text).items[0].answers.with.answer, answer);
 });
 
 test('the held-out trigger set is new requests in English and Korean that are not in the tuning set', () => {
