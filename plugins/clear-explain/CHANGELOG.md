@@ -2,7 +2,7 @@
 
 All notable changes to clear-explain. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.1.3 (2026-10-27)
 
 - Fixed: A Korean question that writes a concept in Hangul, such as 클로저, gets an answer that uses the English name (closure). In three headless sessions after the change, none used 클로저; before, one of the two saved sessions did. (#116)
 
