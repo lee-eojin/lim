@@ -2,7 +2,7 @@
 
 All notable changes to clear-explain. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.1.2 (2026-10-27)
 
 - Fixed: `check-clarity.mjs` no longer reports 내지 inside a word such as 꺼내지, and reports ~수 있다 only in its possibility form ~수도 있다 and in the filler ~다고 할 수 있다, matching the skill's rule that ~할 수 있다 means ability. (#108)
 
