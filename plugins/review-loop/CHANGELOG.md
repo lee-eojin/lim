@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.11.0 (2026-10-27)
 
 - Fixed: An unattended review fixes a P1 or P2 whose fix only adds a regression test. The reviewer now marks `touchesTests` only when an existing test, snapshot, or threshold must change, so these findings no longer wait for you. (#114)
 - Fixed: Findings left waiting for you in an unattended run go to the next reviewer with the open ones. One the next round resolves leaves the waiting list, and a failing check that waits is no longer raised again as a new finding. (#114)
