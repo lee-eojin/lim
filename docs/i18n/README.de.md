@@ -232,6 +232,8 @@ Standardmäßig läuft der Reviewer mit dem Modell deiner Session. Opus fand jed
 
 Die Tabelle oben ist die Grundlage für das Standardmodell des Reviewers. Im schwierigeren Set fand Opus 30 von 30 ohne falsche P1 oder P2, Sonnet fand 29 von 30 ohne ein einziges bei etwa 37 % der Kosten von Opus, und Haiku fand 30 von 30 mit 3 falschen P1 oder P2 in 18 sauberen Läufen. Darum bleibt der Standard das Modell der Session, und Sonnet ist die günstigere Wahl, wenn der Reviewer auf einem anderen Modell laufen soll als dem, das die Änderung geschrieben hat.
 
+[`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/) enthält 6 eingebaute Bugs in Python, Rust und Go sowie 2 saubere Änderungen. Bei 3 Läufen pro Fall fanden Opus und Sonnet 18 von 18 und Haiku 16 von 18, ohne dass eines der Modelle in 6 sauberen Läufen ein falsches P1 oder P2 meldete; Details stehen im [review-loop README](../../plugins/review-loop/README.md#measured-behavior).
+
 <details>
 <summary>Kosten</summary>
 

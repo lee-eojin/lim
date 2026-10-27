@@ -1,0 +1,1876 @@
+{
+  "date": "2026-10-27T10:34:54.935Z",
+  "model": "claude-opus-5-5",
+  "claudeVersion": "2.1.311 (Claude Code)",
+  "reviewer": {
+    "path": "plugins/review-loop/agents/reviewer.md",
+    "sha256": "b500478811574f56bc8e9d823281a07dd4a10e1a0d26eaf18a92cb2121afabf6"
+  },
+  "label": "detection-languages",
+  "cases": "evals/review-loop/detection-languages",
+  "runsPerCase": 3,
+  "concurrency": 4,
+  "elapsedSeconds": 99,
+  "summary": {
+    "runs": 24,
+    "errors": 0,
+    "bugRuns": 18,
+    "found": 18,
+    "lowSeverity": 0,
+    "missed": 0,
+    "cleanRuns": 6,
+    "cleanWithFalseHigh": 0,
+    "falseHighFindings": 0,
+    "otherHighOnBugRuns": 0,
+    "otherLowFindings": 20,
+    "totalTokens": 585268,
+    "averageTokens": 24386,
+    "totalCostUsd": 1.3536,
+    "totalWallSeconds": 364,
+    "averageWallSeconds": 15
+  },
+  "scoredWith": {
+    "date": "2026-10-27T10:38:08.429Z",
+    "note": "sensor-smoothing: removed the keywords \"returns nothing\", \"returns empty\", and \"returns an empty\", which also matched findings about fewer than five readings giving no average (the window the author asked for), not the off-by-one.",
+    "originalSummary": {
+      "runs": 24,
+      "errors": 0,
+      "bugRuns": 18,
+      "found": 18,
+      "lowSeverity": 0,
+      "missed": 0,
+      "cleanRuns": 6,
+      "cleanWithFalseHigh": 0,
+      "falseHighFindings": 0,
+      "otherHighOnBugRuns": 0,
+      "otherLowFindings": 20,
+      "totalTokens": 585268,
+      "averageTokens": 24386,
+      "totalCostUsd": 1.3536,
+      "totalWallSeconds": 364,
+      "averageWallSeconds": 15
+    }
+  },
+  "runs": [
+    {
+      "case": "ledger-export",
+      "wallMs": 21353,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 6718,
+        "cacheRead": 11509,
+        "output": 1144,
+        "total": 19377
+      },
+      "costUsd": 0.0789498,
+      "apiMs": 20467,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 38,
+            "category": "correctness",
+            "title": "The gzip path declares a new err with := and throws it away, so Write returns nil even when the write fails"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 38,
+            "category": "correctness",
+            "title": "The gzip path declares a new err with := and throws it away, so Write returns nil even when the write fails",
+            "quote": "\t\terr := writeEntries(compressed, entries)",
+            "scenario": "Run ledger-export -gzip -out /full-disk/ledger.csv.gz. Either writeEntries or compressed.Close() fails, for example with ENOSPC. The error lands in the inner err inside the if block. The outer err stays nil, so Write returns nil. main then skips the os.Remove cleanup and exits successfully, leaving a truncated or corrupt .gz file. That is exactly what the author wanted to prevent.",
+            "whyNotPrevented": "Shadowing a variable is legal Go, and both err variables are used, so the compiler accepts it. Nothing runs a shadow linter (go vet -vettool shadow). No test in the repo calls Write: Grep found only the definition and the one caller in main.go.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "export/export.go",
+            "line": 34,
+            "category": "missing-test",
+            "title": "No test covers the new gzip path or how it reports errors",
+            "quote": "func Write(w io.Writer, entries []Entry, options Options) error {",
+            "scenario": "A test that passes a writer that always fails, with Gzip set to true, would catch the shadowed err above. A round-trip test that reads the output back through gzip.NewReader would check that the output is valid gzip. Neither test exists.",
+            "whyNotPrevented": "The repo has no tests for the export package.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Write(\" in *.go: only export/export.go:34 (definition) and cmd/ledger-export/main.go:24",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "ledger-export",
+      "wallMs": 16360,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 7318,
+        "cacheRead": 18246,
+        "output": 1508,
+        "total": 27080
+      },
+      "costUsd": 0.0923852,
+      "apiMs": 15422,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 40,
+            "category": "correctness",
+            "title": "Gzip branch shadows err, so Write always returns nil when -gzip is set"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P4",
+          "file": "cmd/ledger-export/main.go",
+          "line": 13,
+          "category": "usability",
+          "title": "-gzip keeps the default output name ledger.csv"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 40,
+            "category": "correctness",
+            "title": "Gzip branch shadows err, so Write always returns nil when -gzip is set",
+            "quote": "\t\terr := writeEntries(compressed, entries)",
+            "scenario": "Run with -gzip -out on a full disk or a closed pipe. writeEntries or compressed.Close() fails, but the error goes into a new block-scoped err. The outer err stays nil, so Write returns nil. main then skips os.Remove and logs \"wrote N entries\", which leaves a truncated or corrupt .gz file behind. This is exactly what the author wanted to prevent.",
+            "whyNotPrevented": "The code compiles because the inner err is used inside the block, and the outer err is used in the return. go build does not flag the shadowing; only an optional vet shadow check would. No tests exist for package export.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "export/export.go",
+            "line": 34,
+            "category": "missing-test",
+            "title": "No test covers Write's error reporting, with or without gzip",
+            "quote": "func Write(w io.Writer, entries []Entry, options Options) error {",
+            "scenario": "A test with a failing io.Writer and Options{Gzip: true} would have caught the swallowed error above. Nothing exercises it now.",
+            "whyNotPrevented": "The repository has no _test.go file for package export.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Write(\" in *.go: only export/export.go:34 and cmd/ledger-export/main.go:24, no test files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P4",
+            "file": "cmd/ledger-export/main.go",
+            "line": 13,
+            "category": "usability",
+            "title": "-gzip keeps the default output name ledger.csv",
+            "quote": "\tgzipped := flag.Bool(\"gzip\", false, \"compress the file with gzip\")",
+            "scenario": "Running with -gzip and no -out writes gzip-compressed bytes to ledger.csv. Tools that go by the file extension will treat it as plain CSV.",
+            "whyNotPrevented": "Nothing changes the default name or warns when -gzip is set.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "ledger-export",
+      "wallMs": 16231,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 7316,
+        "cacheRead": 18227,
+        "output": 1491,
+        "total": 27042
+      },
+      "costUsd": 0.09202540000000001,
+      "apiMs": 15152,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 37,
+            "category": "correctness",
+            "title": "With -gzip, `err :=` creates a new variable, so Write always returns nil"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "export/export.go",
+          "line": 34,
+          "category": "missing-test",
+          "title": "No test for the new gzip path or for error reporting"
+        },
+        {
+          "severity": "P4",
+          "file": "cmd/ledger-export/main.go",
+          "line": 12,
+          "category": "usability",
+          "title": "-gzip still writes to the default name ledger.csv"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 37,
+            "category": "correctness",
+            "title": "With -gzip, `err :=` creates a new variable, so Write always returns nil",
+            "quote": "\t\terr := writeEntries(compressed, entries)",
+            "scenario": "Run `ledger-export -gzip -out /full-disk/ledger.csv`. The write fails or `compressed.Close()` fails, but those errors go to the inner `err` that `:=` creates. Write then returns the outer `err`, which is still nil. main logs \"wrote 2 entries\" and leaves a truncated, corrupt .gz file on disk. This is exactly the failure the author wanted to prevent.",
+            "whyNotPrevented": "The code compiles because the inner `err` is used. Default `go vet` does not report shadowed variables. No tests call export.Write.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "export/export.go",
+            "line": 34,
+            "category": "missing-test",
+            "title": "No test for the new gzip path or for error reporting",
+            "quote": "func Write(w io.Writer, entries []Entry, options Options) error {",
+            "scenario": "A test that writes to a failing io.Writer with Gzip true would expect an error and get nil. A round-trip test that decompresses the output would check the CSV is correct.",
+            "whyNotPrevented": "The repository has no tests for package export.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Write(\" in *.go: only the definition in export/export.go and the call in cmd/ledger-export/main.go, no test files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P4",
+            "file": "cmd/ledger-export/main.go",
+            "line": 12,
+            "category": "usability",
+            "title": "-gzip still writes to the default name ledger.csv",
+            "quote": "\tout := flag.String(\"out\", \"ledger.csv\", \"file to write\")",
+            "scenario": "Running `ledger-export -gzip` writes gzip data to a file called ledger.csv, so tools that go by the extension treat it as plain CSV.",
+            "whyNotPrevented": "Nothing changes the default name or adds .gz when -gzip is set.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "log-records",
+      "wallMs": 13871,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 7464,
+        "cacheRead": 25658,
+        "output": 1099,
+        "total": 34231
+      },
+      "costUsd": 0.0868636,
+      "apiMs": 12773,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/segment.rs",
+          "line": 7,
+          "category": "missing-test",
+          "title": "No test shows that replay stops at a corrupted record"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/segment.rs",
+            "line": 7,
+            "category": "missing-test",
+            "title": "No test shows that replay stops at a corrupted record",
+            "quote": "        apply(decode(record)?);",
+            "scenario": "Say replay is later changed to skip records that fail decode instead of returning the error. Replay would then keep going past a corrupted record, and no test would fail. The new tests only call decode directly.",
+            "whyNotPrevented": "segment.rs has no tests. The new tests in record.rs check decode on its own, not replay.",
+            "basis": "measured",
+            "measuredBy": "Grep \"RecordError|replay\" outside src/: no files found; segment.rs has no #[cfg(test)] module",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "log-records",
+      "wallMs": 8833,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2801,
+        "cacheRead": 22857,
+        "output": 611,
+        "total": 26277
+      },
+      "costUsd": 0.0392314,
+      "apiMs": 7815,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "log-records",
+      "wallMs": 11324,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 3002,
+        "cacheRead": 30081,
+        "output": 821,
+        "total": 33914
+      },
+      "costUsd": 0.046492200000000004,
+      "apiMs": 10266,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "message-frames",
+      "wallMs": 15378,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3675,
+        "cacheRead": 22465,
+        "output": 1387,
+        "total": 27535
+      },
+      "costUsd": 0.061665,
+      "apiMs": 14325,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Messages over 65535 bytes pass the size check, but their length is silently truncated to u16, so the stream is corrupted"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/frame.rs",
+          "line": 61,
+          "category": "test-coverage",
+          "title": "No test round-trips a message at MAX_MESSAGE_BYTES or just above u16::MAX"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Messages over 65535 bytes pass the size check, but their length is silently truncated to u16, so the stream is corrupted",
+            "quote": "    out.extend_from_slice(&(message.len() as u16).to_be_bytes());",
+            "scenario": "MAX_MESSAGE_BYTES is 256*1024, and the doc comment says uploads are split into chunks of that size. A 262144-byte chunk passes the `> MAX_MESSAGE_BYTES` check. `262144 as u16` is 0, so the header says 0 and all 262144 payload bytes follow. decode returns an empty message and then reads the payload's first two bytes as the next frame's header. Every message from 65536 to 262144 bytes gets a wrong length, and the stream loses sync with no error.",
+            "whyNotPrevented": "`as u16` truncates without warning. The limit lives in src/limits.rs and was not lowered. The tests only cover 5-byte messages, plus MAX+1, which is rejected before the cast.",
+            "basis": "measured",
+            "measuredBy": "Grep \"MAX_MESSAGE_BYTES\": src/limits.rs:2 `pub const MAX_MESSAGE_BYTES: usize = 256 * 1024;` (> u16::MAX 65535)",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/frame.rs",
+            "line": 61,
+            "category": "test-coverage",
+            "title": "No test round-trips a message at MAX_MESSAGE_BYTES or just above u16::MAX",
+            "quote": "    fn header_is_two_bytes() {",
+            "scenario": "A test that encodes and decodes a MAX_MESSAGE_BYTES message would have caught the truncation. A const assertion that MAX_MESSAGE_BYTES <= u16::MAX would also tie the limit to the header width.",
+            "whyNotPrevented": "The only tests use 5-byte messages.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "message-frames",
+      "wallMs": 19708,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3763,
+        "cacheRead": 22557,
+        "output": 1364,
+        "total": 27692
+      },
+      "costUsd": 0.0619274,
+      "apiMs": 18751,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Length over 65535 is silently truncated by the u16 cast, which corrupts the stream"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/frame.rs",
+          "line": 61,
+          "category": "test-coverage",
+          "title": "No test round-trips a message near the length limit"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Length over 65535 is silently truncated by the u16 cast, which corrupts the stream",
+            "quote": "    out.extend_from_slice(&(message.len() as u16).to_be_bytes());",
+            "scenario": "A message of 70000 bytes is under MAX_MESSAGE_BYTES (256*1024), so encode accepts it. The header records 70000 mod 65536 = 4464, and all 70000 bytes go out after it. decode returns a 4464-byte message and then reads the leftover payload bytes as the next frame's header. Upload chunks are exactly 262144 bytes, so every one gets the header 0 (262144 mod 65536): an empty message, with the real payload read as later garbage frames.",
+            "whyNotPrevented": "The guard still checks against MAX_MESSAGE_BYTES = 256*1024 in src/limits.rs:2, which is larger than u16::MAX. `as u16` truncates without warning. The tests only use 5-byte messages and one message of MAX+1 that is rejected, so no test covers lengths from 65536 to MAX.",
+            "basis": "measured",
+            "measuredBy": "Grep \"MAX_MESSAGE_BYTES\": src/limits.rs:2 `pub const MAX_MESSAGE_BYTES: usize = 256 * 1024;`, with comment 'Uploads are split into chunks of this size'",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/frame.rs",
+            "line": 61,
+            "category": "test-coverage",
+            "title": "No test round-trips a message near the length limit",
+            "quote": "    fn header_is_two_bytes() {",
+            "scenario": "The new test checks only a 5-byte message. A round-trip test at MAX_MESSAGE_BYTES (or at u16::MAX + 1) would have caught the truncation.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "message-frames",
+      "wallMs": 14927,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 2663,
+        "cacheRead": 29311,
+        "output": 1282,
+        "total": 33266
+      },
+      "costUsd": 0.0528462,
+      "apiMs": 13909,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Messages from 65,536 bytes up to MAX_MESSAGE_BYTES (256 KiB) get a wrong u16 length and corrupt the stream"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Messages from 65,536 bytes up to MAX_MESSAGE_BYTES (256 KiB) get a wrong u16 length and corrupt the stream",
+            "quote": "    out.extend_from_slice(&(message.len() as u16).to_be_bytes());",
+            "scenario": "The size check still allows messages up to 256 KiB (262,144 bytes), but a 2-byte header can only hold lengths up to 65,535. Upload chunks are MAX_MESSAGE_BYTES long (limits.rs comment). Take a 70,000-byte chunk: it passes the check, `as u16` cuts its length to 4,464, and the full 70,000 bytes are still written. decode then returns the first 4,464 bytes as the message and reads the rest of the payload as the next frame headers. Framing is broken and data is corrupted with no error. A full 262,144-byte chunk gets length 0.",
+            "whyNotPrevented": "`as u16` cuts the value without any error. MAX_MESSAGE_BYTES in src/limits.rs was not lowered. The only size test checks MAX_MESSAGE_BYTES + 1 (rejected). No test round-trips a message over 65,535 bytes.",
+            "basis": "measured",
+            "measuredBy": "Grep \"MAX_MESSAGE_BYTES\": src/limits.rs:2 `pub const MAX_MESSAGE_BYTES: usize = 256 * 1024;`, and the only check in encode is `message.len() > MAX_MESSAGE_BYTES`",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "post-fields",
+      "wallMs": 17158,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 1735,
+        "cacheRead": 15476,
+        "output": 1192,
+        "total": 18409
+      },
+      "costUsd": 0.0408392,
+      "apiMs": 16336,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Late-binding lambda gives every field the 5000-character body limit"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "tests/test_rules.py",
+          "line": 39,
+          "category": "missing-test",
+          "title": "No test checks the title and summary limits after the refactor"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Late-binding lambda gives every field the 5000-character body limit",
+            "quote": "    VALIDATORS[field] = lambda text: len(text) <= limit",
+            "scenario": "Each lambda looks up `limit` when it is called, not when it is created. After the loop ends, `limit` is 5000, so every validator uses 5000. validate({\"title\": \"x\" * 81}) returns [] when it should return [\"title is too long\"]. A 281-character summary also passes. The old 80 and 280 limits are lost.",
+            "whyNotPrevented": "The only tests are a short post and a long body. Both still pass with the bug because body's own limit really is 5000. No test sends a title over 80 or a summary over 280.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "tests/test_rules.py",
+            "line": 39,
+            "category": "missing-test",
+            "title": "No test checks the title and summary limits after the refactor",
+            "quote": "def test_long_body_is_rejected():",
+            "scenario": "The refactor changes how all three limits are built, but only the body limit is tested. That gap is why the closure bug above goes unnoticed.",
+            "whyNotPrevented": "The suite has no boundary test for title (80/81) or summary (280/281).",
+            "basis": "measured",
+            "measuredBy": "Read tests/test_rules.py: the only tests are test_short_post_passes and test_long_body_is_rejected",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P5",
+            "file": "src/posting/rules.py",
+            "line": 8,
+            "category": "style",
+            "title": "Loop variables `field` and `limit` leak into the module namespace",
+            "quote": "for field, limit in LIMITS.items():",
+            "scenario": "posting.rules.field and posting.rules.limit become public module globals. A dict comprehension would avoid this, and could also fix the closure bug.",
+            "whyNotPrevented": "No lint rule covers module-level loop variables.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "post-fields",
+      "wallMs": 15144,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 1848,
+        "cacheRead": 15471,
+        "output": 934,
+        "total": 18259
+      },
+      "costUsd": 0.036582199999999995,
+      "apiMs": 14140,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "The lambda reads `limit` when it runs, not when it is defined, so every field gets the 5000 limit"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "tests/test_rules.py",
+          "line": 39,
+          "category": "missing-test",
+          "title": "No tests for the title and summary limits after the refactor"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "The lambda reads `limit` when it runs, not when it is defined, so every field gets the 5000 limit",
+            "quote": "    VALIDATORS[field] = lambda text: len(text) <= limit",
+            "scenario": "The lambda looks up `limit` when it is called. By then the loop has ended and `limit` is 5000. So validate({\"title\": \"x\" * 81}) returns [] when it should return [\"title is too long\"]. Titles up to 5000 characters and summaries up to 5000 characters are accepted, which removes the existing 80 and 280 limits.",
+            "whyNotPrevented": "The tests only cover a short post and a long body, and both pass with the bug. No test checks a title over 80 or a summary over 280 characters.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "tests/test_rules.py",
+            "line": 39,
+            "category": "missing-test",
+            "title": "No tests for the title and summary limits after the refactor",
+            "quote": "def test_long_body_is_rejected():",
+            "scenario": "The refactor changed how the title (80) and summary (280) limits are applied, but only the body limit got a test. A regression like the one in the finding above passes the test suite.",
+            "whyNotPrevented": "The only other test uses a post that is under every limit.",
+            "basis": "measured",
+            "measuredBy": "Read tests/test_rules.py in the diff: only test_short_post_passes and test_long_body_is_rejected",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "post-fields",
+      "wallMs": 10456,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 1939,
+        "cacheRead": 21663,
+        "output": 841,
+        "total": 24451
+      },
+      "costUsd": 0.036696599999999996,
+      "apiMs": 9408,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Late-binding lambda makes every field use the 5000-character body limit"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Late-binding lambda makes every field use the 5000-character body limit",
+            "quote": "    VALIDATORS[field] = lambda text: len(text) <= limit",
+            "scenario": "Python looks up `limit` when the lambda runs, not when it is created. By then the loop has finished and `limit` is 5000. So validate({\"title\": \"x\" * 81}) returns [] instead of [\"title is too long\"], and a 281-character summary also passes. The existing 80 and 280 limits no longer work.",
+            "whyNotPrevented": "No test checks a title or summary that is over its limit. The only new test checks the body, whose limit is 5000, so it passes even with the bug. Fix by binding the value per lambda (`lambda text, limit=limit: ...`) or by keeping the `_at_most(limit)` factory.",
+            "basis": "measured",
+            "measuredBy": "Grep \"too long|81|281\" in tests: only the body test matches; no test covers a title or summary over its limit",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-stats",
+      "wallMs": 12376,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2833,
+        "cacheRead": 16511,
+        "output": 1047,
+        "total": 20397
+      },
+      "costUsd": 0.0469302,
+      "apiMs": 11266,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 28,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so the first request panics"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "stats/stats.go",
+          "line": 56,
+          "category": "missing-test",
+          "title": "No test covers per-client counting or the top-five cut"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 28,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so the first request panics",
+            "quote": "\ts.byClient[client]++",
+            "scenario": "main.go calls stats.New(time.Now()), and New only creates byStatus. byClient stays nil. When the first request passes through Counted, Record writes to the nil map and panics with \"assignment to entry in nil map\". net/http recovers the panic per connection, so every request gets its connection dropped and no response. No count is ever recorded.",
+            "whyNotPrevented": "The constructor line `return &Stats{started: now, byStatus: make(map[int]int)}` was not updated. The repository has no tests that call Record, and the Go compiler does not catch writes to a nil map.",
+            "basis": "measured",
+            "measuredBy": "Grep \"byClient|New\\(|Record\\(\": byClient appears only in the struct field, in Record and in Summary, never in a make() call. The only caller of New is main.go:13.",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "stats/stats.go",
+            "line": 56,
+            "category": "missing-test",
+            "title": "No test covers per-client counting or the top-five cut",
+            "quote": "\tif len(clients) > busiestShown {",
+            "scenario": "The nil-map panic above would have shown up in any test that calls Record. There is also no check on the tie-break order or on trimming the list to five clients.",
+            "whyNotPrevented": "The diff adds no test files, and Grep finds no existing tests that call Record.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Record\\(\" across repo: only server/server.go:26 and the definition",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-stats",
+      "wallMs": 14244,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2686,
+        "cacheRead": 16516,
+        "output": 1280,
+        "total": 20488
+      },
+      "costUsd": 0.0504152,
+      "apiMs": 13139,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 61,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so the first request panics"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "stats/stats.go",
+          "line": 48,
+          "category": "correctness",
+          "title": "byClient grows without limit, one entry per client address ever seen"
+        },
+        {
+          "severity": "P3",
+          "file": "stats/stats.go",
+          "line": 56,
+          "category": "missing-test",
+          "title": "No tests for per-client counting or top-5 ranking"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 61,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so the first request panics",
+            "quote": "\ts.byClient[client]++",
+            "scenario": "main.go builds the counter with stats.New(time.Now()), and New only sets byStatus. When the first request goes through Counted, Record writes to a nil map. That panics with 'assignment to entry in nil map', so every counted request fails and the per-client feature never works.",
+            "whyNotPrevented": "New, the only constructor, has a line the diff does not change: `return &Stats{started: now, byStatus: make(map[int]int)}`. It has no byClient. The repo has no tests for Record or Summary, and the Go compiler does not catch writes to a nil map.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Record\\(|stats\\.New\\(|Stats\\{\": the only constructor is stats/stats.go:20, which sets only byStatus. The only caller is main.go:13.",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "stats/stats.go",
+            "line": 48,
+            "category": "correctness",
+            "title": "byClient grows without limit, one entry per client address ever seen",
+            "quote": "\tbyClient map[string]int",
+            "scenario": "On a long-running server, every distinct remote IP adds an entry that is never removed. Many distinct clients, or spoofed addresses on IPv6, make memory grow without bound and make every Summary call sort all of them.",
+            "whyNotPrevented": "The diff has no cap or eviction, and only the top 5 are ever shown.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "stats/stats.go",
+            "line": 56,
+            "category": "missing-test",
+            "title": "No tests for per-client counting or top-5 ranking",
+            "quote": "func (s *Stats) Record(client string, status int) {",
+            "scenario": "Nothing tests the busiest ordering, the tie-break by client name, or the cut to 5 entries. A test would also have caught the nil-map panic.",
+            "whyNotPrevented": "The repository has no test files that call Record or Summary.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Record\\(\" across the repo: matches only in stats/stats.go and server/server.go, none in tests",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-stats",
+      "wallMs": 17662,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2751,
+        "cacheRead": 16516,
+        "output": 1005,
+        "total": 20278
+      },
+      "costUsd": 0.0454352,
+      "apiMs": 16667,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so the first Record call panics"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "stats/stats.go",
+          "line": 56,
+          "category": "missing-test",
+          "title": "No test for per-client counting or the top-five limit and ordering"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so the first Record call panics",
+            "quote": "\treturn &Stats{started: now, byStatus: make(map[int]int)}",
+            "scenario": "main.go builds the counter with stats.New(time.Now()). Any request through Counted then calls Record, which runs s.byClient[client]++ on a nil map and panics with 'assignment to entry in nil map'. The middleware panics on every counted request, so per-client counting never works.",
+            "whyNotPrevented": "The diff adds the byClient field but doesn't change New. Go compiles writes to a nil map without complaint, and no test calls Record.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Record\\(|stats\\.New\\(|Stats\\{\": the only constructor is stats/stats.go:20 and it sets only byStatus; main.go:13 uses stats.New",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "stats/stats.go",
+            "line": 56,
+            "category": "missing-test",
+            "title": "No test for per-client counting or the top-five limit and ordering",
+            "scenario": "A test that records requests from six or more clients and checks Summary().Busiest would have caught the nil-map panic. It would also lock in the descending count order, the tie-break by client name and the cutoff at five.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Record\\(\" across repo: no matches in any _test.go file",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "sensor-smoothing",
+      "wallMs": 16760,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2311,
+        "cacheRead": 15943,
+        "output": 1028,
+        "total": 19288
+      },
+      "costUsd": 0.042260599999999995,
+      "apiMs": 15747,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Off-by-one: the last window leaves out the newest reading, and exactly five readings give no average"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Off-by-one: the last window leaves out the newest reading, and exactly five readings give no average",
+            "quote": "    (window..values.len())",
+            "scenario": "With readings [20,20,20,20,20,40,40,40,40,40], the last window is values[4..9]. It skips the newest 40 and averages to 36. The intended average of the last five is 40. Worse, with exactly 5 readings of 35.0, the range 5..5 is empty, so trailing_average returns an empty Vec and should_open returns false even though every reading is above 28. The vents always run one reading behind and never open until a sixth reading arrives.",
+            "whyNotPrevented": "steady_readings_stay_steady uses identical values, so leaving out the newest reading changes nothing. too_few_readings_give_nothing only checks len < window. No test covers len == window or checks which readings the last window holds, and should_open has no tests at all.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/vents.rs",
+            "line": 8,
+            "category": "test-coverage",
+            "title": "should_open has no tests for the new windowed behavior",
+            "quote": "pub fn should_open(temperatures: &[f64]) -> bool {",
+            "scenario": "Nothing checks that a single hot reading does not open the vents, that a hot spell of five readings does, or that the newest reading counts. A test for any of these would have caught the off-by-one.",
+            "whyNotPrevented": "No test calls should_open.",
+            "basis": "measured",
+            "measuredBy": "Grep \"should_open|trailing_average\" in repo: should_open is only defined in src/vents.rs and has no test callers",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "sensor-smoothing",
+      "wallMs": 13354,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2454,
+        "cacheRead": 15948,
+        "output": 1055,
+        "total": 19463
+      },
+      "costUsd": 0.0439456,
+      "apiMs": 12295,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Off-by-one: the last window leaves out the newest reading, and exactly `window` readings give nothing"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Off-by-one: the last window leaves out the newest reading, and exactly `window` readings give nothing",
+            "quote": "    (window..values.len())",
+            "scenario": "The range stops before `end == values.len()`, so the last average covers values[len-6..len-1] and never includes the newest reading. Example: readings [20,20,20,20,20,40,40,40,40,40] average 40 over the last five, but the last window gives 36. And [30,30,30,30,30] (exactly 5 readings) returns an empty Vec, so `should_open` returns false even though the average is 30 > 28. The vents miss a hot spell that the author's stated behavior should catch.",
+            "whyNotPrevented": "steady_readings_stay_steady uses identical values, so a shifted window still averages to 21.5. too_few_readings_give_nothing only tests len < window, never len == window. `should_open` has no tests at all.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/vents.rs",
+            "line": 8,
+            "category": "missing-test",
+            "title": "No test for should_open covering the newest reading or exactly five readings",
+            "quote": "pub fn should_open(temperatures: &[f64]) -> bool {",
+            "scenario": "A test like `should_open(&[30.0; 5])` or one where only the newest five readings are hot would have caught the off-by-one in trailing_average.",
+            "whyNotPrevented": "The only tests are in readings.rs, and they use uniform values.",
+            "basis": "measured",
+            "measuredBy": "Grep \"should_open\" across repo: only the definition in src/vents.rs:8, no tests",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "sensor-smoothing",
+      "wallMs": 12582,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2468,
+        "cacheRead": 15953,
+        "output": 1110,
+        "total": 19537
+      },
+      "costUsd": 0.04515859999999999,
+      "apiMs": 11555,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Off-by-one: the window never includes the newest reading, and exactly `window` readings gives nothing"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Off-by-one: the window never includes the newest reading, and exactly `window` readings gives nothing",
+            "quote": "    (window..values.len())",
+            "scenario": "should_open(&[20.0, 30.0, 30.0, 30.0, 30.0, 30.0]) averages readings 0..5 (28.0) instead of the last five (30.0), so it returns false even though the last five average 30 °C. With exactly 5 readings at 35.0, the range 5..5 is empty, so the function returns no averages and should_open returns false. The range should be `window..=values.len()`.",
+            "whyNotPrevented": "The new tests only use constant input ([21.5; 6]), where any window gives the same average, and a too-short input. No test checks which readings the last window contains, checks a length equal to `window`, or calls should_open.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/vents.rs",
+            "line": 8,
+            "category": "missing-test",
+            "title": "No test for should_open's new behaviour",
+            "quote": "pub fn should_open(temperatures: &[f64]) -> bool {",
+            "scenario": "Nothing tests that one hot reading leaves the vents closed, or that five hot readings in a row (including the newest) open them. The off-by-one above got through because of this.",
+            "whyNotPrevented": "src/vents.rs has no tests module",
+            "basis": "measured",
+            "measuredBy": "Grep \"should_open\" in repo: only the definition at src/vents.rs:8",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-cache",
+      "wallMs": 16595,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 4443,
+        "cacheRead": 25255,
+        "output": 1595,
+        "total": 31301
+      },
+      "costUsd": 0.07252700000000001,
+      "apiMs": 15627,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/sessions/cache.py",
+          "line": 20,
+          "category": "maintainability",
+          "title": "Cache() now expires entries after 15 minutes by default, but sessions use 30"
+        },
+        {
+          "severity": "P3",
+          "file": "src/sessions/lookup.py",
+          "line": 3,
+          "category": "missing-test",
+          "title": "No test covers the 30-minute session TTL or the minutely purge job"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/sessions/cache.py",
+            "line": 20,
+            "category": "maintainability",
+            "title": "Cache() now expires entries after 15 minutes by default, but sessions use 30",
+            "quote": "    def __init__(self, ttl_seconds=900, clock=time.monotonic):",
+            "scenario": "Before this change, Cache() kept entries forever. Now any caller that builds Cache() without a ttl silently drops entries after 900s. That doesn't match the 30-minute session rule, which only holds because lookup.py passes 1800 explicitly.",
+            "whyNotPrevented": "test_put_then_get and test_missing_key_raises call Cache() with no ttl, but neither advances time, so they never check this default.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Cache\\(\" in repo: only lookup.py:3 sets ttl_seconds=1800; the tests use the 900 default",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/sessions/lookup.py",
+            "line": 3,
+            "category": "missing-test",
+            "title": "No test covers the 30-minute session TTL or the minutely purge job",
+            "quote": "_sessions = Cache(ttl_seconds=1800)",
+            "scenario": "If someone drops the ttl_seconds=1800 argument or removes forget_expired from EVERY_MINUTE, the cache tests still pass, so the requested behavior can regress unnoticed.",
+            "whyNotPrevented": "The new tests only exercise Cache directly. Nothing tests lookup.py or jobs.py.",
+            "basis": "measured",
+            "measuredBy": "Grep \"run_minutely|EVERY_MINUTE|user_for|forget_expired\": no match in tests/",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-cache",
+      "wallMs": 12170,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3803,
+        "cacheRead": 16814,
+        "output": 977,
+        "total": 21600
+      },
+      "costUsd": 0.0533508,
+      "apiMs": 10935,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/sessions/jobs.py",
+          "line": 14,
+          "category": "missing-test",
+          "title": "No test checks the 30-minute session TTL or that purge runs every minute"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/sessions/jobs.py",
+            "line": 14,
+            "category": "missing-test",
+            "title": "No test checks the 30-minute session TTL or that purge runs every minute",
+            "quote": "EVERY_MINUTE = [forget_expired, report_size]",
+            "scenario": "Someone changes `ttl_seconds=1800` in lookup.py, or removes forget_expired from EVERY_MINUTE. No test fails. The new tests only check Cache itself with a 10-second TTL.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Cache\\(|\\.get\\(\" across repo: tests only reference Cache directly in tests/test_cache.py; no test imports sessions.lookup or sessions.jobs",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-cache",
+      "wallMs": 16419,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3810,
+        "cacheRead": 16809,
+        "output": 1394,
+        "total": 22019
+      },
+      "costUsd": 0.0617458,
+      "apiMs": 15497,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/sessions/jobs.py",
+          "line": 14,
+          "category": "test-coverage",
+          "title": "No test checks that the minutely job purges expired sessions or that sessions use the 30-minute TTL"
+        },
+        {
+          "severity": "P4",
+          "file": "src/sessions/cache.py",
+          "line": 20,
+          "category": "maintainability",
+          "title": "Cache's default TTL of 900s (15 min) doesn't match the 30-minute session TTL"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/sessions/jobs.py",
+            "line": 14,
+            "category": "test-coverage",
+            "title": "No test checks that the minutely job purges expired sessions or that sessions use the 30-minute TTL",
+            "quote": "EVERY_MINUTE = [forget_expired, report_size]",
+            "scenario": "Two changes would still pass every test: removing forget_expired from EVERY_MINUTE, or changing ttl_seconds=1800 in lookup.py. Either one breaks the requested behavior, because sessions would never be dropped or would expire at the wrong time.",
+            "whyNotPrevented": "tests/test_cache.py only tests the Cache class on its own. Nothing tests lookup.py or jobs.py.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Cache\\(|\\.get\\(\" across repo: test matches only in tests/test_cache.py, none for lookup/jobs",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P4",
+            "file": "src/sessions/cache.py",
+            "line": 20,
+            "category": "maintainability",
+            "title": "Cache's default TTL of 900s (15 min) doesn't match the 30-minute session TTL",
+            "quote": "    def __init__(self, ttl_seconds=900, clock=time.monotonic):",
+            "scenario": "A new Cache() made without ttl_seconds expires entries after 15 minutes. That surprises anyone who expects the 30 minutes the author asked for. Sessions only get 30 minutes because lookup.py passes 1800 explicitly.",
+            "whyNotPrevented": "Nothing explains where 900 comes from. Making ttl_seconds a required argument, or naming a shared constant, would make the choice explicit.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": true,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "weekly-digest",
+      "wallMs": 13895,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2666,
+        "cacheRead": 15741,
+        "output": 1185,
+        "total": 19598
+      },
+      "costUsd": 0.048200200000000006,
+      "apiMs": 12775,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Mutable default list means TEAM_INBOX is added again on every call that has no recipients"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Mutable default list means TEAM_INBOX is added again on every call that has no recipients",
+            "quote": "def build_digest(entries, recipients=[]):",
+            "scenario": "Call build_digest(['a']) and then build_digest(['b']). The second digest's recipients are [TEAM_INBOX, TEAM_INBOX], and the list keeps growing for the life of the process. send_digest loops over recipients, so the team inbox gets one more duplicate email on each call and the sent count is inflated. Every digest built without recipients also shares the same list object.",
+            "whyNotPrevented": "test_team_inbox_gets_the_digest passes only because it is the first call that uses the default in the test run. test_subject_counts_updates calls the default path again but checks only the subject line, never the recipients. No test calls the default path twice and checks recipients.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 13,
+            "category": "correctness",
+            "title": "build_digest changes the list the caller passes in",
+            "quote": "    recipients.append(TEAM_INBOX)",
+            "scenario": "In send_weekly, project.watchers() is passed straight in. If watchers() returns the project's stored list, every weekly run adds TEAM_INBOX to that project's watchers for good. The next run then sends the team inbox two copies, then three. A caller that reuses one list across several build_digest calls gets the same duplication.",
+            "whyNotPrevented": "Nothing copies the list before append, and Digest stores the caller's own list object. The new test passes a literal list and never checks that the argument is left unchanged. Project.watchers() is not defined in this repo, so whether it returns a stored list cannot be confirmed here.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "weekly-digest",
+      "wallMs": 19570,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2674,
+        "cacheRead": 22570,
+        "output": 1717,
+        "total": 26969
+      },
+      "costUsd": 0.060278,
+      "apiMs": 18510,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Default recipients list is shared, so TEAM_INBOX piles up across calls"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/notices/weekly.py",
+          "line": 8,
+          "category": "correctness",
+          "title": "project.watchers() is not defined anywhere in the repository"
+        },
+        {
+          "severity": "P3",
+          "file": "tests/test_digest.py",
+          "line": 9,
+          "category": "missing-test",
+          "title": "No test calls build_digest twice or checks the caller's list after a call"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Default recipients list is shared, so TEAM_INBOX piles up across calls",
+            "quote": "def build_digest(entries, recipients=[]):",
+            "scenario": "Call build_digest([\"a\"]) twice with no recipients. The second digest's recipients is [TEAM_INBOX, TEAM_INBOX], so the team inbox gets duplicate mail, and the list keeps growing for the life of the process. Both digests also share the same list object, so a later call changes the recipients of digests already built.",
+            "whyNotPrevented": "Only test_team_inbox_gets_the_digest checks the no-argument recipients, and it runs first, on a fresh default. test_subject_counts_updates calls build_digest with no recipients again but only checks the subject.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 13,
+            "category": "correctness",
+            "title": "build_digest changes the caller's recipients list in place",
+            "quote": "    recipients.append(TEAM_INBOX)",
+            "scenario": "send_weekly passes project.watchers(). If watchers() returns the project's own stored list, every weekly run adds TEAM_INBOX to the project's watchers permanently. Any caller that reuses one list for several digests also gets TEAM_INBOX added once per call.",
+            "whyNotPrevented": "The new test passes a throwaway literal list and never checks the caller's list after the call. Nothing copies the list before append.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/notices/weekly.py",
+            "line": 8,
+            "category": "correctness",
+            "title": "project.watchers() is not defined anywhere in the repository",
+            "quote": "        digest = build_digest(project.changes_this_week(), project.watchers())",
+            "scenario": "If the project objects have no watchers() method, send_weekly raises AttributeError on the first project.",
+            "whyNotPrevented": "No test covers send_weekly. Project may be defined outside this repository, so this is not confirmed.",
+            "basis": "measured",
+            "measuredBy": "Grep \"watchers|changes_this_week\" in repo: only match is weekly.py:8",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "tests/test_digest.py",
+            "line": 9,
+            "category": "missing-test",
+            "title": "No test calls build_digest twice or checks the caller's list after a call",
+            "quote": "def test_extra_recipients_and_the_team_inbox():",
+            "scenario": "The duplicate TEAM_INBOX from the shared default and the change to the caller's list both go undetected by the current tests.",
+            "whyNotPrevented": "Each test calls build_digest and checks recipients only once.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "weekly-digest",
+      "wallMs": 17306,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2666,
+        "cacheRead": 22572,
+        "output": 1551,
+        "total": 26797
+      },
+      "costUsd": 0.0568944,
+      "apiMs": 16395,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Mutable default list builds up TEAM_INBOX on every call that uses the default"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "tests/test_digest.py",
+          "line": 37,
+          "category": "missing-test",
+          "title": "No test calls the default path twice or checks that the caller's list stays unchanged"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Mutable default list builds up TEAM_INBOX on every call that uses the default",
+            "quote": "def build_digest(entries, recipients=[]):",
+            "scenario": "Python creates the `[]` default once and then shares it. Each `build_digest([\"a\"])` call appends TEAM_INBOX to that one list. The first call returns [TEAM_INBOX], the second returns [TEAM_INBOX, TEAM_INBOX], and so on. Every digest built with the default also points to the same list, so the team inbox gets duplicate copies and the count grows for the life of the process.",
+            "whyNotPrevented": "test_team_inbox_gets_the_digest is the first test in the file to use the default, so it still sees [TEAM_INBOX]. The later default calls in test_subject_counts_updates only check the subject line, not the recipients. No lint rule (such as B006) is set up.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 13,
+            "category": "correctness",
+            "title": "build_digest changes the caller's recipients list in place",
+            "quote": "    recipients.append(TEAM_INBOX)",
+            "scenario": "send_weekly passes project.watchers(). If watchers() returns a list the project keeps internally, every weekly run adds TEAM_INBOX to the project's real watcher list. Each run then sends one more team-inbox copy, and the inbox shows up as a watcher. Callers that pass one shared list to several build_digest calls hit the same buildup.",
+            "whyNotPrevented": "No Project.watchers implementation could be found in the repository to show it returns a copy, and no test checks that the caller's list is unchanged after the call.",
+            "basis": "inferred",
+            "measuredBy": "Grep \"watchers\" in repo: only the call site in weekly.py",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "tests/test_digest.py",
+            "line": 37,
+            "category": "missing-test",
+            "title": "No test calls the default path twice or checks that the caller's list stays unchanged",
+            "quote": "def test_extra_recipients_and_the_team_inbox():",
+            "scenario": "The new test passes a list literal once, so it cannot catch the shared-default buildup or the in-place change. Neither is covered for send_weekly either.",
+            "whyNotPrevented": "",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    }
+  ]
+}

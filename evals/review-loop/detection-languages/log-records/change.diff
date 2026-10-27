@@ -1,0 +1,61 @@
+diff --git a/src/record.rs b/src/record.rs
+index 506364f..60d3326 100644
+--- a/src/record.rs
++++ b/src/record.rs
+@@ -1,17 +1,32 @@
+ #[derive(Debug, PartialEq)]
+ pub enum RecordError {
+     Empty,
++    Corrupted { stored: u8, computed: u8 },
++}
++
++/// Sum of the bytes modulo 256. Changing any one byte changes the sum.
++pub fn checksum(bytes: &[u8]) -> u8 {
++    bytes.iter().fold(0u8, |sum, byte| sum.wrapping_add(*byte))
+ }
+ 
+ pub fn encode(body: &[u8]) -> Vec<u8> {
+-    body.to_vec()
++    let mut record = Vec::with_capacity(body.len() + 1);
++    record.extend_from_slice(body);
++    record.push(checksum(body));
++    record
+ }
+ 
+ pub fn decode(record: &[u8]) -> Result<&[u8], RecordError> {
+     if record.is_empty() {
+         return Err(RecordError::Empty);
+     }
+-    Ok(record)
++    let (body, tail) = record.split_at(record.len() - 1);
++    let stored = tail[0];
++    let computed = checksum(body);
++    if stored != computed {
++        return Err(RecordError::Corrupted { stored, computed });
++    }
++    Ok(body)
+ }
+ 
+ #[cfg(test)]
+@@ -27,4 +42,21 @@ mod tests {
+     fn empty_record_is_an_error() {
+         assert_eq!(decode(&[]), Err(RecordError::Empty));
+     }
++
++    #[test]
++    fn empty_body_round_trips() {
++        assert_eq!(decode(&encode(b"")), Ok(&b""[..]));
++    }
++
++    #[test]
++    fn a_flipped_byte_is_caught() {
++        let mut record = encode(b"put a=1");
++        record[4] ^= 0x10;
++        assert!(matches!(decode(&record), Err(RecordError::Corrupted { .. })));
++    }
++
++    #[test]
++    fn sums_past_255_wrap() {
++        assert_eq!(checksum(&[200, 100]), 44);
++    }
+ }

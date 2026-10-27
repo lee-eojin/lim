@@ -1,0 +1,7 @@
+[project]
+name = "posting"
+version = "1.2.0"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

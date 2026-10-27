@@ -1,0 +1,17 @@
+{
+  "intent": "Open the vents on the average of the last five readings, including the newest one, instead of the average of every reading so far",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "off-by-one range: window..values.len() stops one short, so the newest reading is in no average, exactly five readings give no average at all, and should_open decides on a window that leaves out the latest reading",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/readings.rs", "lines": [9, 16] },
+        { "file": "src/vents.rs", "lines": [8, 12] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["off-by-one", "off by one", "off-by-1", "..=", "window..=", "values.len() + 1", "len() + 1", "exclusive", "excludes the last", "excludes the newest", "excludes the latest", "excludes the most recent", "exclude the last", "exclude the newest", "exclude the latest", "excluding the", "never includes", "never included", "never covers", "left out", "leaves out", "skips the last", "skips the newest", "skips the latest", "drops the last", "drops the newest", "drops the latest", "misses the last", "misses the newest", "missing the last", "last window", "final window", "newest reading", "latest reading", "most recent reading", "current reading", "one fewer", "one short", "len - window + 1", "len() - window + 1", "exactly window", "exactly five", "exactly 5", "lags", "one reading behind", "one step behind"]
+    }
+  ],
+  "forbid": []
+}

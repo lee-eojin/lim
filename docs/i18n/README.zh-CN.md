@@ -232,6 +232,8 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 上表就是审查者默认模型的依据。在困难组中，Opus 找出了 30 个中 30 个，没有误报的 P1 或 P2；Sonnet 找出了 30 个中 29 个，也没有误报，费用约为 Opus 的 37%；Haiku 找出了 30 个中 30 个，在 18 次干净运行中误报了 3 个 P1 或 P2。因此默认仍然是会话的模型，而当你希望审查者使用与编写改动的模型不同的模型时，Sonnet 是更便宜的选择。
 
+[`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/)包含用 Python、Rust 和 Go 植入的 6 个 bug，以及 2 个干净的改动。每个用例运行 3 次，Opus 和 Sonnet 找出了 18 个中 18 个，Haiku 找出了 18 个中 16 个，三者在 6 次干净运行中都没有误报的 P1 或 P2；详情见 [review-loop README](../../plugins/review-loop/README.md#measured-behavior)。
+
 <details>
 <summary>成本</summary>
 

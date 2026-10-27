@@ -232,6 +232,8 @@ Banksaladが公開しているPnルールに基づきます。
 
 上の表が、レビュアーのデフォルトのモデルの根拠です。難しいセットでは、Opusは30件中30件を見つけ、誤ったP1またはP2はありませんでした。Sonnetは30件中29件を見つけ、誤ったP1またはP2はなく、コストはOpusの約37%でした。Haikuは30件中30件を見つけ、問題のない18回の実行で誤ったP1またはP2を3件出しました。そのためデフォルトはセッションのモデルのままです。変更を書いたモデルとは別のモデルでレビューしたい場合は、Sonnetが安い選択肢です。
 
+[`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/)には、Python、Rust、Goに仕込んだバグが6件と、問題のない変更が2件あります。1ケースあたり3回実行したところ、OpusとSonnetは18件中18件、Haikuは18件中16件を見つけ、どのモデルも問題のない6回の実行で誤ったP1またはP2を出しませんでした。詳細は[review-loop README](../../plugins/review-loop/README.md#measured-behavior)にあります。
+
 <details>
 <summary>コスト</summary>
 

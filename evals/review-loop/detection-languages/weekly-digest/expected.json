@@ -1,0 +1,18 @@
+{
+  "intent": "Let callers add their own recipients to a digest, such as each project's watchers, and keep sending the team inbox a copy",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "mutable default argument: recipients=[] is created once, so every call without recipients appends the team inbox to the same list, digests share it, and the team inbox gets one more copy per earlier call; a caller's list is also changed in place",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/notices/digest.py", "lines": [12, 14] },
+        { "file": "src/notices/weekly.py", "lines": [8, 8] },
+        { "file": "src/notices/sender.py", "lines": [6, 7], "context": true }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["mutable default", "mutable default argument", "mutable default arg", "default argument", "default arg", "default parameter", "default list", "default value is shared", "shared default", "shared list", "same list", "same list object", "one list", "evaluated once", "created once", "defined once", "definition time", "persists across calls", "persist across calls", "across calls", "between calls", "every call", "each call", "accumulates", "accumulate", "keeps growing", "grows", "duplicate", "duplicates", "duplicated", "twice", "multiple times", "mutates the caller", "mutates the passed", "mutates the argument", "mutates its argument", "mutating the caller", "modifies the caller", "modifies the passed", "in place", "in-place", "recipients=[]", "recipients=None", "aliasing", "aliases"]
+    }
+  ],
+  "forbid": []
+}

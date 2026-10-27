@@ -232,6 +232,8 @@ Par défaut, le réviseur tourne avec le modèle de votre session. Opus a trouv�
 
 Le tableau ci-dessus fonde le modèle par défaut du réviseur. Sur le jeu difficile, Opus a trouvé 30 sur 30 sans faux P1 ou P2, Sonnet a trouvé 29 sur 30 sans aucun pour environ 37 % du coût d'Opus, et Haiku a trouvé 30 sur 30 avec 3 faux P1 ou P2 sur 18 exécutions propres. Le modèle par défaut reste donc celui de la session, et Sonnet est le choix le moins cher si vous voulez que le réviseur tourne sur un autre modèle que celui qui a écrit la modification.
 
+[`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/) contient 6 bugs introduits en Python, Rust et Go ainsi que 2 modifications propres. Avec 3 exécutions par cas, Opus et Sonnet ont trouvé 18 sur 18 et Haiku 16 sur 18, sans aucun faux P1 ou P2 sur 6 exécutions propres pour aucun d'eux ; le [review-loop README](../../plugins/review-loop/README.md#measured-behavior) donne les détails.
+
 <details>
 <summary>Coût</summary>
 

@@ -1,0 +1,105 @@
+diff --git a/server/server.go b/server/server.go
+index 422923e..0b93da6 100644
+--- a/server/server.go
++++ b/server/server.go
+@@ -2,6 +2,7 @@ package server
+ 
+ import (
+ 	"encoding/json"
++	"net"
+ 	"net/http"
+ 	"time"
+ 
+@@ -22,10 +23,18 @@ func Counted(counter *stats.Stats, next http.Handler) http.Handler {
+ 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+ 		next.ServeHTTP(recorder, r)
+-		counter.Record(recorder.status)
++		counter.Record(clientOf(r), recorder.status)
+ 	})
+ }
+ 
++func clientOf(r *http.Request) string {
++	host, _, err := net.SplitHostPort(r.RemoteAddr)
++	if err != nil {
++		return r.RemoteAddr
++	}
++	return host
++}
++
+ func SummaryHandler(counter *stats.Stats) http.Handler {
+ 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		w.Header().Set("Content-Type", "application/json")
+diff --git a/stats/stats.go b/stats/stats.go
+index b99efd6..09e97ce 100644
+--- a/stats/stats.go
++++ b/stats/stats.go
+@@ -6,22 +6,26 @@ import (
+ 	"time"
+ )
+ 
++const busiestShown = 5
++
+ type Stats struct {
+ 	mu       sync.Mutex
+ 	started  time.Time
+ 	total    int
+ 	byStatus map[int]int
++	byClient map[string]int
+ }
+ 
+ func New(now time.Time) *Stats {
+ 	return &Stats{started: now, byStatus: make(map[int]int)}
+ }
+ 
+-func (s *Stats) Record(status int) {
++func (s *Stats) Record(client string, status int) {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
+ 	s.total++
+ 	s.byStatus[status]++
++	s.byClient[client]++
+ }
+ 
+ type StatusCount struct {
+@@ -29,10 +33,16 @@ type StatusCount struct {
+ 	Count  int `json:"count"`
+ }
+ 
++type ClientCount struct {
++	Client string `json:"client"`
++	Count  int    `json:"count"`
++}
++
+ type Summary struct {
+ 	UptimeSeconds int64         `json:"uptimeSeconds"`
+ 	Total         int           `json:"total"`
+ 	Statuses      []StatusCount `json:"statuses"`
++	Busiest       []ClientCount `json:"busiest"`
+ }
+ 
+ func (s *Stats) Summary(now time.Time) Summary {
+@@ -43,9 +53,23 @@ func (s *Stats) Summary(now time.Time) Summary {
+ 		statuses = append(statuses, StatusCount{Status: status, Count: count})
+ 	}
+ 	sort.Slice(statuses, func(i, j int) bool { return statuses[i].Status < statuses[j].Status })
++	clients := make([]ClientCount, 0, len(s.byClient))
++	for client, count := range s.byClient {
++		clients = append(clients, ClientCount{Client: client, Count: count})
++	}
++	sort.Slice(clients, func(i, j int) bool {
++		if clients[i].Count != clients[j].Count {
++			return clients[i].Count > clients[j].Count
++		}
++		return clients[i].Client < clients[j].Client
++	})
++	if len(clients) > busiestShown {
++		clients = clients[:busiestShown]
++	}
+ 	return Summary{
+ 		UptimeSeconds: int64(now.Sub(s.started).Seconds()),
+ 		Total:         s.total,
+ 		Statuses:      statuses,
++		Busiest:       clients,
+ 	}
+ }

@@ -1,0 +1,1406 @@
+{
+  "date": "2026-10-27T10:36:25.797Z",
+  "model": "sonnet",
+  "claudeVersion": "2.1.311 (Claude Code)",
+  "reviewer": {
+    "path": "plugins/review-loop/agents/reviewer.md",
+    "sha256": "b500478811574f56bc8e9d823281a07dd4a10e1a0d26eaf18a92cb2121afabf6"
+  },
+  "label": "detection-languages",
+  "cases": "evals/review-loop/detection-languages",
+  "runsPerCase": 3,
+  "concurrency": 4,
+  "elapsedSeconds": 91,
+  "summary": {
+    "runs": 24,
+    "errors": 0,
+    "bugRuns": 18,
+    "found": 18,
+    "lowSeverity": 0,
+    "missed": 0,
+    "cleanRuns": 6,
+    "cleanWithFalseHigh": 0,
+    "falseHighFindings": 0,
+    "otherHighOnBugRuns": 0,
+    "otherLowFindings": 5,
+    "totalTokens": 419641,
+    "averageTokens": 17485,
+    "totalCostUsd": 0.4918,
+    "totalWallSeconds": 327,
+    "averageWallSeconds": 14
+  },
+  "scoredWith": {
+    "date": "2026-10-27T10:38:09.245Z",
+    "note": "sensor-smoothing: removed the keywords \"returns nothing\", \"returns empty\", and \"returns an empty\", which also matched findings about fewer than five readings giving no average (the window the author asked for), not the off-by-one.",
+    "originalSummary": {
+      "runs": 24,
+      "errors": 0,
+      "bugRuns": 18,
+      "found": 18,
+      "lowSeverity": 0,
+      "missed": 0,
+      "cleanRuns": 6,
+      "cleanWithFalseHigh": 0,
+      "falseHighFindings": 0,
+      "otherHighOnBugRuns": 0,
+      "otherLowFindings": 5,
+      "totalTokens": 419641,
+      "averageTokens": 17485,
+      "totalCostUsd": 0.4918,
+      "totalWallSeconds": 327,
+      "averageWallSeconds": 14
+    }
+  },
+  "runs": [
+    {
+      "case": "ledger-export",
+      "wallMs": 15553,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 6340,
+        "cacheRead": 5182,
+        "output": 1188,
+        "total": 12714
+      },
+      "costUsd": 0.0377662,
+      "apiMs": 14544,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 38,
+            "category": "correctness",
+            "title": "`err :=` shadows the outer err, so gzip write and close errors are dropped"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "export/export.go",
+          "line": 37,
+          "category": "correctness",
+          "title": "gzip writer is not closed when writeEntries fails"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 38,
+            "category": "correctness",
+            "title": "`err :=` shadows the outer err, so gzip write and close errors are dropped",
+            "quote": "err := writeEntries(compressed, entries)",
+            "scenario": "With -gzip, the destination returns an error, for example disk full. The inner `err` holds it and goes out of scope. `Write` returns the outer `err`, which is still nil. main treats the export as successful, keeps the partial or corrupt file, and never runs the remove-on-failure path.",
+            "whyNotPrevented": "The compiler accepts the shadowing because the inner err is used. No test covers a failing writer with Gzip enabled. `go vet` does not flag shadowing by default.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "export/export.go",
+            "line": 37,
+            "category": "correctness",
+            "title": "gzip writer is not closed when writeEntries fails",
+            "quote": "compressed := gzip.NewWriter(w)",
+            "scenario": "If writeEntries fails, compressed.Close() is skipped. The caller deletes the file anyway, so the effect is small, but the writer is left unclosed.",
+            "whyNotPrevented": "No test covers this path.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "ledger-export",
+      "wallMs": 14484,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 6340,
+        "cacheRead": 5182,
+        "output": 751,
+        "total": 12277
+      },
+      "costUsd": 0.0333962,
+      "apiMs": 13430,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 38,
+            "category": "correctness",
+            "title": "Shadowed err in gzip branch drops all write and close errors"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 38,
+            "category": "correctness",
+            "title": "Shadowed err in gzip branch drops all write and close errors",
+            "quote": "err := writeEntries(compressed, entries)",
+            "scenario": "With -gzip, the disk fills or the writer fails. The inner `err :=` declares a new variable scoped to the if block. `Write` returns the outer `err`, which is still nil. main sees success, so it does not remove the partial file and it reports no error. That leaves a truncated gzip file behind, which is the opposite of what was asked.",
+            "whyNotPrevented": "Go allows the shadowing. The compiler does not flag it because the inner err is used. No test covers gzip with a failing writer.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "ledger-export",
+      "wallMs": 9139,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 6340,
+        "cacheRead": 5182,
+        "output": 701,
+        "total": 12227
+      },
+      "costUsd": 0.0328962,
+      "apiMs": 8079,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 38,
+            "category": "correctness",
+            "title": "Shadowed err makes gzip write errors get swallowed"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "export/export.go",
+            "line": 38,
+            "category": "correctness",
+            "title": "Shadowed err makes gzip write errors get swallowed",
+            "quote": "err := writeEntries(compressed, entries)",
+            "scenario": "With -gzip, if the underlying file write fails (disk full, closed file), the inner `err :=` declares a new variable in the if block. The outer `err` stays nil, so Write returns nil. main then reports success and keeps a truncated or corrupt .gz file.",
+            "whyNotPrevented": "The compiler allows the shadowing because the inner err is used. No test covers a failing writer with Gzip set. go vet does not flag shadowing by default.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "log-records",
+      "wallMs": 12336,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 6945,
+        "cacheRead": 11440,
+        "output": 424,
+        "total": 18815
+      },
+      "costUsd": 0.033176,
+      "apiMs": 11156,
+      "turns": 3,
+      "strictJson": false,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "log-records",
+      "wallMs": 5802,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 1787,
+        "cacheRead": 9653,
+        "output": 275,
+        "total": 11719
+      },
+      "costUsd": 0.0108713,
+      "apiMs": 4452,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "log-records",
+      "wallMs": 11444,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2635,
+        "cacheRead": 22699,
+        "output": 501,
+        "total": 25843
+      },
+      "costUsd": 0.0178359,
+      "apiMs": 10301,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "message-frames",
+      "wallMs": 12795,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3462,
+        "cacheRead": 22542,
+        "output": 852,
+        "total": 26864
+      },
+      "costUsd": 0.0246382,
+      "apiMs": 11592,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Length truncated to u16 while the limit still allows 256 KiB messages"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Length truncated to u16 while the limit still allows 256 KiB messages",
+            "quote": "out.extend_from_slice(&(message.len() as u16).to_be_bytes());",
+            "scenario": "A 70,000-byte message passes the MAX_MESSAGE_BYTES check (262144). `as u16` truncates the length to 4464, so the header is wrong. The decoder then returns a 4464-byte message and treats the remaining bytes as the start of the next frame. This corrupts the stream silently.",
+            "whyNotPrevented": "MAX_MESSAGE_BYTES in src/limits.rs is still 256 * 1024. The only oversize test uses MAX_MESSAGE_BYTES + 1, and no test covers a message between 65536 and 262144 bytes.",
+            "basis": "measured",
+            "measuredBy": "Grep MAX_MESSAGE_BYTES: src/limits.rs:2 = 256 * 1024; src/frame.rs:12 checks only against that",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "message-frames",
+      "wallMs": 38480,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2014,
+        "cacheRead": 15796,
+        "output": 741,
+        "total": 18557
+      },
+      "costUsd": 0.0170576,
+      "apiMs": 37566,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Length cast to u16 truncates messages above 65535 bytes, but the size limit is still 256 KiB"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Length cast to u16 truncates messages above 65535 bytes, but the size limit is still 256 KiB",
+            "quote": "out.extend_from_slice(&(message.len() as u16).to_be_bytes());",
+            "scenario": "A 70,000-byte message passes the `> MAX_MESSAGE_BYTES` check (262144). `as u16` writes 70000 mod 65536 = 4464 as the length. The full 70,000 bytes follow. The decoder reads a 4464-byte frame and treats the remaining bytes as the start of the next frame. The stream is corrupted and messages are lost or misparsed, with no error.",
+            "whyNotPrevented": "MAX_MESSAGE_BYTES in src/limits.rs is `256 * 1024`, far above u16::MAX. `as` casts truncate silently. No test covers a message between 65536 and the limit.",
+            "basis": "measured",
+            "measuredBy": "Grep MAX_MESSAGE_BYTES: src/limits.rs:2 `pub const MAX_MESSAGE_BYTES: usize = 256 * 1024;`",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "message-frames",
+      "wallMs": 10813,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2014,
+        "cacheRead": 15796,
+        "output": 765,
+        "total": 18581
+      },
+      "costUsd": 0.0172976,
+      "apiMs": 9652,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Length truncated to u16 while MAX_MESSAGE_BYTES is 256 KiB"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/frame.rs",
+            "line": 15,
+            "category": "correctness",
+            "title": "Length truncated to u16 while MAX_MESSAGE_BYTES is 256 KiB",
+            "quote": "out.extend_from_slice(&(message.len() as u16).to_be_bytes());",
+            "scenario": "A 70,000-byte message passes the MAX_MESSAGE_BYTES check (262144). `as u16` truncates the length to 4464, so the header is wrong. The decoder then returns a truncated frame and treats the remaining bytes as the start of the next frame, which corrupts the stream.",
+            "whyNotPrevented": "The limit in src/limits.rs is still `256 * 1024`. The `as` cast never fails, and no test encodes a message larger than 65535 bytes. The existing TooLarge test uses MAX+1, which is rejected before the cast.",
+            "basis": "measured",
+            "measuredBy": "Grep MAX_MESSAGE_BYTES: src/limits.rs:2 `pub const MAX_MESSAGE_BYTES: usize = 256 * 1024;`, which is above u16::MAX",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "post-fields",
+      "wallMs": 17084,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 1770,
+        "cacheRead": 15479,
+        "output": 612,
+        "total": 17867
+      },
+      "costUsd": 0.0147599,
+      "apiMs": 16223,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Lambdas in loop all capture the last limit, so title and summary are limited to 5000"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Lambdas in loop all capture the last limit, so title and summary are limited to 5000",
+            "quote": "    VALIDATORS[field] = lambda text: len(text) <= limit",
+            "scenario": "The lambda reads `limit` when it is called, not when it is defined. After the loop `limit` is 5000, so all three validators use 5000. A title of 100 characters passes validate(), although the title limit is 80. A summary of 1000 characters passes too.",
+            "whyNotPrevented": "The only new test checks a body of 5001 characters, which fails under any limit. No test checks a title or summary over its limit. The existing test uses short strings.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "post-fields",
+      "wallMs": 12885,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 1768,
+        "cacheRead": 15484,
+        "output": 578,
+        "total": 17836
+      },
+      "costUsd": 0.014412400000000002,
+      "apiMs": 11865,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Lambdas in loop all capture the last limit (late binding)"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Lambdas in loop all capture the last limit (late binding)",
+            "quote": "    VALIDATORS[field] = lambda text: len(text) <= limit",
+            "scenario": "After the loop, `limit` is 5000, so every validator checks against 5000. A title of 200 characters or a summary of 1000 characters now passes validation. Before this change they were rejected at 80 and 280.",
+            "whyNotPrevented": "The only new test checks the body at 5001 characters, which still fails correctly. No test covers the title or summary limits being exceeded.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "post-fields",
+      "wallMs": 9927,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 1770,
+        "cacheRead": 15469,
+        "output": 796,
+        "total": 18041
+      },
+      "costUsd": 0.0165989,
+      "apiMs": 8923,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Lambdas in loop all capture the last limit (5000)"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "tests/test_rules.py",
+          "line": 8,
+          "category": "correctness",
+          "title": "No test that title and summary limits are still enforced"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/posting/rules.py",
+            "line": 9,
+            "category": "correctness",
+            "title": "Lambdas in loop all capture the last limit (5000)",
+            "quote": "    VALIDATORS[field] = lambda text: len(text) <= limit",
+            "scenario": "The lambda reads `limit` when it is called, not when it is defined. After the loop, `limit` is 5000. A title of 200 characters or a summary of 1000 characters therefore passes validation. Before this change, titles were capped at 80 and summaries at 280.",
+            "whyNotPrevented": "The only new test checks the body, whose limit happens to be 5000. No test checks a title or summary over its limit.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "tests/test_rules.py",
+            "line": 8,
+            "category": "correctness",
+            "title": "No test that title and summary limits are still enforced",
+            "quote": "def test_long_body_is_rejected():",
+            "scenario": "A title of 81 characters, or a summary of 281 characters, is accepted and no test fails. This is the regression in the closure bug.",
+            "whyNotPrevented": "The tests cover only a short post and a long body.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-stats",
+      "wallMs": 13010,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2682,
+        "cacheRead": 16519,
+        "output": 556,
+        "total": 19763
+      },
+      "costUsd": 0.0179519,
+      "apiMs": 11948,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "byClient map is never initialized; Record panics"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "byClient map is never initialized; Record panics",
+            "quote": "return &Stats{started: now, byStatus: make(map[int]int)}",
+            "scenario": "Any request through Counted calls Record, which runs s.byClient[client]++ on a nil map and panics with 'assignment to entry in nil map'.",
+            "whyNotPrevented": "New() only makes byStatus. Grep shows no other place that assigns byClient or constructs Stats. The compiler does not catch nil maps.",
+            "basis": "measured",
+            "measuredBy": "Grep \"byClient|Stats\\{\" : byClient is declared at line 16 and used at lines 28, 56, 57. The only constructor, line 20, does not set it.",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-stats",
+      "wallMs": 15135,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2650,
+        "cacheRead": 16519,
+        "output": 548,
+        "total": 19723
+      },
+      "costUsd": 0.0177439,
+      "apiMs": 13998,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so Record panics"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 20,
+            "category": "correctness",
+            "title": "byClient map is never initialized, so Record panics",
+            "quote": "return &Stats{started: now, byStatus: make(map[int]int)}",
+            "scenario": "The first request through Counted calls Record, which runs s.byClient[client]++ on a nil map. That panics with 'assignment to entry in nil map'.",
+            "whyNotPrevented": "New is the only constructor and the diff doesn't add byClient to it. No test covers Record.",
+            "basis": "measured",
+            "measuredBy": "Grep \"Stats\\{|stats\\.New\" found one constructor, stats/stats.go:20, and it only sets started and byStatus",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-stats",
+      "wallMs": 17903,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2634,
+        "cacheRead": 16524,
+        "output": 778,
+        "total": 19942
+      },
+      "costUsd": 0.0199804,
+      "apiMs": 16784,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 61,
+            "category": "correctness",
+            "title": "byClient map is never initialized; Record panics"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "server/server.go",
+          "line": 24,
+          "category": "speculative-guard",
+          "title": "SplitHostPort error fallback for RemoteAddr"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "stats/stats.go",
+            "line": 61,
+            "category": "correctness",
+            "title": "byClient map is never initialized; Record panics",
+            "quote": "s.byClient[client]++",
+            "scenario": "The first request through Counted calls Record, which writes to the nil map byClient. This panics with 'assignment to entry in nil map'.",
+            "whyNotPrevented": "New still builds only byStatus: `return &Stats{started: now, byStatus: make(map[int]int)}`. No test covers Record.",
+            "basis": "measured",
+            "measuredBy": "Grep 'stats.New(' finds only main.go:13, which uses New. The diff does not change New, so byClient stays nil.",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "server/server.go",
+            "line": 24,
+            "category": "speculative-guard",
+            "title": "SplitHostPort error fallback for RemoteAddr",
+            "quote": "return r.RemoteAddr",
+            "scenario": "net/http always sets RemoteAddr as host:port for TCP connections, so the error branch is unlikely to run. It could matter for unix sockets or custom listeners, which this change does not show are used.",
+            "whyNotPrevented": "Nothing in the code shows a non-host:port listener.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "sensor-smoothing",
+      "wallMs": 13586,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 1862,
+        "cacheRead": 9635,
+        "output": 897,
+        "total": 12398
+      },
+      "costUsd": 0.017389500000000002,
+      "apiMs": 12584,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Trailing windows leave out the newest reading"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/readings.rs",
+          "line": 28,
+          "category": "correctness",
+          "title": "Tests cannot detect a wrong window position"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Trailing windows leave out the newest reading",
+            "quote": "(window..values.len())",
+            "scenario": "With 5 readings [20,20,20,20,40] and window 5, the range 5..5 is empty, so trailing_average returns [] and should_open returns false even though the newest reading is 40. With 6 readings the last window is values[1..5], which skips values[5], the newest. The author asked for the last five readings including the newest.",
+            "whyNotPrevented": "The tests use constant readings, so the window position does not change the result. The too-few-readings test only covers len < window, not len == window.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/readings.rs",
+            "line": 28,
+            "category": "correctness",
+            "title": "Tests cannot detect a wrong window position",
+            "quote": "let smoothed = trailing_average(&[21.5; 6], 3);",
+            "scenario": "Constant input gives the same average for any window offset, so the off-by-one passes. No test checks that the newest value affects the result, or that len == window returns one value.",
+            "whyNotPrevented": "No test uses varying values.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "sensor-smoothing",
+      "wallMs": 8502,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 1862,
+        "cacheRead": 9635,
+        "output": 819,
+        "total": 12320
+      },
+      "costUsd": 0.0166095,
+      "apiMs": 7498,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Window range is off by one, so the newest reading is never averaged"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/readings.rs",
+          "line": 29,
+          "category": "correctness",
+          "title": "Tests cannot detect the off-by-one"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Window range is off by one, so the newest reading is never averaged",
+            "quote": "(window..values.len())",
+            "scenario": "With window 5 and exactly 5 readings [20,20,20,20,40], `window..len` is `5..5`, which is empty. `trailing_average` returns an empty Vec, so `should_open` is false. With 6 readings the last window is `values[0..5]`, so the newest reading is left out. The author asked for the last five readings including the newest one.",
+            "whyNotPrevented": "The tests use constant values and only check an empty result for too few readings. None checks which readings fall in a window or that the newest one counts.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/readings.rs",
+            "line": 29,
+            "category": "correctness",
+            "title": "Tests cannot detect the off-by-one",
+            "quote": "let smoothed = trailing_average(&[21.5; 6], 3);",
+            "scenario": "A constant series gives the same averages whichever window positions are used. A test with varying values, such as [1,2,3,4] with window 2 expecting [1.5,2.5,3.5], would fail on the current code.",
+            "whyNotPrevented": "No test uses varying values, and none covers `should_open`.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "sensor-smoothing",
+      "wallMs": 8676,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 1862,
+        "cacheRead": 9635,
+        "output": 577,
+        "total": 12078
+      },
+      "costUsd": 0.0141895,
+      "apiMs": 7612,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Trailing average leaves out the newest reading"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/readings.rs",
+            "line": 14,
+            "category": "correctness",
+            "title": "Trailing average leaves out the newest reading",
+            "quote": "(window..values.len())",
+            "scenario": "With temperatures [20,20,20,20,20,40] and window 5, `end` only reaches 5, so the last window is readings 0..5 and the 40 is never averaged in. should_open stays false (the average is 20) when it should be 24. With exactly 5 readings the range is empty, so the result is empty and the vents never open.",
+            "whyNotPrevented": "The new tests use constant data, which gives the same result whichever window is picked. They also only test a too-short input, not the exact-length case or whether the newest value counts.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-cache",
+      "wallMs": 10005,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3330,
+        "cacheRead": 16822,
+        "output": 452,
+        "total": 20610
+      },
+      "costUsd": 0.0195342,
+      "apiMs": 8981,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-cache",
+      "wallMs": 6780,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3651,
+        "cacheRead": 16822,
+        "output": 536,
+        "total": 21015
+      },
+      "costUsd": 0.0216582,
+      "apiMs": 5672,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-cache",
+      "wallMs": 15082,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3442,
+        "cacheRead": 16827,
+        "output": 410,
+        "total": 20685
+      },
+      "costUsd": 0.019562700000000002,
+      "apiMs": 14004,
+      "turns": 3,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "weekly-digest",
+      "wallMs": 16232,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2018,
+        "cacheRead": 22044,
+        "output": 1406,
+        "total": 25476
+      },
+      "costUsd": 0.024352400000000003,
+      "apiMs": 15014,
+      "turns": 4,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Mutable default argument is shared across calls and grows with every digest"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Mutable default argument is shared across calls and grows with every digest",
+            "quote": "def build_digest(entries, recipients=[]):",
+            "scenario": "build_digest(['a']) and then build_digest(['b']) both use the same default list. The second digest's recipients are [TEAM_INBOX, TEAM_INBOX], and the Digest objects share one list. Every later call adds another copy, so the team inbox gets duplicate mail. The existing test_team_inbox_gets_the_digest asserts == [TEAM_INBOX] and fails if another test has already called build_digest without recipients.",
+            "whyNotPrevented": "No test calls the default path twice in a row and checks recipients. Python does not warn about mutable defaults.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 13,
+            "category": "correctness",
+            "title": "Caller's recipients list is mutated, and the digest aliases it",
+            "quote": "recipients.append(TEAM_INBOX)",
+            "scenario": "send_weekly passes project.watchers(). If that returns a stored list, each weekly run appends TEAM_INBOX to it. The watchers list then accumulates duplicates, and the team inbox gets repeated copies of the digest. Callers who reuse a list for several digests see the same effect.",
+            "whyNotPrevented": "The new test passes a fresh literal list and never checks that the input is left unchanged.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Team inbox is not de-duplicated when a caller already lists it",
+            "quote": "recipients.append(TEAM_INBOX)",
+            "scenario": "If a project's watchers include the team inbox address, the digest lists it twice. The mailer may then send the team inbox two copies.",
+            "whyNotPrevented": "No check or test covers an overlap between the watchers and the team inbox.",
+            "basis": "guessed",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "weekly-digest",
+      "wallMs": 21585,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 1655,
+        "cacheRead": 9640,
+        "output": 761,
+        "total": 12060
+      },
+      "costUsd": 0.015202,
+      "apiMs": 20726,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Mutable default list is shared and the caller's list is mutated"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Mutable default list is shared and the caller's list is mutated",
+            "quote": "def build_digest(entries, recipients=[]):",
+            "scenario": "build_digest(['a']) twice: the shared default list gets TEAM_INBOX appended on each call, so the second digest has recipients [TEAM_INBOX, TEAM_INBOX] and the team inbox gets duplicate mails. Passing project.watchers() also appends TEAM_INBOX to the caller's list, which may be the project's stored watcher list. Each later call or weekly run adds another copy. The existing test test_team_inbox_gets_the_digest asserts [TEAM_INBOX] and fails once any earlier call has used the default.",
+            "whyNotPrevented": "The new test passes a fresh literal list and only one call uses the default, so the shared state is never exercised. No test calls build_digest twice without recipients.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "weekly-digest",
+      "wallMs": 9965,
+      "model": "claude-sonnet-5-5",
+      "tokens": {
+        "input": 4,
+        "cacheCreation": 1652,
+        "cacheRead": 9638,
+        "output": 936,
+        "total": 12230
+      },
+      "costUsd": 0.0169398,
+      "apiMs": 8808,
+      "turns": 2,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Mutable default argument is mutated, so the team inbox piles up across calls"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/notices/digest.py",
+            "line": 12,
+            "category": "correctness",
+            "title": "Mutable default argument is mutated, so the team inbox piles up across calls",
+            "quote": "def build_digest(entries, recipients=[]):",
+            "scenario": "Call build_digest(entries) twice with no recipients. The shared default list gets TEAM_INBOX appended each time, so the second digest has recipients [TEAM_INBOX, TEAM_INBOX] and the team inbox gets duplicate mails. Test order also matters. test_subject_counts_updates calls build_digest(['a']) several times, and that grows the default list. If it runs before test_team_inbox_gets_the_digest, the assertion `recipients == [TEAM_INBOX]` fails.",
+            "whyNotPrevented": "Nothing resets the default list. The only new test passes its own list, so it never exercises the default.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/notices/digest.py",
+            "line": 13,
+            "category": "correctness",
+            "title": "Caller's recipients list is mutated and reused inside the Digest",
+            "quote": "recipients.append(TEAM_INBOX)",
+            "scenario": "send_weekly passes project.watchers(). If that returns a stored list, each weekly run appends TEAM_INBOX to the project's watcher list. The team inbox is then added as a watcher and repeats on every run. Because the Digest shares the same list object, later changes to it also change the digest's recipients.",
+            "whyNotPrevented": "The function neither copies the input nor builds a new list. No test checks that the passed list is left unchanged.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    }
+  ]
+}

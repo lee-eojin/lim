@@ -1,0 +1,16 @@
+{
+  "intent": "Keep every field's length limit in one table and add a 5000-character limit for the body",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": "late-binding closure: each lambda reads the module-level limit when it runs, after the loop has left it at 5000, so title and summary accept up to 5000 characters",
+  "expect": [
+    {
+      "locations": [
+        { "file": "src/posting/rules.py", "lines": [1, 9] }
+      ],
+      "severity": ["P1", "P2"],
+      "mentions": ["late binding", "late-binding", "binds late", "bound late", "closure", "closures", "captures the variable", "captures the loop variable", "captured loop variable", "captures limit", "capture limit", "loop variable", "the last limit", "last value", "final value", "last iteration", "final iteration", "after the loop", "all validators", "every validator", "every lambda", "all lambdas", "all the lambdas", "each lambda", "same limit", "5000 for every", "5000 for all", "limit=limit", "default argument", "functools.partial", "partial(", "title limit", "summary limit", "80-character", "80 character", "280-character", "280 character", "up to 5000", "5000 characters", "5000-character", "at call time", "when called", "when it is called", "evaluated when"]
+    }
+  ],
+  "forbid": []
+}

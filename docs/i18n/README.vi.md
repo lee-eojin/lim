@@ -232,6 +232,8 @@ Mặc định, reviewer chạy bằng model mà session của bạn đang dùng.
 
 Bảng ở trên là cơ sở cho model mặc định của reviewer. Trên bộ khó hơn, Opus tìm được 30 trên 30 và không có P1 hoặc P2 sai, Sonnet tìm được 29 trên 30 và cũng không có P1 hoặc P2 sai, với chi phí khoảng 37% của Opus, còn Haiku tìm được 30 trên 30 với 3 P1 hoặc P2 sai trong 18 lần chạy sạch. Vì vậy mặc định vẫn là model của session, và Sonnet là lựa chọn rẻ hơn khi bạn muốn reviewer chạy trên một model khác với model đã viết thay đổi.
 
+[`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/) có 6 bug được cài sẵn bằng Python, Rust và Go cùng 2 thay đổi sạch. Với 3 lần chạy mỗi trường hợp, Opus và Sonnet tìm được 18 trên 18 còn Haiku 16 trên 18, và không model nào có P1 hoặc P2 sai trong 6 lần chạy sạch; [review-loop README](../../plugins/review-loop/README.md#measured-behavior) có chi tiết.
+
 <details>
 <summary>Chi phí</summary>
 

@@ -1,0 +1,7 @@
+[project]
+name = "sessions"
+version = "0.9.1"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

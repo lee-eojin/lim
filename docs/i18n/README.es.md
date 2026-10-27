@@ -232,6 +232,8 @@ Por defecto, el revisor usa el modelo de tu sesión. Opus encontró todos los bu
 
 La tabla de arriba es la base del modelo por defecto del revisor. En el conjunto difícil, Opus encontró 30 de 30 sin P1 o P2 falsos, Sonnet encontró 29 de 30 sin ninguno por cerca del 37% del costo de Opus, y Haiku encontró 30 de 30 con 3 P1 o P2 falsos en 18 ejecuciones limpias. Por eso el valor por defecto sigue siendo el modelo de la sesión, y Sonnet es la opción más barata cuando quieres que el revisor use un modelo distinto del que escribió el cambio.
 
+[`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/) tiene 6 bugs sembrados en Python, Rust y Go y 2 cambios limpios. Con 3 ejecuciones por caso, Opus y Sonnet encontraron 18 de 18 y Haiku 16 de 18, sin ningún P1 o P2 falso en 6 ejecuciones limpias para ninguno de ellos; el [review-loop README](../../plugins/review-loop/README.md#measured-behavior) tiene los detalles.
+
 <details>
 <summary>Costo</summary>
 

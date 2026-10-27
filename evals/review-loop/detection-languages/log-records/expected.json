@@ -1,0 +1,10 @@
+{
+  "intent": "Append a one-byte checksum to each journal record so replay stops at a record with a corrupted byte. The journal has not shipped, so there are no records in the old format",
+  "root": "repo",
+  "diff": "change.diff",
+  "seeded": null,
+  "expect": [],
+  "forbid": [
+    { "severity": ["P1", "P2"] }
+  ]
+}

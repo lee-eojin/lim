@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Internal: A detection set in Python, Rust, and Go: with 3 runs per case, Opus and Sonnet found 18 of 18 seeded bugs and Haiku 16 of 18, with no false P1 or P2 on the clean changes. (#126)
+
 ## 0.11.1 (2026-10-27)
 
 - Changed: An unattended run need not show each round report as it goes; it ends with `loop summary`, which lists every round. Headless sessions never showed them, and nobody reads them during the run. (#123)
