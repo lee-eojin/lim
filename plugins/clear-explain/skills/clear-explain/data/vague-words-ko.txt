@@ -19,7 +19,7 @@
 등등 => list every item, or say the list is open
 (?<=\S )등(?=(?:[이을를은는의에도만과와]|으로|에서|에게|까지|부터|처럼|보다|이나|이다|이고|이며|입니다)?(?![가-힣])) => a closed list names every item; an open list says so
 (?<=\s)및(?=\s) => write both items with 와/과, or say both
-내지 => write 또는, or a range (from A to B)
+(?<![가-힣])내지(?![가-힣]) => write 또는, or a range (from A to B)
 기본적으로 => remove, or name the exception
 일반적으로 => remove, or name the exception
 사실상 => remove, or say it exactly
@@ -32,7 +32,8 @@
 (?:적인|하는) 부분 => name the thing directly
 것 같(?:다|아요|습니다|은데|네요) => state certainty: measured, inferred, or unknown
 수도 있을 것 같 => keep one hedge, with its reason
-수 있(?:다|습니다|어요|는|고|으며|으면|을) => pick one meaning: ability, possibility, or permission
+수도 있(?!을 것 같) => for a possibility, write the condition and the result
+(?:다|라)고 할 수 있 => write ~이다
 에 있어서 => write ~에서 or ~할 때
 에 의해(?:서)? => make the actor the subject; for a means, write ~으로
 필요로 (?:[하-핳]|[해-햏]) => write ~이 필요하다

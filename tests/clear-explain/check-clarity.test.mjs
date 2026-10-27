@@ -42,6 +42,12 @@ test('Korean vague words are found with their line numbers', () => {
   assert.deepEqual(found.map((finding) => [finding.line, finding.match]), [[2, '처리한'], [2, '해당'], [3, '적절히']]);
 });
 
+test('내지 counts only as its own word and ~수 있다 only when it means a possibility', () => {
+  const text = '배열에서 값을 꺼내지 않는다.\n2 내지 3초가 걸린다.\n이 함수는 배열을 받을 수 있다.\n설정을 바꾸면 값이 사라질 수도 있다.\nvar와 다르게 동작한다고 할 수 있습니다.\n';
+  const found = findingsOf(text, 'vague-word');
+  assert.deepEqual(found.map((finding) => [finding.line, finding.match]), [[2, '내지'], [4, '수도 있'], [5, '다고 할 수 있']]);
+});
+
 test('code and URLs are not checked for vague words', () => {
   const text = 'Call `handle()` to start.\n\n```js\nsimply.handle(etc);\n```\n\nSee https://example.com/simply-handle for details.\n';
   assert.deepEqual(findingsOf(text), []);

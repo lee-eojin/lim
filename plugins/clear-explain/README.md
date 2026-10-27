@@ -103,8 +103,8 @@ Each cell is with clear-explain / without. The first column is 0.1.0. The second
 | Judge picked it, second pass (order swapped) | 9 / 3 | 8 / 4 | 8 / 4 |
 | Judge picked it in both orders | 7 / 0 | 6 / 3 | 6 / 1 |
 | Order decided the pick | 5 | 3 | 5 |
-| Script findings per 1,000 characters (mean) | 1.34 / 2.90 | 0.89 / 3.02 | 0.76 / 3.05 |
-| Script findings per 1,000 characters, Korean | 2.10 / 4.52 | 1.60 / 4.92 | 1.06 / 4.39 |
+| Script findings per 1,000 characters (mean) | 0.47 / 2.01 | 0.49 / 2.37 | 0.40 / 2.48 |
+| Script findings per 1,000 characters, Korean | 0.36 / 2.75 | 0.79 / 3.63 | 0.34 / 3.25 |
 | Script findings per 1,000 characters, English | 0.58 / 1.27 | 0.18 / 1.11 | 0.46 / 1.71 |
 | Long sentences (total) | 2 / 3 | 1 / 2 | 4 / 1 |
 | Opens with a prose paragraph (script) | 12 / 7 | 12 / 9 | 12 / 8 |
@@ -120,10 +120,10 @@ In 0.1.0 the judge preferred the skill's answer in both orders for 7 of 12 quest
 **What changed and what it did.** In 0.1.0, three of the five split questions lost a pass to the opening sentence or to extra setup: the event loop opened with "the way the runtime works", `key` opened with a name-tag metaphor, and the `await` answer defined Promise, a word from the question. The closure answer lost a pass to "its own copy" right after saying a closure keeps the variable, not a copy, and the event loop answer said JavaScript runs "one line at a time", which the swapped pass called a loose simplification. The current SKILL.md asks for an opening that names what the thing does or the reason for a "why" question, definitions where a term first appears and none for terms the question uses only as context, both sides of a comparison in one example, no word for two things, simplifications that stay true, and, in Korean, a named action instead of 처리하다, 반영하다, or 관리하다. The event loop and `key` questions then won in both orders, and the Korean broad verbs went from 3 and 4 findings in the earlier runs to 0. Both-order wins did not go up overall: closures and `await` still split, and in the passes the skill lost the judge preferred the baseline's extra material: the classic `var` and `let` loop case for closures, and timeline diagrams for `await`; and the CORS answer lost both passes to a Spring class name that does not exist (`CorsConfigurer`), a factual error the change did not touch.
 
 How far to trust it:
-- **A rerun moves these numbers by one to three questions.** The same SKILL.md, run again, went from 7 to 6 both-order wins and from 0 to 3 for the baseline. Both-order wins staying at 6 is no change. The drop in Korean findings from 1.60 to 1.06 is about the size of the rerun's own drop (2.10 to 1.60), so the mean alone does not prove it; the findings by rule do, because the drop is the broad verbs the change names.
+- **A rerun moves these numbers by one to three questions.** The same SKILL.md, run again, went from 7 to 6 both-order wins and from 0 to 3 for the baseline. Both-order wins staying at 6 is no change. Korean findings went from 0.79 in the rerun to 0.34 after, but 0.1.0 already had 0.36, so the mean alone does not prove the change; the findings by rule do, because the drop is the broad verbs the change names.
 - **Answer order decided 3 to 5 of the 12 judge results in each run.** In 0.1.0's first pass the random draw showed the skill's answer second in 10 of the 12 questions, and the judge picked the second answer 10 times. Only picks that held in both orders count for the skill. All picks come from one judge model; another judge could weigh the answers differently.
 - **One run per arm.** A second run of the same question can give a different answer. The numbers show a direction, not a size.
-- **The script numbers do not depend on order**, but the script measures form, not whether an answer is right or useful. In Korean, ~할 수 있다 is counted in every use, including ability, which English "can" is not; it is most of what is left of the Korean findings.
+- **The script numbers do not depend on order**, but the script measures form, not whether an answer is right or useful. All three runs are scored with the current checker, which counts 내지 only as its own word and ~수 있다 only in its possibility form ~수도 있다 and in the filler ~다고 할 수 있다, as the skill's own rule and English "can" are treated (#108); the earlier checker counted every ~수 있다, so its Korean numbers were higher.
 - Korean answers with the skill lost passes for mixing English terms into Korean in the rerun (event loop, isolation levels, `unknown`). That is the skill's rule for official English names, and it was not changed.
 
 The script numbers above come from the current `check-clarity.mjs` (`--rescore` on the stored answers).

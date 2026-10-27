@@ -18,7 +18,7 @@
     "with": {
       "answered": 12,
       "skillInvoked": 12,
-      "issuesPer1000": 0.89,
+      "issuesPer1000": 0.49,
       "longSentences": 1,
       "mustFix": 0,
       "characters": 1487.75,
@@ -30,7 +30,7 @@
     "without": {
       "answered": 12,
       "skillInvoked": 0,
-      "issuesPer1000": 3.02,
+      "issuesPer1000": 2.37,
       "longSentences": 2,
       "mustFix": 3,
       "characters": 1264.25,
@@ -79,7 +79,7 @@
       "with": {
         "answered": 6,
         "skillInvoked": 6,
-        "issuesPer1000": 1.6,
+        "issuesPer1000": 0.79,
         "longSentences": 1,
         "mustFix": 0,
         "characters": 1115.5,
@@ -91,7 +91,7 @@
       "without": {
         "answered": 6,
         "skillInvoked": 0,
-        "issuesPer1000": 4.92,
+        "issuesPer1000": 3.63,
         "longSentences": 0,
         "mustFix": 3,
         "characters": 892.33,
@@ -951,8 +951,8 @@
           "answer": "**event loop**는 JavaScript 런타임이 반복하는 동작이에요. call stack이 비면, event loop는 기다리던 작업을 하나 꺼내 call stack에 올려 실행해요. JavaScript는 스레드 하나로 코드를 실행해요. 그래서 비동기 콜백이 언제 실행될지는 event loop가 정해요.\n\n## 용어\n\n- **call stack**: 지금 실행 중인 함수들을 쌓아 두는 구조예요. 가장 위에 있는 함수가 먼저 끝나요.\n- **task queue**: task가 실행 차례를 기다리는 queue예요. `setTimeout` 콜백과 클릭 이벤트 핸들러가 task에 속해요.\n- **microtask queue**: microtask가 기다리는 queue예요. `Promise`의 `then` 콜백과 `queueMicrotask` 콜백이 microtask에 속해요.\n\n## event loop가 한 바퀴 도는 순서\n\n1. call stack에 있는 코드를 끝까지 실행해요.\n2. call stack이 비면 microtask queue에 있는 microtask를 **모두** 실행해요. microtask를 실행하다가 새 microtask가 추가되면, event loop는 그것도 이번 단계에서 실행해요.\n3. 브라우저라면 이 시점에 화면을 다시 그릴 수 있어요.\n4. task queue에서 task를 **하나만** 꺼내 실행해요.\n5. 2번으로 돌아가요.\n\n타이머는 JavaScript 엔진이 아니라 브라우저나 Node.js가 관리해요. `setTimeout`에 정한 시간이 지나면, 브라우저나 Node.js가 콜백을 task queue에 넣어요. 그러니 `setTimeout(fn, 0)`도 바로 실행되지 않아요. call stack과 microtask queue가 모두 비어야 `fn`이 실행돼요.\n\n## 예시\n\n```js\nconsole.log('1');\nsetTimeout(() => console.log('2'), 0);\nPromise.resolve().then(() => console.log('3'));\nconsole.log('4');\n```\n\n출력 순서는 `1`, `4`, `3`, `2`예요.\n\n1. `1`과 `4`는 call stack에서 바로 실행돼요.\n2. call stack이 비면 microtask인 `then` 콜백이 실행돼서 `3`이 출력돼요.\n3. 마지막으로 task인 `setTimeout` 콜백이 실행돼서 `2`가 출력돼요.\n\n| 종류 | 예 | 한 번에 실행하는 양 |\n|---|---|---|\n| task | `setTimeout`, `setInterval`, 이벤트 핸들러 | 한 바퀴에 하나 |\n| microtask | `Promise.then`, `await` 다음 코드, `queueMicrotask` | queue가 빌 때까지 전부 |\n\nNode.js의 event loop는 단계(phase)가 더 세분화돼 있어요. 그래도 task 하나가 끝날 때마다 microtask부터 모두 실행한다는 규칙은 같아요.",
           "score": {
             "characters": 1214,
-            "issues": 2,
-            "issuesPer1000": 1.65,
+            "issues": 1,
+            "issuesPer1000": 0.82,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": true
@@ -976,8 +976,8 @@
           "answer": "# 자바스크립트 이벤트 루프 (Event Loop)\n\n자바스크립트는 **싱글 스레드**라서 한 번에 하나의 작업만 실행합니다. 그런데도 타이머, 네트워크 요청, 클릭 이벤트 같은 비동기 작업을 막힘 없이 처리할 수 있는 이유가 **이벤트 루프** 덕분입니다.\n\n## 구성 요소\n\n| 구성 요소 | 역할 |\n|---|---|\n| **콜 스택 (Call Stack)** | 지금 실행 중인 함수들이 쌓이는 곳 |\n| **Web API / 런타임 API** | `setTimeout`, `fetch`, DOM 이벤트처럼 오래 걸리는 작업을 브라우저나 Node.js가 대신 처리 |\n| **매크로태스크 큐 (Task Queue)** | `setTimeout`, `setInterval`, I/O, UI 이벤트 콜백이 대기하는 곳 |\n| **마이크로태스크 큐 (Microtask Queue)** | `Promise.then`, `await` 이후 코드, `queueMicrotask`가 대기하는 곳 |\n\n## 동작 순서\n\n1. 콜 스택의 동기 코드를 끝까지 실행합니다.\n2. 콜 스택이 비면 **마이크로태스크 큐를 전부** 비웁니다. 실행 도중 새로 추가된 마이크로태스크도 여기서 함께 처리합니다.\n3. (브라우저라면) 필요할 때 화면을 렌더링합니다.\n4. 매크로태스크 큐에서 **하나만** 꺼내 실행합니다.\n5. 2번으로 돌아가 계속 반복합니다. 이 반복이 \"루프\"입니다.\n\n## 예제\n\n```js\nconsole.log('1');\n\nsetTimeout(() => console.log('2'), 0);\n\nPromise.resolve().then(() => console.log('3'));\n\nconsole.log('4');\n```\n\n**출력:** `1 → 4 → 3 → 2`\n\n- `1`, `4`: 동기 코드라서 바로 실행됩니다.\n- `3`: Promise 콜백은 마이크로태스크라서, 동기 코드가 끝나자마자 실행됩니다.\n- `2`: `setTimeout`은 지연이 0ms여도 매크로태스크라서 마이크로태스크보다 나중에 실행됩니다.\n\n## 알아두면 좋은 점\n\n- **`setTimeout(fn, 0)`은 \"즉시\"가 아니라** \"현재 작업과 마이크로태스크가 모두 끝난 뒤\"에 실행된다는 뜻입니다.\n- **콜 스택을 오래 점유하면** (무거운 반복문 등) 이벤트 루프가 멈춥니다. 그동안 클릭이나 렌더링도 처리되지 않아 화면이 굳습니다.\n- **마이크로태스크를 계속 만들어내면** 매크로태스크와 렌더링이 영원히 밀릴 수 있습니다.\n- `async/await`는 Promise 위에서 동작합니다. 그래서 `await` 다음 줄은 마이크로태스크로 실행됩니다.\n\n한 문장으로 정리하면, 이벤트 루프는 **\"콜 스택이 비면 큐에서 다음 작업을 꺼내 실행하는 과정을 끝없이 반복하는 메커니즘\"**입니다.",
           "score": {
             "characters": 1072,
-            "issues": 6,
-            "issuesPer1000": 5.6,
+            "issues": 4,
+            "issuesPer1000": 3.73,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": false
@@ -1086,8 +1086,8 @@
           "answer": "`useMemo`는 함수를 실행한 **결과값**을 캐시하고, `useCallback`은 **함수 자체**를 캐시해요. 둘 다 dependency array의 값이 바뀌지 않으면 다음 렌더링에서 이전 것을 그대로 돌려줘요.\n\nmemoization은 계산 결과를 저장해 두고, 입력이 같으면 다시 계산하지 않고 저장한 결과를 쓰는 기법이에요. dependency array는 Hook의 두 번째 인자로 넘기는 배열이에요. React는 이 배열의 각 값을 이전 렌더링 때의 값과 `Object.is`로 비교해요.\n\n```jsx\n// useMemo: filterTodos를 실행하고, 그 반환값(배열)을 캐시해요\nconst visibleTodos = useMemo(\n  () => filterTodos(todos, tab),\n  [todos, tab]\n);\n\n// useCallback: handleSubmit 함수를 실행하지 않고, 함수 자체를 캐시해요\nconst handleSubmit = useCallback(\n  (orderDetails) => post('/buy', { productId, orderDetails }),\n  [productId]\n);\n```\n\nReact 공식 문서에 따르면 `useCallback(fn, deps)`는 `useMemo(() => fn, deps)`와 같아요. `useCallback`은 함수를 캐시하는 경우만 짧게 쓰도록 만든 Hook이에요.\n\n| | `useMemo` | `useCallback` |\n|---|---|---|\n| 캐시하는 것 | 함수를 실행한 결과값 | 함수 자체 |\n| 첫 번째 인자를 실행하나 | 렌더링 중에 실행해요 | 실행하지 않아요 |\n| 주로 쓰는 경우 | 비용이 큰 계산을 건너뛸 때 | `memo`로 감싼 자식 컴포넌트에 함수를 props로 넘길 때 |\n| 공통점 | dependency array의 값이 같으면 이전 것을 돌려줘요 | 같음 |\n\n`useCallback`이 필요한 이유는 이래요. 컴포넌트 안에서 선언한 함수는 렌더링할 때마다 새로 만들어져요. 그러면 `memo`로 감싼 자식 컴포넌트는 props가 바뀌었다고 판단해서 다시 렌더링해요. `useCallback`으로 함수를 캐시하면 자식 컴포넌트는 같은 함수를 받아요. 그래서 자식 컴포넌트의 리렌더링을 건너뛸 수 있어요.\n\n두 Hook 모두 성능 최적화용이라서, 느린 부분을 확인한 뒤에 쓰는 게 좋아요. 프로젝트에서 React Compiler를 쓴다면 컴파일러가 memoization을 자동으로 넣어 줘요. 그런 경우에는 두 Hook을 직접 쓸 일이 줄어들어요.",
           "score": {
             "characters": 852,
-            "issues": 2,
-            "issuesPer1000": 2.35,
+            "issues": 1,
+            "issuesPer1000": 1.17,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": true
@@ -1221,8 +1221,8 @@
           "answer": "격리 수준(isolation level)은 **데이터 정확성**과 **동시 처리 성능**을 상황에 맞게 맞바꾸기 위해 필요합니다. 트랜잭션을 완전히 격리하면 결과는 정확하지만, 데이터베이스가 트랜잭션을 기다리게 하는 일이 많아져 처리량이 떨어집니다. 그래서 데이터베이스는 격리 정도를 여러 단계로 나누고, 개발자가 단계를 고르게 합니다.\n\n## 용어\n\n- **transaction**: 여러 쿼리를 하나의 작업 단위로 묶은 것입니다. 묶인 쿼리는 모두 반영되거나, 하나도 반영되지 않습니다.\n- **isolation**: 동시에 실행되는 transaction이 서로의 중간 결과를 보지 못하게 하는 성질입니다. ACID의 I에 해당합니다.\n- **isolation level**: transaction끼리 얼마나 격리할지 정한 단계입니다. SQL 표준은 네 단계를 정의합니다.\n\n## 격리가 약할 때 생기는 문제\n\n여러 transaction이 같은 행을 동시에 읽고 쓰면 아래 세 가지 이상 현상(anomaly)이 생길 수 있습니다.\n\n1. **Dirty Read**: 다른 transaction이 아직 commit하지 않은 값을 읽습니다. 그 transaction이 rollback하면, 존재한 적 없는 값을 읽은 셈이 됩니다.\n2. **Non-Repeatable Read**: 같은 행을 두 번 읽었는데 값이 다릅니다. 두 번의 읽기 사이에 다른 transaction이 그 행을 수정하고 commit했기 때문입니다.\n3. **Phantom Read**: 같은 조건으로 두 번 조회했는데 행의 개수가 다릅니다. 두 번의 조회 사이에 다른 transaction이 행을 추가하거나 삭제했기 때문입니다.\n\n## 예시\n\n계좌 잔액이 10,000원인 상황입니다.\n\n1. transaction A가 잔액을 5,000원으로 바꿉니다. 아직 commit하지 않았습니다.\n2. transaction B가 잔액을 읽고 5,000원을 얻습니다. (Dirty Read)\n3. transaction A가 rollback합니다. 실제 잔액은 다시 10,000원입니다.\n4. transaction B는 5,000원을 기준으로 계산을 계속합니다. 결과가 틀립니다.\n\n## 네 가지 isolation level\n\n| isolation level | Dirty Read | Non-Repeatable Read | Phantom Read | 동시 처리 성능 |\n|---|---|---|---|---|\n| Read Uncommitted | 생김 | 생김 | 생김 | 가장 높음 |\n| Read Committed | 막음 | 생김 | 생김 | 높음 |\n| Repeatable Read | 막음 | 막음 | 생김 | 중간 |\n| Serializable | 막음 | 막음 | 막음 | 가장 낮음 |\n\n이 표는 SQL 표준의 정의를 따릅니다. 실제 동작은 데이터베이스마다 다릅니다. 예를 들어 MySQL InnoDB의 Repeatable Read는 MVCC(Multi-Version Concurrency Control)와 next-key lock을 사용해서 Phantom Read의 대부분을 막습니다. 기본값도 데이터베이스마다 다릅니다. PostgreSQL과 Oracle의 기본값은 Read Committed이고, MySQL의 기본값은 Repeatable Read입니다.\n\n## 왜 항상 Serializable을 쓰지 않는가\n\nSerializable은 모든 transaction을 하나씩 순서대로 실행한 것과 같은 결과를 보장합니다. 이 결과를 보장하려고 데이터베이스는 lock을 더 오래 잡거나, 충돌한 transaction을 실패시키고 다시 실행하게 합니다. 그래서 동시 요청이 많은 서비스에서는 대기 시간과 재시도가 늘어납니다.\n\n대부분의 작업은 Read Committed나 Repeatable Read로 충분합니다. 송금이나 재고 차감처럼 틀린 값이 치명적인 작업에서만 더 높은 isolation level을 쓰거나 명시적으로 lock을 겁니다(`SELECT ... FOR UPDATE`).",
           "score": {
             "characters": 1904,
-            "issues": 4,
-            "issuesPer1000": 2.1,
+            "issues": 3,
+            "issuesPer1000": 1.58,
             "longSentences": 1,
             "mustFix": 0,
             "opensWithAnswer": true
@@ -1246,8 +1246,8 @@
           "answer": "## 왜 필요한가\n\n여러 트랜잭션이 같은 데이터를 **동시에** 읽고 쓰면 데이터가 꼬일 수 있습니다. 모든 트랜잭션을 한 줄로 세워서 하나씩 실행하면(완전 직렬화) 안전하지만, 대신 동시 처리 성능이 크게 떨어집니다.\n\n격리 수준은 **정합성과 동시성 성능 중 어느 쪽에 더 비중을 둘지 고르는 설정**입니다. 데이터 이상 현상을 얼마나 허용하고, 그 대가로 성능을 얼마나 얻을지 애플리케이션 상황에 맞게 정할 수 있습니다.\n\n## 막으려는 이상 현상\n\n| 현상 | 설명 | 예시 |\n|---|---|---|\n| **Dirty Read** | 다른 트랜잭션이 아직 커밋하지 않은 데이터를 읽음 | A가 잔액을 0으로 바꿈 → B가 0을 읽음 → A 롤백 → B는 존재한 적 없는 값을 사용함 |\n| **Non-Repeatable Read** | 같은 행을 두 번 읽었는데 값이 다름 | B가 잔액 100을 읽음 → A가 50으로 수정 후 커밋 → B가 다시 읽으니 50 |\n| **Phantom Read** | 같은 조건으로 두 번 조회했는데 행 개수가 다름 | B가 `WHERE age > 20`으로 조회해 3건 → A가 1건 INSERT 후 커밋 → B가 다시 조회하니 4건 |\n\n## 격리 수준별 허용 범위 (SQL 표준)\n\n| 격리 수준 | Dirty Read | Non-Repeatable Read | Phantom Read | 성능 |\n|---|---|---|---|---|\n| READ UNCOMMITTED | 발생 | 발생 | 발생 | 가장 빠름 |\n| READ COMMITTED | 방지 | 발생 | 발생 | |\n| REPEATABLE READ | 방지 | 방지 | 발생 | |\n| SERIALIZABLE | 방지 | 방지 | 방지 | 가장 느림 |\n\n수준이 높을수록 락을 더 많이 잡거나 스냅샷을 더 오래 유지해야 합니다. 그래서 대기, 데드락, 충돌로 인한 재시도가 늘어납니다.\n\n## 실무 포인트\n\n- **기본값이 DB마다 다릅니다.** PostgreSQL과 Oracle은 READ COMMITTED, MySQL InnoDB는 REPEATABLE READ가 기본입니다.\n- **MVCC 덕분에 표준표와 다르게 동작하기도 합니다.** 예를 들어 InnoDB는 REPEATABLE READ에서도 일반 SELECT의 팬텀은 스냅샷으로, 잠금 읽기의 팬텀은 갭 락으로 대부분 막습니다.\n- **표에 없는 이상 현상도 있습니다.** Lost Update나 Write Skew는 REPEATABLE READ나 Snapshot Isolation에서도 생길 수 있습니다. 그래서 재고 차감이나 잔액 처리 같은 로직에서는 `SELECT ... FOR UPDATE`, 낙관적 락(버전 컬럼), SERIALIZABLE을 상황에 맞게 함께 써야 합니다.\n\n**한 줄 요약:** 동시성 문제를 모두 막으면 느려지고, 막지 않으면 데이터가 틀어집니다. 격리 수준은 그 사이에서 필요한 만큼만 보호를 고를 수 있게 해 줍니다.",
           "score": {
             "characters": 1372,
-            "issues": 4,
-            "issuesPer1000": 2.92,
+            "issues": 1,
+            "issuesPer1000": 0.73,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": false
@@ -1356,8 +1356,8 @@
           "answer": "두 type 모두 어떤 값이든 담을 수 있어요. 차이는 그 값을 꺼내 쓸 때 생겨요. `any`를 쓰면 TypeScript가 type checking을 하지 않아서 어떤 연산이든 통과해요. `unknown`을 쓰면 TypeScript가 type을 확인하기 전까지 속성 접근, 함수 호출, 다른 타입 변수에 대입하는 것을 막아요.\n\nType narrowing은 `typeof`나 `instanceof` 같은 검사로 TypeScript가 값의 타입을 더 구체적인 타입으로 좁히는 기능이에요. `unknown` 값을 쓰려면 먼저 type narrowing을 해야 해요.\n\n```ts\nconst a: any = JSON.parse('\"hello\"');\na.toFixed(2);        // 컴파일 통과, 실행하면 TypeError\n\nconst u: unknown = JSON.parse('\"hello\"');\nu.toFixed(2);        // 컴파일 에러: 'u' is of type 'unknown'\n\nif (typeof u === \"string\") {\n  u.toUpperCase();   // 통과: 여기서 u는 string\n}\n```\n\n| 항목 | `any` | `unknown` |\n|---|---|---|\n| 모든 값을 대입할 수 있음 | 예 | 예 |\n| 속성 접근, 메서드 호출 | 검사 없이 허용 | type narrowing 후에만 허용 |\n| 다른 타입 변수에 대입 | 어떤 타입이든 허용 | `any`, `unknown`에만 허용 |\n| 타입 에러가 드러나는 때 | 실행할 때 | 컴파일할 때 |\n\n`any`는 에러를 실행 시점까지 숨기고, 그 값을 받은 다른 변수까지 type checking에서 빠지게 해요. 그래서 타입을 미리 알 수 없는 값에는 `unknown`을 쓰는 편이 안전해요. `JSON.parse` 결과, API 응답, `catch` 블록의 에러 같은 값이 여기에 해당해요. `strict` 모드에서는 `catch (e)`의 `e`가 기본으로 `unknown`이에요.",
           "score": {
             "characters": 666,
-            "issues": 1,
-            "issuesPer1000": 1.5,
+            "issues": 0,
+            "issuesPer1000": 0,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": true
@@ -1381,8 +1381,8 @@
           "answer": "둘 다 \"아무 값이나 담을 수 있는\" 최상위 타입이지만, **값을 꺼내 쓸 때** 차이가 납니다.\n\n## `any`: 타입 검사를 끔\n```ts\nlet a: any = \"hello\";\na.foo.bar();      // ✅ 컴파일 OK → 런타임 에러\na = 123;\nlet n: number = a; // ✅ 아무 타입에나 대입 가능\n```\n- 어떤 연산이든 허용됩니다. 사실상 TypeScript를 끄는 셈입니다.\n- 다른 변수에 대입하면 `any`가 퍼져서 타입 안전성이 사라집니다.\n\n## `unknown`: 안전한 any\n```ts\nlet u: unknown = \"hello\";\nu.toUpperCase();   // ❌ 에러: 'u' is of type 'unknown'\nlet s: string = u; // ❌ 에러: unknown은 any/unknown에만 대입 가능\n\nif (typeof u === \"string\") {\n  u.toUpperCase(); // ✅ 타입 좁히기 후에는 OK\n}\n```\n- 무엇이든 **대입받을 수는** 있습니다.\n- 하지만 **사용하려면** `typeof`, `instanceof`, 사용자 정의 타입 가드 등으로 타입을 먼저 좁혀야 합니다.\n\n## 요약\n\n| | `any` | `unknown` |\n|---|---|---|\n| 아무 값이나 대입받기 | ✅ | ✅ |\n| 다른 타입에 대입하기 | ✅ | ❌ (`any`, `unknown`에만 가능) |\n| 속성 접근, 호출 | ✅ (검사 안 함) | ❌ (좁히기 필요) |\n| 타입 안전성 | 없음 | 있음 |\n\n## 언제 쓰나\n- **`unknown`**: 외부 입력(`JSON.parse` 결과, API 응답, `catch (e)`의 에러 등)처럼 타입을 모르는 값을 받을 때 씁니다. 기본적으로 이쪽을 권장합니다.\n- **`any`**: JS 코드를 점진적으로 마이그레이션할 때나, 타입 표현이 정말 어려운 예외적인 경우에만 씁니다.\n\n참고로 `strict` 모드(`useUnknownInCatchVariables`)에서는 `catch (e)`의 `e`가 기본적으로 `unknown`이 됩니다.",
           "score": {
             "characters": 596,
-            "issues": 6,
-            "issuesPer1000": 10.07,
+            "issues": 5,
+            "issuesPer1000": 8.39,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": true
@@ -1626,8 +1626,8 @@
           "answer": "key는 React가 리렌더링 전후의 리스트 항목을 서로 맞춰 보는 데 쓰는 이름표예요. key가 있으면 React는 어떤 항목이 그대로 있고, 어떤 항목이 추가되거나 삭제되거나 옮겨졌는지 정확히 알 수 있어요. 그래서 필요한 DOM만 바꾸고, 각 항목의 state도 올바른 항목에 남겨요.\n\n## React가 key를 쓰는 방식\n\nreconciliation은 React가 이전 렌더링 결과와 새 렌더링 결과를 비교해서, 실제 DOM에서 바꿀 부분을 정하는 과정이에요. 리스트를 비교할 때 React는 다음 순서로 항목을 맞춰요.\n\n1. key가 있으면 React는 같은 key를 가진 항목끼리 같은 항목으로 봐요.\n2. key가 없으면 React는 배열 index를 key로 써요. 첫 번째는 첫 번째끼리, 두 번째는 두 번째끼리 같은 항목으로 봐요.\n3. React는 같은 항목으로 본 컴포넌트의 DOM과 state를 그대로 다시 써요.\n\n문제는 2번에서 생겨요. 리스트 맨 앞에 항목을 하나 넣으면 모든 항목의 index가 1씩 밀려요. React는 index만 보니까 모든 항목이 내용만 바뀐 걸로 판단해요. 그 결과 React가 DOM을 불필요하게 많이 바꾸고, state가 엉뚱한 항목에 붙어요.\n\n## 예시: state가 다른 항목으로 옮겨 가는 경우\n\n```jsx\nfunction TodoItem({ text }) {\n  const [memo, setMemo] = useState('');\n  return (\n    <li>\n      {text} <input value={memo} onChange={e => setMemo(e.target.value)} />\n    </li>\n  );\n}\n\n// key로 index를 쓴 경우\n{todos.map((todo, i) => <TodoItem key={i} text={todo.text} />)}\n```\n\n1. `todos`가 `['우유 사기']`이고, 사용자가 input에 `2개`라고 입력해요.\n2. 맨 앞에 `'빵 사기'`를 추가해서 `todos`가 `['빵 사기', '우유 사기']`가 돼요.\n3. React는 key `0`인 항목을 같은 항목으로 봐요. 그래서 `memo` state `2개`가 `'빵 사기'` 옆에 표시돼요.\n\n`key={todo.id}`처럼 데이터 고유의 값을 쓰면 React는 `'우유 사기'`의 컴포넌트를 그대로 옮기고, `'빵 사기'`의 컴포넌트를 새로 만들어요. `2개`는 `'우유 사기'` 옆에 남아요.\n\n## 좋은 key의 조건\n\nkey에는 두 가지 조건이 있어요.\n\n- **형제 사이에서 고유해야 해요.** 같은 리스트 안에서만 겹치지 않으면 돼요. 앱 전체에서 고유할 필요는 없어요.\n- **렌더링마다 같은 항목에 같은 값이 붙어야 해요.** 그래서 `key={Math.random()}`은 쓰면 안 돼요. 렌더링할 때마다 key가 바뀌니까 React가 모든 항목을 지우고 새로 만들고, state도 매번 초기화돼요.\n\nindex를 key로 써도 되는 경우도 있어요. 리스트 순서가 바뀌지 않고, 중간에 항목을 넣거나 빼지 않고, 항목에 state가 없을 때예요. 그 외에는 DB의 id처럼 데이터에 원래 있는 값을 key로 쓰세요.",
           "score": {
             "characters": 1194,
-            "issues": 1,
-            "issuesPer1000": 0.84,
+            "issues": 0,
+            "issuesPer1000": 0,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": true
@@ -1651,8 +1651,8 @@
           "answer": "React가 리스트의 **각 항목을 렌더링 사이에서 구별하려고** 쓰는 게 key예요.\n\n## 왜 필요한가\n\n상태가 바뀌면 React는 이전 가상 DOM과 새 가상 DOM을 비교(reconciliation)해서 바뀐 부분만 실제 DOM에 반영해요. 리스트에서는 \"이전의 이 항목이 새 리스트의 어느 항목과 같은 것인지\" 알아야 하는데, 그 판단 기준이 key예요.\n\n- **key가 있으면** 같은 key끼리 매칭해요. 항목이 추가\u00b7삭제\u00b7재정렬돼도 해당 항목만 옮기거나 만들거나 지워요.\n- **key가 없으면** 순서(index)로만 비교해요. 앞에 항목 하나만 끼워 넣어도 뒤의 항목이 전부 \"내용이 바뀐 것\"으로 처리돼요.\n\n## 실제로 생기는 문제\n\n성능보다 더 큰 문제는 **상태가 엉뚱한 항목에 붙는 버그**예요.\n\n```jsx\n// ❌ index를 key로 쓴 경우\n{todos.map((todo, i) => (\n  <li key={i}>\n    {todo.text} <input />\n  </li>\n))}\n```\n\n첫 번째 `<input>`에 글자를 입력한 뒤 리스트 맨 앞에 새 todo를 추가해 볼게요. 입력한 글자는 새로 추가된 항목 옆에 남아요. React가 보기엔 `key=0`인 컴포넌트가 그대로 있고 텍스트만 바뀐 것이기 때문이에요. input 값, 포커스, 컴포넌트 내부 `useState`, 애니메이션 상태 모두 이렇게 꼬일 수 있어요.\n\n```jsx\n// ✅ 고유하고 안정적인 id 사용\n{todos.map(todo => (\n  <li key={todo.id}>\n    {todo.text} <input />\n  </li>\n))}\n```\n\n## key 규칙\n\n1. **형제 항목 사이에서 고유해야 해요.** 전역으로 고유할 필요는 없어요.\n2. **렌더링마다 같은 항목에는 같은 key가 나와야 해요.** `key={Math.random()}`이나 `key={crypto.randomUUID()}`를 렌더 중에 만들면 매번 전부 언마운트되고 새로 마운트돼요. 성능 손해에 상태 초기화까지 생겨요.\n3. **index를 key로 써도 되는 경우:** 리스트가 정적이고, 재정렬\u00b7삽입\u00b7삭제가 없고, 항목에 상태가 없을 때만이에요.\n4. key는 props로 전달되지 않아요. 자식에서 `props.key`로 읽을 수 없으니 필요하면 `id`처럼 따로 넘겨야 해요.\n\n## 덤: key로 컴포넌트 리셋하기\n\nkey가 바뀌면 React는 그걸 다른 컴포넌트로 보고 새로 마운트해요. 이걸 이용하면 리스트가 아니어도 상태를 초기화할 수 있어요.\n\n```jsx\n<ProfileForm key={userId} userId={userId} />\n// userId가 바뀌면 폼 내부 상태가 깨끗하게 초기화됨\n```\n\n**정리하면** key는 \"이 항목이 누구인지\"를 알려주는 신분증이에요. 데이터의 고유 id를 쓰는 게 정석이에요.",
           "score": {
             "characters": 992,
-            "issues": 8,
-            "issuesPer1000": 8.06,
+            "issues": 6,
+            "issuesPer1000": 6.05,
             "longSentences": 0,
             "mustFix": 2,
             "opensWithAnswer": true
@@ -1756,5 +1756,6 @@
       "tokens": 63424,
       "wallSeconds": 63
     }
-  }
+  },
+  "rescoredAt": "2026-10-27T06:33:57.756Z"
 }
