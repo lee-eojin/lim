@@ -18,7 +18,7 @@
     "with": {
       "answered": 12,
       "skillInvoked": 12,
-      "issuesPer1000": 0.76,
+      "issuesPer1000": 0.4,
       "longSentences": 4,
       "mustFix": 0,
       "characters": 1358.5,
@@ -30,7 +30,7 @@
     "without": {
       "answered": 12,
       "skillInvoked": 0,
-      "issuesPer1000": 3.05,
+      "issuesPer1000": 2.48,
       "longSentences": 1,
       "mustFix": 4,
       "characters": 1322.25,
@@ -79,7 +79,7 @@
       "with": {
         "answered": 6,
         "skillInvoked": 6,
-        "issuesPer1000": 1.06,
+        "issuesPer1000": 0.34,
         "longSentences": 1,
         "mustFix": 0,
         "characters": 1031.5,
@@ -91,7 +91,7 @@
       "without": {
         "answered": 6,
         "skillInvoked": 0,
-        "issuesPer1000": 4.39,
+        "issuesPer1000": 3.25,
         "longSentences": 0,
         "mustFix": 4,
         "characters": 973,
@@ -976,8 +976,8 @@
           "answer": "## 자바스크립트 이벤트 루프 (Event Loop)\n\n자바스크립트는 **싱글 스레드**라서 한 번에 한 작업만 실행할 수 있어요. 그래도 타이머, 네트워크 요청, 클릭 이벤트 같은 비동기 작업을 막힘 없이 처리할 수 있는데, 이걸 가능하게 하는 장치가 **이벤트 루프**입니다.\n\n### 구성 요소\n\n1. **콜 스택 (Call Stack)**: 지금 실행 중인 함수들이 쌓이는 곳이에요. 동기 코드는 여기서 순서대로 실행돼요.\n2. **Web APIs / 런타임 API**: 브라우저나 Node.js가 제공하는 기능이에요(`setTimeout`, `fetch`, DOM 이벤트 등). 비동기 작업은 여기서 처리돼요.\n3. **태스크 큐 (Macrotask Queue)**: `setTimeout`, `setInterval`, I/O, UI 이벤트의 콜백이 실행을 기다리는 곳이에요.\n4. **마이크로태스크 큐 (Microtask Queue)**: `Promise.then/catch/finally`, `queueMicrotask`, `MutationObserver`, `await` 이후 코드가 들어가요. **태스크 큐보다 우선순위가 높아요.**\n\n### 동작 순서\n\n```\n1. 콜 스택의 동기 코드를 모두 실행\n2. 콜 스택이 비면 → 마이크로태스크 큐를 \"전부\" 비움\n3. (브라우저라면 필요할 때 렌더링)\n4. 태스크 큐에서 \"하나\"를 꺼내 실행\n5. 2번으로 돌아가 반복\n```\n\n이 반복을 계속 수행하는 것이 이벤트 루프예요.\n\n### 예제\n\n```js\nconsole.log('1');\n\nsetTimeout(() => console.log('2'), 0);\n\nPromise.resolve().then(() => console.log('3'));\n\nconsole.log('4');\n```\n\n**출력:** `1 → 4 → 3 → 2`\n\n- `1`, `4`: 동기 코드라서 바로 실행돼요.\n- `3`: Promise 콜백은 마이크로태스크라서 동기 코드가 끝난 직후에 실행돼요.\n- `2`: `setTimeout`은 지연 시간이 0이어도 매크로태스크라서 가장 나중에 실행돼요.\n\n### 알아두면 좋은 점\n\n- **`setTimeout(fn, 0)`은 \"즉시\"가 아니에요.** \"현재 작업과 마이크로태스크가 모두 끝난 뒤\"라는 뜻이에요.\n- **콜 스택을 오래 붙잡으면 안 돼요.** 무거운 동기 연산이 있으면 클릭이나 렌더링이 멈춰서 화면이 버벅여요.\n- **마이크로태스크가 계속 새 마이크로태스크를 만들면** 태스크 큐와 렌더링이 영원히 실행되지 못할 수 있어요(starvation).\n- **Node.js**는 libuv 기반이라 페이즈가 더 세분화돼 있어요(timers → poll → check 등). `process.nextTick`은 Promise보다도 먼저 실행돼요.\n\n궁금한 부분(예: `async/await`의 실행 순서, Node.js 페이즈)을 더 자세히 설명해 드릴 수도 있어요.",
           "score": {
             "characters": 993,
-            "issues": 9,
-            "issuesPer1000": 9.06,
+            "issues": 7,
+            "issuesPer1000": 7.05,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": false
@@ -1086,8 +1086,8 @@
           "answer": "`useMemo`는 함수를 실행한 **결과값**을 저장하고, `useCallback`은 **함수 자체**를 저장해요. 둘 다 의존성 배열의 값이 바뀌지 않으면 React가 이전 렌더링 때 저장한 것을 그대로 돌려줘요.\n\n의존성 배열은 Hook의 두 번째 인자로 넘기는 배열이에요. 이 배열 안의 값이 하나라도 바뀌면 React가 저장한 것을 버리고 새로 만들어요.\n\n```jsx\nfunction ProductList({ products, onSelect }) {\n  // useMemo: 정렬 함수를 실행하고, 그 결과인 배열을 저장\n  const sorted = useMemo(\n    () => products.toSorted((a, b) => a.price - b.price),\n    [products]\n  );\n\n  // useCallback: 함수를 실행하지 않고, 함수 자체를 저장\n  const handleClick = useCallback(\n    (id) => onSelect(id),\n    [onSelect]\n  );\n\n  return <Items items={sorted} onClick={handleClick} />;\n}\n```\n\n- `sorted`에는 정렬된 **배열**이 들어가요. `products`가 같으면 React가 정렬을 다시 실행하지 않아요.\n- `handleClick`에는 **함수**가 들어가요. `onSelect`가 같으면 React가 렌더링마다 같은 함수 객체를 돌려줘요.\n\n사실 `useCallback`은 `useMemo`로 똑같이 쓸 수 있어요. 아래 두 줄은 같은 결과를 내요.\n\n```jsx\nuseCallback(fn, deps)\nuseMemo(() => fn, deps)\n```\n\n| | `useMemo` | `useCallback` |\n|---|---|---|\n| 저장하는 것 | 함수를 실행한 결과값 | 함수 자체 |\n| 첫 번째 인자를 실행하나요? | 실행해요 | 실행하지 않아요 |\n| 주로 쓰는 경우 | 계산 비용이 큰 값 (정렬, 필터링 등) | `React.memo`로 감싼 자식 컴포넌트에 넘기는 함수, 다른 Hook의 의존성 배열에 들어가는 함수 |\n\n`useCallback`이 효과를 내는 경우는 따로 있어요. 함수를 받는 쪽이 이전 함수와 같은 객체인지 비교할 때만 의미가 있어요. `React.memo`는 props가 바뀌었는지 비교해서 리렌더링을 건너뛰는 함수예요. `React.memo`를 쓰지 않은 자식에게 넘기면 자식은 어차피 다시 렌더링돼요. 그래서 이때 `useCallback`은 효과가 없어요.\n\nReact Compiler를 쓰는 프로젝트라면 컴파일러가 이 저장을 자동으로 넣어줘요. 그래서 두 Hook을 직접 쓸 일이 크게 줄어요.",
           "score": {
             "characters": 778,
-            "issues": 2,
-            "issuesPer1000": 2.57,
+            "issues": 1,
+            "issuesPer1000": 1.29,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": true
@@ -1111,8 +1111,8 @@
           "answer": "## 핵심 차이\n\n| | `useMemo` | `useCallback` |\n|---|---|---|\n| 기억하는 것 | 함수를 **실행한 결과값** | **함수 자체** |\n| 반환값 | 계산된 값 | 메모이제이션된 함수 |\n\n```jsx\nconst value = useMemo(() => computeExpensive(a, b), [a, b]);  // 결과값을 저장\nconst fn    = useCallback(() => doSomething(a, b), [a, b]);   // 함수를 저장\n```\n\n사실 `useCallback`은 `useMemo`의 축약형입니다.\n\n```jsx\nuseCallback(fn, deps)  ===  useMemo(() => fn, deps)\n```\n\n## 언제 쓰나\n\n**useMemo**\n- 계산 비용이 큰 연산을 렌더링할 때마다 다시 하지 않으려 할 때 (예: 큰 배열 필터링\u00b7정렬)\n- 객체나 배열의 참조를 유지해야 할 때 (예: `useEffect` 의존성이나 자식 props로 넘기는 경우)\n\n```jsx\nconst sorted = useMemo(() => items.slice().sort(compare), [items]);\n```\n\n**useCallback**\n- `React.memo`로 감싼 자식에게 콜백을 넘길 때. 이렇게 하면 불필요한 리렌더를 막을 수 있습니다.\n- 함수가 `useEffect`나 다른 훅의 의존성 배열에 들어갈 때\n\n```jsx\nconst handleClick = useCallback((id) => {\n  setSelected(id);\n}, []);\n\n<MemoizedChild onClick={handleClick} />\n```\n\n## 주의할 점\n\n- **무조건 쓰는 건 오히려 손해입니다.** 메모이제이션 자체에도 비용(의존성 비교, 메모리)이 들어서, 가벼운 계산이나 memo되지 않은 자식에게 넘기는 함수에는 효과가 거의 없습니다.\n- **의존성 배열을 정확히 써야 합니다.** 빠뜨리면 오래된 값(stale closure)을 참조하는 버그가 생깁니다.\n- **React Compiler**를 쓰는 프로젝트라면 컴파일러가 메모이제이션을 자동으로 해주기 때문에 직접 쓸 일이 크게 줄어듭니다.\n\n**한 줄 요약:** 값을 기억하려면 `useMemo`, 함수를 기억하려면 `useCallback`을 쓰면 됩니다.",
           "score": {
             "characters": 631,
-            "issues": 2,
-            "issuesPer1000": 3.17,
+            "issues": 1,
+            "issuesPer1000": 1.58,
             "longSentences": 0,
             "mustFix": 1,
             "opensWithAnswer": false
@@ -1221,8 +1221,8 @@
           "answer": "트랜잭션 격리 수준(isolation level)은 동시에 실행되는 트랜잭션들이 서로의 데이터를 얼마나 볼 수 있는지 정하는 설정입니다. 이 설정이 필요한 이유는 정확성과 속도를 동시에 최대로 얻을 수 없기 때문입니다. 트랜잭션을 완전히 격리하면 데이터는 항상 정확하지만, 트랜잭션들이 차례를 기다려야 해서 느려집니다. 격리를 약하게 하면 트랜잭션들이 동시에 실행되어 빠르지만, 다른 트랜잭션이 바꾸는 중인 데이터를 읽는 문제가 생깁니다. 격리 수준은 애플리케이션이 이 둘 중 어디까지 양보할지 고르는 값입니다.\n\n## 격리가 약할 때 생기는 문제\n\n격리가 약하면 다음 세 가지 이상 현상(anomaly)이 생길 수 있습니다.\n\n| 이상 현상 | 뜻 |\n|---|---|\n| Dirty Read | 다른 트랜잭션이 아직 commit하지 않은 값을 읽습니다. |\n| Non-Repeatable Read | 같은 행을 두 번 읽었는데, 그 사이에 다른 트랜잭션이 commit해서 값이 다릅니다. |\n| Phantom Read | 같은 조건으로 두 번 조회했는데, 그 사이에 다른 트랜잭션이 행을 추가하거나 삭제해서 결과 행의 개수가 다릅니다. |\n\n예를 들어 계좌 잔액이 10,000원이라고 해 봅시다.\n\n1. 트랜잭션 A가 잔액을 0원으로 바꾸고, 아직 commit하지 않습니다.\n2. 트랜잭션 B가 잔액을 읽습니다. 격리 수준이 Read Uncommitted이면 B는 0원을 읽습니다.\n3. A가 rollback합니다. 실제 잔액은 다시 10,000원입니다.\n4. B는 존재한 적이 없는 0원을 기준으로 다음 작업을 합니다. 이것이 Dirty Read입니다.\n\n## 격리 수준별로 막는 현상\n\nSQL 표준은 네 가지 격리 수준을 정의합니다. 아래로 갈수록 막는 이상 현상이 많아지고, 동시에 실행할 수 있는 트랜잭션은 줄어듭니다.\n\n| 격리 수준 | Dirty Read | Non-Repeatable Read | Phantom Read |\n|---|---|---|---|\n| Read Uncommitted | 생김 | 생김 | 생김 |\n| Read Committed | 막음 | 생김 | 생김 |\n| Repeatable Read | 막음 | 막음 | 생김 |\n| Serializable | 막음 | 막음 | 막음 |\n\n이 표는 SQL 표준 기준입니다. 실제 동작은 데이터베이스마다 다릅니다. 예를 들어 MySQL InnoDB의 Repeatable Read는 대부분의 Phantom Read도 막습니다. 데이터베이스는 lock이나 MVCC로 격리를 구현합니다. MVCC(Multi-Version Concurrency Control)는 한 행의 여러 버전을 보관해서, 각 트랜잭션이 자기 시작 시점의 버전을 읽게 하는 방식입니다.\n\n## 수준을 고르는 기준\n\n- 송금이나 재고 차감처럼 값이 한 번만 틀려도 문제가 되는 작업에는 높은 격리 수준(Repeatable Read 또는 Serializable)을 씁니다.\n- 게시글 조회수처럼 값이 잠깐 어긋나도 괜찮은 작업에는 낮은 수준(Read Committed)을 써서 동시 실행 성능을 얻습니다.\n\n기본값은 데이터베이스마다 다릅니다. PostgreSQL과 Oracle의 기본값은 Read Committed이고, MySQL InnoDB의 기본값은 Repeatable Read입니다.",
           "score": {
             "characters": 1601,
-            "issues": 3,
-            "issuesPer1000": 1.87,
+            "issues": 0,
+            "issuesPer1000": 0,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": true
@@ -1381,8 +1381,8 @@
           "answer": "둘 다 \"어떤 값이든 담을 수 있는\" 타입이에요. 차이는 **값을 꺼내 쓸 때** 생겨요.\n\n## `any`: 타입 검사를 끔\n\n```ts\nlet a: any = \"hello\";\na.foo.bar();      // ✅ 컴파일 OK → 런타임 에러\na.toFixed(2);     // ✅ 컴파일 OK → 런타임 에러\nlet n: number = a; // ✅ 아무 타입에나 대입 가능\n```\n\n- 어떤 연산이든 허용돼요. 컴파일러가 검사를 하지 않아요.\n- 다른 타입 변수에도 자유롭게 대입돼서 타입 안전성이 **전염되듯 무너져요.**\n\n## `unknown`: 타입 안전한 any\n\n```ts\nlet u: unknown = \"hello\";\nu.toUpperCase();    // ❌ 에러: 'u' is of type 'unknown'\nlet s: string = u;  // ❌ 에러: unknown은 any/unknown에만 대입 가능\n\nif (typeof u === \"string\") {\n  u.toUpperCase();  // ✅ 좁힌 후에는 OK\n}\n```\n\n- 무엇이든 **대입받을 수는** 있어요.\n- **사용하려면** 먼저 타입을 좁혀야 해요. 방법은 `typeof`, `instanceof`, 타입 가드, 단언(`as`) 등이 있어요.\n\n## 요약\n\n| | `any` | `unknown` |\n|---|---|---|\n| 모든 값을 대입받을 수 있나 | ✅ | ✅ |\n| 다른 타입에 대입할 수 있나 | ✅ | ❌ (`any`/`unknown`만 가능) |\n| 속성 접근\u00b7호출 | ✅ (검사 안 함) | ❌ (좁히기 필요) |\n| 타입 안전성 | 없음 | 있음 |\n\n## 언제 뭘 쓰나\n\n- **`unknown`을 기본으로 쓰세요.** 외부 API 응답, `JSON.parse` 결과, `catch (e)`의 에러처럼 타입을 모르는 값에 적합해요. 참고로 `strict` 모드에서는 `catch`의 `e`가 기본적으로 `unknown`이에요.\n- **`any`는 탈출구로만 쓰세요.** JS 코드를 점진적으로 마이그레이션하거나, 타입 표현이 너무 복잡할 때 임시로 쓰는 용도예요.\n\n```ts\nfunction parse(json: string): unknown {\n  return JSON.parse(json);\n}\n\nconst data = parse('{\"name\":\"Kim\"}');\nif (typeof data === \"object\" && data !== null && \"name\" in data) {\n  console.log(data.name); // 안전하게 접근\n}\n```\n\n한 줄로 정리하면 `any`는 \"검사하지 마\", `unknown`은 \"모르니까 확인하고 써\"예요.",
           "score": {
             "characters": 636,
-            "issues": 4,
-            "issuesPer1000": 6.29,
+            "issues": 3,
+            "issuesPer1000": 4.72,
             "longSentences": 0,
             "mustFix": 1,
             "opensWithAnswer": true
@@ -1491,8 +1491,8 @@
           "answer": "**401은 서버가 요청한 사람이 누구인지 확인하지 못했을 때 보내는 응답입니다. 403은 서버가 누구인지는 확인했지만 그 사람에게 권한이 없을 때 보내는 응답입니다.**\n\n두 코드는 서로 다른 단계에서 실패한 것을 뜻합니다.\n\n- authentication(인증)은 서버가 요청한 사람이 누구인지 확인하는 단계입니다. 401은 이 단계에서 실패했다는 뜻입니다.\n- authorization(인가)은 확인된 사람이 이 리소스에 접근해도 되는지 판단하는 단계입니다. 403은 이 단계에서 실패했다는 뜻입니다.\n\n401의 공식 이름은 `Unauthorized`이지만, 실제 의미는 인증 실패입니다. 이름과 의미가 어긋나서 두 코드를 자주 헷갈립니다.\n\n## 예시\n\n관리자만 쓸 수 있는 `DELETE /users/42` API가 있다고 가정합니다.\n\n| 상황 | 응답 | 클라이언트가 할 일 |\n|---|---|---|\n| `Authorization` 헤더 없이 요청함 | 401 | 로그인한 뒤 다시 요청 |\n| 토큰이 만료됐거나 잘못됨 | 401 | 토큰을 갱신하거나 다시 로그인 |\n| 일반 사용자의 유효한 토큰으로 요청함 | 403 | 다시 로그인해도 결과가 같음. 관리자 권한이 필요함 |\n\n```http\nHTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer realm=\"api\"\n```\n\n```http\nHTTP/1.1 403 Forbidden\n```\n\n## 함께 알아 둘 점\n\n- RFC 9110에 따르면 서버는 401 응답에 `WWW-Authenticate` 헤더를 넣어야 합니다. 이 헤더는 클라이언트에게 어떤 방식으로 인증해야 하는지 알려 줍니다. 403 응답에는 이 헤더가 필요하지 않습니다.\n- 프론트엔드에서는 보통 401을 받으면 로그인 페이지로 보내거나 토큰을 갱신합니다. 403을 받으면 권한이 없다는 안내를 보여 줍니다.\n- 어떤 서버는 403 대신 404를 보냅니다. 리소스가 있다는 사실 자체를 숨기려는 목적입니다. RFC 9110도 이 방식을 허용합니다.",
           "score": {
             "characters": 831,
-            "issues": 1,
-            "issuesPer1000": 1.2,
+            "issues": 0,
+            "issuesPer1000": 0,
             "longSentences": 0,
             "mustFix": 0,
             "opensWithAnswer": true
@@ -1651,8 +1651,8 @@
           "answer": "React가 리스트의 **각 항목을 렌더링이 바뀌어도 같은 항목으로 알아보게 하려면** key가 필요합니다.\n\n## 1. 재조정(Reconciliation)에서 항목을 짝짓는 기준\n\nstate가 바뀌면 React는 이전 가상 DOM 트리와 새 트리를 비교해서 바뀐 부분만 실제 DOM에 반영합니다. 그런데 리스트는 항목이 추가\u00b7삭제되거나 순서가 바뀔 수 있습니다. 이때 이전 리스트의 어느 항목이 새 리스트의 어느 항목과 같은지 판단하는 기준이 key입니다.\n\n- **key가 있으면**: \"id=3인 항목이 2번째에서 0번째로 옮겨졌네\" → DOM 노드를 **옮기기만** 합니다.\n- **key가 없으면**: 위치(index)끼리 비교합니다 → \"0번째 내용이 바뀌었네, 1번째도 바뀌었네…\" → 여러 항목을 **불필요하게 갱신하거나 다시 만듭니다**.\n\n## 2. 성능보다 더 중요한 것: state가 엉뚱한 항목에 붙는 문제\n\nkey는 성능 문제에서 끝나지 않고 **버그로 이어지기도 합니다**. React는 컴포넌트의 state와 DOM(input 값, 포커스 등)을 key 기준으로 유지하기 때문입니다.\n\n```jsx\n// ❌ index를 key로 쓰는 경우\n{todos.map((todo, i) => (\n  <li key={i}>\n    {todo.text} <input />\n  </li>\n))}\n```\n\n맨 앞에 새 todo를 추가하면 데이터는 한 칸씩 밀립니다. 하지만 key(0, 1, 2…)는 그대로이므로 React는 같은 컴포넌트라고 보고 **기존 `<input>`에 입력한 값을 그 자리에 남겨 둡니다.** 결과적으로 입력값이 다른 todo 옆에 표시됩니다.\n\n```jsx\n// ✅ 고유하고 안정적인 id 사용\n{todos.map(todo => (\n  <li key={todo.id}>\n    {todo.text} <input />\n  </li>\n))}\n```\n\n## 좋은 key의 조건\n\n| 조건 | 설명 |\n|---|---|\n| **형제 사이에서 고유** | 같은 리스트 안에서만 겹치지 않으면 됩니다 (전역으로 고유할 필요는 없음) |\n| **안정적** | 렌더링할 때마다 바뀌면 안 됩니다 → `key={Math.random()}`는 매번 컴포넌트를 버리고 새로 만들어서 최악입니다 |\n| **데이터에서 유래** | DB id, 고유한 slug 등 |\n\n**index를 key로 써도 괜찮은 경우**: 리스트가 정적이고, 순서가 바뀌거나 중간에 추가\u00b7삭제되는 일이 없고, 항목에 state가 없을 때. 이 경우에는 문제가 생기지 않습니다. (key를 아예 안 주면 React가 내부적으로 index를 쓰고 콘솔에 경고를 띄웁니다.)\n\n## 덤: key로 컴포넌트를 일부러 초기화하기\n\nkey가 바뀌면 React는 다른 컴포넌트로 보고 기존 것을 언마운트한 뒤 새로 마운트합니다. 이 성질을 이용해 state를 리셋할 수 있습니다.\n\n```jsx\n<Profile key={userId} userId={userId} />  // userId가 바뀌면 Profile의 state가 깨끗하게 초기화됨\n```\n\n**정리하면** key는 React가 렌더링이 바뀌어도 같은 항목을 알아보게 해 주는 ID입니다. 그래서 불필요한 DOM 작업을 줄여 주고, state가 엉뚱한 항목에 붙는 버그도 막아 줍니다.",
           "score": {
             "characters": 1217,
-            "issues": 8,
-            "issuesPer1000": 6.57,
+            "issues": 6,
+            "issuesPer1000": 4.93,
             "longSentences": 0,
             "mustFix": 2,
             "opensWithAnswer": true
@@ -1756,5 +1756,6 @@
       "tokens": 64451,
       "wallSeconds": 68
     }
-  }
+  },
+  "rescoredAt": "2026-10-27T06:33:57.822Z"
 }

@@ -11,7 +11,7 @@ Read this when the explanation is in Korean. The rules are in English; the Korea
 | No double passive | 결정되어진다 -> 결정된다, 보여진다 -> 보인다 |
 | Condition first | dependency array가 비어 있으면, React는 Effect를 마운트 직후에 한 번만 실행한다 |
 | At most two 의 in a row (STE's three-noun limit) | 사용자의 주문의 결제의 상태 -> 사용자가 주문한 결제의 상태 |
-| ~할 수 있다 carries one meaning: ability, possibility, or permission | 설정 파일을 바꾸면 기존 설정이 영향을 받을 수 있다 -> 설정 파일을 바꾸면 기존 설정이 삭제된다 |
+| ~할 수 있다 means ability; write a possibility as the condition and the result (the checker reports only ~수도 있다, so a possibility written as ~할 수 있다 is yours to catch) | 설정 파일을 바꾸면 기존 설정이 영향을 받을 수 있다 -> 설정 파일을 바꾸면 기존 설정이 삭제된다 |
 | One negation | ~하지 않으면 안 된다 -> ~해야 한다 |
 | One relative clause layer; say how far a modifier reaches | Split two stacked 관형절 into two sentences |
 | One register per answer | Do not mix 합니다 and 해요 endings |
