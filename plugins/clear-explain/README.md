@@ -91,7 +91,7 @@ Fenced code blocks (a fence with at most three spaces before it, or any indentat
 
 ## Measured
 
-[`behaviors.csv`](../../evals/clear-explain/behaviors.csv) lists 45 behaviors. Unit tests in CI cover 35 of them, all about the check script and the measurement runner. The other 10 are about the answers themselves and need a model run; the runs below score five of them (answer first, and how often the skill starts on its own and when it should not, on the tuning set and on a held-out set) and record the judge's factual-error flag for a sixth.
+[`behaviors.csv`](../../evals/clear-explain/behaviors.csv) lists 50 behaviors. Unit tests in CI cover 40 of them, all about the check script and the measurement runner. The other 10 are about the answers themselves and need a model run; the runs below score five of them (answer first, and how often the skill starts on its own and when it should not, on the tuning set and on a held-out set) and record the judge's factual-error flag for a sixth.
 
 [`evals/clear-explain/run-explain.mjs`](../../evals/clear-explain/run-explain.mjs) asks the 12 questions in [`questions.json`](../../evals/clear-explain/questions.json) (6 English, 6 Korean, developer topics) twice through `claude -p` with no user settings: once with `--plugin-dir plugins/clear-explain` and once without. Answers came from the `opus` model alias, one run per question per arm. The script scores each answer, and a judge on claude-sonnet-5-5 sees both answers in random order, without the plugin name, and picks the one the asker would understand correctly after one read. A second judge pass (`--rejudge`) showed the same judge the same stored answers again, each pair in the opposite order.
 
