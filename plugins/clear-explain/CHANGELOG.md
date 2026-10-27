@@ -4,7 +4,7 @@ All notable changes to clear-explain. Versions follow [Semantic Versioning](http
 
 ## Unreleased
 
-Nothing yet.
+- Changed: Answers open with what the thing does, or with the reason for a "why" question, define terms where they first appear and skip terms from the question, and in Korean name the action instead of 처리하다, 반영하다, or 관리하다. (#102)
 
 ## 0.1.0 (2026-10-25)
 

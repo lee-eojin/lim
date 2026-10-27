@@ -17,10 +17,10 @@ Out of scope: rewriting text that is not an explanation, and translation.
 
 Use only the parts the question needs.
 
-1. **Answer.** Answer the question directly in the first one or two sentences. A reader who stops there still has the main point.
-2. **Definitions.** Define each concept the answer introduces, in one line: `X is a Y that does Z`.
+1. **Answer.** Answer the question directly in the first one or two sentences. A reader who stops there still has the main point. Answer the form of the question: a "why" question gets the reason first, a "what is" question gets what the thing does or why it exists. The first sentence names something concrete, not a vague category ("the way the runtime works") or a metaphor ("a name tag").
+2. **Definitions.** Define each concept the answer introduces, in one line: `X is a Y that does Z`. Put the definition in the sentence where the term first appears, or right after it, not in its own block before the example. Do not define a term the question uses only as context, such as Promise in a question about `Promise.all`; the term the question asks about is what the answer explains.
 3. **How or why.** Numbered steps for a sequence, a paragraph for cause and effect.
-4. **Example.** The smallest piece of code or one concrete situation, with real names and numbers.
+4. **Example.** The smallest piece of code or one concrete situation, with real names and numbers. For a comparison, show both sides in one example so the reader sees the difference in one place.
 5. **Look-alikes.** Only when a similar concept is easy to confuse. Put them side by side in a table.
 
 A one-line question often needs only parts 1 and 4. Do not add parts to fill the shape. Say each thing once: when the answer is itself a definition ("What is X?"), it is the definition of X, so do not define X again.
@@ -31,7 +31,7 @@ Do not end with a numbered menu of related topics. If the user wants more, they 
 
 ## Words
 
-- **One meaning per word, one word per meaning.** Call the same thing by the same word to the end of the answer. If you called it state, it stays state, not value, data, or status. A new word makes the reader think of a new thing.
+- **One meaning per word, one word per meaning.** Call the same thing by the same word to the end of the answer. If you called it state, it stays state, not value, data, or status. A new word makes the reader think of a new thing. The reverse also holds: if the answer says a closure keeps the variable, not a copy, no other sentence calls something a copy.
 - **Concrete over vague.** Replace broad verbs (handle, manage, process, support) with the actual action. Replace degree words (appropriately, fast, a lot) with the criterion or a number when the reader has to act on it.
   - handles the response -> parses the JSON response into an array
   - rendering is slow -> drawing 1,000 rows takes 300 ms
@@ -39,6 +39,7 @@ Do not end with a numbered menu of related topics. If the user wants more, they 
 - **Pointing words point at one thing.** Use this, that, or it only when the previous sentence has one candidate. With two or more, repeat the noun.
 - **Jargon becomes the action.** "hit the API" -> "send a request to the API". "the style doesn't take" -> "the browser does not apply the style".
 - **Plain words.** utilize -> use, in order to -> to, prior to -> before. These are clearer choices, not corrections. A passive verb is not an error.
+- **In Korean,** name the action instead of 처리하다, 반영하다, or 관리하다. Use ~할 수 있다 for ability; for a possibility, write the condition and the result instead (항목을 맨 앞에 추가하면 `input` 값이 다른 항목 옆에 남는다).
 
 Word lists: `references/english-rules.md` and `references/korean-rules.md`.
 
@@ -73,6 +74,7 @@ Word lists: `references/english-rules.md` and `references/korean-rules.md`.
 ## Tone
 
 - **State certainty.** Say how you know: measured (you ran it, or the documentation states it), inferred (you read the code and reasoned), or unknown. State facts plainly. Mark an inference as one and give the reason. Do not stack hedges ("it might possibly seem").
+- **Simplify by leaving out, not by bending.** A simplified sentence stays true. "JavaScript runs one task at a time", not "JavaScript runs one line at a time".
 - **One register.** Keep the formality you started with. In Korean, do not mix 합니다 and 해요 endings in one answer.
 - **No condescending words.** simply, just, obviously, of course, easy, "as everyone knows". If the reader finds it hard, these words only make them feel slow.
 - **At most one analogy.** Say it is an analogy and where it stops matching. An analogy never replaces the definition.
@@ -84,9 +86,9 @@ Word lists: `references/english-rules.md` and `references/korean-rules.md`.
 
 Check the answer against this list and fix what fails.
 
-1. The first one or two sentences answer the question.
-2. Each new concept has a one-line definition.
-3. The same thing has the same word throughout.
+1. The first one or two sentences answer the question in its own form (a reason for "why").
+2. Each new concept has a one-line definition where it first appears. Terms the question uses only as context are not defined.
+3. The same thing has the same word throughout, and no word stands for two things.
 4. No named concept is translated or transliterated.
 5. No broad verb or degree word is left where the reader has to act on it. Every list says its scope.
 6. No sentence is far over the length limit, and no sentence lost its subject.
