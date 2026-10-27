@@ -30,7 +30,7 @@ Forke es, ändere es, mach es zu deinem. Issues und Pull Requests sind willkomme
 
 | Plugin | Status | Eine Aufgabe |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.11.1 | Prüft deine Änderungen vor dem Commit, behebt P1- und P2-Findings, prüft erneut und übergibt den Rest an dich. |
+| [review-loop](../../plugins/review-loop) | 0.11.2 | Prüft deine Änderungen vor dem Commit, behebt P1- und P2-Findings, prüft erneut und übergibt den Rest an dich. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.3 | Erklärt Konzepte, Code und Fehler mit der Antwort zuerst, einer Bedeutung pro Wort und Fachbegriffen unter ihrem offiziellen englischen Namen. |
 | [verify](../../plugins/verify) | 0.4.0 | Beweist durch Ausführen, dass deine Features funktionieren, und speichert Befehle und Ausgabe als Nachweis. |
 
