@@ -4,6 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
+- Changed: Folders named `testdata`, `fixtures`, or `__fixtures__` are not subfolder projects, so a change to a test fixture runs the checks of the project around it instead of the fixture's own build and tests. (#131)
 - Internal: A detection set in Python, Rust, and Go: with 3 runs per case, Opus and Sonnet found 18 of 18 seeded bugs and Haiku 16 of 18, with no false P1 or P2 on the clean changes. (#126)
 
 ## 0.11.1 (2026-10-27)

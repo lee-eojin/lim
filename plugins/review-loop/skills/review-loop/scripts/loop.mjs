@@ -20,7 +20,7 @@ const CHECK_TIMEOUT_MS = Number(process.env.LIM_CHECK_TIMEOUT_MS) || 5 * 60 * 10
 const CHECKS_BUDGET_MS = 9 * 60 * 1000;
 const MAX_PROJECTS = 4;
 const WINDOWS = process.platform === 'win32';
-const SKIPPED_FOLDERS = new Set(['node_modules', '.git', '.venv', 'venv', 'vendor', 'target', 'dist', 'build']);
+const SKIPPED_FOLDERS = new Set(['node_modules', '.git', '.venv', 'venv', 'vendor', 'target', 'dist', 'build', 'testdata', 'fixtures', '__fixtures__']);
 const SEVERITIES = ['P1', 'P2', 'P3', 'P4', 'P5'];
 const BLOCKING = new Set(['P1', 'P2']);
 const EVIDENCE_FIELDS = ['quote', 'scenario', 'whyNotPrevented'];

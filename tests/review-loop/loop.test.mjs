@@ -1426,6 +1426,19 @@ describe('subfolder projects', () => {
     assert.deepEqual(loop(root, ['start']).checks, []);
   });
 
+  test('a change inside a test fixture folder runs the checks of the project around it, not the fixture', () => {
+    const root = createRepository({
+      'web/package.json': passing, 'web/index.js': '',
+      'web/testdata/app/package.json': failing, 'web/testdata/app/index.js': '',
+      'web/fixtures/app/package.json': failing, 'web/fixtures/app/index.js': '',
+      'web/src/__fixtures__/app/package.json': failing, 'web/src/__fixtures__/app/index.js': '',
+    });
+    const changed = ['web/testdata/app/index.js', 'web/fixtures/app/index.js', 'web/src/__fixtures__/app/index.js'];
+    writeFiles(root, Object.fromEntries(changed.map((file) => [file, 'export {};\n'])));
+    assert.deepEqual(changedProjects(root, changed), ['web']);
+    assert.deepEqual(loop(root, ['start']).checks.map((check) => [check.folder, check.exitCode]), [['web', 0]]);
+  });
+
   test('a subfolder project uses the lockfile at the repository root', () => {
     const root = createRepository({ 'pnpm-lock.yaml': '', 'web/package.json': passing });
     assert.deepEqual(detectFolderChecks(root, 'web'), [{ name: 'test', command: ['pnpm', 'run', 'test'], folder: 'web' }]);
