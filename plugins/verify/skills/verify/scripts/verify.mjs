@@ -2,8 +2,8 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-  closeSync, copyFileSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync,
-  utimesSync, writeFileSync,
+  accessSync, closeSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync,
+  rmSync, statSync, utimesSync, writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -165,11 +165,12 @@ function firstBytes(target) {
   }
 }
 
+// A file that cannot be read is not judged here: the check that runs it is not verified instead of the map refused.
 function readFirstBytes(target) {
   try {
-    return { bytes: firstBytes(target) };
-  } catch (error) {
-    return { problem: `which cannot be read (${error.code})` };
+    return firstBytes(target);
+  } catch {
+    return null;
   }
 }
 
@@ -185,8 +186,8 @@ function shebangOf(bytes) {
 // Why an executable is not a script that node or python3 runs with no option, or null when it is or does not exist yet.
 function executableProblem(root, target) {
   if (!existsSync(target)) return null;
-  const { bytes, problem } = readFirstBytes(target);
-  if (problem) return problem;
+  const bytes = readFirstBytes(target);
+  if (!bytes) return null;
   if (isBinary(bytes)) return 'a binary file, not a script that node or python3 runs';
   const { firstLine, interpreter, name } = shebangOf(bytes);
   if (!firstLine.startsWith('#!')) return 'whose first line is not a #! line that runs node or python3';
@@ -205,8 +206,8 @@ function pythonSourceProblem(target) {
   let bytes;
   try {
     bytes = readFileSync(target);
-  } catch (error) {
-    return `which cannot be read (${error.code})`;
+  } catch {
+    return null;
   }
   if (bytes.includes(ZIP_END_RECORD)) return 'a zip archive, not a script that python3 runs';
   return bytes.includes(0) ? 'a binary file, not a script that python3 runs' : null;
@@ -217,10 +218,19 @@ function pythonScriptProblem(root, script) {
   return existsSync(target) ? pythonSourceProblem(target) : null;
 }
 
+// node loads a file whose name, or the name a link resolves to, ends in .node as a compiled addon.
+function nodeScriptProblem(root, script) {
+  const target = path.resolve(root, script);
+  if (!existsSync(target)) return null;
+  if ([target, realpathSync(target)].some((file) => path.extname(file) === '.node')) return 'a compiled addon, not a script that node runs';
+  const bytes = readFirstBytes(target);
+  return bytes && isBinary(bytes) ? 'a binary file, not a script that node runs' : null;
+}
+
 // The interpreter that runs a check's program: the one run names, or the one the executable's #! line names.
 function interpreterOf(root, run) {
   if (INTERPRETERS.includes(run[0])) return run[0];
-  const { bytes } = readFirstBytes(path.resolve(root, run[0]));
+  const bytes = readFirstBytes(path.resolve(root, run[0]));
   return bytes ? shebangOf(bytes).name ?? null : null;
 }
 
@@ -232,7 +242,7 @@ export function runProblem(run, root) {
     if (script === undefined) return `runs ${quote(program)} without a script file`;
     if (script.startsWith('-')) return `gives ${quote(program)} the option ${quote(script)} before the script`;
     if (program === 'node' && script === 'inspect') return 'runs "node inspect", the debugger, instead of a script file';
-    const problem = projectFileProblem(root, script) ?? (program === 'python3' ? pythonScriptProblem(root, script) : null);
+    const problem = projectFileProblem(root, script) ?? (program === 'python3' ? pythonScriptProblem(root, script) : nodeScriptProblem(root, script));
     return problem && `runs ${quote(program)} on ${quote(script)}, ${problem}`;
   }
   if (!program.includes('/')) return `starts ${quote(program)}, a program found on PATH, not a file in the repository`;
@@ -324,18 +334,29 @@ function stdinProbes(entry, root) {
   if (!isObject(entry.stdin) || rootPathProblem(root, entry.stdin.file)) return [];
   const file = path.resolve(root, entry.stdin.file);
   if (!existsSync(file) || !statSync(file).isFile()) return [];
-  const text = cleanOutput(readFileSync(file, 'utf8'));
+  let text;
+  try {
+    text = cleanOutput(readFileSync(file, 'utf8'));
+  } catch {
+    return [];
+  }
   return text ? [['the stdin file text', text]] : [];
 }
 
 // The program can print or copy a file named in run, so an expected text that the file already holds cannot fail.
+// A file that cannot be read gets a problem instead of its text: the check is not verified, not the whole map refused.
 function argumentFiles(root, entry) {
   const realRoot = realpathSync(root);
   const cwd = path.resolve(root, typeof entry.cwd === 'string' ? entry.cwd : '.');
   const targets = new Set(argumentsOf(entry.run).map((argument) => path.resolve(cwd, argument)));
   return [...targets].flatMap((target) => {
     if (!existsSync(target) || !statSync(target).isFile() || insideOf(realRoot, realpathSync(target)) === null) return [];
-    const text = cleanOutput(readFileSync(target, 'utf8'));
+    let text;
+    try {
+      text = cleanOutput(readFileSync(target, 'utf8'));
+    } catch (error) {
+      return [{ problem: `the file ${shownPath(root, target)} named in run cannot be read (${error.code})` }];
+    }
     return text ? [{ label: `the text of the file ${shownPath(root, target)} named in run`, path: rootRelative(root, target), text }] : [];
   });
 }
@@ -394,8 +415,12 @@ function entryProblems(entry, index, root, seen) {
   if (!Number.isInteger(expect.exitCode) || expect.exitCode < 0 || expect.exitCode > 255) {
     problems.push(`${where}.expect.exitCode must be a whole number from 0 to 255`);
   }
-  const inputs = [['the command text itself', runIsList ? entry.run.join(' ') : ''], ...stdinProbes(entry, root)];
-  const named = runIsList ? argumentFiles(root, entry) : [];
+  const inputs = [
+    ['the command text itself', runIsList ? entry.run.join(' ') : ''],
+    ...(runIsList ? entry.run.map((part) => [`the run argument ${quote(part)}`, part]) : []),
+    ...stdinProbes(entry, root),
+  ];
+  const named = runIsList ? argumentFiles(root, entry).filter((file) => !file.problem) : [];
   // A file that a check rewrites and expects is probed just before the run instead, so a second run is not refused.
   const inputsFor = (own) => [...inputs, ...named.filter((file) => file.path !== own).map((file) => [file.label, file.text])];
   for (const stream of ['stdout', 'stderr']) {
@@ -450,7 +475,12 @@ function excerpt(text) {
 
 function fileState(target) {
   if (!existsSync(target) || !statSync(target).isFile()) return { exists: false };
-  const content = readFileSync(target);
+  let content;
+  try {
+    content = readFileSync(target);
+  } catch {
+    return { exists: true, hash: 'unreadable', content: Buffer.alloc(0) };
+  }
   return { exists: true, hash: createHash('sha1').update(content).digest('hex'), content };
 }
 
@@ -479,12 +509,24 @@ const isFile = (target) => {
   }
 };
 
-// Windows starts a bare program name from the working folder before PATH, so there a node.exe or git.exe in the
-// repository would run instead of the installed one. The name is looked up on PATH alone, with the extensions spawn starts.
+const isExecutable = (target) => {
+  try {
+    accessSync(target, constants.X_OK);
+    return statSync(target).isFile();
+  } catch {
+    return false;
+  }
+};
+
+const absolutePathEntries = (value) => (value ?? '').split(path.delimiter).filter((entry) => path.isAbsolute(entry));
+
+// Windows starts a bare program name from the working folder before PATH, and elsewhere a relative PATH entry such as
+// . or an empty one names the working folder, so a node or git in the repository would run instead of the installed one.
+// The name is looked up on the absolute PATH entries alone, with the extensions spawn starts on Windows.
 function installedProgram(name) {
-  if (!WINDOWS) return name;
-  for (const folder of (process.env.PATH ?? '').split(path.delimiter).filter((entry) => path.isAbsolute(entry))) {
-    const found = ['.com', '.exe'].map((extension) => path.join(folder, name + extension)).find(isFile);
+  const candidates = WINDOWS ? ['.com', '.exe'].map((extension) => name + extension) : [name];
+  for (const folder of absolutePathEntries(process.env.PATH)) {
+    const found = candidates.map((candidate) => path.join(folder, candidate)).find(WINDOWS ? isFile : isExecutable);
     if (found) return found;
   }
   return null;
@@ -496,7 +538,7 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
   const [name, ...args] = INTERPRETERS.includes(run[0])
     ? [run[0], path.resolve(root, run[1]), ...run.slice(2)]
     : [...(WINDOWS ? [interpreterOf(root, run)] : []), path.resolve(root, run[0]), ...run.slice(1)];
-  const program = WINDOWS ? installedProgram(name) : name;
+  const program = INTERPRETERS.includes(name) ? installedProgram(name) : name;
   if (!program) {
     return Promise.resolve({
       stdout: '', stderr: '', truncated: false, timedOut: false, durationMs: 0, exitCode: null, signal: null, startError: `${quote(name)} was not found on PATH`,
@@ -509,6 +551,8 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
     let timedOut = false;
     let settled = false;
     const env = { ...process.env, CI: '1', NO_COLOR: '1', FORCE_COLOR: '0', ...extraEnv };
+    // A #!/usr/bin/env node line looks node up on the program's own PATH.
+    if (!WINDOWS && env.PATH !== undefined) env.PATH = absolutePathEntries(env.PATH).join(path.delimiter);
     if (interpreterOf(root, run) === 'python3') {
       const removed = (variable) => REMOVED_PYTHON_NAMES.includes(WINDOWS ? variable.toUpperCase() : variable);
       for (const variable of Object.keys(env).filter(removed)) delete env[variable];
@@ -586,7 +630,11 @@ function stdinOf(root, entry) {
   if (!isObject(entry.stdin)) return { text: entry.stdin };
   const file = path.resolve(root, entry.stdin.file);
   if (!existsSync(file) || !statSync(file).isFile()) return { problem: `the stdin file ${shownPath(root, file)} does not exist` };
-  return { text: readFileSync(file) };
+  try {
+    return { text: readFileSync(file) };
+  } catch (error) {
+    return { problem: `the stdin file ${shownPath(root, file)} cannot be read (${error.code})` };
+  }
 }
 
 // Found only when the check is about to run: a file named in the map can change after the map was read.
@@ -596,12 +644,18 @@ function notRunReasons(root, entry, stdin, watched) {
   if (formProblem) return [`run ${formProblem}`];
   const program = path.resolve(root, programPath(entry.run));
   if (!existsSync(program)) return [`${shownPath(root, program)} does not exist`];
-  const reasons = [];
+  try {
+    closeSync(openSync(program, 'r'));
+  } catch (error) {
+    return [`${shownPath(root, program)} cannot be read (${error.code})`];
+  }
+  const named = argumentFiles(root, entry);
+  const reasons = named.filter((file) => file.problem).map((file) => file.problem);
   const rules = [...['stdout', 'stderr'].flatMap((stream) => rulesOf(entry.expect[stream]).map((rule) => [`the ${stream} rule`, rule, null])),
     ...watched.map((file) => [`the rule for ${file.path}`, file.rule, file.path])];
   const sources = [
     ...(isObject(entry.stdin) ? [['the stdin file text', cleanOutput(stdin.text.toString('utf8')), null]] : []),
-    ...argumentFiles(root, entry).map((file) => [file.label, file.text, file.path]),
+    ...named.filter((file) => !file.problem).map((file) => [file.label, file.text, file.path]),
   ];
   for (const [source, text, sourcePath] of sources) {
     for (const [label, rule, rulePath] of rules) {
@@ -683,7 +737,7 @@ let gitPath;
 function gitOutput(args, cwd, env = process.env) {
   gitPath ??= installedProgram('git');
   if (!gitPath) throw new Error('git was not found on PATH');
-  return execFileSync(gitPath, args, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  return execFileSync(gitPath, args, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
 const git = (args, cwd, env) => gitOutput(args, cwd, env).trim();
@@ -737,6 +791,15 @@ function headTree(root) {
   }
 }
 
+// The checks have already run, so a git failure here costs only the tree, not their results.
+function treeAfterChecks(repository) {
+  try {
+    return workingTree(repository);
+  } catch {
+    return null;
+  }
+}
+
 // Built the way review-loop snapshots a working tree, so both give the same tree id and review-loop can match a run to the code it reviewed.
 function workingTree(repository) {
   mkdirSync(repository.stateDir, { recursive: true });
@@ -747,7 +810,13 @@ function workingTree(repository) {
       const base = headTree(repository.root);
       git(['read-tree', ...(base ? [base] : ['--empty'])], repository.root, env);
     }
-    git(['add', '-A'], repository.root, env);
+    try {
+      git(['add', '-A'], repository.root, { ...env, LC_ALL: 'C' });
+    } catch (error) {
+      // git add -A stops at a file it cannot read, such as one with mode 000: the run keeps its checks and records no tree.
+      if (/^error: unable to index file /m.test(error.stderr)) return null;
+      throw error;
+    }
     git(['rm', '-r', '--cached', '--ignore-unmatch', '-q', '--', REVIEW_FOLDER], repository.root, env);
     return git(['write-tree'], repository.root, env);
   } finally {
@@ -825,6 +894,9 @@ export function renderReport(record, evidencePath) {
   if (record.removedAfterFail.length) {
     lines.push('', `Removed after it failed: ${record.removedAfterFail.join(', ')}. The feature map no longer checks it.`);
   }
+  if (record.tree === null || record.treeAfter === null) {
+    lines.push('', 'git could not record the working tree, so this run records no tree; review-loop cannot use it as evidence of the code it reviewed.');
+  }
   if (record.git.uncommittedFiles) {
     const count = record.git.uncommittedFiles;
     lines.push('', `Ran on uncommitted changes to ${count} ${count === 1 ? 'file' : 'files'} besides the feature map.`);
@@ -832,6 +904,10 @@ export function renderReport(record, evidencePath) {
   lines.push('', `Evidence: ${evidencePath}`);
   return lines.join('\n');
 }
+
+// The failed run a check is compared with: its last run when that failed, or an earlier failure it was changed after.
+const failureOf = (record) => (record?.status === 'fail' ? record : record?.failed);
+const failureRecord = ({ definition, checkFiles }) => ({ definition, checkFiles });
 
 const overallStatus = ({ fail, notVerified }) => (fail ? 'failed' : notVerified ? 'not-verified' : 'passed');
 
@@ -853,17 +929,21 @@ async function run(cwd, options) {
   for (const entry of selected) {
     const limit = Math.min(entry.timeoutMs ?? defaultTimeoutMs, deadline - Date.now());
     const { check, checkFiles } = await runEntry(repository.root, entry, limit);
-    const before = index[entry.id];
-    if (before?.status === 'fail') {
-      const changedFiles = filesChangedAfterFail(before, checkFiles);
+    const failed = failureOf(index[entry.id]);
+    if (failed) {
+      const changedFiles = filesChangedAfterFail(failed, checkFiles);
       if (changedFiles.length) check.changedFiles = changedFiles;
-      if (changedFiles.length || before.definition !== check.definition) check.changedAfterFail = true;
+      if (changedFiles.length || failed.definition !== check.definition) check.changedAfterFail = true;
     }
+    // The failure stays until the check fails again or passes unchanged, so the next run cannot clear the mark.
+    const keptFailure = failed && check.status !== 'fail' && (check.status !== 'pass' || check.changedAfterFail);
     checks.push(check);
-    index[entry.id] = { status: check.status, definition: check.definition, checkFiles, at: new Date().toISOString() };
+    index[entry.id] = {
+      status: check.status, definition: check.definition, checkFiles, at: new Date().toISOString(), ...(keptFailure && { failed: failureRecord(failed) }),
+    };
   }
   const removedAfterFail = Object.keys(index).filter((id) => index[id].status === 'fail' && !map.features.some((entry) => entry.id === id));
-  for (const id of removedAfterFail) delete index[id];
+  for (const id of removedAfterFail) index[id] = { status: 'removed', failed: failureRecord(index[id]) };
   const counts = {
     pass: checks.filter((check) => check.status === 'pass').length,
     fail: checks.filter((check) => check.status === 'fail').length,
@@ -877,7 +957,7 @@ async function run(cwd, options) {
     selected: ids,
     git: gitState,
     tree,
-    treeAfter: workingTree(repository),
+    treeAfter: treeAfterChecks(repository),
     node: process.version,
     status: overallStatus(counts),
     counts,

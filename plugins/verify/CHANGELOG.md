@@ -2,6 +2,10 @@
 
 All notable changes to verify. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: verify refuses an `equals` or `matches` rule that one argument in `run` satisfies, and a compiled `.node` addon or binary file run with `node`; keeps a check marked as changed after it failed on every later run, also after removing and adding it back or running another map; makes a check not verified, instead of stopping the run, when its script or a file it names cannot be read, and says in the report when git could not record the working tree; and on macOS and Linux starts `node`, `python3`, and `git` only from absolute PATH folders and removes relative entries from the program's PATH. (#140)
+
 ## 0.4.0 (2026-10-27)
 
 - Internal: The benchmark has two Python projects; on them claude-opus-5-5 caught 2 of 2 broken features with no working feature reported as failing. (#86)
