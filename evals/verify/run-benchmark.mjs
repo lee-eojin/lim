@@ -237,7 +237,8 @@ export function writtenContents(events) {
 export function copyFixtures(fromDir, toDir, filesWritten, contents = new Map()) {
   const written = new Map(filesWritten.map((file) => {
     const target = path.resolve(fromDir, file);
-    return [path.relative(fromDir, existsSync(target) ? realpathSync(target) : target), contents.get(file) ?? null];
+    const relative = path.relative(fromDir, existsSync(target) ? realpathSync(target) : target);
+    return [relative.split(path.sep).join('/'), contents.get(file) ?? null];
   }));
   const fixtures = untrackedFiles(fromDir).filter((file) => written.has(file));
   for (const file of fixtures) {

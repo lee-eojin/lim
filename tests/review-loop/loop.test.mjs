@@ -38,6 +38,20 @@ const doubledPrice = {
   whyNotPrevented: 'no test covers total',
 };
 const brokenCartSource = () => [brokenCart];
+const windows = process.platform === 'win32';
+// The gate reads commands as Git Bash runs them, where a backslash escapes the next character.
+const shellPath = (folder) => folder.split(path.sep).join('/');
+const home = () => process.env.HOME || homedir();
+
+// A PATH with git and the given programs only, so a tool the machine has installed still counts as missing.
+function pathWith(programs = {}) {
+  const bin = mkdtempSync(path.join(tmpdir(), 'review-loop-bin-'));
+  for (const [name, { posix, windows: batch }] of Object.entries(programs)) {
+    writeFileSync(path.join(bin, windows ? `${name}.cmd` : name), windows ? batch : posix, { mode: 0o755 });
+  }
+  const gitFolder = execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim();
+  return [bin, gitFolder, ...(windows ? [] : ['/bin', '/usr/bin'])].join(path.delimiter);
+}
 
 function writeFiles(root, files) {
   for (const [file, content] of Object.entries(files)) {
@@ -72,7 +86,7 @@ function commitAll(root) {
 
 function loop(root, args, review, env = {}) {
   const input = review === undefined ? '' : JSON.stringify(review);
-  return JSON.parse(execFileSync('node', [script, ...args], {
+  return JSON.parse(execFileSync(process.execPath, [script, ...args], {
     cwd: root, input, encoding: 'utf8', env: { ...process.env, ...env },
   }));
 }
@@ -263,21 +277,25 @@ describe('gitInvocations', () => {
       gitInvocations('git add -A && git commit -m "fix: a && b"', '/repo').map((invocation) => invocation.subcommand),
       ['add', 'commit'],
     );
-    assert.deepEqual(gitInvocations('git -C ../other commit -m x', '/repo/app')[0].directories, ['/repo/other']);
+    assert.deepEqual(gitInvocations('git -C ../other commit -m x', '/repo/app')[0].directories, [path.resolve('/repo/other')]);
     assert.equal(gitInvocations('git -c user.name=x commit -m y', '/repo')[0].subcommand, 'commit');
-    assert.deepEqual(gitInvocations('cd packages/web && git commit -m x', '/repo')[0].directories, ['/repo/packages/web']);
+    assert.deepEqual(gitInvocations('cd packages/web && git commit -m x', '/repo')[0].directories, [path.resolve('/repo/packages/web')]);
     assert.equal(gitInvocations('GIT_EDITOR=true git commit', '/repo')[0].subcommand, 'commit');
   });
 
   test('expands home paths and gives up on paths it cannot read', () => {
-    assert.deepEqual(gitInvocations('cd ~/work && git commit -m x', '/repo')[0].directories, [path.join(homedir(), 'work')]);
-    assert.deepEqual(gitInvocations('git -C $HOME/work commit -m x', '/repo')[0].directories, [path.join(homedir(), 'work')]);
-    assert.deepEqual(gitInvocations('git -C "${HOME}" commit -m x', '/repo')[0].directories, [homedir()]);
-    assert.deepEqual(gitInvocations('cd && git commit -m x', '/repo')[0].directories, [homedir()]);
+    assert.deepEqual(gitInvocations('cd ~/work && git commit -m x', '/repo')[0].directories, [path.join(home(), 'work')]);
+    assert.deepEqual(gitInvocations('git -C $HOME/work commit -m x', '/repo')[0].directories, [path.join(home(), 'work')]);
+    assert.deepEqual(gitInvocations('git -C "${HOME}" commit -m x', '/repo')[0].directories, [path.resolve(home())]);
+    assert.deepEqual(gitInvocations('cd && git commit -m x', '/repo')[0].directories, [path.resolve(home())]);
     assert.deepEqual(gitInvocations('cd "$(git rev-parse --show-toplevel)" && git commit -m x', '/repo')[0].directories, [null]);
     assert.deepEqual(gitInvocations('cd $WORK && git -C app commit -m x', '/repo')[0].directories, [null]);
     assert.deepEqual(gitInvocations('cd - && git commit -m x', '/repo')[0].directories, [null]);
-    assert.deepEqual(gitInvocations('git -C ../other \\\n  commit -m x', '/repo/app')[0].directories, ['/repo/other']);
+    assert.deepEqual(gitInvocations('git -C ../other \\\n  commit -m x', '/repo/app')[0].directories, [path.resolve('/repo/other')]);
+  });
+
+  test('reads a Git Bash drive path as that drive on Windows', () => {
+    assert.deepEqual(gitInvocations('cd /c/work && git commit -m x', '/repo')[0].directories, [windows ? 'C:\\work' : '/c/work']);
   });
 
   test('ignores git words inside other commands', () => {
@@ -380,10 +398,13 @@ describe('check detection', () => {
 
   test('a module under a parent maven or gradle build runs no build of its own', () => {
     const parentPom = '<project><modules>\n  <module>core</module>\n</modules></project>';
-    const maven = createRepository({ 'pom.xml': parentPom, mvnw: '#!/bin/sh\nexit 0\n', 'core/pom.xml': '<project/>', 'core/src/A.java': 'class A {}\n' });
+    const maven = createRepository({
+      'pom.xml': parentPom, mvnw: '#!/bin/sh\nexit 0\n', 'mvnw.cmd': '@exit /b 0\r\n', 'core/pom.xml': '<project/>', 'core/src/A.java': 'class A {}\n',
+    });
     chmodSync(path.join(maven, 'mvnw'), 0o755);
     writeFiles(maven, { 'core/src/A.java': 'class A { int b; }\n' });
-    assert.deepEqual(loop(maven, ['start']).checks.map((check) => [check.folder ?? '', check.command]), [['', './mvnw -B -q test']]);
+    const wrapper = windows ? './mvnw.cmd' : './mvnw';
+    assert.deepEqual(loop(maven, ['start']).checks.map((check) => [check.folder ?? '', check.command]), [['', `${wrapper} -B -q test`]]);
     const gradle = createRepository({ 'settings.gradle': '', 'app/build.gradle': '', 'app/src/A.java': 'class A {}\n' });
     writeFiles(gradle, { 'app/src/A.java': 'class A { int b; }\n' });
     assert.deepEqual(changedProjects(gradle, ['app/src/A.java']), []);
@@ -416,14 +437,16 @@ describe('check detection', () => {
 
   test('a gradle wrapper runs in its project folder and a failing test is a P1', () => {
     const wrapper = '#!/bin/sh\necho "BUILD FAILED in $(basename "$(pwd)") for $1" >&2\nexit 1\n';
-    const root = createRepository({ 'api/settings.gradle': '', 'api/gradlew': wrapper, 'api/src/Cart.java': 'class Cart {}\n' });
+    const batch = '@echo off\r\nfor %%I in (.) do echo BUILD FAILED in %%~nxI for %1 1>&2\r\nexit /b 1\r\n';
+    const root = createRepository({ 'api/settings.gradle': '', 'api/gradlew': wrapper, 'api/gradlew.bat': batch, 'api/src/Cart.java': 'class Cart {}\n' });
     chmodSync(path.join(root, 'api/gradlew'), 0o755);
     writeFiles(root, { 'api/src/Cart.java': 'class Cart { int total; }\n' });
+    const command = windows ? './gradlew.bat test' : './gradlew test';
     const started = loop(root, ['start']);
-    assert.deepEqual(started.checks.map((check) => [check.folder, check.name, check.command, check.exitCode]), [['api', 'test', './gradlew test', 1]]);
+    assert.deepEqual(started.checks.map((check) => [check.folder, check.name, check.command, check.exitCode]), [['api', 'test', command, 1]]);
     assert.match(started.checks[0].tail, /BUILD FAILED in api for test/);
     const result = loop(root, ['record'], { findings: [] });
-    assert.match(result.report, /api: test \(\.\/gradlew test\) failed/);
+    assert.ok(result.report.includes(`api: test (${command}) failed`), result.report);
   });
 
   test('a dotnet solution or project runs dotnet test and a project under a solution runs no build of its own', () => {
@@ -470,13 +493,14 @@ describe('check detection', () => {
   });
 
   test('a dotnet project runs in its project folder and a failing test is a P1', () => {
-    const bin = mkdtempSync(path.join(tmpdir(), 'review-loop-bin-'));
-    symlinkSync(process.execPath, path.join(bin, 'node'));
-    const gitFolder = execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim();
-    symlinkSync(path.join(gitFolder, 'git'), path.join(bin, 'git'));
-    writeFileSync(path.join(bin, 'dotnet'), '#!/bin/sh\necho "Failed! in $(basename "$(pwd)") for $1" >&2\nexit 1\n');
-    chmodSync(path.join(bin, 'dotnet'), 0o755);
-    const withFakeDotnet = { PATH: `${bin}:/bin:/usr/bin` };
+    const withFakeDotnet = {
+      PATH: pathWith({
+        dotnet: {
+          posix: '#!/bin/sh\necho "Failed! in $(basename "$(pwd)") for $1" >&2\nexit 1\n',
+          windows: '@echo off\r\nfor %%I in (.) do echo Failed! in %%~nxI for %1 1>&2\r\nexit /b 1\r\n',
+        },
+      }),
+    };
     const root = createRepository({ 'api/Api.csproj': '<Project/>', 'api/Cart.cs': 'class Cart {}\n' });
     writeFiles(root, { 'api/Cart.cs': 'class Cart { int total; }\n' });
     const started = loop(root, ['start'], undefined, withFakeDotnet);
@@ -536,11 +560,7 @@ describe('check detection', () => {
   });
 
   test('a check whose program is not installed is reported as not verified instead of failing', () => {
-    const bin = mkdtempSync(path.join(tmpdir(), 'review-loop-bin-'));
-    symlinkSync(process.execPath, path.join(bin, 'node'));
-    const gitFolder = execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim();
-    symlinkSync(path.join(gitFolder, 'git'), path.join(bin, 'git'));
-    const withoutGo = { PATH: bin };
+    const withoutGo = { PATH: pathWith() };
     const root = createRepository({ 'go.mod': 'module example.com/cart\n', 'src/cart.js': correctCart });
     writeFiles(root, { 'src/cart.js': brokenCart });
     const started = loop(root, ['start'], undefined, withoutGo);
@@ -1725,7 +1745,7 @@ describe('commit gate', () => {
     assert.equal(commit(root, 'cd "$(git rev-parse --show-toplevel)" && git commit -m x').decision, 'ask');
     assert.equal(commit(root, 'git -C missing commit -m x').decision, 'ask');
     const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
-    assert.equal(commit(root, `git -C ${plainDirectory} commit -m x`), null);
+    assert.equal(commit(root, `git -C ${shellPath(plainDirectory)} commit -m x`), null);
     const gateOff = createRepository({ 'src/cart.js': correctCart });
     assert.equal(commit(gateOff, 'cd $WORK && git commit -m x'), null);
   });
@@ -1782,10 +1802,10 @@ describe('commit gate', () => {
     loop(root, ['gate', '--on']);
     writeFiles(root, { 'src/cart.js': brokenCart });
     const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
-    assert.equal(commit(root, `(cd ${plainDirectory}) && git commit -m x`).decision, 'deny');
-    assert.equal(commit(plainDirectory, `(cd ${root} && git commit -m x)`).decision, 'deny');
-    assert.equal(commit(plainDirectory, `cd ${root} && git commit -m x || (echo failed)`).decision, 'deny');
-    assert.equal(commit(plainDirectory, `cd ${root} && git commit -m x && echo $(git rev-parse HEAD)`).decision, 'deny');
+    assert.equal(commit(root, `(cd ${shellPath(plainDirectory)}) && git commit -m x`).decision, 'deny');
+    assert.equal(commit(plainDirectory, `(cd ${shellPath(root)} && git commit -m x)`).decision, 'deny');
+    assert.equal(commit(plainDirectory, `cd ${shellPath(root)} && git commit -m x || (echo failed)`).decision, 'deny');
+    assert.equal(commit(plainDirectory, `cd ${shellPath(root)} && git commit -m x && echo $(git rev-parse HEAD)`).decision, 'deny');
   });
 
   test('many cds in parentheses stay bounded and still block', () => {
@@ -1879,7 +1899,7 @@ describe('commit gate', () => {
     loop(root, ['gate', '--on']);
     writeFiles(root, { 'src/cart.js': brokenCart });
     const elsewhere = mkdtempSync(path.join(tmpdir(), 'review-loop-cwd-'));
-    assert.equal(gateDecision({ cwd: elsewhere, command: `git -C ${root} commit -m x` }).decision, 'deny');
+    assert.equal(gateDecision({ cwd: elsewhere, command: `git -C ${shellPath(root)} commit -m x` }).decision, 'deny');
   });
 });
 
@@ -2350,7 +2370,7 @@ describe('review file', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     writeFileSync(path.join(root, '.git', 'info', 'exclude'), '# local\n*.log');
     writeFiles(root, { 'src/cart.js': brokenCart });
-    const reviewFolder = path.join(realpathSync(root), '.lim-review');
+    const reviewFolder = path.join(realpathSync.native(root), '.lim-review');
     assert.equal(loop(root, ['start']).reviewPath, path.join(reviewFolder, 'round-1.json'));
     assert.equal(loop(root, ['start']).reviewPath, path.join(reviewFolder, 'round-1.json'));
     loop(root, ['record'], { findings: [doubledPrice] });
@@ -2361,7 +2381,7 @@ describe('review file', () => {
     execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
     writeFiles(worktree, { 'src/cart.js': brokenCart });
     const worktreeReview = loop(worktree, ['start']).reviewPath;
-    assert.equal(worktreeReview, path.join(realpathSync(worktree), '.lim-review', 'round-1.json'));
+    assert.equal(worktreeReview, path.join(realpathSync.native(worktree), '.lim-review', 'round-1.json'));
     writeReview(worktreeReview, '{"findings": []}');
     assert.equal(gitOutput(worktree, 'check-ignore', '.lim-review/round-1.json'), '.lim-review/round-1.json');
     assert.deepEqual(excludeLines(root), ['# local', '*.log', '.lim-review/', '']);
@@ -2520,7 +2540,7 @@ describe('verify evidence', () => {
 
   test('start and next return the feature map path and the report counts its entries', () => {
     const root = reviewing();
-    const mapPath = path.join(realpathSync(root), 'verify.features.json');
+    const mapPath = path.join(realpathSync.native(root), 'verify.features.json');
     assert.equal(loop(root, ['start']).featureMapPath, mapPath);
     const first = loop(root, ['record'], { findings: [doubledPrice] });
     assert.match(first.report, /^Review round 1 of 3.*\nChecks: .*\nFeature map: verify\.features\.json \(3 entries\)\n/);

@@ -28,6 +28,7 @@ const FILE_KEYS = ['path', ...MATCHERS];
 const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const SAFE_ARGUMENT = /^[\w@%+=:,./-]+$/;
 const INTERPRETERS = ['node', 'python3'];
+const WINDOWS = process.platform === 'win32';
 const RUN_FORMS = 'a check runs only node or python3 with a script file in the repository, as ["node", "<script>", ...arguments] or ["python3", "<script>", ...arguments], or a script file in the repository whose first line is #!/usr/bin/env node, #!/usr/bin/env python3, #!/<path>/node, or #!/<path>/python3 with no option, as ["./bin/<tool>", ...arguments]';
 // Either form means an allowed interpreter runs a script in the repository: an executable must be a script whose #! line runs one with no option.
 const SHEBANG = /^#!(\/usr\/bin\/env (node|python3)|(?:\/\S*)?\/(node|python3))\s*$/;
@@ -110,9 +111,12 @@ export function displayCommand(run) {
   return run.map((part) => (SAFE_ARGUMENT.test(part) ? part : `'${part.replace(/'/g, "'\\''")}'`)).join(' ');
 }
 
+// Paths from the repository root are shown and saved with /, as git shows them, on every system.
+const rootRelative = (root, target) => path.relative(root, target).split(path.sep).join('/');
+
 const insideOf = (root, target) => {
   const inside = path.relative(root, target);
-  return inside === '..' || inside.startsWith(`..${path.sep}`) || path.isAbsolute(inside) ? null : inside;
+  return inside === '..' || inside.startsWith(`..${path.sep}`) || path.isAbsolute(inside) ? null : rootRelative(root, target);
 };
 
 // A path inside the repository is shown from its root; any other path is shown in full.
@@ -146,7 +150,7 @@ function projectFileProblem(root, relative) {
   if (exists && !statSync(target).isFile()) return notProject;
   for (const candidate of [target, real]) {
     const inside = insideOf(root, candidate);
-    if (!inside || inside.split(path.sep).some((part) => NOT_PROJECT_FOLDERS.includes(part))) return notProject;
+    if (!inside || inside.split('/').some((part) => NOT_PROJECT_FOLDERS.includes(part))) return notProject;
   }
   return null;
 }
@@ -330,7 +334,7 @@ function argumentFiles(root, entry) {
   return [...targets].flatMap((target) => {
     if (!existsSync(target) || !statSync(target).isFile() || insideOf(realRoot, realpathSync(target)) === null) return [];
     const text = cleanOutput(readFileSync(target, 'utf8'));
-    return text ? [{ label: `the text of the file ${shownPath(root, target)} named in run`, path: path.relative(root, target), text }] : [];
+    return text ? [{ label: `the text of the file ${shownPath(root, target)} named in run`, path: rootRelative(root, target), text }] : [];
   });
 }
 
@@ -412,7 +416,7 @@ function entryProblems(entry, index, root, seen) {
           problems.push(...unknownKeys(file, FILE_KEYS, label));
           problems.push(`${label} needs one of ${MATCHERS.join(', ')}, because a file that was written does not show the feature's result`);
         } else {
-          const own = pathProblem ? null : path.relative(root, path.resolve(root, file.path));
+          const own = pathProblem ? null : rootRelative(root, path.resolve(root, file.path));
           problems.push(...ruleProblems(file, label, inputsFor(own), FILE_KEYS));
         }
       });
@@ -455,7 +459,7 @@ function namedCheckFiles(root, entry, cwd) {
   const fromRoot = [programPath(entry.run), ...(isObject(entry.stdin) ? [entry.stdin.file] : [])];
   const targets = [...fromRoot.map((name) => path.resolve(root, name)), ...args.map((name) => path.resolve(cwd, name))]
     .filter((target) => target.startsWith(folder));
-  return [...new Set(targets)].map((target) => path.relative(root, target));
+  return [...new Set(targets)].map((target) => rootRelative(root, target));
 }
 
 function hashOf(target) {
@@ -471,9 +475,10 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
     let truncated = false;
     let timedOut = false;
     let settled = false;
+    // Windows does not read #! lines, so there the interpreter the line names runs the script.
     const [program, ...args] = INTERPRETERS.includes(run[0])
       ? [run[0], path.resolve(root, run[1]), ...run.slice(2)]
-      : [path.resolve(root, run[0]), ...run.slice(1)];
+      : [...(WINDOWS ? [interpreterOf(root, run)] : []), path.resolve(root, run[0]), ...run.slice(1)];
     const env = { ...process.env, CI: '1', NO_COLOR: '1', FORCE_COLOR: '0', ...extraEnv };
     if (interpreterOf(root, run) === 'python3') {
       for (const name of REMOVED_PYTHON_NAMES) delete env[name];
@@ -482,6 +487,7 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
     const child = spawn(program, args, {
       cwd,
       detached: true,
+      windowsHide: true,
       stdio: [stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
       env,
     });
@@ -593,7 +599,7 @@ async function runEntry(root, entry, timeoutMs) {
   const watched = (entry.expect.files ?? []).map((file) => {
     const target = path.resolve(root, file.path);
     const [kind] = MATCHERS.filter((matcher) => matcher in file);
-    return { path: path.relative(root, target), target, rule: { [kind]: file[kind] }, before: fileState(target) };
+    return { path: rootRelative(root, target), target, rule: { [kind]: file[kind] }, before: fileState(target) };
   });
   const checkFiles = namedCheckFiles(root, entry, cwd).map((file) => ({ file, before: hashOf(path.join(root, file)) }));
   const stdin = stdinOf(root, entry);
@@ -616,7 +622,7 @@ async function runEntry(root, entry, timeoutMs) {
     command: entry.run,
     ...(entry.stdin !== undefined && { stdin: entry.stdin }),
     ...(entry.env !== undefined && { env: entry.env }),
-    cwd: path.relative(root, cwd) || '.',
+    cwd: rootRelative(root, cwd) || '.',
     status: verdict.status,
     reasons: verdict.reasons,
     exitCode: outcome.exitCode ?? null,
@@ -650,8 +656,8 @@ function openRepository(cwd) {
   let root;
   let gitDir;
   try {
-    root = git(['rev-parse', '--show-toplevel'], cwd);
-    gitDir = git(['rev-parse', '--absolute-git-dir'], cwd);
+    root = path.resolve(git(['rev-parse', '--show-toplevel'], cwd));
+    gitDir = path.resolve(git(['rev-parse', '--absolute-git-dir'], cwd));
   } catch {
     throw new Error('verify needs a git repository: evidence is kept under .git/lim/verify/');
   }
@@ -718,7 +724,7 @@ function workingTree(repository) {
 function loadMap(repository, option) {
   const relative = typeof option === 'string' ? option : MAP_FILE;
   const mapPath = path.resolve(repository.root, relative);
-  if (!existsSync(mapPath)) throw new UsageError(`no feature map at ${path.relative(repository.root, mapPath)}`);
+  if (!existsSync(mapPath)) throw new UsageError(`no feature map at ${rootRelative(repository.root, mapPath)}`);
   const text = readFileSync(mapPath, 'utf8');
   let map;
   try {
@@ -832,7 +838,7 @@ async function run(cwd, options) {
   const record = {
     startedAt: new Date(started).toISOString(),
     durationMs: Date.now() - started,
-    map: path.relative(repository.root, mapPath),
+    map: rootRelative(repository.root, mapPath),
     mapHash: hash,
     selected: ids,
     git: gitState,
