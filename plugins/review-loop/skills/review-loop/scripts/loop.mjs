@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmdirSync,
-  rmSync, statSync, symlinkSync, utimesSync, writeFileSync,
+  rmSync, statSync, lstatSync, symlinkSync, utimesSync, writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
@@ -635,9 +635,11 @@ function runCheck(root, check, timeout) {
 // cmd.exe reads these characters itself, so each is escaped with ^ to reach the program unchanged.
 const CMD_SPECIAL = /([()\][%!^"`<>&|;, *?])/g;
 
+// A Microsoft Store app execution alias (WindowsApps\python3.exe) is a reparse point that stat cannot open, so any
+// entry that is not a folder counts.
 const isFile = (target) => {
   try {
-    return statSync(target).isFile();
+    return !lstatSync(target).isDirectory();
   } catch {
     return false;
   }

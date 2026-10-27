@@ -2,7 +2,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-  closeSync, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync,
+  closeSync, copyFileSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync,
   utimesSync, writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -469,9 +469,11 @@ function hashOf(target) {
   return state.exists ? state.hash.slice(0, 12) : null;
 }
 
+// A Microsoft Store app execution alias (WindowsApps\python3.exe) is a reparse point that stat cannot open, so any
+// entry that is not a folder counts.
 const isFile = (target) => {
   try {
-    return statSync(target).isFile();
+    return !lstatSync(target).isDirectory();
   } catch {
     return false;
   }
