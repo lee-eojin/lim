@@ -1,6 +1,6 @@
 {
   "name": "review-loop",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "description": "Review before you commit: checks first, a fresh reviewer labels findings P1 to P5, P1 and P2 are fixed and re-reviewed, and the rest is your call.",
   "author": {
     "name": "lee-eojin"
