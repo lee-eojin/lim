@@ -120,7 +120,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 コミットの前に、review-loopは短いループを実行し、自分で停止します。
 
-1. **チェック。** プロジェクトが宣言している`typecheck`、`lint`、`test`のチェックを実行します。対象は`package.json`のスクリプト、Makefileのターゲット、Go(`go.mod`)とRust(`Cargo.toml`)の標準コマンド、設定済みのPythonツール、Gradle、Mavenです。チェックが失敗した場合、または`package.json`が正しいJSONでない場合は、P1の指摘になります。チェックが制限時間を超えた場合、またはそのプログラムがインストールされていない場合は、失敗ではなく「未検証」(not verified)として報告します。
+1. **チェック。** プロジェクトが宣言している`typecheck`、`lint`、`test`のチェックを実行します。対象は`package.json`のスクリプト、Makefileのターゲット、Go(`go.mod`)とRust(`Cargo.toml`)の標準コマンド、設定済みのPythonツール、Gradle、Maven、.NET、使っているRubyツールです。チェックが失敗した場合、または`package.json`が正しいJSONでない場合は、P1の指摘になります。チェックが制限時間を超えた場合、またはそのプログラムがインストールされていない場合は、失敗ではなく「未検証」(not verified)として報告します。
 2. **新しいレビュー。** 別のレビュアーエージェントは、diffと、ユーザーが望んだ内容の1行の要約を受け取ります。この変更についてのClaudeの推論は受け取りません。文脈を理解するために、周辺のコードを読むことはできます。レビュアーは指摘にP1からP5のラベルを付けます。P1とP2には根拠が必要です。根拠とは、該当する行、失敗するシナリオ、既存の仕組みがその失敗を防げない理由です。各指摘にはmeasured(測定)、inferred(推論)、guessed(推測)のいずれかのラベルが付きます。根拠のないP1やP2、またはguessedのP1やP2は修正せず、検証されていない指摘としてユーザーに表示します。
 3. **修正。** Claudeは何を修正するかを先に伝え、その後でP1とP2を修正します。修正に設計上の選択が必要な場合(修正方法が複数ある、目に見える動作が変わる、機能を削除する、テストを変更する)は、先にユーザーが選びます。プロジェクトにtestスクリプトがある場合、Claudeは修正するP1とP2ごとに、失敗シナリオから回帰テストを書きます。review-loopは、そのテストが修正前のコードで失敗することを示します。
 4. **再レビュー。** 新しいレビュアーが、修正箇所とまだ解決していない指摘だけを確認します。最大3ラウンドです。
@@ -214,7 +214,7 @@ Banksaladが公開しているPnルールに基づきます。
 
 ## 測定結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる201個の動作が記載されています。CIの単体テストが、そのうち190個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行と、コミットゲートhookのテストも含まれます。残りの11個はモデルの実行が必要です。その11個は、P3からP5について1回だけ確認すること、質問より先にレポートを表示すること、すべての手順をtodoリストに残し、飛ばす手順には理由を書くこと、修正したP1とP2ごとに回帰テストを書くこと、各指摘にmeasured、inferred、guessedのラベルを付けること、修正をどう確かめたかを伝えること、ユーザーが反論したら指摘をもう一度確かめること、何度も繰り返される種類の指摘にルール化を勧めること、無人実行では何も質問しないこと、選んだモデルでレビュアーを起動すること、原因が分からないまま追加されたコードを報告することです。最後の1個には、[`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)にfixtureがあり、最初の二つには[`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)に手動で実行した記録があります。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる207個の動作が記載されています。CIの単体テストが、そのうち196個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行と、コミットゲートhookのテストも含まれます。残りの11個はモデルの実行が必要です。その11個は、P3からP5について1回だけ確認すること、質問より先にレポートを表示すること、すべての手順をtodoリストに残し、飛ばす手順には理由を書くこと、修正したP1とP2ごとに回帰テストを書くこと、各指摘にmeasured、inferred、guessedのラベルを付けること、修正をどう確かめたかを伝えること、ユーザーが反論したら指摘をもう一度確かめること、何度も繰り返される種類の指摘にルール化を勧めること、無人実行では何も質問しないこと、選んだモデルでレビュアーを起動すること、原因が分からないまま追加されたコードを報告することです。最後の1個には、[`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)にfixtureがあり、最初の二つには[`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)に手動で実行した記録があります。
 
 検出ベンチマークは、名前からはテストだと分からない一時的なリポジトリに置いた変更をレビュアーに渡します。[`evals/review-loop/detection/`](../../evals/review-loop/detection/)には、バグを一つずつ仕込んだ12個の変更と、問題のない6個の変更があります。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/)には、より難しい10個のバグと、怪しく見えるが問題のない6個の変更があります。難しいバグには、diffが触れていないファイルを見て初めて分かるバグ、四つのファイルをたどって初めて分かるバグ、183行のdiffの中にあるバグ、二つの検索の間の競合、非同期の書き込みが読む前に空にされるバッファ、エラー経路で保持されたままのロックなどがあります。各ケースを3回ずつ、通常セットは2026-10-25に、難しいセットは2026-10-26に実行した結果は次のとおりです。
 
@@ -289,7 +289,7 @@ review-loop自体はネットワーク通信を行いません。Claudeとレビ
 
 ## 制限事項
 
-- チェックは`package.json`のスクリプト、Makefileのターゲット、Go、Rust、設定済みのPythonツール(pytest、ruff、mypy)、Gradle、Mavenの順に、リポジトリのルートと、変更が触れたサブフォルダーのプロジェクト(1ラウンドに最大4つ)から検出します。
+- チェックは`package.json`のスクリプト、Makefileのターゲット、Go、Rust、設定済みのPythonツール(pytest、ruff、mypy)、Gradle、Maven、.NET、プロジェクトが使っているRubyツール(rspec、rake test、rubocop)の順に、リポジトリのルートと、変更が触れたサブフォルダーのプロジェクト(1ラウンドに最大4つ)から検出します。
 - 各チェックは最大5分、すべてのチェックの合計は最大9分です。
 - コミットゲートが無効の場合、コミット前の確認はClaudeへの指示であり、保証ではありません。
 - コミットゲートがチェックするのは、ClaudeがBashツールで実行するコマンドだけです。ユーザーが自分のターミナルで入力したコミットはチェックしません。`git ci`のようなgitのエイリアスを通したコミットは、`git commit`と同じようにチェックします。コミットするシェルエイリアス(`!...`)は、ゲートが中身を見られないため確認を求めます。`git -c alias.ci=commit`のようにその場で設定したエイリアスは認識しません。

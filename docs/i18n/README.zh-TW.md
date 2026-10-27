@@ -120,7 +120,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 在你提交之前，review-loop 執行一個短迴圈，並自動停止。
 
-1. **檢查。** review-loop 執行你的專案宣告的 `typecheck`、`lint` 和 `test` 檢查：`package.json` 中的腳本、Makefile 中的目標，或 Go（`go.mod`）、Rust（`Cargo.toml`）的預設指令、你設定的 Python 工具以及 Gradle 和 Maven。如果某個檢查失敗，或者 `package.json` 不是有效的 JSON，review-loop 會將其記為一個 P1 發現項目。如果某個檢查的執行時間超過時間限制，或者它的程式沒有安裝，review-loop 會將其回報為「未驗證」，而不是「失敗」。
+1. **檢查。** review-loop 執行你的專案宣告的 `typecheck`、`lint` 和 `test` 檢查：`package.json` 中的腳本、Makefile 中的目標，或 Go（`go.mod`）、Rust（`Cargo.toml`）的預設指令、你設定的 Python 工具、Gradle、Maven、.NET 以及你使用的 Ruby 工具。如果某個檢查失敗，或者 `package.json` 不是有效的 JSON，review-loop 會將其記為一個 P1 發現項目。如果某個檢查的執行時間超過時間限制，或者它的程式沒有安裝，review-loop 會將其回報為「未驗證」，而不是「失敗」。
 2. **全新審查。** 一個獨立的審查者 agent 會收到 diff 和一行說明你想要達成什麼的摘要，但不會收到 Claude 對這次變更的推理。審查者可以讀取周圍的程式碼來了解脈絡。審查者把發現項目標記為 P1 到 P5。P1 和 P2 需要證據：確切的程式碼行、一個失敗情境，以及為什麼現有程式碼沒有防止該問題。每個發現項目都會標明 measured（實測）、inferred（推論）或 guessed（猜測）。沒有證據的 P1 或 P2，以及被標為 guessed 的 P1 或 P2，不會被修正，而是以「未驗證」的狀態顯示給你。
 3. **修正。** Claude 先說明它要修正什麼，然後修正 P1 和 P2。如果某個修正需要設計決策（修正方式不只一種、使用者看得到的行為變化、移除功能、修改測試），由你先做選擇。如果你的專案有 test 腳本，Claude 會根據它修正的每個 P1 和 P2 的失敗情境撰寫回歸測試，review-loop 會證明該測試在修正之前的程式碼上失敗。
 4. **再次審查。** 一個新的審查者只檢查本輪的修正和仍未解決的發現項目。最多 3 輪。
@@ -214,7 +214,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 ## 測量結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 201 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 190 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 11 個行為需要實際執行模型：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、為每個發現項目標明 measured、inferred 或 guessed、說明如何確認修正有效、在你提出異議時重新查證發現項目、為反覆出現的同類發現項目建議設為規則、在無人值守執行中不提出任何問題、用你選擇的模型啟動審查者、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture，前兩個行為在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手動執行紀錄。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) 列出了六個面向上的 207 個行為。六個面向是：執行（do）、告知（tell）、詢問（ask）、靜默（silence）、停止（stop）和證據（evidence）。CI 中的單元測試涵蓋其中 196 個行為，包括在真實的暫存 git 儲存庫上執行的測試和針對提交關卡 hook 的測試。其餘 11 個行為需要實際執行模型：對 P3 到 P5 只詢問一次、在任何提問之前先顯示報告、把每個步驟都留在待辦清單中並為每個略過的步驟寫下原因、為每個修正的 P1 和 P2 撰寫回歸測試、為每個發現項目標明 measured、inferred 或 guessed、說明如何確認修正有效、在你提出異議時重新查證發現項目、為反覆出現的同類發現項目建議設為規則、在無人值守執行中不提出任何問題、用你選擇的模型啟動審查者、回報在原因不明時加入的程式碼。最後一個行為在 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/) 中有一個 fixture，前兩個行為在 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md) 中有手動執行紀錄。
 
 偵測基準測試給審查者一些變更，這些變更放在名稱看不出是測試的暫存儲存庫中。[`evals/review-loop/detection/`](../../evals/review-loop/detection/) 中有 12 個各植入一個 bug 的變更和 6 個乾淨的變更。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) 中有 10 個更難的 bug，以及 6 個看起來可疑的乾淨變更。這些更難的 bug 包括：只有查看 diff 沒有改動的檔案才能發現的 bug、只有順著四個檔案追下去才能發現的 bug、藏在 183 行 diff 中的 bug、兩次搜尋之間的競態、在非同步寫入讀取之前就被清空的緩衝區，以及在錯誤路徑上沒有釋放的鎖。結果如下，每個案例執行 3 次，一般組於 2026-10-25 執行，困難組於 2026-10-26 執行：
 
@@ -289,7 +289,7 @@ review-loop 本身不會發出任何網路請求。Claude 和審查者讀取 dif
 
 ## 限制
 
-- review-loop 依序從 `package.json` 的 scripts、Makefile 的目標、Go、Rust、已設定的 Python 工具（pytest、ruff、mypy）、Gradle 和 Maven 中偵測檢查，範圍是儲存庫根目錄和變更涉及的子資料夾專案（每輪最多 4 個）。
+- review-loop 依序從 `package.json` 的 scripts、Makefile 的目標、Go、Rust、已設定的 Python 工具（pytest、ruff、mypy）、Gradle、Maven、.NET 和專案使用的 Ruby 工具（rspec、rake test、rubocop）中偵測檢查，範圍是儲存庫根目錄和變更涉及的子資料夾專案（每輪最多 4 個）。
 - 每個檢查最多執行 5 分鐘，所有檢查合計最多執行 9 分鐘。
 - 如果沒有啟用提交關卡，提交前詢問只是給 Claude 的指示，而不是保證。
 - 提交關卡只檢查 Claude 透過它的 Bash 工具執行的指令。你在自己的終端機中輸入的提交不會被檢查。透過 `git ci` 這類 git 別名進行的提交會像 `git commit` 一樣被檢查。會提交的 shell 別名（`!...`）會先詢問你，因為關卡看不到它的內部。用 `git -c alias.ci=commit` 在指令中臨時設定的別名不會被辨識。

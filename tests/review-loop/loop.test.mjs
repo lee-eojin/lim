@@ -407,6 +407,7 @@ describe('check detection', () => {
     const started = loop(root, ['start']);
     assert.deepEqual(started.checks.map((check) => [check.command, check.notInstalled, check.exitCode]), [['sh gradlew test', true, null]]);
     assert.match(started.checks[0].tail, /not run: java is not installed/);
+    assert.match(loop(root, ['record'], { findings: [] }).report, /test \(sh gradlew test\) not run because java is not installed \(not verified\)/);
     assert.equal(missingProgram(['./mvnw', '-B', '-q', 'test'], 'The operation couldn\'t be completed. Unable to locate a Java Runtime.\n'), 'java');
     assert.equal(missingProgram(['mvn', '-B', '-q', 'test'], 'The JAVA_HOME environment variable is not defined correctly,\n'), 'java');
     assert.equal(missingProgram(['./mvnw', '-B', '-q', 'test'], 'The java/javac command does not exist in PATH nor is JAVA_HOME set, so mvnw cannot run.\n'), 'java');
@@ -423,6 +424,66 @@ describe('check detection', () => {
     assert.match(started.checks[0].tail, /BUILD FAILED in api for test/);
     const result = loop(root, ['record'], { findings: [] });
     assert.match(result.report, /api: test \(\.\/gradlew test\) failed/);
+  });
+
+  test('a dotnet solution or project runs dotnet test and a project under a solution runs no build of its own', () => {
+    assert.deepEqual(commands(projectFolder({ 'Shop.sln': '' })), [['test', 'dotnet test']]);
+    assert.deepEqual(commands(projectFolder({ 'Cart.csproj': '<Project/>' })), [['test', 'dotnet test']]);
+    assert.deepEqual(commands(projectFolder({ 'Cart.fsproj': '<Project/>' })), [['test', 'dotnet test']]);
+    assert.deepEqual(commands(projectFolder({ 'Cart.csproj': '<Project/>', Makefile: 'test:\n\tdotnet test\n' })), [['test', 'make test']]);
+    const root = projectFolder({
+      'Shop.sln': '', 'src/Cart/Cart.csproj': '<Project/>', 'src/Cart/Cart.cs': '',
+      'samples/Demo/Demo.sln': '', 'samples/Demo/Demo.csproj': '<Project/>', 'samples/Demo/Program.cs': '',
+    });
+    assert.deepEqual(detectFolderChecks(root, 'src/Cart'), []);
+    assert.deepEqual(changedProjects(root, ['src/Cart/Cart.cs', 'samples/Demo/Program.cs']), ['samples/Demo']);
+    assert.deepEqual(commands(projectFolder({ 'Shop.sln': '', 'Cart.csproj': '' })), [['test', 'dotnet test Shop.sln']]);
+    assert.deepEqual(commands(projectFolder({ 'Shop.slnx': '' })), [['test', 'dotnet test']]);
+    assert.deepEqual(commands(projectFolder({ 'B.csproj': '', 'A.csproj': '' })), [['test', 'dotnet test A.csproj']]);
+  });
+
+  test('ruby projects run only the tools they use and through bundle exec when a Gemfile exists', () => {
+    assert.deepEqual(commands(projectFolder({ '.rspec': '--require spec_helper\n' })), [['test', 'rspec']]);
+    assert.deepEqual(commands(projectFolder({ 'spec/cart_spec.rb': '', Gemfile: '' })), [['test', 'bundle exec rspec']]);
+    assert.deepEqual(commands(projectFolder({ 'spec/openapi.yaml': '' })), []);
+    assert.deepEqual(commands(projectFolder({ Rakefile: '', 'test/cart_test.rb': '' })), [['test', 'rake test']]);
+    assert.deepEqual(commands(projectFolder({ Rakefile: '', 'test/cart_test.rb': '', Gemfile: '' })), [['test', 'bundle exec rake test']]);
+    assert.deepEqual(commands(projectFolder({ Rakefile: '', 'spec/cart_spec.rb': '', 'test/cart_test.rb': '' })), [['test', 'rspec']]);
+    assert.deepEqual(commands(projectFolder({ Rakefile: '', test: '' })), []);
+    assert.deepEqual(commands(projectFolder({ '.rubocop.yml': '' })), [['lint', 'rubocop']]);
+    assert.deepEqual(commands(projectFolder({ '.rubocop.yml': '', '.rspec': '', Gemfile: '' })), [
+      ['lint', 'bundle exec rubocop'], ['test', 'bundle exec rspec'],
+    ]);
+    assert.deepEqual(commands(projectFolder({ '.rspec': '', Gemfile: '', Makefile: 'test:\n\tbundle exec rspec\n' })), [['test', 'make test']]);
+  });
+
+  test('a command or gem bundler cannot find is read as not installed and a failing test is not', () => {
+    assert.equal(missingProgram(['bundle', 'exec', 'rspec'], 'bundler: command not found: rspec\nInstall missing gem executables with `bundle install`\n'), 'rspec');
+    assert.equal(missingProgram(['bundle', 'exec', 'rubocop'], 'Could not find rubocop-1.60.0 in locally installed gems\n'), 'rubocop');
+    assert.equal(missingProgram(['bundle', 'exec', 'rake', 'test'], 'Run `bundle install` to install missing gems.\n'), 'rake');
+    assert.equal(missingProgram(['bundle', 'exec', 'rspec'], 'Failures:\n  1) Cart totals the prices\n1 example, 1 failure\n'), null);
+    assert.equal(missingProgram(['rspec'], 'bundler: command not found: rspec\n'), null);
+    const gemNotFound = "/usr/lib/ruby/bundler/definition.rb:726:in 'Bundler::Definition#materialize': Could not find nokogiri-1.16.0-x86_64-linux in locally installed gems (Bundler::GemNotFound)\n\tfrom /usr/bin/bundle:25\n";
+    assert.equal(missingProgram(['bundle', 'exec', 'rspec'], gemNotFound), 'nokogiri');
+    assert.equal(missingProgram(['bundle', 'exec', 'rake', 'test'], "Could not find zzfakegem-1.2.3, zzother-0.4.0 in locally installed gems (Bundler::GemNotFound)\n"), 'zzfakegem');
+    assert.equal(missingProgram(['bundle', 'exec', 'rspec'], "Could not find gem 'rails (= 7.0)' in locally installed gems.\n"), 'rails');
+  });
+
+  test('a dotnet project runs in its project folder and a failing test is a P1', () => {
+    const bin = mkdtempSync(path.join(tmpdir(), 'review-loop-bin-'));
+    symlinkSync(process.execPath, path.join(bin, 'node'));
+    const gitFolder = execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim();
+    symlinkSync(path.join(gitFolder, 'git'), path.join(bin, 'git'));
+    writeFileSync(path.join(bin, 'dotnet'), '#!/bin/sh\necho "Failed! in $(basename "$(pwd)") for $1" >&2\nexit 1\n');
+    chmodSync(path.join(bin, 'dotnet'), 0o755);
+    const withFakeDotnet = { PATH: `${bin}:/bin:/usr/bin` };
+    const root = createRepository({ 'api/Api.csproj': '<Project/>', 'api/Cart.cs': 'class Cart {}\n' });
+    writeFiles(root, { 'api/Cart.cs': 'class Cart { int total; }\n' });
+    const started = loop(root, ['start'], undefined, withFakeDotnet);
+    assert.deepEqual(started.checks.map((check) => [check.folder, check.name, check.command, check.exitCode]), [['api', 'test', 'dotnet test', 1]]);
+    assert.match(started.checks[0].tail, /Failed! in api for test/);
+    const result = loop(root, ['record'], { findings: [] }, withFakeDotnet);
+    assert.match(result.report, /api: test \(dotnet test\) failed/);
   });
 
   test('python tools run only when the project configures them', () => {
