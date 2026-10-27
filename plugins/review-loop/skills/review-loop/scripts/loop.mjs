@@ -1800,17 +1800,62 @@ function readQuotedHeredoc(command, index) {
   return { length: text.length, output: lines.join('\n').replace(/\n+$/, '') };
 }
 
-function startsSubstitution(char, next) {
-  return char === '`' || (char === '$' && next === '(');
+function readHeredocStart(command, start) {
+  let index = start;
+  const stripsTabs = command[index] === '-';
+  if (stripsTabs) index += 1;
+  while (' \t'.includes(command[index] ?? '\n')) index += 1;
+  let delimiter = '';
+  let quote = null;
+  for (; index < command.length; index += 1) {
+    const char = command[index];
+    if (quote) {
+      if (char === quote) quote = null;
+      else delimiter += char;
+    } else if (char === "'" || char === '"') {
+      quote = char;
+    } else if (char === '\\') {
+      delimiter += command[index + 1] ?? '';
+      index += 1;
+    } else if (/[\s;&|<>()]/.test(char)) {
+      break;
+    } else {
+      delimiter += char;
+    }
+  }
+  return { delimiter, stripsTabs, end: index };
+}
+
+function heredocEnd(command, start, { delimiter, stripsTabs }) {
+  for (let index = start; index < command.length;) {
+    const lineEnd = command.includes('\n', index) ? command.indexOf('\n', index) : command.length;
+    const line = command.slice(index, lineEnd).replace(stripsTabs ? /^\t+/ : /^$/, '');
+    if (line === delimiter) return lineEnd;
+    index = lineEnd + 1;
+  }
+  return command.length;
+}
+
+// The shell reads (( or $(( as arithmetic only when the paren that closes it is followed by a second ); otherwise
+// the parens open subshells, as in $((git commit); true).
+function arithmeticEnd(command, start) {
+  const open = command[start] === '$' ? start + 1 : start;
+  if (!command.startsWith('((', open)) return -1;
+  let depth = 0;
+  for (let index = open; index < command.length; index += 1) {
+    if (command[index] === '(') depth += 1;
+    else if (command[index] === ')' && --depth === 1) return command[index + 1] === ')' ? index + 1 : -1;
+  }
+  return -1;
 }
 
 function scanShell(command) {
   const segments = [];
+  let pending = [];
   let words = [];
   let word = '';
   let started = false;
   let quote = null;
-  let substitution = false;
   let grouped = false;
   const endWord = () => {
     if (started) words.push(word);
@@ -1848,7 +1893,6 @@ function scanShell(command) {
         word += heredoc.output;
         index += heredoc.length - 1;
       } else {
-        if (startsSubstitution(char, next)) substitution = true;
         word += char;
       }
     } else if (char === "'" || char === '"') {
@@ -1864,19 +1908,40 @@ function scanShell(command) {
         started = true;
       }
       index += 1;
+    } else if (char === '#' && !started) {
+      const lineEnd = command.indexOf('\n', index);
+      index = (lineEnd === -1 ? command.length : lineEnd) - 1;
+    } else if ((char === '$' || !started) && arithmeticEnd(command, index) !== -1) {
+      const end = arithmeticEnd(command, index);
+      word += command.slice(index, end + 1);
+      started = true;
+      index = end;
     } else if (';&|\n()'.includes(char)) {
       if ('()'.includes(char)) grouped = true;
       endSegment();
+      // A heredoc body starts on the line after its << and is text for the command, not commands of its own.
+      if (char === '\n' && pending.length) {
+        index = pending.reduce((end, start) => heredocEnd(command, end + 1, start), index) - 1;
+        pending = [];
+      }
     } else if (/\s/.test(char)) {
       endWord();
+    } else if (char === '<' && next === '<' && command[index + 2] !== '<') {
+      endWord();
+      const start = readHeredocStart(command, index + 2);
+      pending.push(start);
+      index = start.end - 1;
+    } else if (char === '<' && next === '<') {
+      word += '<<<';
+      started = true;
+      index += 2;
     } else {
-      if (startsSubstitution(char, next)) substitution = true;
       word += char;
       started = true;
     }
   }
   endSegment();
-  return { segments, substitution, grouped };
+  return { segments, grouped };
 }
 
 const MAX_LOCATIONS = 16;
@@ -1897,44 +1962,180 @@ function resolveDirectory(base, target) {
   return base === null ? null : path.resolve(base, expanded);
 }
 
-export function gitInvocations(command, cwd = process.cwd()) {
+const SHELL_KEYWORDS = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until', '!', '{', 'time', 'function']);
+const DIRECTORY_COMMANDS = new Set(['cd', 'pushd', 'popd']);
+// Programs that print or search text, so a git commit or push named in them is only text, unless an option below
+// makes them run a program. gh runs any name outside its own commands as an alias, which can be a shell command.
+const INERT_COMMANDS = new Set(['echo', 'printf', 'cat', 'grep', 'rg', 'man', 'gh']);
+const RUNS_PROGRAM = { man: /^(?:-[A-Za-z]*[PH]|--pager|--html)/, rg: /^--pre(?:=|$)/ };
+const GH_COMMANDS = new Set(['pr', 'issue', 'repo', 'release', 'api', 'run', 'workflow', 'search', 'browse', 'gist', 'label', 'status', 'project']);
+
+function isInert([program, ...args]) {
+  if (!INERT_COMMANDS.has(program)) return false;
+  if (program === 'gh') return GH_COMMANDS.has(args[0]);
+  return !args.some((arg) => RUNS_PROGRAM[program]?.test(arg));
+}
+
+function commandStart(words) {
+  let index = 0;
+  while (SHELL_KEYWORDS.has(words[index])) {
+    const keyword = words[index];
+    index += keyword === 'function' ? 2 : 1;
+    if (keyword === 'time') while (words[index]?.startsWith('-')) index += 1;
+  }
+  return index;
+}
+
+const GLOBAL_OPTIONS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env', '--super-prefix', '--attr-source']);
+
+function directoryTarget([name, ...operands]) {
+  if (name === 'popd') return null;
+  while (/^-[LPe@]+$/.test(operands[0] ?? '')) operands.shift();
+  if (operands[0] === '--') operands.shift();
+  if (!operands.length) return name === 'cd' ? '~' : null;
+  if (operands.length > 1 || /^[-+]./.test(operands[0])) return null;
+  return operands[0];
+}
+
+// A git dir named .git belongs to the folder around it; the null keeps a commit pointed this way from being approved.
+function pointedLocations(targets, directories) {
+  const folders = targets.flatMap((target) => directories.map((base) => {
+    const folder = base === null ? null : resolveDirectory(base, target);
+    return folder && path.basename(folder) === '.git' ? path.dirname(folder) : folder;
+  }));
+  return limitLocations([...folders, null]);
+}
+
+function readGitWords(words, gitIndex, locations) {
+  const pointedAt = words.slice(0, gitIndex).flatMap((word) => word.match(/^GIT_(?:DIR|WORK_TREE)=(.*)$/s)?.[1] ?? []);
+  const globals = [];
+  let directories = locations;
+  let index = gitIndex + 1;
+  while (index < words.length && words[index].startsWith('-')) {
+    const option = words[index];
+    const [name, attached] = option.split(/=(.*)/s);
+    const width = GLOBAL_OPTIONS_WITH_VALUE.has(option) ? 2 : 1;
+    const value = width === 2 ? words[index + 1] : attached;
+    if (option === '-C') {
+      directories = limitLocations(directories.map((base) => resolveDirectory(base, value ?? '.')));
+    } else {
+      globals.push(...words.slice(index, index + width));
+      if (['--git-dir', '--work-tree'].includes(name)) pointedAt.push(value ?? '');
+    }
+    index += width;
+  }
+  if (pointedAt.length) directories = pointedLocations(pointedAt, directories);
+  return words[index] ? { subcommand: words[index], args: words.slice(index + 1), directories, globals } : null;
+}
+
+// Finds git where the shell runs a program: after shell keywords and variable assignments. A git word anywhere
+// else, as in `echo git commit` or `sudo git commit`, is left to the text check in gateDecision.
+function readCommand(command, cwd) {
   const invocations = [];
   let locations = [cwd];
-  const { segments, grouped } = scanShell(String(command ?? ''));
+  const folders = new Set(locations);
+  const { segments, grouped } = scanShell(command);
+  const branching = grouped || segments.some((words) => SHELL_KEYWORDS.has(words[0]));
   for (const words of segments) {
-    if (words[0] === 'cd') {
-      const targets = locations.map((base) => resolveDirectory(base, words[1] ?? '~'));
-      locations = limitLocations(grouped ? [...locations, ...targets] : targets);
+    let index = commandStart(words);
+    if (DIRECTORY_COMMANDS.has(words[index])) {
+      const target = directoryTarget(words.slice(index));
+      const targets = locations.map((base) => (target === null ? null : resolveDirectory(base, target)));
+      locations = limitLocations(branching ? [...locations, ...targets] : targets);
+      locations.forEach((location) => folders.add(location));
       continue;
     }
-    let index = 0;
-    let directories = locations;
-    let pointedElsewhere = false;
-    while (index < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index])) {
-      if (/^GIT_(?:DIR|WORK_TREE)=/.test(words[index])) pointedElsewhere = true;
+    while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index] ?? '')) index += 1;
+    const invocation = path.basename(words[index] ?? '') === 'git' ? readGitWords(words, index, locations) : null;
+    if (invocation) {
+      invocations.push(invocation);
+      invocation.directories.forEach((directory) => folders.add(directory));
+    }
+  }
+  return { invocations, folders: [...folders] };
+}
+
+export function gitInvocations(command, cwd = process.cwd()) {
+  return readCommand(String(command ?? ''), cwd).invocations;
+}
+
+// The only commands review-loop may approve on its own: git and cd steps joined by &&, ;, or a newline, every word
+// plain or quoted text. A redirect, pipe, variable, glob, or substitution is outside it, so it can never be approved.
+const PLAIN_GAP = /[ \t]+|&&|;|\n/y;
+const PLAIN_TEXT = /[\w./:=@%+,^~-]+/y;
+const SINGLE_QUOTED = /'[^']*'/y;
+const ANSI_C_QUOTED = /\$'(?:[^'\\]|\\['\\])*'/y;
+
+function readDoubleQuoted(command, start) {
+  let text = '';
+  for (let index = start + 1; index < command.length; index += 1) {
+    const char = command[index];
+    const heredoc = char === '$' ? readQuotedHeredoc(command, index) : null;
+    if (char === '"') return { text, end: index + 1 };
+    if (char === '\\' && (command[index + 1] === '\n' || DOUBLE_QUOTE_ESCAPES.includes(command[index + 1]))) {
+      if (command[index + 1] !== '\n') text += command[index + 1];
       index += 1;
+    } else if (heredoc) {
+      text += heredoc.output;
+      index += heredoc.length - 1;
+    } else if ('$`'.includes(char)) {
+      return null;
+    } else {
+      text += char;
     }
-    if (path.basename(words[index] ?? '') !== 'git') continue;
-    index += 1;
-    while (index < words.length && words[index].startsWith('-')) {
-      const option = words[index];
-      if (option === '-C') {
-        directories = limitLocations(directories.map((base) => resolveDirectory(base, words[index + 1] ?? '.')));
-        index += 2;
-      } else if (['--git-dir', '--work-tree'].includes(option)) {
-        pointedElsewhere = true;
-        index += 2;
-      } else if (/^--(?:git-dir|work-tree)=/.test(option)) {
-        pointedElsewhere = true;
-        index += 1;
-      } else if (['-c', '--namespace'].includes(option)) {
-        index += 2;
-      } else {
-        index += 1;
-      }
+  }
+  return null;
+}
+
+function plainSteps(command) {
+  const steps = [[]];
+  let word = null;
+  let index = 0;
+  const take = (pattern) => {
+    pattern.lastIndex = index;
+    const match = pattern.exec(command)?.[0] ?? null;
+    if (match !== null) index = pattern.lastIndex;
+    return match;
+  };
+  while (index < command.length) {
+    const gap = take(PLAIN_GAP);
+    if (gap !== null) {
+      if (word !== null) steps.at(-1).push(word);
+      word = null;
+      if (!/^[ \t]/.test(gap)) steps.push([]);
+      continue;
     }
-    if (pointedElsewhere) directories = [null];
-    if (words[index]) invocations.push({ subcommand: words[index], args: words.slice(index + 1), directories });
+    // The shell expands ~ and, in zsh, = at the start of a word.
+    if (word === null && '~='.includes(command[index])) return null;
+    const quoted = command[index] === '"' ? readDoubleQuoted(command, index) : null;
+    if (quoted) index = quoted.end;
+    const piece = quoted?.text
+      ?? take(SINGLE_QUOTED)?.slice(1, -1)
+      ?? take(ANSI_C_QUOTED)?.slice(2, -1).replace(/\\(.)/g, '$1')
+      ?? take(PLAIN_TEXT);
+    if (piece === null) return null;
+    word = (word ?? '') + piece;
+  }
+  if (word !== null) steps.at(-1).push(word);
+  return steps.filter((step) => step.length);
+}
+
+function readPlainCommand(command, cwd) {
+  const steps = plainSteps(command);
+  if (!steps?.length) return null;
+  const invocations = [];
+  let location = cwd;
+  for (const [program, ...words] of steps) {
+    if (program === 'cd' && words.length === 1 && !words[0].startsWith('-')) {
+      location = path.resolve(location, fromShell(words[0]));
+      continue;
+    }
+    if (program !== 'git') return null;
+    const pointed = words[0] === '-C';
+    const directory = pointed ? path.resolve(location, fromShell(words[1] ?? '')) : location;
+    const [subcommand, ...args] = pointed ? words.slice(2) : words;
+    if (!subcommand || subcommand.startsWith('-')) return null;
+    invocations.push({ subcommand, args, directories: [directory], globals: [] });
   }
   return invocations;
 }
@@ -2016,18 +2217,43 @@ function reviewVerdict(repository, gateSettings) {
 
 const SAFE_GIT_SUBCOMMANDS = new Set(['add', 'commit', 'status', 'diff', 'log', 'show']);
 
+// git accepts any unambiguous prefix of a long option, so --out works like --output.
+function writesFile(arg) {
+  const name = /^--([^=]+)/.exec(arg)?.[1];
+  return Boolean(name) && name.length > 1 && 'output'.startsWith(name);
+}
+
+const approvable = ({ subcommand, globals, args }) => SAFE_GIT_SUBCOMMANDS.has(subcommand) && !globals.length && !args.some(writesFile);
+const GIT_WORD = /(?<![\w.-])git(?![\w-])/;
+const GATED_WORD = /(?<![\w./-])(?:commit|push)(?![\w./-])/;
+
+function inGatedRepository(folder) {
+  const repository = folder && findRepository(folder);
+  return Boolean(repository && readGate(repository).enabled);
+}
+
+// Reads the raw text, not the parse, so a shell form the parser misreads still reaches the question. Only cd steps
+// and programs that print text, with plain or quoted words, are left alone.
+function unreadVerdict(command, folders) {
+  if (!GIT_WORD.test(command) || !GATED_WORD.test(command)) return null;
+  if (plainSteps(command)?.every((step) => step[0] === 'cd' || isInert(step))) return null;
+  if (!folders.some(inGatedRepository)) return null;
+  return verdict('ask', 'review-loop: this command names git and commit or push in a form the commit gate cannot read, so it cannot check it. Confirm before Claude runs it.');
+}
+
+// An allow skips Claude Code's own permission prompt, so only a command readPlainCommand reads in full can get one.
+// A deny needs a commit found where the shell runs git. Anything else that names git and commit or push is asked about.
 export function gateDecision({ cwd, command, projectDir }) {
-  const invocations = gitInvocations(command, cwd).map(resolveInvocation);
+  const text = String(command ?? '');
   const sessionFolders = [...new Set([cwd, projectDir].filter(Boolean))];
+  const plain = readPlainCommand(text, cwd);
+  const read = readCommand(text, cwd);
+  const invocations = (plain ?? read.invocations).map(resolveInvocation);
   const strictest = gateVerdicts(invocations, sessionFolders)[0] ?? null;
-  if (strictest?.decision !== 'allow') return strictest;
-  const scan = scanShell(String(command ?? ''));
-  const segments = scan.segments.filter((words) => words[0] !== 'cd');
-  const onlySafeGit = segments.length === invocations.length
-    && invocations.every((invocation) => SAFE_GIT_SUBCOMMANDS.has(invocation.subcommand))
-    && !scan.substitution;
-  if (onlySafeGit) return strictest;
-  return verdict('ask', `${strictest.reason} The command also runs other commands, so review-loop does not approve it on its own.`);
+  if (plain && invocations.every(approvable)) return strictest;
+  if (!strictest) return unreadVerdict(text, [...sessionFolders, ...read.folders]);
+  if (strictest.decision !== 'allow') return strictest;
+  return verdict('ask', `${strictest.reason} The command does more than plain git add, commit, status, diff, log, or show and cd steps, so review-loop does not approve it on its own.`);
 }
 
 function ambiguousVerdict(result, ambiguous, skipPending) {
@@ -2062,6 +2288,7 @@ function aliasOf(directory, name) {
 
 export function expandAlias(invocation, lookup, depth = 0) {
   let { subcommand, args, directories } = invocation;
+  const aliasGlobals = [];
   const seen = new Set();
   while (depth < ALIAS_DEPTH && !GATED_SUBCOMMANDS.includes(subcommand) && !seen.has(subcommand)) {
     seen.add(subcommand);
@@ -2082,8 +2309,12 @@ export function expandAlias(invocation, lookup, depth = 0) {
     if (expanded.directories.length !== 1 || expanded.directories[0] !== '.') directories = [null];
     subcommand = expanded.subcommand;
     args = [...expanded.args, ...args];
+    aliasGlobals.push(...expanded.globals);
   }
-  return GATED_SUBCOMMANDS.includes(subcommand) ? { ...invocation, subcommand, args, directories, alias: invocation.subcommand } : invocation;
+  if (!GATED_SUBCOMMANDS.includes(subcommand)) return invocation;
+  const result = { ...invocation, subcommand, args, directories, alias: invocation.subcommand };
+  if (aliasGlobals.length) result.globals = [...invocation.globals, ...aliasGlobals];
+  return result;
 }
 
 function resolveInvocation(invocation) {

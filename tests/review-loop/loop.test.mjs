@@ -305,6 +305,35 @@ describe('gitInvocations', () => {
   test('ignores git words inside other commands', () => {
     assert.deepEqual(gitInvocations('echo "git commit"', '/repo'), []);
     assert.deepEqual(gitInvocations("grep -r 'git push' .", '/repo'), []);
+    assert.deepEqual(gitInvocations('echo Run git commit when done', '/repo'), []);
+    assert.deepEqual(gitInvocations('man git commit', '/repo'), []);
+    assert.deepEqual(gitInvocations('cat <<EOF > notes.md\ngit commit -m wip\nEOF', '/repo'), []);
+  });
+
+  test('finds a commit behind shell keywords', () => {
+    const commands = [
+      'if true; then git commit -m x; fi', '{ git commit -m x; }', '! git commit -m x', 'for f in a; do git commit -m x; done',
+      'time git commit -m x', 'while false; do GIT_EDITOR=true git commit; done',
+    ];
+    for (const command of commands) {
+      assert.ok(gitInvocations(command, '/repo').some((invocation) => invocation.subcommand === 'commit'), command);
+    }
+  });
+
+  test('follows pushd and cd flags and gives up on directory changes it cannot follow', () => {
+    const directories = (command) => gitInvocations(command, '/repo').find((invocation) => invocation.subcommand === 'commit').directories;
+    assert.deepEqual(directories('pushd app && git commit -m x'), [path.resolve('/repo/app')]);
+    assert.deepEqual(directories('cd -P app && git commit -m x'), [path.resolve('/repo/app')]);
+    assert.deepEqual(directories('cd -- app && git commit -m x'), [path.resolve('/repo/app')]);
+    assert.deepEqual(directories('popd && git commit -m x'), [null]);
+    assert.deepEqual(directories('pushd +1 && git commit -m x'), [null]);
+    assert.deepEqual(directories('if true; then cd app; fi; git commit -m x'), [path.resolve('/repo'), path.resolve('/repo/app')]);
+  });
+
+  test('keeps global options and reads --git-dir as the repository it names', () => {
+    assert.deepEqual(gitInvocations('git -c core.hooksPath=/dev/null commit -m x', '/repo')[0].globals, ['-c', 'core.hooksPath=/dev/null']);
+    assert.deepEqual(gitInvocations('git -C app commit -m x', '/repo')[0].globals, []);
+    assert.deepEqual(gitInvocations('git --git-dir=/other/.git commit -m x', '/repo')[0].directories, [path.resolve('/other'), null]);
   });
 });
 
@@ -1692,6 +1721,13 @@ describe('commit gate', () => {
     assert.equal(commit(root, 'git ci -m "feat: coupon"').decision, 'allow');
   });
 
+  test('a delegated commit through an alias that sets git options is asked about', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    execFileSync('git', ['config', 'alias.as', '-c core.hooksPath=/dev/null commit'], { cwd: root });
+    assert.equal(commit(root, 'git as -m "feat: coupon"')?.decision, 'ask');
+  });
+
   test('alias expansion follows an alias of an alias and stops at a loop and an alias that moves to another repository is unknown', () => {
     const aliases = { ci: 'commit', save: 'ci -a', loopy: 'loopy2', loopy2: 'loopy' };
     const lookup = (name) => aliases[name] ?? null;
@@ -1831,6 +1867,181 @@ describe('commit gate', () => {
     loop(root, ['delegate', '--scope', 'repo']);
     assert.equal(commit(root, 'git add -A && git commit -m x').decision, 'allow');
     assert.equal(commit(root, 'git commit -m x && rm -rf dist').decision, 'ask');
+  });
+
+  test('allow covers only git and cd steps with plain or quoted words', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    const allowed = [
+      'git commit -m x', `cd ${shellPath(root)} && git commit -m x`, `git -C ${shellPath(root)} commit -m x`,
+      'git add -A && git commit -m x && git status', 'git commit -m x\ngit log -1', "git commit -m x && git status -- 'a>b'",
+    ];
+    for (const command of allowed) assert.equal(commit(root, command).decision, 'allow', command);
+    const lowered = [
+      'git commit -m x && git -c core.fsmonitor="touch pwned" status',
+      'git commit -m x && git status > out.txt',
+      'git commit -m x && git log --output=out.txt',
+      'git commit -m x && git log --out out.txt',
+      'git -c user.name=someone commit -m x',
+      'git -c core.hooksPath=/dev/null commit -m x',
+      'GIT_SSH_COMMAND=evil git commit -m x',
+      'git commit -m x && cd . > out.txt',
+      'git commit -m x && pushd . > out.txt',
+      'git commit -m x && cd . 2>out.txt',
+      'git commit -m x && ./git status',
+      'git commit -m x && $TMPDIR/git status',
+      'git commit -m x & git status',
+      'git commit -m x | git status',
+      'git commit -m x && git add *.js',
+      `cd ~ && cd ${shellPath(root)} && git commit -m x`,
+    ];
+    for (const command of lowered) assert.equal(commit(root, command).decision, 'ask', command);
+  });
+
+  test('a commit behind shell keywords is checked like the plain command', () => {
+    const forms = [
+      'if true; then git commit -m x; fi', '{ git commit -m x; }', '! git commit -m x', 'for f in a; do git commit -m x; done',
+      'time git commit -m x', 'f() { git commit -m x; }; f', 'function f { git commit -m x; }; f', 'time -p git commit -m x',
+    ];
+    const unreviewed = createRepository({ 'src/cart.js': correctCart });
+    loop(unreviewed, ['gate', '--on']);
+    writeFiles(unreviewed, { 'src/cart.js': brokenCart });
+    for (const command of forms) assert.equal(commit(unreviewed, command)?.decision, 'deny', command);
+    const delegated = reviewedRepository();
+    loop(delegated, ['delegate', '--scope', 'repo']);
+    for (const command of forms) assert.equal(commit(delegated, command)?.decision, 'ask', command);
+    assert.equal(commit(delegated, 'while false; do git push; done')?.decision, 'ask');
+  });
+
+  test('a commit or push the gate cannot read is asked about in a gated repository', () => {
+    const forms = [
+      'command git commit -m x', 'exec git commit -m x', 'env A=1 git commit -m x', 'nice -n 5 git commit -m x', 'nohup git commit -m x',
+      'sudo git commit -m x', 'echo x | xargs git commit -m', 'echo `git commit -m x`', 'echo "$(git commit -m x)"',
+      'bash -c "git commit -m x"', "sh -c 'git commit -m x'", 'eval git commit -m x', 'git -c alias.ci=commit ci -m x',
+      '$(echo git) commit -m x', 'git $(echo commit) -m x', 'G=git; $G commit -m x', 'echo "git commit -m x" | bash',
+      `echo "$(echo ')'; git commit -m x)"`, 'echo "$(case a in a) git commit -m x;; esac)"', 'watch -n1 "git commit -m x"',
+      'env -S "git commit -m x"', 'su -c "git commit -m x"', 'coproc git commit -m x', 'gh issue create --body "Use `git push` to publish"',
+      'git --exec-path /tmp commit -m x', "git -c core.pager='git commit' log", "bash <<'EOF'\ngit commit -m x\nEOF",
+      'cat <<EOF\n$(git commit -m x)\nEOF', "man -P 'git commit -m x' git", "rg --pre 'git commit -m x' a .",
+      "gh alias set --shell ship 'git push'", "gh alias set ship '!git push'", "GIT_PAGER='git commit' git log",
+      'echo git commit > ship.sh && sh ship.sh',
+    ];
+    const unreviewed = createRepository({ 'src/cart.js': correctCart });
+    loop(unreviewed, ['gate', '--on']);
+    writeFiles(unreviewed, { 'src/cart.js': brokenCart });
+    for (const command of forms) assert.equal(commit(unreviewed, command)?.decision, 'ask', command);
+    const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
+    assert.equal(commit(plainDirectory, `cd ${shellPath(unreviewed)} && bash -c "git commit -m x"`)?.decision, 'ask');
+    assert.equal(commit(plainDirectory, 'bash -c "git commit -m x"'), null);
+  });
+
+  test('git commit or push named as text is left alone only when the command is text programs with plain words', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const text = [
+      'echo "git commit"', 'echo Run git commit when done', 'echo then git push origin main', 'grep -rn "git commit" .',
+      'man git commit', 'git log --grep "git push"', 'gh pr create --body "Avoid \\`git push --force\\`"',
+      `gh pr create --title "fix: x" --body "$(cat <<'EOF'\nRun git commit after the review.\nEOF\n)"`,
+      `cd ${shellPath(root)} && echo "run git commit"`,
+    ];
+    for (const command of text) assert.equal(commit(root, command), null, command);
+    const asked = [
+      'cat <<EOF > notes.md\ngit commit -m wip\nEOF', 'echo "git commit" > notes.md', 'git log --grep commit | head',
+      'git status && echo "now git commit"',
+    ];
+    for (const command of asked) assert.equal(commit(root, command)?.decision, 'ask', command);
+  });
+
+  test('commit or push inside a path or branch name is not read as the git command word', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    for (const command of ['git checkout fix/commit', 'git log -- src/commit.js | head', 'git config --get push.default 2>/dev/null', 'git status && node --test tests/commit.test.mjs', 'git diff push-notes.md | cat']) {
+      assert.equal(commit(root, command), null, command);
+    }
+  });
+
+  test('a << in a comment does not hide the lines after it', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    for (const command of ['git status # see <<EOF\ngit commit -m x\nEOF', 'echo hi # <<EOF\ngit commit -m x\nEOF', "# Let's commit\ngit commit -m x"]) {
+      assert.equal(commit(root, command)?.decision, 'deny', command);
+    }
+    assert.equal(commit(root, 'git log -1 # <<x\ngit push origin main\nx')?.decision, 'ask');
+  });
+
+  test('(( and $(( that do not close with )) are subshells, and << inside arithmetic is not a heredoc', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const commands = [
+      'echo $((git commit -m x); true)', '((x=1<<2))\ngit commit -m x', 'for ((i=0; i<1<<2; i++)); do :; done\ngit commit -m x',
+    ];
+    for (const command of commands) assert.equal(commit(root, command)?.decision, 'deny', command);
+    assert.equal(commit(root, 'echo $((git push origin main) )')?.decision, 'ask');
+  });
+
+  test('a git subcommand that runs its arguments, such as rebase -x, is asked about in a gated repository', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const commands = [
+      'git rebase -x "git commit --amend --no-edit" HEAD~1 2>&1 | tail -5', 'git submodule foreach "git commit -am x" > /dev/null',
+      'git bisect run git commit -m x | cat', 'git rebase -x "git commit --amend --no-edit" HEAD~1',
+    ];
+    for (const command of commands) assert.equal(commit(root, command)?.decision, 'ask', command);
+    const ungated = createRepository({ 'src/cart.js': correctCart });
+    assert.equal(commit(ungated, 'git rebase -x "git commit --amend --no-edit" HEAD~1 | tail -5'), null);
+  });
+
+  test('a commit after shell text the gate misreads is asked about, not let through', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    for (const command of ['echo ${x/<<EOF/y}\ngit commit -m x\nEOF', 'echo $[1<<2]\ngit commit -m x']) {
+      assert.equal(commit(root, command)?.decision, 'ask', command);
+    }
+  });
+
+  test('a commit before, after, or fed a heredoc is still checked', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const commands = [
+      "git commit -F - <<'EOF'\nfeat: coupon\nEOF", "git commit -m x && cat <<'EOF' > notes.md\nnotes\nEOF",
+      "cat <<'EOF' > notes.md\nnotes\nEOF\ngit commit -m x", 'cat <<-A <<B\n\tgit push\n\tA\ngit push\nB\ngit commit -m x',
+      'git commit -m x && echo $((1<<2))',
+    ];
+    for (const command of commands) assert.equal(commit(root, command)?.decision, 'deny', command);
+  });
+
+  test('a plain commit into an ungated repository is left alone, and one with a pipe or redirect is asked about', () => {
+    const gated = createRepository({ 'src/cart.js': correctCart });
+    loop(gated, ['gate', '--on']);
+    const ungated = shellPath(createRepository({ 'src/cart.js': correctCart }));
+    for (const command of [`git -C ${ungated} commit -m x`, `cd ${ungated} && git add -A && git commit -m x`]) {
+      assert.equal(commit(gated, command), null, command);
+    }
+    const commands = [
+      `git -C ${ungated} commit -m x > /dev/null`, `cd ${ungated} && git add -A && git commit -m x 2>&1 | tail -3`,
+      `git -C ${ungated} push | cat`,
+    ];
+    for (const command of commands) assert.equal(commit(gated, command)?.decision, 'ask', command);
+  });
+
+  test('a commit through pushd, cd flags, or --git-dir is checked in the repository it reaches', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
+    const repository = shellPath(root);
+    const commands = [
+      `pushd ${repository} && git commit -m x`, `cd -P ${repository} && git commit -m x`, `cd -- ${repository} && git commit -m x`,
+      `git --git-dir=${repository}/.git commit -m x`, `git --git-dir ${repository}/.git --work-tree ${repository} commit -m x`,
+    ];
+    for (const command of commands) assert.equal(commit(plainDirectory, command)?.decision, 'deny', command);
   });
 
   test('command substitution in a delegated commit is asked about', () => {
