@@ -2,6 +2,14 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: An unattended review fixes a P1 or P2 whose fix only adds a regression test. The reviewer now marks `touchesTests` only when an existing test, snapshot, or threshold must change, so these findings no longer wait for you. (#114)
+- Fixed: Findings left waiting for you in an unattended run go to the next reviewer with the open ones. One the next round resolves leaves the waiting list, and a failing check that waits is no longer raised again as a new finding. (#114)
+- Fixed: `loop next` refuses when nothing changed since the review, instead of counting it as a failed fix and leaving the finding waiting for you. (#114)
+- Added: `loop next --unchanged "<why>"` runs the next round on an unchanged tree when nothing should change, such as a finding you chose to keep or a check that fails only because of the environment. The reason goes to the ledger and the round still counts toward the stall and stuck stops. (#114)
+- Fixed: An unattended run fixes a finding whose only open question is which of several fixes to use, with the fix that changes the least, and logs the choice; findings that change behavior, remove a feature, or change a test still wait for you. (#114)
+
 ## 0.10.0 (2026-10-27)
 
 - Added: .NET and Ruby projects run their checks, at the root or in a subfolder project, after the project's own scripts and Makefile targets: `dotnet test` for a `*.sln`, `*.csproj`, or `*.fsproj` file, and rspec, `rake test`, or rubocop when a Ruby project uses them, through `bundle exec` when a `Gemfile` exists. A .NET project under a solution runs no build of its own, and a missing `dotnet`, `bundle`, tool, or gem is not verified. A folder with several solution or project files passes one to `dotnet test`, and a gem Bundler cannot find is named in the report. (#94)

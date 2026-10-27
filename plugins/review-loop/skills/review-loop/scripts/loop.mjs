@@ -1056,6 +1056,15 @@ function deferredReason(item, confirmSetting) {
   return 'it needs your call before fixing';
 }
 
+// Unattended, a finding whose only open question is which of several fixes to use gets the smallest one;
+// a choice the user would see (behavior, a removed feature, a changed test) still waits.
+function unattendedFixable(item, confirmSetting) {
+  const flags = ASK_FLAGS.filter((flag) => item[flag] === true);
+  return !(item.attempts > 0) && flags.length === 1 && flags[0] === 'multipleFixes' && !confirmSetting.severities.includes(item.severity);
+}
+
+const UNATTENDED_FIX_NOTE = 'unattended: use the fix that changes the least, and record the choice with loop note';
+
 function defer(item, confirmSetting) {
   const { note, ...finding } = item;
   return { ...finding, deferredReason: deferredReason(item, confirmSetting) };
@@ -1066,13 +1075,26 @@ function readUnattended(repository) {
 }
 
 function makeUnattended(repository, state) {
-  const moved = state.awaiting === 'fix' ? state.open.filter((item) => routeOf(item) === 'ask') : [];
   const confirmSetting = readConfirm(repository);
+  const asking = state.awaiting === 'fix' ? state.open.filter((item) => routeOf(item) === 'ask') : [];
+  const moved = asking.filter((item) => !unattendedFixable(item, confirmSetting));
+  for (const item of asking.filter((candidate) => !moved.includes(candidate))) {
+    Object.assign(item, { route: 'fix', note: UNATTENDED_FIX_NOTE });
+  }
   state.unattended = true;
   state.open = state.open.filter((item) => !moved.includes(item));
   state.deferred = [...(state.deferred ?? []), ...moved.map((item) => defer(item, confirmSetting))];
   saveState(repository, state);
   return moved.map((item) => item.id);
+}
+
+function makeAttended(repository, state) {
+  state.unattended = false;
+  for (const item of state.open.filter((candidate) => candidate.note === UNATTENDED_FIX_NOTE)) {
+    delete item.note;
+    item.route = 'ask';
+  }
+  saveState(repository, state);
 }
 
 function isInProgress(state) {
@@ -1114,8 +1136,7 @@ function start(cwd, options) {
     if (unattended) {
       makeUnattended(repository, existing);
     } else {
-      existing.unattended = false;
-      saveState(repository, existing);
+      makeAttended(repository, existing);
     }
     return resumeView(repository, existing);
   }
@@ -1160,12 +1181,13 @@ function recordReview(repository, input) {
   const passedPrints = passedCheckPrints(repository.root, state.checks, state.files ?? []);
   const unverified = new Map(state.checks.filter(isNotVerified).map((check) => [checkFingerprint(check), check]));
   const resolvedIds = new Set(review.resolved ?? []);
+  const isResolved = (item) => (item.fromChecks ? passedPrints.has(item.fingerprint) : resolvedIds.has(item.id) && !rerunBlocks(item));
 
-  const resolved = [];
+  const previouslyDeferred = state.deferred ?? [];
+  const resolved = previouslyDeferred.filter(isResolved);
   const carried = [];
   for (const item of state.open) {
-    const isResolved = item.fromChecks ? passedPrints.has(item.fingerprint) : resolvedIds.has(item.id) && !rerunBlocks(item);
-    if (isResolved) {
+    if (isResolved(item)) {
       resolved.push(item);
     } else {
       carried.push({ ...item, attempts: item.attempts + 1, note: carriedNote(item, state.checks, unverified, resolvedIds) });
@@ -1178,7 +1200,6 @@ function recordReview(repository, input) {
   const keptBefore = keptSeverities(repository);
   const seenBefore = kindCounts(repository, { except: state.runId });
   const previouslyKept = state.kept ?? [];
-  const previouslyDeferred = state.deferred ?? [];
   const knownPrints = new Set([...state.open, ...previouslyDeferred, ...previouslyKept].map((item) => item.fingerprint));
   const reported = [];
   const kept = [];
@@ -1194,7 +1215,8 @@ function recordReview(repository, input) {
     }
   }
   const allKept = [...previouslyKept, ...kept];
-  const newChecks = failingChecks.filter((finding) => !state.open.some((item) => item.fingerprint === fingerprint(finding)));
+  const trackedPrints = new Set([...state.open, ...previouslyDeferred].map((item) => item.fingerprint));
+  const newChecks = failingChecks.filter((finding) => !trackedPrints.has(fingerprint(finding)));
   const confirmSetting = readConfirm(repository);
   const inRound = [...newChecks, ...reported.filter((finding) => filesInRound.has(finding.file))];
   const classified = classify(inRound, sourcesFor, confirmSetting.severities);
@@ -1208,13 +1230,17 @@ function recordReview(repository, input) {
   const fix = assignIds(classified.fix, 'fix');
   const newAsk = assignIds(classified.ask, 'ask');
   const needsYou = [...newAsk, ...retried.map((item) => ({ ...item, route: 'ask' }))];
+  const unattendedFix = state.unattended
+    ? needsYou.filter((item) => unattendedFixable(item, confirmSetting)).map((item) => ({ ...item, route: 'fix', note: UNATTENDED_FIX_NOTE }))
+    : [];
+  const fixedUnattended = new Set(unattendedFix.map((item) => item.id));
   const ask = state.unattended ? [] : needsYou;
-  const deferred = state.unattended ? needsYou.map((item) => defer(item, confirmSetting)) : [];
-  const allDeferred = [...previouslyDeferred, ...deferred];
+  const deferred = state.unattended ? needsYou.filter((item) => !fixedUnattended.has(item.id)).map((item) => defer(item, confirmSetting)) : [];
+  const allDeferred = [...previouslyDeferred.filter((item) => !resolved.includes(item)), ...deferred];
   const cards = assignIds([...classified.cards, ...outsideCards]);
   const resolvedPrints = new Set(state.resolved.map((item) => item.fingerprint));
   const regressions = [...fix, ...newAsk].filter((item) => resolvedPrints.has(item.fingerprint));
-  const open = [...fix, ...ask, ...stuck];
+  const open = [...fix, ...unattendedFix, ...ask, ...stuck];
   const counts = [...state.counts, open.length];
   const { decision, reason } = decideNext({
     round: state.round, maxRounds: state.maxRounds, counts, open: open.length, waiting: allDeferred.length, stuck, regressions,
@@ -1225,7 +1251,7 @@ function recordReview(repository, input) {
   const reviewerModel = state.reviewerModel ?? 'inherit';
   const view = {
     round: state.round, maxRounds: state.maxRounds, reviewerModel, checks: state.checks, checksLeftOut: state.checksLeftOut, resolved,
-    fix: stopped ? [] : fix, ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
+    fix: stopped ? [] : [...fix, ...unattendedFix], ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
     deferred: stopped ? allDeferred : deferred,
     regressions, cards: allCards, kept: allKept, counts, decision, reason,
     looped: [...state.resolved, ...resolved, ...open, ...allDeferred], featureMap: readFeatureMap(repository.root),
@@ -1260,12 +1286,20 @@ function recordReview(repository, input) {
   };
 }
 
-function next(cwd) {
+function next(cwd, options = {}) {
   const repository = openRepository(cwd);
   const state = loadState(repository);
   if (state.awaiting !== 'fix') throw new Error(`expected ${state.awaiting}, not a fix`);
   const fixedTree = snapshotTree(repository);
-  for (const item of state.open.filter((candidate) => candidate.reproduced)) {
+  const unchanged = fixedTree === state.reviewedTree;
+  if (unchanged && (typeof options.unchanged !== 'string' || !options.unchanged.trim())) {
+    throw new Error(
+      `nothing changed since round ${state.round}'s review; fix the findings, then run next, or run next --unchanged "<why>" when nothing should change`,
+    );
+  }
+  const unchangedReason = unchanged ? { unchanged: options.unchanged } : {};
+  const rechecked = [...state.open, ...(state.deferred ?? [])];
+  for (const item of rechecked.filter((candidate) => candidate.reproduced)) {
     const rerun = verifyEvidence(repository, item.reproduced.check, fixedTree);
     item.rerun = rerun ? { status: rerun.status, evidencePath: rerun.evidencePath } : { status: 'missing' };
   }
@@ -1276,7 +1310,7 @@ function next(cwd) {
   const diffPath = repository.file(`round-${state.round}.diff`);
   const openPath = repository.file(`round-${state.round}.open.json`);
   writeFileSync(diffPath, fixDiff);
-  const openForReviewer = state.open
+  const openForReviewer = rechecked
     .filter((item) => !item.fromChecks)
     .map(({ id, severity, file, line, title, quote, scenario }) => ({ id, severity, file, line, title, quote, scenario }));
   writeFileSync(openPath, JSON.stringify(openForReviewer, null, 2));
@@ -1291,7 +1325,7 @@ function next(cwd) {
       checks: null, awaiting: 'decisions', stopped: { reason: 'integrity', at: now() }, lastReport: report,
     });
     saveState(repository, state);
-    logEvent(repository, { event: 'next', round: state.round, decision: 'stop', reason: 'integrity', integrity });
+    logEvent(repository, { event: 'next', round: state.round, decision: 'stop', reason: 'integrity', integrity, ...unchangedReason });
     return { report, status: 'stopped', reason: 'integrity', integrity, stillOpen: state.open, cards: state.cards };
   }
 
@@ -1303,7 +1337,7 @@ function next(cwd) {
   });
   saveState(repository, state);
   const checks = runRoundChecks(repository, state);
-  logEvent(repository, { event: 'next', round: state.round, fixedTree, changedFiles: state.files });
+  logEvent(repository, { event: 'next', round: state.round, fixedTree, changedFiles: state.files, ...unchangedReason });
   return {
     status: 'review', round: state.round, maxRounds: state.maxRounds, reviewerModel: state.reviewerModel, diffPath, openPath,
     reviewPath: reviewPathFor(repository, state.round), checks, ...leftOutField(state.checksLeftOut),
@@ -1597,7 +1631,7 @@ function setUnattended(cwd, options) {
   if (state && enabled) {
     deferred = makeUnattended(repository, state);
   } else if (state) {
-    saveState(repository, { ...state, unattended: false });
+    makeAttended(repository, state);
   }
   logEvent(repository, { event: 'unattended', enabled, deferred });
   return { enabled, deferred };

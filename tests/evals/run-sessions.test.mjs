@@ -65,7 +65,7 @@ const happyRepository = {
     { event: 'record', round: 2, decision: 'stop', reason: 'clean' },
   ],
   reviewState: {
-    resolved: [{ id: 'F-1', severity: 'P1', title: 'Cents lose their leading zero', reproduced: { check: 'two-decimal-places', status: 'fail' }, rerun: { status: 'pass' } }],
+    resolved: [{ id: 'F-1', severity: 'P1', title: 'Cents lose their leading zero', reproduced: { check: 'two-decimal-places', evidencePath: '.git/lim/verify/runs/a.json', reasons: ['stdout does not equal "$0.05"'] }, rerun: { status: 'pass' } }],
     open: [],
   },
   verify: { runs: 2, latest: { 'two-decimal-places': { status: 'pass' } } },

@@ -176,8 +176,8 @@ function resolvedReproduced(session) {
   const item = resolved.find((finding) => finding.reproduced);
   if (!item) return { pass: false, evidence: `resolved: ${resolved.map((finding) => `${finding.id} ${finding.severity}`).join(', ') || 'none'}; none reproduced` };
   return {
-    pass: item.reproduced.status === 'fail' && item.rerun?.status === 'pass',
-    evidence: `${item.id} ${item.severity} "${short(item.title, 70)}": reproduced ${item.reproduced.check} ${item.reproduced.status}, rerun ${item.rerun?.status ?? 'none'}`,
+    pass: item.rerun?.status === 'pass',
+    evidence: `${item.id} ${item.severity} "${short(item.title, 70)}": reproduced by ${item.reproduced.check} failing, rerun ${item.rerun?.status ?? 'none'}`,
   };
 }
 

@@ -63,7 +63,7 @@ Set these to true when they apply, so the user chooses how to fix:
 - `multipleFixes`: more than one reasonable fix
 - `behaviorChange`: the fix changes behavior a user can see
 - `removesFeature`: the fix removes a feature
-- `touchesTests`: the fix needs a test or a threshold changed
+- `touchesTests`: the fix must change an existing test, snapshot, or threshold. Adding a new test does not count; every P1 or P2 fix gets one.
 
 Set `ruleCandidate` to true when the fix is a convention someone has to remember, and a type, a lint rule, or a test could catch the same mistake next time.
 
