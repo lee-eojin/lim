@@ -40,7 +40,7 @@ That was right after page 2: the F-2 fix and its proven rule changed after the r
 | The review passed, commits not delegated | `git add -A && git commit -m wip` | ask | `the review passed with no open P1 or P2. Commit now?` |
 | The review passed, commits delegated | `git add -A && git commit -m "feat: shipping label"` | allow | `the review passed and commits are delegated in this repository.` |
 | Delegated, but the commit skips hooks | `git commit --no-verify -m wip` | ask | `The commit also skips git hooks with --no-verify. Confirm before Claude runs it.` |
-| Delegated, but the command does more | `npm test && git commit -m wip` | ask | `The command also runs other commands, so review-loop does not approve it on its own.` |
+| Delegated, but the command does more | `npm test && git commit -m wip` | ask | `The command does more than plain git add, commit, status, diff, log, or show and cd steps, so review-loop does not approve it on its own.` |
 | Any push | `git push origin main` | ask | `pushing publishes commits. review-loop asks before every push.` |
 
 A deny reason names the next step (`Run /review-loop:review-loop before committing, or ask to skip the review once.`), so Claude knows what to do instead of retrying.
