@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -240,7 +241,6 @@ export const SCENARIOS = [
       { id: 'resolved-measured', text: 'the reproduced finding is resolved with its check passing on the fixed code', check: resolvedReproduced },
       { id: 'regression-test', text: 'the fixed P1 or P2 gets a regression test step or a no-test reason', check: (s) => regressionFor(s, (item) => !item.fromChecks) },
       { id: 'second-review-clean', text: 'a second review is recorded and the loop stops clean', check: secondReviewClean },
-      { id: 'record-report-first', text: 'shows the record report first, in a code block', check: (s) => reportShownAfter(s, /^loop record --file/) },
       {
         id: 'feature-fixed',
         text: 'the broken feature passes in the last verify run',
@@ -507,6 +507,21 @@ function defaultOut(model, label) {
   return file;
 }
 
+// Each changed or new file under plugins/ with a hash of its content, so a result shows which skill text it measured.
+export function uncommittedPluginFiles(root = repoRoot) {
+  const entries = git(root, 'status', '--porcelain', '-z', '--untracked-files=all', '--', 'plugins').split('\0').filter(Boolean);
+  const files = {};
+  for (let index = 0; index < entries.length; index += 1) {
+    const file = entries[index].slice(3);
+    if (/[RC]/.test(entries[index].slice(0, 2))) index += 1;
+    const target = path.join(root, file);
+    files[file] = existsSync(target) && statSync(target).isFile()
+      ? createHash('sha256').update(readFileSync(target)).digest('hex').slice(0, 12)
+      : 'deleted';
+  }
+  return files;
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -536,7 +551,7 @@ async function main() {
     model: values.model,
     claudeVersion: execFileSync('claude', ['--version'], { encoding: 'utf8' }).trim(),
     commit: git(repoRoot, 'rev-parse', '--short', 'HEAD').trim(),
-    uncommittedPluginFiles: git(repoRoot, 'status', '--porcelain', '--', 'plugins').split('\n').filter(Boolean).map((line) => line.slice(3)),
+    uncommittedPluginFiles: uncommittedPluginFiles(),
     allowedTools: ALLOWED_TOOLS,
     totalCostUsd,
     runs,

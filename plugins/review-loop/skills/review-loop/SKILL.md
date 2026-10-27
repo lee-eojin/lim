@@ -7,7 +7,7 @@ description: Reviews uncommitted changes before a commit by running the project'
 
 Get the current change ready to commit, with evidence. You run the loop. The script `loop.mjs` keeps count and decides when to stop.
 
-Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs <command>` from the repository. Below, that is written as `loop <command>`. Run `start`, `next`, and `checks` with a Bash timeout of 600000 ms, because they run the project's checks. If one of them is cut off anyway, run `loop checks` and continue.
+Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs <command>` from the repository. Below, that is written as `loop <command>`. Run `start`, `next`, and `checks` with a Bash timeout of 600000 ms, because they run the project's checks. If one of them is cut off anyway, run `loop checks` and continue. Run each `loop` command, and each verify command, alone in its own Bash call, with nothing before or after it: no `cd`, `;`, `&&`, pipe, or `echo`. A permission rule then matches it, and a refused command leaves nothing to record. Keep `$`, backticks, and `!` out of free text such as `loop note`, `next --unchanged`, and `rule --no-test`: Claude Code refuses a command where they could expand, so write 0.50 dollars, not $0.50.
 
 ## Rules
 
@@ -20,7 +20,7 @@ Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs <command>` from 
 - Stopping with open findings is a normal outcome. Say so plainly.
 - When you say a finding is fixed, say how you know: a check that now passes is measured, your reading of the new code is inferred. Never say "should work now" without one.
 - When the user pushes back on a finding, do not agree by default. Check the claim again first, for example by reading the quoted line or rerunning the check, then say what you checked and what it showed.
-- Whenever a command returns `report`, your next message starts with it, exactly as printed, in a code block. Show it before any other tool call or question.
+- Whenever a command returns `report`, your next message starts with it, exactly as printed, in a code block. Show it before any other tool call or question. An unattended run is the one exception for round reports; see Unattended.
 - Reply in the user's language.
 
 ## 1. Start
@@ -134,7 +134,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs note --phase <step> --decision "<what 
 - section 6 (Commit): do not ask about the commit gate; leave it unconfigured. Commit only if `delegation.scope` is `repo` and `pendingDecisions` is empty; otherwise leave the change uncommitted. Never push.
 - Anything else this skill would ask about, such as a fix that needs a weakened test: take the choice that changes the least and is easy to undo.
 
-End with `loop summary` and show its `report` as the Rules say. When the user later asks what happened, run `loop summary` again; `--since <ISO time>` changes where it starts.
+Nobody reads round reports as they come, so you need not show each one; `loop summary` lists every round. End with `loop summary` and show its `report` as the Rules say. When the user later asks what happened, run `loop summary` again; `--since <ISO time>` changes where it starts.
 
 ## Settings
 

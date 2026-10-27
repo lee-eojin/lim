@@ -52,12 +52,21 @@ After the fixes in #114 (unattended reviews fix findings and carry deferred ones
 
 In `review-with-verify` the session now reproduced the finding with verify, fixed it, proved it with a regression test that caught the bug on the old code, reran the verify check (pass), and the second review resolved it as measured. The one miss is a tool call before the round report. The `resolved-measured` check in that file was corrected after the run: it had read a `reproduced.status` field the script never writes.
 
+Six more `review-with-verify` sessions measured #123, in `results/2026-10-27-claude-opus-5-5-report-123*.json`, scored without the round-report check (11 expectations). The first three ran with the skill that only lets unattended runs skip round reports; the last three also had the rule to run each `loop` and verify command alone. The files cannot tell the two groups apart (same commit and uncommitted file list; the runner now also records each uncommitted plugin file's hash), so the grouping comes from the order they were started in.
+
+| Skill text | Sessions | Scores | Cost |
+|---|---|---|---|
+| Round reports optional when unattended | `report-123`, `-a`, `-b` | 6/11, 11/11, 10/11 | $0.65, $0.57, $0.64 |
+| Plus: each command alone in its own Bash call | `-c`, `-d`, `-e` | 11/11, 11/11, 11/11 | $0.71, $0.69, $0.62 |
+
+In `report-123` the session appended `; echo "exit=$?"` to the verify command, the permission rule refused it, and nothing was reproduced. In `-b` a task update ran between `loop summary` and its report. In `-c` a `loop note` whose text had `$0.5` in double quotes was refused and retried; the skill now says to keep `$` out of free text.
+
 ### What the sessions showed
 
 - **verify works end to end.** Both sessions read the README and `references/feature-map.md`, wrote a map of 7 or 8 checks that covers two decimals, `--symbol`, and both documented errors, ran it, showed the report first, and left the code alone.
 - **An unattended review fixes nothing the reviewer flags.** In all four review sessions the reviewer set `touchesTests`, `multipleFixes`, or `behaviorChange` on every P1 and P2 it found, so `loop record` routed them to `ask`, and unattended mode defers `ask`. In `review-with-verify` the P1 was reproduced (`two-decimal-places` failed, `$0.5`) and still left unfixed, so the fix, regression test, rerun, and second review never happened. The session followed the skill; the skill and the reviewer's flags together make the expected flow unreachable.
 - **A checks finding and the reviewer's finding on the same line split.** In `failing-check` the failing test is F-1 (fix list) and the reviewer's P1 on the same line is F-2 (deferred for `behaviorChange`). Run 1 fixed F-1, which also fixed F-2, but F-2 stayed "waiting for you" because deferred findings are not sent to the round 2 reviewer. Run 2 refused to fix F-1 because the fix would decide F-2, ran `loop next` with no change, and the script then deferred F-1 with "the first fix did not resolve it".
-- **The record report is not shown first.** In 4 of 4 review sessions the next step after `loop record` was a tool call (a verify skill call, a task update, or a read of the diff) before the report. `loop summary`'s report was shown first in 3 of 4.
+- **The record report is not shown first.** In 4 of 4 review sessions the next step after `loop record` was a tool call (a verify skill call, a task update, or a read of the diff) before the report. `loop summary`'s report was shown first in 3 of 4. These are unattended runs, where nobody reads a round report as it comes, so the skill now says an unattended run need not show each one, and the scenario no longer checks it; the results above were scored with that check (12 for `review-with-verify`), and the summary is still checked.
 - **clear-explain mirrors the user's word.** When the question says 클로저, the answer wrote 클로저 in 2 of 3 sessions (one was a smoke run), against the skill's "do not transliterate". With closure in the question, one probe session wrote closure 7 times and 클로저 never.
 
 ### Harness limits
