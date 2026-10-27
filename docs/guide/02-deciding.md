@@ -157,7 +157,7 @@ F-3 stayed. In the next change in `/tmp/shop`, the reviewer raised the same comm
 
 ```
 Review round 1 of 3 (reviewer: session model)
-Checks: lint passed, test passed
+Checks: lint (npm run lint) passed, test (npm run test) passed
 
 1 finding you kept before was raised again
 

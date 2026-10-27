@@ -4,7 +4,7 @@ Most surprises with review-loop come from the same few places. Each one below wa
 
 ## A check that times out is not a pass
 
-Each check gets 5 minutes, and all checks together get 9. A check that runs longer is stopped and marked "not verified". It does not become a finding, so the loop can stop clean with a test that never finished. Here the per-check limit was set to 1 second, and the test takes 3:
+Each check gets 5 minutes, and all checks together, in every folder, get 9. A check that runs longer is stopped and marked "not verified". It does not become a finding, so the loop can stop clean with a test that never finished. Here the per-check limit was set to 1 second, and the test takes 3:
 
 ```
 $ LIM_CHECK_TIMEOUT_MS=1000 node "$LOOP" start
@@ -21,7 +21,7 @@ The report after the review (the `report` field of `loop record`):
 
 ```
 Review round 1 of 3 (reviewer: session model)
-Checks: lint passed, test timed out (not verified)
+Checks: lint (npm run lint) passed, test (npm run test) timed out (not verified)
 
 Trend (P1 + P2): 0
 Stopped: no P1 or P2 left in this change
@@ -38,67 +38,52 @@ Yes, run the checks that timed out again before we commit.
 
 A timeout inside `loop rule` makes the proof `unproven`, for the same reason.
 
-## Monorepos: only the root package.json counts
+## Monorepos: a project the change does not touch is not checked
 
-review-loop reads the `typecheck`, `lint`, and `test` scripts from the `package.json` at the repository root, wherever you start it. In this workspace the root has no scripts, and `packages/api` has a test that the change breaks:
+review-loop runs the checks of the repository root and of each subfolder project the change touches ([page 6](06-other-languages.md)). A project that only uses the changed code is not one of them. In `/tmp/mono`, `packages/web` imports `limit` from `packages/api`, and the change lowers the limit from 100 to 50 and updates the api test to match. The root `package.json` has workspaces but no scripts:
 
 ```
-$ cd packages/api && node "$LOOP" start
+$ node "$LOOP" start
 {
-  "status": "review",
-  "round": 1,
-  "maxRounds": 3,
-  "unattended": false,
-  "reviewerModel": "inherit",
-  "diffPath": "/private/tmp/mono/.git/lim/review-loop/round-1.diff",
-  "reviewPath": "/private/tmp/mono/.lim-review/round-1.json",
-  "checks": []
+  ...
+  "checks": [
+    { "name": "test", "folder": "packages/api", "command": "npm run test", "exitCode": 0, "timedOut": false, ... }
+  ]
 }
 ```
 
-The report says `Checks: none detected, reviewing the diff only`. Without checks, "make it a rule" has nothing to run the rule:
+The report says `Checks: packages/api: test (npm run test) passed`. The web test that expects 100 rows never ran.
 
-```
-$ node "$LOOP" decide --id F-1 --choice rule
-{
-  "recorded": true,
-  "id": "F-1",
-  "choice": "once",
-  "pending": [],
-  "ruleSkipped": "package.json has no typecheck, lint, or test script, so nothing would run a rule"
-}
-```
-
-Add root scripts that run the workspaces, for example `"test": "npm run test --workspaces --if-present"`. The review you already have ran without checks, so ask for a new one:
+Add a root script that runs every workspace, for example `"test": "npm run test --workspaces --if-present"`. The review you already have ran without it, so ask for a new one:
 
 ```
 /review-loop:review-loop start the review over.
 ```
 
-Claude runs `loop start`, and `loop start --fresh` if the old loop is still in progress. The next review ran the package's test and caught the break before any reviewer read the diff (start of the report):
+Claude runs `loop start`, and `loop start --fresh` if the old loop is still in progress. The root test now runs next to the api project's own test, and catches the break before any reviewer reads the diff (start of the report):
 
 ```
 Review round 1 of 3 (reviewer: session model)
-Checks: test failed
+Checks: test (npm run test) failed, packages/api: test (npm run test) passed
 
 Fixing next:
 - F-1 [P1] npm run test test fails
   was: npm run test
-  why: exit code 1: r: npm error code 1 npm error path /private/tmp/mono/packages/api npm error workspace api npm error location /private/tmp/mono/packages/api npm error command failed npm error command sh -c node --test
+  why: exit code 1: r: npm error code 1 npm error path /tmp/mono/packages/web npm error workspace web npm error location /tmp/mono/packages/web npm error command failed npm error command sh -c node --test
   basis: measured
 ```
 
-The runner follows the lockfile at the root: `pnpm-lock.yaml` runs `pnpm`, `yarn.lock` runs `yarn`, `bun.lock` or `bun.lockb` runs `bun`, and anything else runs `npm`.
+The api test now runs twice, once from the root and once in its folder. That costs time, not correctness.
 
 ## Ignored files are missing in the rule's temporary copy
 
-`loop rule` writes the code from before the fix to a temporary folder from git's view of the tree. Files that git ignores are not there. Only the root `node_modules` is linked in. In `/tmp/settings` the test reads `.env.test`, which `.gitignore` lists, so every check in the copy fails, with or without the draft (excerpt):
+`loop rule` writes the code from before the fix to a temporary folder from git's view of the tree. Files that git ignores are not there. Only the `node_modules` folders of the root and of the projects that hold the finding and the drafts are linked in. In `/tmp/settings` the tests read `.env.test`, which `.gitignore` lists. Claude wrote a regression test for F-1, a default of 20 that hides a missing `PAGE_SIZE`, and the test check in the copy fails with or without it (excerpt):
 
 ```
 $ node "$LOOP" rule --id F-1 --draft test/page-size-missing.test.js
 {
   "id": "F-1",
-  "kind": "rule",
+  "kind": "regression",
   "proof": "unproven",
   "caughtBy": [],
   "withDrafts": [
@@ -110,7 +95,7 @@ $ node "$LOOP" rule --id F-1 --draft test/page-size-missing.test.js
 }
 ```
 
-The full log, in `.git/lim/review-loop/rule.baseline.log`, names the cause: `Error: ENOENT: no such file or directory, open '.env.test'`. Make tests create what they need, or commit a test fixture instead of reading an ignored file. A nested `node_modules`, such as one inside a workspace package, is missing the same way.
+The full log, in `.git/lim/review-loop/rule.baseline.log`, names the cause: `Error: ENOENT: no such file or directory, open '.env.test'`. Make tests create what they need, or commit a test fixture instead of reading an ignored file.
 
 A draft in an ignored path is refused, because it would not be committed with the fix:
 
@@ -119,21 +104,30 @@ $ node "$LOOP" rule --id F-1 --draft test/local.test.js
 {"error":"test/local.test.js is ignored by git, so it would not be committed with the rule"}
 ```
 
-## The commit gate does not see your terminal or your git aliases
+## The commit gate does not see your terminal or inline aliases
 
 The gate is a hook on Claude's Bash tool. A commit you type in your own terminal never reaches it. That is on purpose: it gates Claude, not you.
 
-It also only recognizes `git commit` and `git push` by name. With `git config alias.ci commit` and an unreviewed change, the gate denied `git commit -am wip`, and printed nothing for the alias:
+It reads the git aliases in the repository. With `git config alias.ci commit`, `git config alias.save '!git add -A && git commit -m save'`, and a change nobody reviewed, the gate denied `git ci -am wip` with the same reason as `git commit -am wip`, and asked about the shell alias, because it cannot see inside it:
 
 ```
 $ echo '{"tool_name":"Bash","tool_input":{"command":"git ci -am wip"},"cwd":"/tmp/shop"}' | node "$HOOK"
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"review-loop: HEAD moved after the last review started (for example the review was already committed, or you pulled or switched branches), so these changes have not been reviewed. Run /review-loop:review-loop before committing, or ask to skip the review once."}}
+$ echo '{"tool_name":"Bash","tool_input":{"command":"git save"},"cwd":"/tmp/shop"}' | node "$HOOK"
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"review-loop: git save is a shell alias that runs git commit, so the commit gate cannot check it. Confirm before Claude runs it."}}
+```
+
+An alias set inline is not read. The same commit through `git -c alias.c2=commit c2` printed nothing:
+
+```
+$ echo '{"tool_name":"Bash","tool_input":{"command":"git -c alias.c2=commit c2 -am wip"},"cwd":"/tmp/shop"}' | node "$HOOK"
 $
 ```
 
-No answer means the gate has no opinion, and Claude Code's normal permission rules decide. The same goes for a script or npm script that commits for you. If Claude commits through an alias or a script in your repository, tell it to use `git commit`:
+No answer means the gate has no opinion, and Claude Code's normal permission rules decide. The same goes for a script or npm script that commits for you. If Claude commits that way in your repository, tell it to use `git commit`:
 
 ```
-Commit with git add -A and git commit, not the ci alias, so the commit gate sees it.
+Commit with git add -A and git commit, not the npm script, so the commit gate sees it.
 ```
 
 ## The `.lim-review/` folder
@@ -164,6 +158,4 @@ If the JSON is still not valid after Claude asks the reviewer once to fix the fo
 
 > **Pitfall:** deleting `.git/lim/review-loop/` resets everything for the repository: the review, the decisions, the gate, and delegation. To redo only the review, ask Claude to start it over as above; that runs `loop start --fresh` and keeps the gate and delegation settings.
 
-That is the guide. Run one review on a change you care about, and read the report before anything else.
-
-Back to the [guide index](README.md).
+Next: [Checks in other languages and subfolders](06-other-languages.md).

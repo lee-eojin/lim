@@ -23,7 +23,7 @@ In the example, `/tmp/shop` has a `shippingFor(subtotal)` function, and the unco
 
 ## What `loop start` does
 
-Claude first runs `loop start`. It snapshots everything `git add -A` would commit, writes the diff for the reviewer, and runs your `typecheck`, `lint`, and `test` scripts. Output from `/tmp/shop`, with the `tail` of each check shortened:
+Claude first runs `loop start`. It snapshots everything `git add -A` would commit, writes the diff for the reviewer, and runs the `typecheck`, `lint`, and `test` checks your project declares. In `/tmp/shop` those are the `lint` and `test` scripts in `package.json`. [Checks in other languages and subfolders](06-other-languages.md) shows the rest. Output from `/tmp/shop`, with the `tail` of each check shortened:
 
 ```
 $ node "$LOOP" start
@@ -33,8 +33,8 @@ $ node "$LOOP" start
   "maxRounds": 3,
   "unattended": false,
   "reviewerModel": "inherit",
-  "diffPath": "/private/tmp/shop/.git/lim/review-loop/round-1.diff",
-  "reviewPath": "/private/tmp/shop/.lim-review/round-1.json",
+  "diffPath": "/tmp/shop/.git/lim/review-loop/round-1.diff",
+  "reviewPath": "/tmp/shop/.lim-review/round-1.json",
   "checks": [
     { "name": "lint", "command": "npm run lint", "exitCode": 0, "timedOut": false, ... },
     { "name": "test", "command": "npm run test", "exitCode": 0, "timedOut": false, ... }
@@ -43,6 +43,8 @@ $ node "$LOOP" start
 ```
 
 Both checks pass. A failing check would already be a P1 finding here, before any reviewer reads the code.
+
+If the repository has a verify feature map, `start` also returns `featureMapPath`, and the reviewer gets it too. [Reproducing a finding with verify](07-reproduce-with-verify.md) shows that case.
 
 Then Claude starts the reviewer agent with `diffPath` and your one line, and nothing else. `SKILL.md` tells it never to pass its own reasoning about the change.
 
@@ -53,7 +55,7 @@ The reviewer returns JSON. Claude writes it to `reviewPath` and runs `loop recor
 ```
 $ node "$LOOP" record --file .lim-review/round-1.json
 Review round 1 of 3 (reviewer: session model)
-Checks: lint passed, test passed
+Checks: lint (npm run lint) passed, test (npm run test) passed
 
 Fixing next:
 - F-1 [P2] src/shipping.js:7 An order of exactly 50 still pays shipping
@@ -69,6 +71,7 @@ Next: fix, then re-review in round 2 of 3
 
 How to read it:
 
+- **Checks** names each check with the command it ran, so you can run the same command yourself.
 - **Fixing next** is the list Claude may fix in this round. Only P1 and P2 with evidence get here, and only when the fix needs no design choice from you: a quoted line that really is in the file or diff, a failure scenario, and a reason nothing prevents it. The script checks that the quote exists.
 - **basis** says how the reviewer knows: `measured` (a search or check showed it), `inferred` (it read the code), or `guessed`. A guessed P1 or P2 is never fixed in the loop.
 - **Trend** counts open P1 and P2 per round. If it stops going down, the script stops the loop.
@@ -100,7 +103,7 @@ The `tail` of the failing run shows the test's own assertion, `4.99 !== 0`, so t
 ```
 $ node "$LOOP" record --file .lim-review/round-2.json
 Review round 2 of 3 (reviewer: session model)
-Checks: lint passed, test passed
+Checks: lint (npm run lint) passed, test (npm run test) passed
 
 Resolved since last round:
 - F-1 [P2] An order of exactly 50 still pays shipping (fixed, inferred: the re-review read the fix)
