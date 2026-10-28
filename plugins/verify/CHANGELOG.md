@@ -2,6 +2,10 @@
 
 All notable changes to verify. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: On a disk that ignores letter case, such as macOS, verify refuses a script path into node_modules, .git, .venv, venv, or __pycache__ written in other letter case, such as `Node_Modules/eslint/bin/eslint.js`, and the message names the file it resolves to instead of calling it a link. (#189)
+
 ## 0.6.0 (2026-10-28)
 
 - Fixed: verify refuses a `cwd` or `expect.files` path that leaves the repository through a symbolic link, also when the file does not exist yet, and checks the paths again before each check runs and before reading its files. (#170)

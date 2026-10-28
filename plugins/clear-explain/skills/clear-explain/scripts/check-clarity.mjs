@@ -280,4 +280,4 @@ function main() {
   process.exitCode = result.summary.fix > 0 ? 1 : 0;
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && realpathSync.native(process.argv[1]) === realpathSync.native(fileURLToPath(import.meta.url))) main();

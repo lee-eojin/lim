@@ -638,7 +638,7 @@ function selectChecks(root, files, recheckedFiles = []) {
   const seen = new Set();
   const checks = ['', ...projects.slice(0, MAX_PROJECTS)].flatMap((folder) => detectFolderChecks(root, folder)).filter((check) => {
     if (!check.command) return true;
-    const key = `${realpathSync(path.join(root, check.folder ?? ''))}\0${check.command.join(' ')}`;
+    const key = `${realpathSync.native(path.join(root, check.folder ?? ''))}\0${check.command.join(' ')}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -954,8 +954,8 @@ function readReviewFile(cwd, file) {
 
 function removeReviewFile(repository, cwd, file) {
   const folder = path.join(repository.root, REVIEW_FOLDER);
-  const target = realpathSync(path.resolve(cwd, file));
-  if (!existsSync(folder) || path.dirname(target) !== realpathSync(folder)) return;
+  const target = realpathSync.native(path.resolve(cwd, file));
+  if (!existsSync(folder) || path.dirname(target) !== realpathSync.native(folder)) return;
   rmSync(target, { force: true });
   if (!readdirSync(folder).length) rmdirSync(folder);
 }
@@ -2928,7 +2928,7 @@ function main() {
 function isEntryPoint() {
   if (!process.argv[1]) return false;
   try {
-    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+    return realpathSync.native(process.argv[1]) === realpathSync.native(fileURLToPath(import.meta.url));
   } catch {
     return false;
   }
