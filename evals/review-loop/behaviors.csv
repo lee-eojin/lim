@@ -263,3 +263,15 @@ B261,stop,"A forced git add is not treated as the reviewed git add -A, because i
 B262,ask,A commit after a git add that stages only some paths of the reviewed change is asked about,test: gate asks when a git add earlier in the command stages only some paths,yes
 B263,tell,When the index has conflicts the commit gate blocks and says it could not read the staged content and to resolve the conflicts,test: gate says the staged content could not be read when the index has conflicts,yes
 B264,silence,A leftover lock file from an earlier gate call does not block a reviewed commit and the gate leaves no index files behind,test: gate reads the staged content in its own temporary index on each call,yes
+B265,stop,A resolved P1 or P2 without a regression test or a no-test reason keeps the loop from stopping clean,test: a resolved P1 or P2 without a regression test or a no-test reason keeps the loop from stopping clean,yes
+B266,do,rule --no-test on a resolved finding stops the loop clean without another review,test: rule --no-test on a resolved finding stops the loop clean without another review,yes
+B267,do,A regression test caught on the code before the fix stops the loop clean after the checks pass on the fixed code,test: a regression test caught on the code before the fix stops the loop clean,yes
+B268,stop,A regression test that also fails on the fixed code keeps the loop waiting for proof,test: a regression test that also fails on the fixed code keeps the loop waiting for proof,yes
+B269,evidence,A regression test is not blamed for an unrelated test that fails in the same check,test: a regression test is not blamed for an unrelated test that fails in the same check,yes
+B270,stop,rule refuses a resolved finding once the loop has stopped so its checked test stays committable,"test: rule refuses a resolved finding once the loop has stopped, so its checked test stays committable",yes
+B271,stop,A check that fails on the fixed code without a new test to blame sends the change back to review,test: a check that fails on the fixed code without a new test to blame sends the change back to review,yes
+B272,evidence,A finding resolved in a loop saved without beforeFixTree checks its regression test on the code it was raised on,test: a finding resolved in a loop saved without beforeFixTree checks its regression test on the code it was raised on,yes
+B273,stop,The loop stops clean when no resolved finding needs proof any more,test: the loop stops clean when no resolved finding needs proof any more,yes
+B274,evidence,A regression test that fails only lint on the code before the fix does not end the wait for proof,test: a regression test that fails only lint on the code before the fix does not end the wait for proof,yes
+B275,silence,A deferred finding a fix also resolved needs proof in an unattended run and nothing asks,"test: a deferred finding a fix also resolved needs proof in an unattended run, and nothing asks",yes
+B276,silence,A project with no test check and a finding from a failing check stop clean without proof,test: a project with no test check and a finding from a failing check stop clean without proof,yes
