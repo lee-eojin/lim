@@ -87,7 +87,7 @@ line 11 [review] possessive-chain: 사용자의 주문의 결제의 상태를 ->
 | Double negatives | none | ~하지 않으면 안 된다 |
 | Two characters | The em dash (U+2014) and the middle dot (U+00B7), everywhere including code | Same |
 
-Fenced code blocks (a fence with at most three spaces before it, or any indentation inside a list), indented code blocks (four spaces or a tab after a blank line, outside a list), inline code, and URLs are skipped, except for the two characters. Markdown emphasis markers (`**`, `*`, `__`, `_`) at the start or end of a word are removed before the checks, so `**사용자의 주문의 결제의** 상태` is still a chain. Only the two characters are "fix"; the rest are things to look at, because a vague word nobody has to act on can stay. The exit code is 1 when there is something to fix, and 2 when the file cannot be read or the arguments are wrong.
+Front matter, lines that start with an HTML tag, fenced code blocks (a fence with at most three spaces before it, or any indentation inside a list), indented code blocks (four spaces or a tab after a blank line, or inside a list four more than the item's text), inline code, and URLs are skipped, except for the two characters. Markdown emphasis markers (`**`, `*`, `__`, `_`) at the start or end of a word are removed before the checks, so `**사용자의 주문의 결제의** 상태` is still a chain. Only the two characters are "fix"; the rest are things to look at, because a vague word nobody has to act on can stay. The exit code is 1 when there is something to fix, and 2 when the file cannot be read or the arguments are wrong.
 
 ## Measured
 

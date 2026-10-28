@@ -11,8 +11,9 @@ const usage = `Usage: node check-clarity.mjs [--json] [file]
 
 Reads an explanation in English or Korean from the file, or from stdin, and lists what to look
 at with line numbers: vague words, long sentences, chained possessives, stacked passives,
-double negatives, and two characters to replace. Fenced and indented code blocks, inline code,
-and URLs are skipped, except for the two characters.
+double negatives, and two characters to replace. Front matter, lines that start with an HTML
+tag, fenced and indented code blocks, inline code, and URLs are skipped, except for the two
+characters.
 
   --json   print the findings and a summary as JSON
 
@@ -44,7 +45,6 @@ const KOREAN_NOUNS_ENDING_IN_UI = new Set([
 ]);
 
 const FENCE = /^([ \t]*)(`{3,}|~{3,})(.*)$/;
-const INDENTED = /^(?: {4}|\t)/;
 const EMPHASIS = /(?<=^|[\s(\[])[*_]+(?=\S)|(?<=\S)[*_]+(?=$|[\s.,!?:;)\]])/gu;
 const INLINE_CODE = /`[^`]*`/g;
 const LINK = /\[([^\]]*)\]\([^)]*\)/g;
@@ -52,6 +52,8 @@ const URL_PATTERN = /https?:\/\/\S+/g;
 const SENTENCE_END = /(?<=[.!?])\s+/u;
 const QUOTE_MARKER = /^\s*>+\s?/;
 const LIST_MARKER = /^\s*(?:[-*+]|\d+[.)])\s+/;
+const HTML_LINE = /^\s*(?:<\/?[a-zA-Z][\w-]*(?:\s|\/?>|$)|<!--)/;
+const RULE_LINE = /^[-=*_\s]+$/;
 const HANGUL = /[가-힣]/u;
 const EDGE_PUNCTUATION = /^[.,!?()[\]{}'"]+|[.,!?()[\]{}'"]+$/gu;
 const ENGLISH_POSSESSIVES = /(?:\b[\w-]+['\u2019]s\s+){2,}[\w-]+/gu;
@@ -85,15 +87,21 @@ function fenceAt(line, inList) {
 // As in CommonMark, only a bare fence of the same character, at least as long, closes the block.
 const closes = (fence, opening) => Boolean(fence) && fence.marker[0] === opening[0] && fence.marker.length >= opening.length && !fence.rest.trim();
 
-// An indented code block starts after a blank line, outside a list, and runs until a line that
-// is neither blank nor indented.
+const indentOf = (line) => /^[ \t]*/.exec(line)[0].replace(/\t/g, '    ').length;
+
+// An indented code block starts after a blank line and runs until a line that is neither blank
+// nor indented. Inside a list it needs four spaces more than the list item's text.
 export function proseLines(text) {
   const lines = [];
+  const allLines = text.split('\n');
+  const frontMatterEnd = /^---\s*$/.test(allLines[0]) ? allLines.findIndex((line, index) => index > 0 && /^(?:---|\.\.\.)\s*$/.test(line)) : -1;
   let openFence = null;
   let inIndentedCode = false;
   let inList = false;
+  let listTextIndent = 0;
   let afterBlank = true;
-  text.split('\n').forEach((line, index) => {
+  allLines.forEach((line, index) => {
+    if (index <= frontMatterEnd) return;
     const blank = !line.trim();
     const wasAfterBlank = afterBlank;
     afterBlank = blank;
@@ -102,12 +110,15 @@ export function proseLines(text) {
       return;
     }
     if (blank && inIndentedCode) return;
-    if (INDENTED.test(line) && !blank && (inIndentedCode || (wasAfterBlank && !inList))) {
+    if (!blank && indentOf(line) >= (inList ? listTextIndent : 0) + 4 && (inIndentedCode || wasAfterBlank)) {
       inIndentedCode = true;
       return;
     }
-    if (LIST_MARKER.test(line)) inList = true;
-    else if (!blank && !/^\s/.test(line) && (wasAfterBlank || FENCE.test(line))) inList = false;
+    const listMarker = LIST_MARKER.exec(line);
+    if (listMarker) {
+      inList = true;
+      listTextIndent = listMarker[0].replace(/\t/g, '    ').length;
+    } else if (!blank && !/^\s/.test(line) && (wasAfterBlank || FENCE.test(line))) inList = false;
     const fence = fenceAt(line, inList);
     if (fence) {
       openFence = fence.marker;
@@ -115,6 +126,7 @@ export function proseLines(text) {
       return;
     }
     inIndentedCode = false;
+    if (HTML_LINE.test(line)) return;
     const cleaned = line.replace(INLINE_CODE, 'code').replace(LINK, '$1').replace(URL_PATTERN, 'url').replace(EMPHASIS, '');
     lines.push({ number: index + 1, text: cleaned });
   });
@@ -137,15 +149,44 @@ export function sentenceSize(sentence) {
   return { size: sentence.split(/\s+/).filter(Boolean).length, unit: 'words', limit: LIMITS.englishWords };
 }
 
+// A soft line break does not end a sentence, so consecutive prose lines form one paragraph.
+// A blank line, a skipped line, a heading or its setext underline, a table row, a new list item,
+// or the start of a quote ends it.
+function paragraphs(lines) {
+  const blocks = [];
+  let current = null;
+  let previous = { number: 0, quoted: false };
+  for (const { number, text } of lines) {
+    const quoted = QUOTE_MARKER.test(text);
+    const unquoted = text.replace(QUOTE_MARKER, '');
+    const body = unquoted.replace(LIST_MARKER, '').trim();
+    const startsBlock = number !== previous.number + 1 || LIST_MARKER.test(unquoted) || (quoted && !previous.quoted);
+    previous = { number, quoted };
+    if (!body || body.includes('|') || body.startsWith('#') || RULE_LINE.test(unquoted)) current = null;
+    else if (current && !startsBlock) current.push({ number, body });
+    else blocks.push(current = [{ number, body }]);
+  }
+  return blocks;
+}
+
 function longSentences(lines) {
-  return lines.flatMap(({ number, text }) => {
-    const body = text.replace(QUOTE_MARKER, '').replace(LIST_MARKER, '').trim();
-    if (!body || body.startsWith('|') || body.startsWith('#')) return [];
-    return body.split(SENTENCE_END).flatMap((sentence) => {
+  return paragraphs(lines).flatMap((block) => {
+    const text = block.map(({ body }) => body).join(' ');
+    let offset = 0;
+    const lineStarts = block.map(({ number, body }) => {
+      const start = { number, offset };
+      offset += body.length + 1;
+      return start;
+    });
+    let position = 0;
+    return text.split(SENTENCE_END).flatMap((sentence) => {
+      const start = text.indexOf(sentence, position);
+      position = start + sentence.length;
       const { size, unit, limit } = sentenceSize(sentence.trim());
       if (size <= limit) return [];
+      const line = lineStarts.findLast((lineStart) => lineStart.offset <= start).number;
       const preview = [...sentence.trim()].slice(0, 30).join('');
-      return [{ line: number, rule: 'long-sentence', match: `${size} ${unit} (${preview}...)`, advice: `one idea per sentence; aim for ${limit} ${unit} or fewer`, mustFix: false }];
+      return [{ line, rule: 'long-sentence', match: `${size} ${unit} (${preview}...)`, advice: `one idea per sentence; aim for ${limit} ${unit} or fewer`, mustFix: false }];
     });
   });
 }
