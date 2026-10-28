@@ -16,6 +16,10 @@ Coding agent viết code rất nhanh. Nhưng chúng kém hơn nhiều trong vi�
 
 **LIM là câu trả lời của tôi: những plugin nhỏ, mỗi plugin làm một việc, kèm theo con số để chứng minh.** review-loop là trung tâm, còn verify và clear-explain làm việc bên cạnh nó.
 
+![Một lần chạy review-loop: reviewer đánh dấu giá bị nhân đôi là P2, bản sửa được áp dụng, lần review thứ hai dừng lại không còn phát hiện nào, rồi đến bảng tóm tắt](../../docs/demo/review-loop.gif)
+
+<sub>Vòng lặp, các bước kiểm tra và báo cáo review là thật. Các phát hiện và chỉnh sửa code được soạn sẵn, còn các dòng sau start, next và rule tóm tắt JSON của chúng. Tạo lại bằng `vhs docs/demo/review-loop.tape`.</sub>
+
 **review-loop khiến "sẵn sàng để commit" có nghĩa là đã được review.** Test, kiểm tra kiểu và lint của bạn chạy trước, trong các dự án Node.js, Python, Go, Rust, Java (Gradle hoặc Maven), .NET, Ruby và Makefile, kể cả tối đa 4 dự án trong thư mục con mà thay đổi chạm tới mỗi vòng. Sau đó, một reviewer với ngữ cảnh mới, không bao giờ thấy lập luận của Claude, gắn nhãn các phát hiện từ P1 đến P5 và phải đưa ra bằng chứng cho những phát hiện nghiêm trọng. Claude sửa P1 và P2, một reviewer mới kiểm tra các bản sửa, và một script, không phải mô hình, quyết định khi nào dừng. Bạn quyết định phần còn lại một lần, ở cuối.
 
 **Chứng minh bằng cách chạy tính năng.** Với [verify](../../plugins/verify), một phát hiện được xem là tái hiện khi một bước kiểm tra chạy tính năng đó thất bại trên code được review, và bản sửa của nó chỉ được tính khi chính bước kiểm tra đó chạy đạt trở lại.

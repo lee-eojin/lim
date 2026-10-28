@@ -16,6 +16,10 @@
 
 **LIM 是我給出的答案：每個小外掛只做一件事，並附上支撐它的數字。** review-loop 是核心，verify 和 clear-explain 在它旁邊配合運作。
 
+![review-loop 執行範例：審查者把翻倍的價格標記為 P2，修正隨後提交，第二輪審查沒有發現項目後停止，最後顯示摘要表](../../docs/demo/review-loop.gif)
+
+<sub>迴圈、檢查和審查報告都是真實的。發現項目和程式碼修改是預先寫好的，start、next、rule 之後的行是對其 JSON 的摘要。用 `vhs docs/demo/review-loop.tape` 重新產生。</sub>
+
 **review-loop 讓「可以提交」真正代表「已經審查」。** 首先執行你自己的測試、型別檢查和 lint，支援 Node.js、Python、Go、Rust、Java（Gradle 或 Maven）、.NET、Ruby 和 Makefile 專案，也包括變更涉及的子資料夾專案（每輪最多 4 個）。接著，一個擁有全新脈絡、從不接觸 Claude 推理的審查者把發現項目標記為 P1 到 P5，而且必須為嚴重的發現項目提出證據。Claude 修正 P1 和 P2，一個新的審查者檢查這些修正，何時停止由腳本而不是模型決定。其餘的由你在最後一次決定。
 
 **透過執行功能來證明。** 使用 [verify](../../plugins/verify) 時，如果一個執行該功能的檢查在被審查的程式碼上失敗，發現項目就算重現；只有同一個檢查再次通過，它的修正才算數。

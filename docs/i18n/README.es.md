@@ -16,6 +16,10 @@ Los agentes de programación escriben código rápido. Se les da mucho peor dars
 
 **LIM es mi respuesta: plugins pequeños que hacen un solo trabajo cada uno, con los números que los respaldan.** review-loop es el centro, y verify y clear-explain trabajan a su lado.
 
+![Una ejecución de review-loop: el revisor marca un precio duplicado como P2, llega la corrección, la segunda revisión termina sin hallazgos y sigue la tabla de resumen](../../docs/demo/review-loop.gif)
+
+<sub>El bucle, las comprobaciones y los informes de revisión son reales. Los hallazgos y los cambios de código están guionizados, y las líneas tras start, next y rule resumen su JSON. Para regenerarlo, ejecuta `vhs docs/demo/review-loop.tape`.</sub>
+
 **review-loop hace que "listo para el commit" signifique revisado.** Primero se ejecutan tus propios tests, tipos y lint, en proyectos de Node.js, Python, Go, Rust, Java (Gradle o Maven), .NET, Ruby y Makefile, incluidos hasta 4 proyectos de subcarpeta que toque un cambio por ronda. Después, un revisor con un contexto nuevo, que nunca ve el razonamiento de Claude, etiqueta los hallazgos de P1 a P5 y tiene que mostrar evidencia de los graves. Claude corrige P1 y P2, un revisor nuevo comprueba las correcciones y un script, no el modelo, decide cuándo detenerse. Tú decides el resto una sola vez, al final.
 
 **Prueba ejecutando la funcionalidad.** Con [verify](../../plugins/verify), un hallazgo queda reproducido cuando una comprobación que ejecuta la funcionalidad falla en el código revisado, y su corrección solo cuenta cuando esa misma comprobación vuelve a pasar.

@@ -16,6 +16,10 @@ Agentes de programação escrevem código rápido. Eles são bem piores em perce
 
 **O LIM é a minha resposta: plugins pequenos que fazem um único trabalho cada, com os números que os sustentam.** O review-loop é o centro, e o verify e o clear-explain trabalham ao lado dele.
 
+![Uma execução do review-loop: o revisor aponta um preço dobrado como P2, a correção entra, a segunda revisão termina sem achados e a tabela de resumo aparece em seguida](../../docs/demo/review-loop.gif)
+
+<sub>O loop, as verificações e os relatórios de revisão são reais. Os achados e as edições de código foram roteirizados, e as linhas depois de start, next e rule resumem o JSON deles. Para gerar de novo, rode `vhs docs/demo/review-loop.tape`.</sub>
+
 **O review-loop faz "pronto para o commit" significar revisado.** Seus próprios testes, tipos e lint rodam primeiro, em projetos Node.js, Python, Go, Rust, Java (Gradle ou Maven), .NET, Ruby e Makefile, incluindo até 4 projetos de subpasta que uma mudança toca, por rodada. Depois, um revisor com um contexto novo, que nunca vê o raciocínio do Claude, classifica os achados de P1 a P5 e precisa mostrar evidência para os graves. O Claude corrige P1 e P2, um revisor novo verifica as correções e um script, e não o modelo, decide quando parar. Você decide o restante uma única vez, no final.
 
 **Prova rodando a funcionalidade.** Com o [verify](../../plugins/verify), um achado é reproduzido quando uma verificação que roda a funcionalidade falha no código revisado, e a correção só conta quando a mesma verificação passa de novo.
