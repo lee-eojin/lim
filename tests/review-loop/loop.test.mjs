@@ -1935,6 +1935,40 @@ describe('commit gate', () => {
     assert.equal(commit(plainDirectory, 'bash -c "git commit -m x"'), null);
   });
 
+  test('a repository alias that closes a quoted command is still asked about', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const commands = ['sudo sh -c "git ci"', "sudo sh -c 'cd . && git ci'"];
+    for (const command of commands) assert.equal(commit(root, command), null, command);
+    execFileSync('git', ['config', 'alias.ci', 'commit'], { cwd: root });
+    for (const command of commands) assert.ok(['ask', 'deny'].includes(commit(root, command)?.decision), command);
+  });
+
+  test('a repository alias for commit behind a wrapper the gate cannot read is asked about', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    const wrapped = ['sudo git ci -m x', 'env X=1 git ci -m x', 'sudo git publish', 'sudo git -C . ci -m x', 'sudo git --no-pager ci -m x', 'sudo "git" ci -m x', "sudo git -c 'user.name=x' ci"];
+    for (const command of wrapped) assert.equal(commit(root, command), null, command);
+    execFileSync('git', ['config', 'alias.ci', 'commit'], { cwd: root });
+    execFileSync('git', ['config', 'alias.publish', '!git commit -m wip'], { cwd: root });
+    for (const command of wrapped) assert.match(commit(root, command)?.decision ?? '', /^(?:ask|deny)$/, command);
+    assert.equal(commit(root, 'echo sudo git ci'), null);
+  });
+
+  test('a repository alias that runs neither commit nor push stays unasked behind a wrapper, as it does without one', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    execFileSync('git', ['config', 'alias.ship', '!sh ./publish.sh'], { cwd: root });
+    execFileSync('git', ['config', 'alias.st', 'status'], { cwd: root });
+    execFileSync('git', ['config', 'alias.status', '!echo shadow'], { cwd: root });
+    for (const command of ['git ship', 'sudo git ship', 'sudo git st', 'sudo git status', 'git log | head']) {
+      assert.equal(commit(root, command), null, command);
+    }
+  });
+
   test('git commit or push named as text is left alone only when the command is text programs with plain words', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);

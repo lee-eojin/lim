@@ -2233,19 +2233,50 @@ function writesFile(arg) {
 const approvable = ({ subcommand, globals, args }) => SAFE_GIT_SUBCOMMANDS.has(subcommand) && !globals.length && !args.some(writesFile);
 const GIT_WORD = /(?<![\w.-])git(?![\w-])/;
 const GATED_WORD = /(?<![\w./-])(?:commit|push)(?![\w./-])/;
+const GIT_AND_FOLLOWING_WORDS = /(?<![\w.-])(["']?)git\1(?![\w-])((?:[ \t]+[^\s;&|()<>`]+)*)/g;
+// Git ignores an alias that shares a command's name, so these words never need an alias lookup.
+const GIT_COMMANDS = new Set([
+  'add', 'am', 'apply', 'archive', 'bisect', 'blame', 'branch', 'cat-file', 'checkout', 'cherry-pick', 'clean', 'clone',
+  'commit', 'config', 'describe', 'diff', 'fetch', 'for-each-ref', 'format-patch', 'gc', 'grep', 'help', 'init', 'log',
+  'ls-files', 'ls-remote', 'ls-tree', 'merge', 'merge-base', 'mv', 'notes', 'pull', 'push', 'rebase', 'reflog', 'remote',
+  'reset', 'restore', 'rev-list', 'rev-parse', 'revert', 'rm', 'shortlog', 'show', 'show-ref', 'stash', 'status',
+  'submodule', 'switch', 'symbolic-ref', 'tag', 'version', 'worktree',
+]);
 
 function inGatedRepository(folder) {
   const repository = folder && findRepository(folder);
   return Boolean(repository && readGate(repository).enabled);
 }
 
+function aliasCandidates(command) {
+  // Quotes become spaces, so a word that closes a quoted command, as in sh -c "git ci", is still a word.
+  const unquoted = command.replace(/["']/g, ' ');
+  const names = [...unquoted.matchAll(GIT_AND_FOLLOWING_WORDS)].map(([, , following]) => {
+    const words = following.trim().split(/\s+/);
+    let index = 0;
+    while (words[index]?.startsWith('-')) index += GLOBAL_OPTIONS_WITH_VALUE.has(words[index]) ? 2 : 1;
+    return words[index];
+  });
+  return [...new Set(names)].filter((name) => /^[\w-]+$/.test(name ?? '') && !GIT_COMMANDS.has(name));
+}
+
+function runsGatedAlias(name, folder) {
+  const expanded = expandAlias({ subcommand: name, args: [], directories: ['.'], globals: [] }, (alias) => aliasOf(folder, alias));
+  return GATED_SUBCOMMANDS.includes(expanded.subcommand) || Boolean(expanded.shellAlias);
+}
+
 // Reads the raw text, not the parse, so a shell form the parser misreads still reaches the question. Only cd steps
 // and programs that print text, with plain or quoted words, are left alone.
 function unreadVerdict(command, folders) {
-  if (!GIT_WORD.test(command) || !GATED_WORD.test(command)) return null;
+  if (!GIT_WORD.test(command)) return null;
+  const namesGated = GATED_WORD.test(command);
+  const aliases = namesGated ? [] : aliasCandidates(command);
+  if (!namesGated && !aliases.length) return null;
   if (plainSteps(command)?.every((step) => step[0] === 'cd' || isInert(step))) return null;
-  if (!folders.some(inGatedRepository)) return null;
-  return verdict('ask', 'review-loop: this command names git and commit or push in a form the commit gate cannot read, so it cannot check it. Confirm before Claude runs it.');
+  const gated = [...new Set(folders)].filter(inGatedRepository);
+  if (!gated.length) return null;
+  if (!namesGated && !gated.some((folder) => aliases.some((name) => runsGatedAlias(name, folder)))) return null;
+  return verdict('ask', 'review-loop: this command names git and commit or push, or an alias for them, in a form the commit gate cannot read, so it cannot check it. Confirm before Claude runs it.');
 }
 
 // An allow skips Claude Code's own permission prompt, so only a command readPlainCommand reads in full can get one.

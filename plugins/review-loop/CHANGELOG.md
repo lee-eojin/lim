@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: In a gated repository, the commit gate asks before a command it cannot read in full, such as `sudo git ci -m x` or `sudo git -C . ci`, that runs a repository alias for commit or push, including a shell alias whose body runs either. (#157)
+
 ## 0.11.5 (2026-10-28)
 
 - Fixed: A reproduced finding is no longer resolved when its verify check passes on the fixed code only after the check itself was changed since it failed. It stays open, and the report says the check changed after it failed. (#152)
