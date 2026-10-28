@@ -244,3 +244,4 @@ B242,ask,A commit after shell text the gate misreads is asked about instead of l
 B243,stop,A commit before or after a heredoc or one that reads its message from a heredoc is still checked,"test: a commit before, after, or fed a heredoc is still checked",yes
 B244,ask,A plain commit into an ungated repository is left alone and one with a pipe or redirect is asked about,"test: a plain commit into an ungated repository is left alone, and one with a pipe or redirect is asked about",yes
 B245,stop,A commit through pushd or cd -P or cd -- or --git-dir is checked in the repository it reaches,"test: a commit through pushd, cd flags, or --git-dir is checked in the repository it reaches",yes
+B246,stop,A reproduced finding stays open when its verify check passes only after the check was changed after it failed,test: a reproduced finding stays open when its check passes only after the check changed,yes
