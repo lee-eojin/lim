@@ -136,6 +136,10 @@ node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs note --phase <step> --decision "<what 
 
 Nobody reads round reports as they come, so you need not show each one; `loop summary` lists every round. End with `loop summary` and show its `report` as the Rules say. When the user later asks what happened, run `loop summary` again; `--since <ISO time>` changes where it starts.
 
+## Pull request description
+
+When the user asks for a pull request description, or a run ends with a change that will become a pull request, run `loop summary --markdown` and show its `markdown` as it is, in a code block, ready to paste. It describes the current run and takes no `--since`. Keep it in English even when you reply in another language: it is a pull request artifact, not a reply.
+
 ## Settings
 
 If the user asks for every review in this repository to run unattended, run `loop unattended --on`; `loop unattended --off` turns it off.

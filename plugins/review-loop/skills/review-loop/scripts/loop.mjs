@@ -1430,7 +1430,7 @@ function next(cwd, options = {}) {
       deferred: state.deferred ?? [], looped: [...state.resolved, ...state.open, ...(state.deferred ?? [])],
     });
     Object.assign(state, {
-      checks: null, awaiting: 'decisions', stopped: { reason: 'integrity', at: now() }, lastReport: report,
+      checks: null, latestChecks: null, awaiting: 'decisions', stopped: { reason: 'integrity', at: now() }, lastReport: report,
     });
     saveState(repository, state);
     logEvent(repository, { event: 'next', round: state.round, decision: 'stop', reason: 'integrity', integrity, ...unchangedReason });
@@ -2556,9 +2556,100 @@ function renderSummary(since, events, waiting) {
   return lines.join('\n');
 }
 
+const DECISION_LABELS = {
+  fix: 'Fix', once: 'Fix this time', rule: 'Make it a rule', keep: 'Keep', deferred: 'Deferred', waiting: 'Waiting for you',
+};
+const OUTCOME_LABELS = { resolved: 'Resolved', unreviewed: 'Not re-reviewed', kept: 'Kept as is', open: 'Open' };
+const findingNumber = (row) => Number(row.id.slice(2));
+
+function proofOf(item, outcome) {
+  const drafted = (label, { drafts, proof, reason }) => `${label} ${drafts.join(', ')} (${reason ? `${proof}, ${reason}` : proof})`;
+  const proof = [];
+  if (item.regression?.drafts) proof.push(drafted('regression test', item.regression));
+  else if (item.regression) proof.push(`no test: ${item.regression.reason}`);
+  if (item.rule?.drafts) proof.push(drafted('rule', item.rule));
+  if (item.reproduced && item.rerun) proof.push(`verify check ${item.reproduced.check} ${RERUN_OUTCOMES[item.rerun.status] ?? item.rerun.status}`);
+  if (item.fromChecks && outcome === 'resolved') proof.push(`${item.quote} no longer fails`);
+  return proof;
+}
+
+function findingRows(state) {
+  const row = (item, decision, settled) => {
+    const outcome = settled ?? ({ once: 'unreviewed', rule: 'unreviewed', keep: 'kept' }[decision] ?? 'open');
+    let note;
+    if (decision === 'deferred') note = `not fixed: ${item.deferredReason}`;
+    else if (item.outOfScope) note = 'outside the reviewed diff';
+    return { round: item.round, id: item.id, title: item.title, severity: item.severity, decision, outcome, note, proof: proofOf(item, outcome) };
+  };
+  const waitingOrFix = state.stopped ? 'waiting' : 'fix';
+  return [
+    ...state.resolved.map((item) => row(item, item.decision ?? 'fix', 'resolved')),
+    ...state.open.map((item) => row(item, item.decision ?? waitingOrFix)),
+    ...(state.deferred ?? []).map((item) => row(item, item.decision ?? 'deferred')),
+    ...state.cards.map((item) => row(item, item.decision ?? 'waiting')),
+    ...(state.kept ?? []).filter((item) => item.id).map((item) => row(item, item.decision ?? 'keep')),
+  ].sort((first, second) => first.round - second.round || findingNumber(first) - findingNumber(second));
+}
+
+function runFacts(state) {
+  return {
+    rounds: state.counts.length,
+    stopReason: state.stopped?.reason ?? null,
+    awaiting: state.awaiting,
+    checks: state.latestChecks ?? state.checks,
+  };
+}
+
+const escapeHtml = (text) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+
+// GitHub shows a code span as typed, so an escaped character there would show up as the entity.
+function markdownCell(text) {
+  const outsideCode = normalize(text).split(/(`[^`]*`)/).map((part, index) => (index % 2 ? part : escapeHtml(part))).join('');
+  return outsideCode.replaceAll('|', '\\|');
+}
+
+function renderMarkdown(run, rows) {
+  const lines = ['## review-loop', ''];
+  if (run.rounds === 0) {
+    lines.push('No review has been recorded yet.');
+  } else {
+    const rounds = `${run.rounds} review ${run.rounds === 1 ? 'round' : 'rounds'}`;
+    const status = run.stopReason
+      ? `stopped: ${STOP_REASONS[run.stopReason] ?? run.stopReason}`
+      : `not finished, waiting for ${run.awaiting}`;
+    lines.push(`${rounds}, ${status}.`);
+  }
+  if (rows.length) {
+    lines.push('', '| Round | Finding | Severity | Decision | What happened |', '|---|---|---|---|---|');
+    for (const row of rows) {
+      const outcome = row.note ? `${OUTCOME_LABELS[row.outcome]} (${row.note})` : OUTCOME_LABELS[row.outcome];
+      const happened = [outcome, ...row.proof].join('; ');
+      lines.push(`| ${row.round} | ${markdownCell(`${row.id} ${row.title}`)} | ${row.severity} | ${DECISION_LABELS[row.decision]} | ${markdownCell(happened)} |`);
+    }
+  } else if (run.rounds > 0) {
+    lines.push('', 'No findings.');
+  }
+  const unreviewed = rows.filter((row) => row.outcome === 'unreviewed');
+  if (unreviewed.length) {
+    lines.push('', '## Not re-reviewed', '', ...unreviewed.map((row) => `- ${markdownCell(`${row.id} ${row.title}`)} (${DECISION_LABELS[row.decision]})`));
+  }
+  const checkLines = run.checks === null
+    ? ['- not run on the code after the last fix']
+    : run.checks.map((check) => `- ${check.folder ? `${check.folder}: ` : ''}${check.name} (\`${check.command}\`): ${checkOutcome(check)}`);
+  lines.push('', '## Checks', '', ...(checkLines.length ? checkLines : ['- none detected, the review read the diff only']));
+  return lines.join('\n');
+}
+
+function markdownSummary(state, options) {
+  if (options.since !== undefined) throw new Error('--markdown describes the current run, leave out --since');
+  if (!state) throw new Error('no review-loop run to summarize, run loop start first');
+  return { markdown: renderMarkdown(runFacts(state), findingRows(state)) };
+}
+
 function summary(cwd, options) {
   const repository = openRepository(cwd);
   const state = readSavedState(repository);
+  if (options.markdown) return markdownSummary(state, options);
   const since = summaryStart(repository, state, options.since);
   const events = ledgerEvents(repository)
     .filter((entry) => Object.hasOwn(SUMMARY_FIELDS, entry.event) && (entry.event !== 'next' || entry.decision === 'stop'))
