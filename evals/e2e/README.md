@@ -79,6 +79,15 @@ Three more sessions of each review scenario on review-loop 0.11.2 (commit `d0c0e
 
 On 0.11.2, two `failing-check` sessions missed `regression-or-reason`: the reviewer deferred a P1 (`behaviorChange`) that was the same bug as the failing test, the fix resolved it, and `loop rule` refused it because it was not in `open`, so it ended with neither a regression test nor a no-test reason. With #134 all three sessions gave it one. The other misses, one in each group, are `second-review-clean`: the reviewer also marked the `maxLength` finding `behaviorChange`, so the unattended run correctly left it waiting for you and stopped as `waiting`, not `clean`. That depends on the reviewer's call, not on the skill.
 
+After the audit fixes (#143 to #161), three more sessions of each review scenario on review-loop 0.11.6 (commit `045da63`), in `results/2026-10-28-claude-opus-5-5-v0116-1.json` to `-3.json`:
+
+| Scenario | Scores | Cost |
+|---|---|---|
+| `review-with-verify` | 11/11, 11/11, 11/11 | $0.69, $0.60, $0.59 |
+| `failing-check` | 11/11, 11/11, 11/11 | $0.61, $0.54, $0.62 |
+
+No session regressed. In all three `failing-check` sessions the reviewer deferred nothing, so the `second-review-clean` miss seen earlier, which came from a second finding marked `behaviorChange`, did not come up; these runs do not show that miss is gone. Each session gave both other fixed findings a regression test.
+
 ### Harness limits
 
 - Claude Code runs read-only shell commands such as `git diff` and `cat` even under `dontAsk` with an allow list that does not name them, so sessions could read the diff with Bash. A chained command such as `L=...; node $L checks; node $L status` was denied.
