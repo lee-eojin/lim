@@ -30,6 +30,7 @@ Run `loop start`. If `status` is `nothing-to-review`, tell the user and stop.
 If `status` is `in-progress`, a loop from an earlier session is unfinished. Show `report` if there is one, say which round it is in and what it is waiting for, and ask once whether to continue or start over. To start over, run `loop start --fresh`. To continue:
 - `awaiting: review`: if `treeMatchesReview` is false, the diff is out of date, so start over. Otherwise, if `checksFinished` is false, run `loop checks`. Then go to section 2 (Review) with `diffPath`, `openPath`, `reviewPath`, `reviewerModel`, and `featureMapPath`.
 - `awaiting: fix`: go to section 4 (Continue or stop) with `fix` and `ask`.
+- `awaiting: proof`: go to section 4 (Continue or stop) with `needsProof`.
 - `awaiting: decisions`: go to section 5 (Decide) with `stillOpen` and `cards`.
 
 It reviews everything `git add -A` would commit and runs the typecheck, lint, and test checks the project declares (`package.json` scripts, Makefile targets, Go, Rust, or configured Python tools). A failing check, or a `package.json` that is not valid JSON, becomes a P1 finding. A check that runs past its time limit, or whose program is not installed, is reported as not verified and does not become a finding.
@@ -56,11 +57,16 @@ Then reproduce, before fixing anything: for each id in `reproducible` (open find
 
 ## 4. Continue or stop
 
-When `decision` is `continue`:
+When `reason` is `proof`, nothing is left to fix, but each finding in `needsProof` was resolved without a regression test or a no-test reason, for example a `deferred` finding another fix also resolved. For each, do the regression test sub-step of step 4 below; `loop rule` checks the test on the code from before the fix that resolved it. The `loop rule` that records the last one runs the checks on the fixed code:
+- `decision: stop`: show the new `report` and go to section 5 (Decide). Do not run `loop next`.
+- `reason: proof` with `failedOnFixedCode`: a new test also fails on the fixed code, so its finding is not fixed and is back in `needsProof`. Never change code to make it pass; delete the test, record it with `--no-test "fails on the fixed code: <what failed>"`, and tell the user.
+- `reason: fix`: a check fails on the fixed code for a reason other than the new tests. Run `loop next`; the next round reviews the change and turns the failing check into a finding.
+
+Otherwise, when `decision` is `continue`:
 1. Say in one line what you will fix, for example "Fixing F-1 and F-3, then re-reviewing."
 2. If `ask` is not empty, ask once with AskUserQuestion before fixing: one question per finding, options are concrete fixes, your recommendation first, and "Keep as is" last. These are findings where the fix needs a design choice, a first fix did not work, or the user asked to confirm that severity before any fix. For each finding the user keeps, run `loop decide --id <id> --choice keep` before `loop next`; the script then stops looping it and lists it as kept.
 3. Fix the `fix` and `ask` findings, except those the user chose to keep.
-4. Prove each P1 or P2 fix with a regression test, without asking. This includes a P1 or P2 in `deferred` that your fix also resolves, but only when the fixed code already passes its scenario: if the test fails on the fixed code, delete it and leave the finding waiting, never change code to make it pass. Skip findings with category `checks`: the failing check is their test. If the project has no test check, skip this step; the report says so.
+4. Prove each P1 or P2 fix with a regression test, without asking. Skip findings with category `checks`: the failing check is their test. If the project has no test check, skip this step; the report says so.
    - Write a test from the finding's `scenario`, in a test file, never in the finding's own file. It must fail on the old code for the reason the scenario gives.
    - Run `loop rule --id <id> --draft <test file>` with a Bash timeout of 600000 ms. It runs the tests on the code before the fix, with and without the test. The checks on the fixed code run with `loop next`.
    - `caught`: read `withDrafts[].tail` and confirm the failure is the test's own assertion. `missed`: revise the test once and run `loop rule` again. `unproven`: keep the test; the report shows it. If its `reason` says only lint or typecheck failed and the test did not, treat it like `missed`.
