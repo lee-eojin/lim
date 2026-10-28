@@ -14,6 +14,10 @@ Coding agents write code fast. They are much worse at noticing what they got wro
 
 **LIM is my answer: small plugins that each do one job, with the numbers to back them.** review-loop is the center, and verify and clear-explain work next to it.
 
+![A review-loop run: the reviewer flags a doubled price as P2, the fix lands, the second review stops clean, and the summary table follows](docs/demo/review-loop.gif)
+
+<sub>The loop, the checks, and the review reports are real. The findings and code edits are scripted, and the lines after start, next, and rule summarize their JSON. Regenerate it with `vhs docs/demo/review-loop.tape`.</sub>
+
 **review-loop makes "ready to commit" mean reviewed.** Your own tests, types, and lint run first, in Node.js, Python, Go, Rust, Java (Gradle or Maven), .NET, Ruby, and Makefile projects, including up to 4 subfolder projects a change touches per round. Then a reviewer with a fresh context, which never sees Claude's reasoning, labels findings P1 to P5 and has to show evidence for the serious ones. Claude fixes P1 and P2, a new reviewer checks the fixes, and a script, not the model, decides when to stop. You decide the rest once, at the end.
 
 **Proof by running the feature.** With [verify](plugins/verify), a finding is reproduced when a check that runs the feature fails on the reviewed code, and its fix counts only when the same check passes again.

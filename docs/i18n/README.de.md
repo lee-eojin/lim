@@ -16,6 +16,10 @@ Coding-Agenten schreiben schnell Code. Ihre eigenen Fehler bemerken sie viel sch
 
 **LIM ist meine Antwort darauf: kleine Plugins, die jeweils eine Aufgabe erledigen, mit den Zahlen, die sie belegen.** Im Zentrum steht review-loop, daneben arbeiten verify und clear-explain.
 
+![Ein review-loop-Lauf: Der Reviewer markiert einen verdoppelten Preis als P2, die Korrektur folgt, die zweite Prüfung endet ohne Findings, danach folgt die Zusammenfassung](../../docs/demo/review-loop.gif)
+
+<sub>Die Schleife, die Checks und die Review-Berichte sind echt. Findings und Codeänderungen sind vorgegeben, die Zeilen nach start, next und rule fassen deren JSON zusammen. Neu erzeugen mit `vhs docs/demo/review-loop.tape`.</sub>
+
 **Mit review-loop heißt "bereit zum Commit" auch geprüft.** Zuerst laufen deine eigenen Tests, Typprüfungen und Lint, in Projekten mit Node.js, Python, Go, Rust, Java (Gradle oder Maven), .NET, Ruby und Makefile, auch in bis zu 4 Unterordner-Projekten pro Runde, die eine Änderung berührt. Dann kennzeichnet ein Reviewer mit frischem Kontext, der Claudes Überlegungen nie sieht, Findings mit P1 bis P5 und muss für die schweren Findings Belege zeigen. Claude behebt P1 und P2, ein neuer Reviewer prüft die Fixes, und ein Skript, nicht das Modell, entscheidet, wann Schluss ist. Über den Rest entscheidest du einmal, am Ende.
 
 **Beweis durch Ausführen des Features.** Mit [verify](../../plugins/verify) gilt ein Finding als reproduziert, wenn ein Check, der das Feature ausführt, auf dem geprüften Code fehlschlägt, und sein Fix zählt erst, wenn derselbe Check wieder besteht.

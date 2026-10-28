@@ -16,6 +16,10 @@
 
 **LIM 是我给出的答案：每个小插件只做一件事，并附上支撑它的数字。** review-loop 是核心，verify 和 clear-explain 在它旁边配合工作。
 
+![review-loop 运行示例：审查者把翻倍的价格标记为 P2，修复随后提交，第二轮审查没有发现项后停止，最后显示汇总表](../../docs/demo/review-loop.gif)
+
+<sub>循环、检查和审查报告都是真实的。发现项和代码修改是预先写好的，start、next、rule 之后的行是对其 JSON 的摘要。用 `vhs docs/demo/review-loop.tape` 重新生成。</sub>
+
 **review-loop 让“可以提交”真正意味着“已经审查”。** 首先运行你自己的测试、类型检查和 lint，支持 Node.js、Python、Go、Rust、Java（Gradle 或 Maven）、.NET、Ruby 和 Makefile 项目，也包括变更涉及的子文件夹项目（每轮最多 4 个）。然后，一个拥有全新上下文、从不接触 Claude 推理的审查者把发现项标记为 P1 到 P5，并且必须为严重的发现项给出证据。Claude 修复 P1 和 P2，一个新的审查者检查这些修复，何时停止由脚本而不是模型决定。其余的由你在最后一次性决定。
 
 **通过运行功能来证明。** 使用 [verify](../../plugins/verify) 时，如果一个运行该功能的检查在被审查的代码上失败，发现项就算复现；只有同一个检查再次通过，它的修复才算数。

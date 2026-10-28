@@ -16,6 +16,10 @@ Les agents de code écrivent vite. Ils sont bien moins bons pour remarquer ce qu
 
 **LIM est ma réponse : de petits plugins qui font chacun un seul travail, avec les chiffres pour le prouver.** review-loop est au centre, et verify et clear-explain travaillent à ses côtés.
 
+![Une exécution de review-loop : le réviseur signale un prix doublé en P2, la correction suit, la deuxième revue s'arrête sans constat, puis vient le tableau récapitulatif](../../docs/demo/review-loop.gif)
+
+<sub>La boucle, les vérifications et les rapports de revue sont réels. Les constats et les modifications du code sont scénarisés, et les lignes après start, next et rule résument leur JSON. Pour le régénérer : `vhs docs/demo/review-loop.tape`.</sub>
+
 **Avec review-loop, "prêt pour le commit" veut dire revu.** Vos propres tests, types et lint s'exécutent d'abord, dans les projets Node.js, Python, Go, Rust, Java (Gradle ou Maven), .NET, Ruby et Makefile, y compris jusqu'à 4 projets de sous-dossier touchés par une modification, à chaque tour. Ensuite, un réviseur avec un contexte neuf, qui ne voit jamais le raisonnement de Claude, classe les constats de P1 à P5 et doit apporter une preuve pour les plus graves. Claude corrige P1 et P2, un nouveau réviseur vérifie les corrections, et un script, et non le modèle, décide quand s'arrêter. Vous décidez du reste une seule fois, à la fin.
 
 **La preuve en exécutant la fonctionnalité.** Avec [verify](../../plugins/verify), un constat est reproduit quand une vérification qui exécute la fonctionnalité échoue sur le code revu, et sa correction ne compte que lorsque la même vérification réussit de nouveau.

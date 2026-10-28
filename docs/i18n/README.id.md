@@ -16,6 +16,10 @@ Coding agent menulis kode dengan cepat. Namun, mereka jauh lebih buruk dalam men
 
 **LIM adalah jawaban saya: plugin kecil yang masing-masing mengerjakan satu tugas, disertai angka yang mendukungnya.** review-loop adalah pusatnya, dan verify serta clear-explain bekerja di sampingnya.
 
+![Satu putaran review-loop: reviewer menandai harga yang berlipat dua sebagai P2, perbaikannya masuk, review kedua berhenti tanpa temuan, lalu muncul tabel ringkasan](../../docs/demo/review-loop.gif)
+
+<sub>Loop, pemeriksaan, dan laporan review-nya nyata. Temuan dan perubahan kode ditulis lebih dulu, dan baris setelah start, next, dan rule meringkas JSON-nya. Buat ulang dengan `vhs docs/demo/review-loop.tape`.</sub>
+
 **review-loop membuat "siap di-commit" berarti sudah di-review.** Test, pemeriksaan tipe, dan lint milikmu berjalan lebih dulu, di proyek Node.js, Python, Go, Rust, Java (Gradle atau Maven), .NET, Ruby, dan Makefile, termasuk paling banyak 4 proyek subfolder yang tersentuh perubahan per putaran. Lalu sebuah reviewer dengan konteks baru, yang tidak pernah melihat penalaran Claude, memberi label P1 sampai P5 pada temuan dan harus menunjukkan bukti untuk temuan yang serius. Claude memperbaiki P1 dan P2, reviewer baru memeriksa perbaikannya, dan sebuah script, bukan model, yang memutuskan kapan berhenti. Kamu memutuskan sisanya satu kali, di akhir.
 
 **Bukti dengan menjalankan fiturnya.** Dengan [verify](../../plugins/verify), sebuah temuan dianggap tereproduksi saat pemeriksaan yang menjalankan fitur itu gagal pada kode yang di-review, dan perbaikannya baru dihitung saat pemeriksaan yang sama lulus lagi.
