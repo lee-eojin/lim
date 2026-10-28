@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: The loop no longer stops clean while a resolved P1 or P2 has neither a regression test nor a no-test reason, in a project with a test check. It continues with reason `proof`, lists those findings with the `loop rule` commands to run, and the last `loop rule` runs the checks on the fixed code and stops it clean without another review when they pass. Until then the commit gate blocks the commit. Findings from failing checks and projects without a test check stop clean as before. (#184)
+
 ## 0.11.8 (2026-10-28)
 
 - Fixed: On Windows, the commit gate recognizes `git add .` at the repository root as staging everything when the path has an 8.3 short-name form. (#178)

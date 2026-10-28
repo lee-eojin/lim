@@ -1332,6 +1332,7 @@ describe('loop status steps', () => {
     assert.deepEqual(doneSteps(root), ['start']);
     loop(root, ['record'], { findings: [doubledPrice, namingCard] });
     writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['rule', '--id', 'F-1', '--no-test', 'the total is only visible in the browser']);
     loop(root, ['next']);
     loop(root, ['record'], { resolved: ['F-1'], findings: [] });
     loop(root, ['decide', '--id', 'F-2', '--choice', 'rule']);
@@ -1472,6 +1473,139 @@ describe('regression tests', () => {
     writeFiles(root, { 'checks/cart.cjs': totalTest });
     assert.throws(() => loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']), /F-1 has no scenario to write a regression test from, record why with --no-test/);
     assert.equal(loop(root, ['rule', '--id', 'F-1', '--no-test', 'the reviewer gave no scenario']).noTest, 'the reviewer gave no scenario');
+  });
+
+  function resolvedWithoutProof(options) {
+    const { root } = fixing(options);
+    loop(root, ['next']);
+    const recorded = loop(root, ['record'], { resolved: ['F-1', 'F-2'], findings: [] });
+    return { root, recorded };
+  }
+
+  test('a resolved P1 or P2 without a regression test or a no-test reason keeps the loop from stopping clean', () => {
+    const { root, recorded } = resolvedWithoutProof();
+    assert.deepEqual([recorded.decision, recorded.reason, recorded.needsProof.map((item) => item.id)], ['continue', 'proof', ['F-1']]);
+    assert.match(recorded.report, /Needs a regression test or a no-test reason before the loop stops clean:\n- F-1 \[P2\] src\/cart\.js:1 Price is doubled\n.*\n {2}run: loop rule --id F-1 --draft <test file>, or loop rule --id F-1 --no-test "<reason>"/);
+    assert.match(recorded.report, /Next: record a regression test or a no-test reason with loop rule; the last one stops the loop clean without another review/);
+    assert.throws(() => loop(root, ['next']), /record a regression test or a no-test reason for F-1 with loop rule/);
+    assert.equal(loop(root, ['start']).awaiting, 'proof');
+    loop(root, ['gate', '--on']);
+    const commit = gateDecision({ cwd: root, command: 'git commit -m "fix: cart"' });
+    assert.deepEqual([commit.decision, /F-1/.test(commit.reason)], ['deny', true]);
+    assert.ok(!loop(root, ['status']).review.doneSteps.includes('fix'));
+  });
+
+  test('rule --no-test on a resolved finding stops the loop clean without another review', () => {
+    const { root } = resolvedWithoutProof();
+    const result = loop(root, ['rule', '--id', 'F-1', '--no-test', 'the total is only visible in the browser']);
+    assert.deepEqual([result.decision, result.reason], ['stop', 'clean']);
+    assert.match(result.report, /- F-1 .*\n {2}no test: the total is only visible in the browser[\s\S]*Stopped: no P1 or P2 left in this change/);
+    const { review } = loop(root, ['status']);
+    assert.deepEqual([review.awaiting, review.round, review.counts], ['decisions', 2, [1, 0]]);
+    assert.match(loop(root, ['summary']).report, /Round 2: stopped: no P1 or P2 left in this change/);
+  });
+
+  test('a regression test caught on the code before the fix stops the loop clean', () => {
+    const { root } = resolvedWithoutProof();
+    writeFiles(root, { 'checks/cart.cjs': totalTest });
+    const result = loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']);
+    assert.deepEqual([result.proof, result.decision, result.reason], ['caught', 'stop', 'clean']);
+    assert.match(result.report, /- F-1 .*\n {2}test: checks\/cart\.cjs \(before the fix: caught, after: passed\)/);
+    assert.ok(loop(root, ['status']).review.doneSteps.includes('checks'));
+  });
+
+  test('a regression test that also fails on the fixed code keeps the loop waiting for proof', () => {
+    const { root } = resolvedWithoutProof();
+    writeFiles(root, { 'checks/cart.cjs': "console.error('always fails'); process.exit(1);\n" });
+    const result = loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']);
+    assert.deepEqual([result.proof, result.decision, result.reason, result.failedOnFixedCode], ['caught', 'continue', 'proof', ['test']]);
+    assert.deepEqual(result.needsProof.map((item) => item.id), ['F-1']);
+    assert.equal(loop(root, ['start']).awaiting, 'proof');
+    rmSync(path.join(root, 'checks/cart.cjs'));
+    const stopped = loop(root, ['rule', '--id', 'F-1', '--no-test', 'fails on the fixed code: always fails']);
+    assert.deepEqual([stopped.decision, stopped.reason], ['stop', 'clean']);
+    assert.match(stopped.report, /Checks: test \(npm run test\) passed/);
+  });
+
+  test('a regression test is not blamed for an unrelated test that fails in the same check', () => {
+    const { root } = resolvedWithoutProof();
+    writeFiles(root, { 'checks/cart.cjs': totalTest, 'checks/unrelated.cjs': "console.error('broken elsewhere'); process.exit(1);\n" });
+    const result = loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']);
+    assert.deepEqual([result.proof, result.decision, result.reason, result.needsProof], ['caught', 'continue', 'fix', []]);
+    assert.equal(loop(root, ['next']).status, 'review');
+  });
+
+  test('rule refuses a resolved finding once the loop has stopped, so its checked test stays committable', () => {
+    const { root } = resolvedWithoutProof();
+    writeFiles(root, { 'checks/cart.cjs': totalTest });
+    assert.equal(loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']).reason, 'clean');
+    assert.throws(() => loop(root, ['rule', '--id', 'F-1', '--no-test', 'later']), /F-1 was resolved and the loop has stopped/);
+    loop(root, ['gate', '--on']);
+    assert.equal(gateDecision({ cwd: root, command: 'git commit -m "fix: cart"' }).decision, 'ask');
+  });
+
+  test('a check that fails on the fixed code without a new test to blame sends the change back to review', () => {
+    const { root } = resolvedWithoutProof();
+    writeFiles(root, { 'checks/unrelated.cjs': "console.error('broken elsewhere'); process.exit(1);\n" });
+    const result = loop(root, ['rule', '--id', 'F-1', '--no-test', 'the total is only visible in the browser']);
+    assert.deepEqual([result.decision, result.reason, result.failedOnFixedCode], ['continue', 'fix', ['test']]);
+    assert.deepEqual([loop(root, ['next']).status, loop(root, ['status']).review.round], ['review', 3]);
+  });
+
+  test('a finding resolved in a loop saved without beforeFixTree checks its regression test on the code it was raised on', () => {
+    const { root } = fixing();
+    loop(root, ['next']);
+    const stateFile = path.join(root, '.git/lim/review-loop/state.json');
+    const olderState = JSON.parse(readFileSync(stateFile, 'utf8'));
+    delete olderState.beforeFixTree;
+    writeFileSync(stateFile, JSON.stringify(olderState));
+    assert.equal(loop(root, ['record'], { resolved: ['F-1'], findings: [] }).reason, 'proof');
+    writeFiles(root, { 'checks/cart.cjs': totalTest });
+    const result = loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']);
+    assert.deepEqual([result.proof, result.decision, result.reason], ['caught', 'stop', 'clean']);
+  });
+
+  test('the loop stops clean when no resolved finding needs proof any more', () => {
+    const { root } = resolvedWithoutProof();
+    writeFiles(root, { 'package.json': JSON.stringify({ scripts: {} }) });
+    const result = loop(root, ['next']);
+    assert.deepEqual([result.status, result.reason], ['stopped', 'clean']);
+    assert.equal(loop(root, ['status']).review.awaiting, 'decisions');
+  });
+
+  test('a regression test that fails only lint on the code before the fix does not end the wait for proof', () => {
+    const lintRejectsVar = 'node -e "const fs = require(\'fs\'); process.exit(fs.existsSync(\'checks/cart.cjs\') && fs.readFileSync(\'checks/cart.cjs\', \'utf8\').includes(\'var \') && fs.readFileSync(\'src/cart.js\', \'utf8\').includes(\'* 2\') ? 1 : 0)"';
+    const { root } = resolvedWithoutProof({ files: { 'package.json': JSON.stringify({ scripts: { lint: lintRejectsVar, test: runEveryCheck } }) } });
+    writeFiles(root, { 'checks/cart.cjs': 'var price = 10;\n' });
+    const result = loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']);
+    assert.deepEqual([result.proof, result.decision], ['unproven', undefined]);
+    assert.deepEqual(loop(root, ['start']).needsProof.map((item) => item.id), ['F-1']);
+  });
+
+  test('a deferred finding a fix also resolved needs proof in an unattended run, and nothing asks', () => {
+    const designChoice = { ...doubledPrice, title: 'Pick a rounding rule', quote: 'items.reduce', behaviorChange: true };
+    const { root } = fixing({ findings: [doubledPrice, designChoice], startArgs: ['--unattended'] });
+    loop(root, ['rule', '--id', 'F-1', '--no-test', 'the total is only visible in the browser']);
+    loop(root, ['next']);
+    const recorded = loop(root, ['record'], { resolved: ['F-1', 'F-2'], findings: [] });
+    assert.deepEqual([recorded.reason, recorded.ask, recorded.needsProof.map((item) => item.id)], ['proof', [], ['F-2']]);
+    assert.equal(loop(root, ['rule', '--id', 'F-2', '--no-test', 'the rounding rule is a product choice']).reason, 'clean');
+  });
+
+  test('a project with no test check and a finding from a failing check stop clean without proof', () => {
+    const plain = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(plain, { 'src/cart.js': brokenCart });
+    loop(plain, ['start']);
+    loop(plain, ['record'], { findings: [doubledPrice] });
+    writeFiles(plain, { 'src/cart.js': correctCart });
+    loop(plain, ['next']);
+    assert.equal(loop(plain, ['record'], { resolved: ['F-1'], findings: [] }).reason, 'clean');
+
+    const { root, recorded } = fixing({ files: { 'checks/existing.cjs': 'process.exit(1);\n' }, findings: [] });
+    assert.equal(recorded.fix[0].category, 'checks');
+    writeFiles(root, { 'checks/existing.cjs': '' });
+    loop(root, ['next']);
+    assert.equal(loop(root, ['record'], { findings: [] }).reason, 'clean');
   });
 
   test('the commit gate asks for a regression test proven after the loop stopped and blocks it once edited', () => {
@@ -3155,6 +3289,7 @@ describe('unattended runs', () => {
     const passing = deferredCheck();
     attemptFix(passing, 2);
     writeFiles(passing, { 'src/cart.js': correctCart });
+    loop(passing, ['rule', '--id', 'F-2', '--no-test', 'the attempt counter has no behavior to test']);
     loop(passing, ['next']);
     const fixed = loop(passing, ['record'], { resolved: ['F-2'], findings: [] });
     assert.deepEqual([fixed.decision, fixed.reason], ['stop', 'clean']);

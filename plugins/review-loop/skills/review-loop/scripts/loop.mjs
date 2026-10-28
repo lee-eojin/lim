@@ -90,7 +90,9 @@ const SUMMARY_FIELDS = {
   regression: ['id', 'severity', 'title', 'drafts', 'proof', 'reason'],
   note: ['phase', 'decision', 'why', 'evidence'],
   next: ['round', 'reason', 'integrity'],
+  stop: ['round', 'reason'],
 };
+const UNFINISHED = ['review', 'fix', 'proof'];
 
 const normalize = (text) => String(text ?? '').replace(/\s+/g, ' ').trim();
 const now = () => new Date().toISOString();
@@ -142,10 +144,11 @@ export function isStalled(counts) {
   return second >= first && third >= second;
 }
 
-export function decideNext({ round, maxRounds, counts, open, waiting = 0, stuck = [], regressions = [] }) {
+export function decideNext({ round, maxRounds, counts, open, waiting = 0, unproven = 0, stuck = [], regressions = [] }) {
   if (regressions.length) return { decision: 'stop', reason: 'regression' };
   if (stuck.length) return { decision: 'stop', reason: 'stuck' };
-  if (open === 0) return { decision: 'stop', reason: waiting ? 'waiting' : 'clean' };
+  if (open === 0 && waiting) return { decision: 'stop', reason: 'waiting' };
+  if (open === 0) return unproven ? { decision: 'continue', reason: 'proof' } : { decision: 'stop', reason: 'clean' };
   if (isStalled(counts)) return { decision: 'stop', reason: 'stalled' };
   if (round >= maxRounds) return { decision: 'stop', reason: 'max-rounds' };
   return { decision: 'continue', reason: 'fix' };
@@ -259,7 +262,8 @@ export function parseReview(input) {
 export function renderReport(view) {
   const {
     round, maxRounds, checks = [], checksLeftOut = [], resolved = [], fix = [], ask = [], stillOpen = [], regressions = [],
-    integrity = [], cards = [], kept = [], counts = [], looped = [], deferred = [], decision, reason, reviewerModel, featureMap,
+    integrity = [], cards = [], kept = [], counts = [], looped = [], deferred = [], needsProof = [], decision, reason, reviewerModel,
+    featureMap,
   } = view;
   const reviewerLabel = reviewerModel ? ` (reviewer: ${reviewerModel === 'inherit' ? 'session model' : reviewerModel})` : '';
   const leftOut = checksLeftOut.length
@@ -288,6 +292,11 @@ export function renderReport(view) {
     ...describeFinding(item), `  waiting because: ${item.deferredReason}`,
   ]);
   section('Came back after being resolved:', regressions, describeFinding);
+  section('Needs a regression test or a no-test reason before the loop stops clean:', needsProof, (item) => [
+    `- ${item.id} [${item.severity}] ${location(item)} ${item.title}`,
+    `  why: ${normalize(item.scenario)}`,
+    `  run: loop rule --id ${item.id} --draft <test file>, or loop rule --id ${item.id} --no-test "<reason>"`,
+  ]);
   section('Fixes that weakened tests or checks:', integrity, (issue) => [`- ${issue.file}: ${issue.reason}`]);
   section("Noticed outside this round's diff (not looped, decided at the end):", outOfScope, (item) => [
     `- ${item.id} [${item.severity}] ${location(item)} ${item.title}${item.basis ? ` (basis: ${item.basis})` : ''}`,
@@ -300,7 +309,9 @@ export function renderReport(view) {
     lines.push(...keptBlocking.map((item) => `- [${item.severity}] ${location(item)} ${item.title}`));
   }
   lines.push('', `Trend (P1 + P2): ${counts.length ? counts.join(' -> ') : '-'}`);
-  if (decision === 'continue') {
+  if (reason === 'proof') {
+    lines.push('Next: record a regression test or a no-test reason with loop rule; the last one stops the loop clean without another review');
+  } else if (decision === 'continue') {
     lines.push(`Next: fix, then re-review in round ${round + 1} of ${maxRounds}`);
   } else {
     let stopText = STOP_REASONS[reason] ?? reason;
@@ -1203,7 +1214,7 @@ function makeAttended(repository, state) {
 }
 
 function isInProgress(state) {
-  return ['review', 'fix'].includes(state.awaiting) || pendingDecisionIds(state).length > 0;
+  return UNFINISHED.includes(state.awaiting) || pendingDecisionIds(state).length > 0;
 }
 
 function resumeView(repository, state) {
@@ -1229,6 +1240,7 @@ function resumeView(repository, state) {
     stillOpen: deciding ? [...state.open.filter((item) => !item.decision), ...deferred] : [],
     deferred,
     cards: deciding ? state.cards.filter((card) => !card.decision) : [],
+    needsProof: state.awaiting === 'proof' ? needsProof(repository.root, state.resolved).map(proofTarget) : [],
     treeMatchesReview: snapshotTree(repository) === state.reviewedTree,
     ...featureMapFields(repository.root),
   };
@@ -1240,6 +1252,7 @@ function start(cwd, options) {
   const existing = readSavedState(repository);
   const unattended = options.unattended === true || readUnattended(repository).enabled;
   if (existing && isInProgress(existing)) {
+    stopIfProven(repository, existing);
     if (unattended) {
       makeUnattended(repository, existing);
     } else {
@@ -1362,8 +1375,12 @@ function recordReview(repository, input) {
   const regressions = [...fix, ...newAsk].filter((item) => resolvedPrints.has(item.fingerprint));
   const open = [...fix, ...unattendedFix, ...ask, ...stuck];
   const counts = [...state.counts, open.length];
+  // A regression test written after this review must fail on the code the fix started from.
+  for (const item of resolved) item.beforeFixTree = state.beforeFixTree;
+  const unproven = needsProof(repository.root, [...state.resolved, ...resolved]);
   const { decision, reason } = decideNext({
-    round: state.round, maxRounds: state.maxRounds, counts, open: open.length, waiting: allDeferred.length, stuck, regressions,
+    round: state.round, maxRounds: state.maxRounds, counts, open: open.length, waiting: allDeferred.length,
+    unproven: unproven.length, stuck, regressions,
   });
   const stopped = decision === 'stop';
 
@@ -1373,7 +1390,7 @@ function recordReview(repository, input) {
     round: state.round, maxRounds: state.maxRounds, reviewerModel, checks: state.checks, checksLeftOut: state.checksLeftOut, resolved,
     fix: stopped ? [] : [...fix, ...unattendedFix], ask: stopped ? [] : ask, stillOpen: stopped ? open : [],
     deferred: stopped ? allDeferred : deferred,
-    regressions, cards: allCards, kept: allKept, counts, decision, reason,
+    regressions, cards: allCards, kept: allKept, counts, decision, reason, needsProof: reason === 'proof' ? unproven : [],
     looped: [...state.resolved, ...resolved, ...open, ...allDeferred], featureMap: readFeatureMap(repository.root),
   };
   const report = renderReport(view);
@@ -1384,7 +1401,8 @@ function recordReview(repository, input) {
     deferred: allDeferred,
     kept: allKept,
     counts,
-    awaiting: stopped ? 'decisions' : 'fix',
+    resolvedInRound: resolved.map((item) => item.id),
+    awaiting: { stop: 'decisions', continue: reason === 'proof' ? 'proof' : 'fix' }[decision],
     stopped: stopped ? { reason, at: now() } : null,
     lastReport: report,
   });
@@ -1398,7 +1416,7 @@ function recordReview(repository, input) {
   return {
     report,
     decision, reason, round: state.round,
-    fix: view.fix, ask: view.ask, stillOpen: view.stillOpen, deferred,
+    fix: view.fix, ask: view.ask, stillOpen: view.stillOpen, deferred, needsProof: view.needsProof.map(proofTarget),
     cards: stopped ? state.cards : [],
     reproducible: [...state.cards, ...state.open, ...(state.deferred ?? [])]
       .filter((item) => item.check && BLOCKING.has(item.severity) && !item.reproduced)
@@ -1409,6 +1427,14 @@ function recordReview(repository, input) {
 function next(cwd, options = {}) {
   const repository = openRepository(cwd);
   const state = loadState(repository);
+  if (state.awaiting === 'proof') {
+    const stopped = stopIfProven(repository, state);
+    if (stopped.decision === 'stop') return { status: 'stopped', ...stopped };
+    if (state.awaiting === 'proof') {
+      const ids = needsProof(repository.root, state.resolved).map((item) => item.id).join(', ');
+      throw new Error(`record a regression test or a no-test reason for ${ids} with loop rule; the last one stops the loop`);
+    }
+  }
   if (state.awaiting !== 'fix') throw new Error(`expected ${state.awaiting}, not a fix`);
   const fixedTree = snapshotTree(repository);
   const unchanged = fixedTree === state.reviewedTree;
@@ -1453,7 +1479,7 @@ function next(cwd, options = {}) {
   const fixedFiles = filesBetween(repository, state.reviewedTree, fixedTree);
   const reviewedFiles = [...new Set([...(state.reviewedFiles ?? state.files ?? []), ...fixedFiles])];
   Object.assign(state, {
-    reviewedTree: fixedTree, files: fixedFiles, reviewedFiles, checks: null, awaiting: 'review',
+    beforeFixTree: state.reviewedTree, reviewedTree: fixedTree, files: fixedFiles, reviewedFiles, checks: null, awaiting: 'review',
     reviewerModel: readReviewerModel(repository),
   });
   saveState(repository, state);
@@ -1574,16 +1600,24 @@ function checkedRuleDrafts(repository, state) {
     .map(([draft]) => draft);
 }
 
-function checkRule(repository, beforeTree, drafts, files) {
+function inTreeCopy(repository, tree, files, run) {
   const folder = mkdtempSync(path.join(tmpdir(), 'review-loop-rule-'));
-  const deadline = Date.now() + CHECKS_BUDGET_MS;
   try {
-    checkoutTree(repository, beforeTree, folder);
+    checkoutTree(repository, tree, folder);
     for (const project of checkedFolders(repository.root, files)) {
       const modules = path.join(repository.root, project, 'node_modules');
       const target = path.join(folder, project, 'node_modules');
       if (existsSync(modules) && existsSync(path.dirname(target)) && !existsSync(target)) symlinkSync(modules, target, 'junction');
     }
+    return run(folder);
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+}
+
+function checkRule(repository, beforeTree, drafts, files) {
+  const deadline = Date.now() + CHECKS_BUDGET_MS;
+  return inTreeCopy(repository, beforeTree, files, (folder) => {
     copyDrafts(repository.root, folder, drafts);
     const withDrafts = runChecks(folder, repository.file('rule.checks.log'), selectChecks(folder, files).checks, deadline);
     const failing = withDrafts.filter((check) => !isNotVerified(check) && check.exitCode !== 0).map(checkId);
@@ -1599,15 +1633,81 @@ function checkRule(repository, beforeTree, drafts, files) {
     };
     const caughtBy = failing.filter(passedWithout);
     return { proof: caughtBy.length ? 'caught' : 'unproven', caughtBy, withDrafts, withoutDrafts };
-  } finally {
-    rmSync(folder, { recursive: true, force: true });
-  }
+  });
+}
+
+// True when every failing check passes on the same tree with the new drafts taken back out, so the drafts broke it.
+function failsOnlyWithDrafts(repository, tree, { reviewedTree, drafts, files, failing }) {
+  return inTreeCopy(repository, tree, files, (folder) => {
+    restoreDrafts(repository, reviewedTree, folder, drafts);
+    const ids = failing.map(checkId);
+    const selected = selectChecks(folder, files).checks.filter((check) => ids.includes(checkId(check)));
+    const withoutDrafts = runChecks(folder, repository.file('final.baseline.log'), selected);
+    return ids.every((id) => {
+      const check = withoutDrafts.find((candidate) => checkId(candidate) === id);
+      return !check || (!isNotVerified(check) && check.exitCode === 0);
+    });
+  });
 }
 
 function isBeingFixed(state, item) {
   if (!BLOCKING.has(item.severity) || item.fromChecks) return false;
   // A fix can also resolve a deferred finding, which then needs the same proof as the findings it was meant for.
-  return (state.awaiting === 'fix' && [...state.open, ...(state.deferred ?? [])].includes(item)) || item.decision === 'once';
+  return (state.awaiting === 'fix' && [...state.open, ...(state.deferred ?? [])].includes(item))
+    || item.decision === 'once' || (state.awaiting === 'proof' && state.resolved.includes(item));
+}
+
+// A draft proves the fix only when the test check fails with it on the code before the fix and passes on the code after.
+function hasRegressionProof({ regression }) {
+  if (!regression) return false;
+  if (!regression.drafts) return true;
+  const onlyOtherChecksCaught = regression.proof === 'unproven' && regression.caughtBy?.length > 0;
+  return regression.proof !== 'missed' && !onlyOtherChecksCaught && !regression.failedOnFixedCode;
+}
+
+function needsProof(root, resolved) {
+  return resolved.filter((item) => BLOCKING.has(item.severity) && !item.fromChecks && !hasRegressionProof(item)
+    && selectChecks(root, [item.file]).checks.some((check) => check.name === 'test'));
+}
+
+const proofTarget = ({ id, severity, file, line, title, quote, scenario }) => ({ id, severity, file, line, title, quote, scenario });
+
+function stopIfProven(repository, state) {
+  if (state.awaiting !== 'proof' || needsProof(repository.root, state.resolved).length) return {};
+  const tree = snapshotTree(repository);
+  const drafts = state.resolved.flatMap((item) => item.regression?.drafts ?? []);
+  const files = [...(state.reviewedFiles ?? state.files ?? []), ...drafts];
+  const { checks, leftOut } = runFinalChecks(repository, state, files);
+  logEvent(repository, { event: 'checks', tree, checks: checkEvents(checks) });
+  const failing = checks.filter((check) => !isNotVerified(check) && check.exitCode !== 0);
+  if (failing.length) {
+    const unreviewed = new Set(filesBetween(repository, state.reviewedTree, tree));
+    const newDrafts = drafts.filter((draft) => unreviewed.has(draft));
+    const failedOnFixedCode = failing.map(checkId);
+    const blamed = newDrafts.some((draft) => failing.some((check) => coversDraft(check, draft)))
+      && failsOnlyWithDrafts(repository, tree, { reviewedTree: state.reviewedTree, drafts: newDrafts, files, failing });
+    const failed = blamed ? state.resolved.filter((item) => (item.regression?.drafts ?? [])
+      .some((draft) => newDrafts.includes(draft) && failing.some((check) => coversDraft(check, draft)))) : [];
+    for (const item of failed) item.regression.failedOnFixedCode = failedOnFixedCode;
+    // A failure no new test explains comes from other changes, so the next round reviews them and turns it into a finding.
+    if (!failed.length) state.awaiting = 'fix';
+    saveState(repository, state);
+    return {
+      decision: 'continue', reason: state.awaiting, checks, failedOnFixedCode,
+      needsProof: needsProof(repository.root, state.resolved).map(proofTarget),
+    };
+  }
+  const resolvedInRound = new Set(state.resolvedInRound);
+  const report = renderReport({
+    round: state.round, maxRounds: state.maxRounds, reviewerModel: state.reviewerModel ?? 'inherit', checks,
+    checksLeftOut: leftOut, resolved: state.resolved.filter((item) => resolvedInRound.has(item.id)), cards: state.cards,
+    kept: state.kept, counts: state.counts, decision: 'stop', reason: 'clean', looped: state.resolved,
+    featureMap: readFeatureMap(repository.root),
+  });
+  Object.assign(state, { awaiting: 'decisions', stopped: { reason: 'clean', at: now() }, lastReport: report });
+  saveState(repository, state);
+  logEvent(repository, { event: 'stop', round: state.round, decision: 'stop', reason: 'clean' });
+  return { decision: 'stop', reason: 'clean', report, cards: state.cards, checks };
 }
 
 function isTestCheck(id) {
@@ -1619,12 +1719,13 @@ function proveRegression({ proof, caughtBy }) {
   return { proof: 'unproven', reason: `only ${caughtBy.join(' and ')} failed with the draft on the code before the fix, the test check did not fail` };
 }
 
+const coversDraft = (check, draft) => !check.folder || draft.startsWith(`${check.folder}/`);
+
 function describeRegressionTest(item, checks) {
   if (!BLOCKING.has(item.severity) || item.fromChecks) return [];
   const { drafts, proof, reason } = item.regression ?? {};
   if (drafts) {
-    const inFolder = (check) => !check.folder || drafts.some((draft) => draft.startsWith(`${check.folder}/`));
-    const test = checks?.findLast((check) => check.name === 'test' && inFolder(check));
+    const test = checks?.findLast((check) => check.name === 'test' && drafts.some((draft) => coversDraft(check, draft)));
     const before = reason ? `${proof}, ${reason}` : proof;
     return [`  test: ${drafts.join(', ')} (before the fix: ${before}, after: ${test ? checkOutcome(test) : 'not run'})`];
   }
@@ -1640,18 +1741,26 @@ function recordNoTest(repository, state, item, reason) {
   return { id: item.id, kind: 'regression', noTest: item.regression.reason };
 }
 
+// A finding resolved before the loop kept the code before the fix still has the code it was raised on.
+function raisedOnTree(repository, round) {
+  const entry = eventsSinceStart(repository)
+    .find((candidate) => (round === 1 ? candidate.event === 'start' : candidate.event === 'next' && candidate.round === round));
+  return entry?.reviewedTree ?? entry?.fixedTree ?? null;
+}
+
 function rule(cwd, options) {
   const repository = openRepository(cwd);
   const state = loadState(repository);
-  const item = decidableFindings(state).find((candidate) => candidate.id === options.id);
+  const item = [...decidableFindings(state), ...state.resolved].find((candidate) => candidate.id === options.id);
   if (!item) throw new Error(`no finding with id ${options.id}`);
   const kind = item.decision === 'rule' ? 'rule' : 'regression';
   if (kind === 'regression' && !isBeingFixed(state, item)) {
+    if (state.stopped && state.resolved.includes(item)) throw new Error(`${item.id} was resolved and the loop has stopped, its regression test can no longer change`);
     throw new Error(`${item.id} is not marked as a rule, and it is not a P1 or P2 that is being fixed, run decide --choice rule first`);
   }
   if (options['no-test'] !== undefined) {
     if (kind === 'rule') throw new Error(`${item.id} is marked as a rule, --no-test is for a P1 or P2 fixed without a regression test`);
-    return recordNoTest(repository, state, item, options['no-test']);
+    return { ...recordNoTest(repository, state, item, options['no-test']), ...stopIfProven(repository, state) };
   }
   if (kind === 'regression' && !normalize(item.scenario)) {
     throw new Error(`${item.id} has no scenario to write a regression test from, record why with --no-test "<reason>"`);
@@ -1668,7 +1777,8 @@ function rule(cwd, options) {
     if (!existsSync(path.join(repository.root, draft))) throw new Error(`${draft} does not exist`);
     if (isIgnored(repository, draft)) throw new Error(`${draft} is ignored by git, so it would not be committed with the rule`);
   }
-  const beforeTree = item[kind]?.beforeTree ?? state.reviewedTree;
+  const beforeTree = item[kind]?.beforeTree ?? item.beforeFixTree
+    ?? (state.resolved.includes(item) ? raisedOnTree(repository, item.round) : null) ?? state.reviewedTree;
   const checked = checkRule(repository, beforeTree, drafts, files);
   const { caughtBy, withDrafts, withoutDrafts } = checked;
   const { proof, reason } = kind === 'regression' ? proveRegression(checked) : checked;
@@ -1679,7 +1789,14 @@ function rule(cwd, options) {
     event: kind, ...summarize(item), category: item.category, quote: item.quote, scenario: item.scenario,
     fingerprint: item.fingerprint, drafts, proof, caughtBy, reason,
   });
-  return { id: item.id, kind, proof, reason, caughtBy, withDrafts, withoutDrafts };
+  return { id: item.id, kind, proof, reason, caughtBy, withDrafts, withoutDrafts, ...stopIfProven(repository, state) };
+}
+
+function runFinalChecks(repository, state, files) {
+  const selected = selectChecks(repository.root, files);
+  const checks = runChecks(repository.root, repository.file('final.checks.log'), selected.checks);
+  if (state) saveState(repository, Object.assign(state, { latestChecks: checks }));
+  return { checks, leftOut: selected.leftOut };
 }
 
 function rerunChecks(cwd) {
@@ -1692,10 +1809,7 @@ function rerunChecks(cwd) {
     checks = runRoundChecks(repository, state);
     leftOut = state.checksLeftOut;
   } else {
-    const selected = selectChecks(repository.root, state?.reviewedFiles ?? state?.files ?? []);
-    checks = runChecks(repository.root, repository.file('final.checks.log'), selected.checks);
-    leftOut = selected.leftOut;
-    if (state) saveState(repository, { ...state, latestChecks: checks });
+    ({ checks, leftOut } = runFinalChecks(repository, state, state?.reviewedFiles ?? state?.files ?? []));
   }
   logEvent(repository, { event: 'checks', tree, checks: checkEvents(checks) });
   return {
@@ -2247,7 +2361,12 @@ function reviewVerdict(repository, gateSettings, stagedInCommand) {
   const state = readSavedState(repository);
   const reviewFirst = `Run ${REVIEW_COMMAND} before committing, or ask to skip the review once.`;
   if (!state) return verdict('deny', `review-loop: this change has not been reviewed. ${reviewFirst}`);
-  if (['review', 'fix'].includes(state.awaiting)) {
+  const unproven = state.awaiting === 'proof' ? needsProof(repository.root, state.resolved) : [];
+  if (unproven.length) {
+    const ids = unproven.map((item) => item.id).join(', ');
+    return verdict('deny', `review-loop: ${ids} were resolved without a regression test or a no-test reason. Record one with loop rule as ${REVIEW_COMMAND} says before committing.`);
+  }
+  if (UNFINISHED.includes(state.awaiting)) {
     return verdict('deny', `review-loop: a review loop is in progress (round ${state.round}, waiting for ${state.awaiting}). Finish it with ${REVIEW_COMMAND} before committing.`);
   }
   if (headTree(repository.root) !== state.baseTree) {
@@ -2526,7 +2645,7 @@ function doneSteps(repository, state, currentTree) {
     review: reviews > 0,
     record: reviews > 0,
     reproduce: eventsSinceStart(repository).some((entry) => entry.event === 'reproduce'),
-    fix: state.round > 1,
+    fix: state.round > 1 && state.awaiting !== 'proof',
     're-review': reviews > 1,
     decide: items.some((item) => item.decision) && pendingDecisionIds(state).length === 0,
     rules: rules.length > 0 && rules.every((item) => item.rule?.proof),
@@ -2610,12 +2729,13 @@ function summaryEvent(entry) {
 
 function waitingFor(repository, state) {
   const undecided = (items = []) => items.filter((item) => !item.decision);
-  const unfinished = state && ['review', 'fix'].includes(state.awaiting);
+  const unfinished = state && UNFINISHED.includes(state.awaiting);
   return {
     unfinished: unfinished ? { round: state.round, awaiting: state.awaiting } : null,
     deferred: undecided(state?.deferred).map(describeDeferred),
     pendingDecisions: undecided(state?.cards).map(summarize),
     stillOpen: undecided(state?.open).map(summarize),
+    needsProof: state?.awaiting === 'proof' ? needsProof(repository.root, state.resolved).map(summarize) : [],
     notVerifiedChecks: (state?.latestChecks ?? state?.checks ?? []).filter(isNotVerified).map(checkId),
     gateNotConfigured: !readGate(repository).configured,
   };
@@ -2624,13 +2744,15 @@ function waitingFor(repository, state) {
 function describeEvent(entry) {
   const finding = `${entry.id} [${entry.severity}] ${entry.title}`;
   if (entry.event === 'record') {
-    const outcome = entry.decision === 'continue' ? 'continued' : `stopped: ${STOP_REASONS[entry.reason] ?? entry.reason}`;
+    let outcome = entry.decision === 'continue' ? 'continued' : `stopped: ${STOP_REASONS[entry.reason] ?? entry.reason}`;
+    if (entry.reason === 'proof') outcome = 'continued for a regression test or a no-test reason';
     const tally = `P1 or P2 open ${entry.open?.length ?? 0}, waiting for you ${entry.deferred?.length ?? 0}, new cards ${entry.cards?.length ?? 0}`;
     return [
       `- Round ${entry.round}: ${tally}; ${outcome}`,
       ...(entry.resolved ?? []).map((item) => `- Resolved ${item.id} [${item.severity}] ${item.title}`),
     ];
   }
+  if (entry.event === 'stop') return [`- Round ${entry.round}: stopped: ${STOP_REASONS[entry.reason]}, once each resolved P1 or P2 had a regression test or a no-test reason`];
   if (entry.event === 'next') {
     return [
       `- Round ${entry.round}: stopped: ${STOP_REASONS[entry.reason] ?? entry.reason}`,
@@ -2653,6 +2775,7 @@ function renderSummary(since, events, waiting) {
     ...(waiting.unfinished ? [`- The loop is not finished: round ${waiting.unfinished.round} waits for ${waiting.unfinished.awaiting}`] : []),
     ...waiting.deferred.map((item) => `- ${item.id} [${item.severity}] ${location(item)} ${item.title} (not fixed: ${item.reason})`),
     ...waiting.stillOpen.map((item) => `- Still open: ${item.id} [${item.severity}] ${location(item)} ${item.title}`),
+    ...waiting.needsProof.map((item) => `- Needs a regression test or a no-test reason: ${item.id} [${item.severity}] ${location(item)} ${item.title}`),
     ...waiting.pendingDecisions.map((item) => `- Decide ${item.id} [${item.severity}] ${location(item)} ${item.title}`),
     ...(waiting.notVerifiedChecks.length ? [`- Checks not verified: ${waiting.notVerifiedChecks.join(', ')}`] : []),
     ...(waiting.gateNotConfigured ? ['- The commit gate is not configured in this repository'] : []),
