@@ -410,6 +410,10 @@ function triggerReport(results, out) {
 }
 
 export function rescore(results) {
+  if (results.items.some((item) => !item.answers)) {
+    const mode = results.set === 'held-out' ? '--held-out' : '--triggers';
+    throw new Error(`this file was written by ${mode} and stores no answers to score; --rescore takes the results of a judged run, so rerun ${mode} to measure triggers again`);
+  }
   const items = results.items.map((item) => ({
     ...item,
     answers: Object.fromEntries(ARMS.map((arm) => {

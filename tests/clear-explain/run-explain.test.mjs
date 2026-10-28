@@ -146,6 +146,12 @@ test('the summary counts wins and scores and cost and how often the judge picked
   assert.equal(summarize([]).questions, 0);
 });
 
+test('rescore refuses a saved trigger results file and names the mode that wrote it', () => {
+  const results = (name) => JSON.parse(readFileSync(fileURLToPath(new URL(`../../evals/clear-explain/results/${name}`, import.meta.url)), 'utf8'));
+  assert.throws(() => rescore(results('2026-10-27-opus-triggers.json')), /written by --triggers/);
+  assert.throws(() => rescore(results('2026-10-27-opus-held-out-triggers.json')), /written by --held-out/);
+});
+
 test('the second judge pass shows every pair in the opposite order and keeps the first pass', async () => {
   const stored = { judgeModel: 'sonnet', items: [
     item('one', 'en', 'with', ['without', 'with']),
