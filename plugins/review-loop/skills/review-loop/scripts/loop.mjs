@@ -35,7 +35,9 @@ const DECISION_CHOICES = ['keep', 'once', 'rule'];
 const REVIEW_FOLDER = '.lim-review';
 const FEATURE_MAP = 'verify.features.json';
 const VERIFY_RUN_FILE = /^(.+Z)(?:-(\d+))?\.json$/;
-const RERUN_OUTCOMES = { pass: 'passed', fail: 'failed', 'not-verified': 'was not verified', missing: 'was not run' };
+const RERUN_OUTCOMES = {
+  pass: 'passed', 'changed-after-fail': 'changed after it failed, then passed', fail: 'failed', 'not-verified': 'was not verified', missing: 'was not run',
+};
 const DIFF_COMMAND = ['-c', 'core.quotePath=false', 'diff', '--no-color', '--no-ext-diff', '--src-prefix=a/', '--dst-prefix=b/'];
 const CHECK_NAMES = ['typecheck', 'lint', 'test'];
 const CHECK_SCRIPTS = [
@@ -986,7 +988,11 @@ function verifyEvidence(repository, check, tree) {
     }
     if (run?.tree !== tree && run?.treeAfter !== tree) continue;
     const result = (run.checks ?? []).find((candidate) => candidate.id === check);
-    if (result) return { status: result.status, reasons: result.reasons ?? [], evidencePath: shownPath(repository.root, evidencePath) };
+    if (result) {
+      return {
+        status: result.status, changedAfterFail: result.changedAfterFail === true, reasons: result.reasons ?? [], evidencePath: shownPath(repository.root, evidencePath),
+      };
+    }
   }
   return null;
 }
@@ -1402,7 +1408,8 @@ function next(cwd, options = {}) {
   const rechecked = [...state.open, ...(state.deferred ?? [])];
   for (const item of rechecked.filter((candidate) => candidate.reproduced)) {
     const rerun = verifyEvidence(repository, item.reproduced.check, fixedTree);
-    item.rerun = rerun ? { status: rerun.status, evidencePath: rerun.evidencePath } : { status: 'missing' };
+    const status = rerun?.status === 'pass' && rerun.changedAfterFail ? 'changed-after-fail' : rerun?.status;
+    item.rerun = rerun ? { status, evidencePath: rerun.evidencePath } : { status: 'missing' };
   }
   const fixDiff = diffTrees(repository, state.reviewedTree, fixedTree);
   const nameStatus = diffTrees(repository, state.reviewedTree, fixedTree, '--name-status', '--no-renames');

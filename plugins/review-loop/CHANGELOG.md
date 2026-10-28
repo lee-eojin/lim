@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: A reproduced finding is no longer resolved when its verify check passes on the fixed code only after the check itself was changed since it failed. It stays open, and the report says the check changed after it failed. (#152)
+
 ## 0.11.4 (2026-10-28)
 
 - Fixed: A `package.json` that is not a JSON object, or has a script that is not a string, is reported as a package.json problem instead of stopping `loop start`, and a Ruby subfolder project runs its tools through `bundle exec` when a `Gemfile` is in a folder above it. (#139)

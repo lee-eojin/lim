@@ -3232,6 +3232,18 @@ describe('verify evidence', () => {
     assert.match(second.report, /- F-1 \[P2\] Price is doubled \(fixed, measured: verify check cart-total passed on the fixed code, \.git\/lim\/verify\/runs\//);
   });
 
+  test('a reproduced finding stays open when its check passes only after the check changed', () => {
+    const root = reproduced();
+    writeFiles(root, { 'verify-checks/total.mjs': "console.log('10');\n" });
+    const rerun = verify(root, 'run', '--id', 'cart-total');
+    assert.deepEqual([rerun.status, rerun.checks[0].changedAfterFail], ['passed', true]);
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { resolved: ['F-1'], findings: [] });
+    assert.deepEqual([second.decision, second.ask.map((item) => item.id)], ['continue', ['F-1']]);
+    assert.equal(second.ask[0].note, 'the re-review marked it resolved, but verify check cart-total changed after it failed, then passed on the fixed code');
+    assert.match(second.report, /rerun on the fix: verify check cart-total changed after it failed, then passed \(\.git\/lim\/verify\/runs\//);
+  });
+
   test('a reproduced finding stays open when its check was not run or failed on the fixed code even if the re-review resolved it', () => {
     const root = reproduced();
     writeFiles(root, { 'src/cart.js': correctCart });
