@@ -2,6 +2,10 @@
 
 All notable changes to clear-explain. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: `check-clarity.mjs` counts a sentence that a soft line break wraps across lines as one sentence, so wrapping a long sentence no longer hides it. List items, headings (also setext underlines), table rows (also without leading pipes), quotes, code blocks, front matter, and HTML lines still end a sentence. Front matter, lines that start with an HTML tag, and code indented under a list item are no longer checked. (#175)
+
 ## 0.1.4 (2026-10-28)
 
 - Fixed: `check-clarity.mjs` closes a fenced code block only on a fence of the same character that is at least as long, skips an indented code block after a list and a fenced block (also when the fence sits right under a list item), finds the double negatives 안 되는 and 안 되지, and finds possessive chains written with a curly apostrophe. (#141)

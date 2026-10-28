@@ -57,10 +57,19 @@ test('a broken feature is caught only by a check that passes on the working copy
 });
 
 test('a run in which no check ran is an error, not a miss', () => {
-  const score = scoreCase({ broken: true, evidenceRuns: 0, modelStatuses: {}, intactStatuses: { a: 'fail' } });
+  const score = scoreCase({ broken: true, modelStatuses: {}, intactStatuses: { a: 'fail' } });
   assert.equal(score.result, 'error');
-  assert.equal(score.error, 'no check ran');
-  assert.equal(scoreCase({ broken: true, evidenceRuns: 1, modelStatuses: { a: 'pass' }, intactStatuses: { a: 'pass' } }).result, 'missed');
+  assert.equal(score.error, 'no check reached a pass or fail');
+  assert.equal(scoreCase({ broken: true, modelStatuses: { a: 'pass' }, intactStatuses: { a: 'pass' } }).result, 'missed');
+});
+
+test('a run whose checks were all not verified is an error, not clean or a miss', () => {
+  for (const broken of [false, true]) {
+    const score = scoreCase({ broken, modelStatuses: { a: 'not-verified' }, intactStatuses: { a: 'not-verified' } });
+    assert.equal(score.result, 'error', `broken: ${broken}`);
+    assert.equal(score.error, 'no check reached a pass or fail');
+  }
+  assert.equal(scoreCase({ broken: false, modelStatuses: { a: 'not-verified', b: 'pass' }, intactStatuses: { b: 'pass' } }).result, 'clean');
 });
 
 test('on a working project every failing check is a false failure', () => {
@@ -75,10 +84,10 @@ test('summary counts a run in which no check ran as an error, apart from caught 
   const base = { checkCount: 3, notVerified: [], changedAfterFail: [], removedAfterFail: [], sourceChanged: [], falseFailures: [] };
   const summary = summarize([
     { ...base, case: 'one', broken: true, result: 'caught' },
-    { ...base, case: 'two', broken: true, result: 'error', error: 'no check ran', checkCount: 10 },
+    { ...base, case: 'two', broken: true, result: 'error', error: 'no check reached a pass or fail', checkCount: 10 },
   ]);
   assert.deepEqual([summary.caught, summary.missed, summary.brokenCases, summary.errors, summary.checks], [1, 0, 1, 1, 3]);
-  assert.deepEqual(summary.errorCases, [{ case: 'two', error: 'no check ran' }]);
+  assert.deepEqual(summary.errorCases, [{ case: 'two', error: 'no check reached a pass or fail' }]);
 });
 
 test('summary counts caught, missed, false failures, and cost', () => {

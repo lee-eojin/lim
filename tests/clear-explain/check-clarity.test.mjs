@@ -71,6 +71,53 @@ test('a Korean sentence over 100 characters is long and one of 100 is not', () =
   assert.deepEqual(found.map((finding) => [finding.line, finding.match.split(' (')[0]]), [[3, '101 characters']]);
 });
 
+test('a sentence wrapped across a soft line break counts as one sentence from its first line', () => {
+  const half = words(15);
+  const found = findingsOf(`Intro.\n\n${half}\n${half}. Short one.\n`, 'long-sentence');
+  assert.deepEqual(found.map((finding) => [finding.line, finding.match.split(' (')[0]]), [[3, '30 words']]);
+  assert.equal(findingsOf(`Short one.\n${half}\n${half}.`, 'long-sentence')[0].line, 2);
+  assert.equal(findingsOf(`- ${half}\n  ${half}.`, 'long-sentence').length, 1);
+  assert.equal(findingsOf(`> ${half}\n> ${half}.`, 'long-sentence').length, 1);
+  assert.equal(findingsOf(`${'가'.repeat(60)}\n${'가'.repeat(60)}.`, 'long-sentence').length, 1);
+});
+
+test('markdown blocks still end a sentence where a soft line break does not', () => {
+  const half = words(15);
+  const separate = {
+    'blank line': `${half}\n\n${half}.`,
+    'list items': `- ${half}\n- ${half}.`,
+    'numbered items': `1. ${half}\n2. ${half}.`,
+    'list after a paragraph': `${half}\n- ${half}.`,
+    heading: `# ${half}\n${half}.`,
+    'table row': `${half}\n| ${half} |\n${half}.`,
+    'fenced code': `${half}\n\`\`\`\n${half}\n\`\`\`\n${half}.`,
+    'indented code': `${half}\n\n    ${half}\n\n${half}.`,
+    'quote after a paragraph': `${half}\n> ${half}.`,
+  };
+  for (const [name, text] of Object.entries(separate)) assert.deepEqual(findingsOf(text, 'long-sentence'), [], name);
+});
+
+test('code indented under a list item is not checked as prose', () => {
+  const half = words(15);
+  assert.deepEqual(findingsOf(`1. Install and build:\n\n       ${half}\n       ${half}\n\nDone.\n`, 'long-sentence'), []);
+  assert.deepEqual(findingsOf('- Run this:\n\n      const z = simply(just);\n\nDone.\n'), []);
+  assert.deepEqual(findingsOf('- Run this:\n\n      const z = 1;\n\n  It simply works.\n', 'vague-word').map((finding) => finding.line), [5]);
+});
+
+test('front matter, HTML lines, setext underlines, and tables without leading pipes end a sentence', () => {
+  const half = words(15);
+  const separate = {
+    'front matter': `---\ntitle: ${half}\ndescription: ${half}\n---\n\nShort.`,
+    'HTML block': `<details>\n<summary>${half}</summary>\n${half}.\n</details>`,
+    'setext heading with =': `${half}\n===\n${half}.`,
+    'setext heading with -': `${half}\n---\n${half}.`,
+    'table without leading pipes': `${half}\nName | Meaning\n--- | ---\nkey | ${half}`,
+  };
+  for (const [name, text] of Object.entries(separate)) assert.deepEqual(findingsOf(text, 'long-sentence'), [], name);
+  assert.deepEqual(findingsOf('---\ntitle: It simply works\n---\n\n<summary>It simply works</summary>\n\nText.\n'), []);
+  assert.deepEqual(findingsOf('Text.\n\n---\n\nIt simply works.\n', 'vague-word').map((finding) => finding.line), [5]);
+});
+
 test('headings and table rows are not counted as long sentences', () => {
   assert.deepEqual(findingsOf(`# ${words(30)}\n| ${words(30)} |\n`, 'long-sentence'), []);
 });

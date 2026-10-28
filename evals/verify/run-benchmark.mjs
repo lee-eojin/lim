@@ -23,9 +23,10 @@ const usage = `Usage: node evals/verify/run-benchmark.mjs [options]
 Copies each project in evals/verify/projects/ to a neutral temporary folder, broken or
 working as evals/verify/cases.json says, runs Claude headlessly with the verify skill,
 and scores the feature map it wrote: a broken feature is caught when a check fails on
-the broken copy and passes on a fresh working copy. A run in which no check ran is
-an error, not a miss. Each run records the Bash commands Claude tried and any permission
-denials.
+the broken copy and passes on a fresh working copy. A run in which no check reached a
+pass or a fail is an error, not a miss: no check ran, or every check was not verified
+because it could not start, timed out, or was not run. Each run records the Bash
+commands Claude tried and any permission denials.
 
   --case <name>        run only this case (repeatable)
   --model <name>       model for the session (default: Claude Code's default)
@@ -101,8 +102,10 @@ export function readEvidence(workDir) {
   return { runs: files.length, latest, changedAfterFail: [...changedAfterFail], removedAfterFail: [...removedAfterFail] };
 }
 
-export function scoreCase({ broken, evidenceRuns, modelStatuses, intactStatuses }) {
-  if (evidenceRuns === 0) return { result: 'error', error: 'no check ran', catching: [], falseFailures: [], notVerified: [] };
+// verify writes evidence even when no check could start, so only a pass or a fail shows that one ran.
+export function scoreCase({ broken, modelStatuses, intactStatuses }) {
+  const ran = Object.values(modelStatuses).some((status) => status === 'pass' || status === 'fail');
+  if (!ran) return { result: 'error', error: 'no check reached a pass or fail', catching: [], falseFailures: [], notVerified: [] };
   const failing = Object.keys(modelStatuses).filter((id) => modelStatuses[id] === 'fail');
   const catching = failing.filter((id) => intactStatuses[id] === 'pass');
   const falseFailures = broken ? failing.filter((id) => intactStatuses[id] !== 'pass') : failing;
@@ -279,7 +282,7 @@ function scoreWorkDir(entry, projectDir, workDir, filesWritten, contents) {
   const intactStatuses = statusesOf(intact);
   const intactReasons = Object.fromEntries((intact.checks ?? []).map((check) => [check.id, check.reasons]));
   return {
-    ...scoreCase({ broken: entry.broken, evidenceRuns: evidence.runs, modelStatuses, intactStatuses }),
+    ...scoreCase({ broken: entry.broken, modelStatuses, intactStatuses }),
     evidenceRuns: evidence.runs,
     checkCount: ids.length,
     unrun: ids.filter((id) => !evidence.latest[id]),
