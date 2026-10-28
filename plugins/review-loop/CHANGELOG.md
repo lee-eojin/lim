@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Added: `loop summary --markdown` prints the current run for a pull request description: how many rounds ran and why the loop stopped, a table of every finding with its decision and how the fix was proven, the findings decided after the last review that no review has seen, and the last checks. (#164)
+
 ## 0.11.6 (2026-10-28)
 
 - Fixed: In a gated repository, the commit gate asks before a command it cannot read in full, such as `sudo git ci -m x` or `sudo git -C . ci`, that runs a repository alias for commit or push, including a shell alias whose body runs either. (#157)

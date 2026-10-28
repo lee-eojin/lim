@@ -2784,6 +2784,21 @@ describe('unattended runs', () => {
     assert.match(summary.report, /Note \(decide\): left F-3 pending\. Why: nobody to ask/);
     assert.match(summary.report, /Waiting for you:\n- F-2 \[P2\] src\/cart\.js:1 Pick a rounding rule \(not fixed: behaviorChange\)/);
     assert.match(summary.report, /- Decide F-3 \[P3\]/);
+    assert.deepEqual(Object.keys(summary), ['report', 'since', 'events', 'waiting']);
+    assert.equal(summary.report, [
+      `Since ${summary.since}`,
+      '',
+      'What happened:',
+      '- Round 1: P1 or P2 open 1, waiting for you 1, new cards 1; continued',
+      '- Round 2: P1 or P2 open 0, waiting for you 0, new cards 0; stopped: nothing left to fix without you',
+      '- Resolved F-1 [P2] Price is doubled',
+      '- Note (decide): left F-3 pending. Why: nobody to ask',
+      '',
+      'Waiting for you:',
+      '- F-2 [P2] src/cart.js:1 Pick a rounding rule (not fixed: behaviorChange)',
+      '- Decide F-3 [P3] src/cart.js Name total as sumPrices',
+      '- The commit gate is not configured in this repository',
+    ].join('\n'));
 
     assert.deepEqual(loop(root, ['summary', '--since', '2999-01-01T00:00:00Z']).events, []);
     assert.throws(() => loop(root, ['summary', '--since', 'yesterday']));
@@ -2804,6 +2819,161 @@ describe('unattended runs', () => {
       integrity: [{ file: 'src/cart.test.js', reason: 'test skipped or focused', line: "it.skip('totals', () => {});" }],
     });
     assert.match(summary.report, /- Round 2: stopped: a fix weakened tests or checks\n {2}- src\/cart\.test\.js: test skipped or focused/);
+  });
+
+  test('summary --markdown prints every finding of the run with its decision and proof for a pull request', () => {
+    const runEveryCheck = 'node -e "for (const file of require(\'fs\').readdirSync(\'checks\')) require(\'./checks/\' + file)"';
+    const failsOn = (file, text, message) => [
+      `if (require('fs').readFileSync('${file}', 'utf8').includes('${text}')) { console.error('${message}'); process.exit(1); }`,
+      '',
+    ].join('\n');
+    const root = createRepository({
+      'package.json': JSON.stringify({ scripts: { test: runEveryCheck } }),
+      'checks/existing.cjs': '',
+      'src/cart.js': correctCart,
+      'src/log.js': 'export const log = () => {};\n',
+    });
+    writeFiles(root, { 'src/cart.js': brokenCart, 'src/log.js': "export const log = () => { console.log('debug'); };\n" });
+    const debugLog = { severity: 'P3', file: 'src/log.js', title: 'Debug log left in', ruleCandidate: true };
+    const pipeTitle = { severity: 'P4', file: 'src/cart.js', title: 'Say a | b\nin the comment' };
+
+    loop(root, ['start', '--unattended']);
+    loop(root, ['record'], { findings: [doubledPrice, designChoice, namingCard, debugLog, pipeTitle] });
+    writeFiles(root, { 'src/cart.js': correctCart, 'checks/cart.cjs': failsOn('src/cart.js', '* 2', 'one item priced 10 should total 10') });
+    assert.equal(loop(root, ['rule', '--id', 'F-1', '--draft', 'checks/cart.cjs']).proof, 'caught');
+    loop(root, ['next']);
+    assert.equal(loop(root, ['record'], { resolved: ['F-1'], findings: [] }).reason, 'waiting');
+    loop(root, ['decide', '--id', 'F-3', '--choice', 'keep']);
+    loop(root, ['decide', '--id', 'F-4', '--choice', 'rule']);
+    loop(root, ['decide', '--id', 'F-5', '--choice', 'once']);
+    writeFiles(root, { 'src/log.js': 'export const log = () => {};\n', 'checks/no-log.cjs': failsOn('src/log.js', 'console.log', 'no debug logs') });
+    assert.equal(loop(root, ['rule', '--id', 'F-4', '--draft', 'checks/no-log.cjs']).proof, 'caught');
+    writeFiles(root, { 'src/cart.js': `// sums prices\n${correctCart}` });
+    loop(root, ['checks']);
+
+    const plain = loop(root, ['summary']);
+    assert.ok(!Object.hasOwn(plain, 'markdown'));
+    const { markdown } = loop(root, ['summary', '--markdown']);
+    assert.equal(markdown, [
+      '## review-loop',
+      '',
+      '2 review rounds, stopped: nothing left to fix without you.',
+      '',
+      '| Round | Finding | Severity | Decision | What happened |',
+      '|---|---|---|---|---|',
+      '| 1 | F-1 Price is doubled | P2 | Fix | Resolved; regression test checks/cart.cjs (caught) |',
+      '| 1 | F-2 Pick a rounding rule | P2 | Deferred | Open (not fixed: behaviorChange) |',
+      '| 1 | F-3 Name total as sumPrices | P3 | Keep | Kept as is |',
+      '| 1 | F-4 Debug log left in | P3 | Make it a rule | Not re-reviewed; rule checks/no-log.cjs (caught) |',
+      '| 1 | F-5 Say a \\| b in the comment | P4 | Fix this time | Not re-reviewed |',
+      '',
+      '## Not re-reviewed',
+      '',
+      '- F-4 Debug log left in (Make it a rule)',
+      '- F-5 Say a \\| b in the comment (Fix this time)',
+      '',
+      '## Checks',
+      '',
+      '- test (`npm run test`): passed',
+    ].join('\n'));
+    assert.throws(() => loop(root, ['summary', '--markdown', '--since', '2026-01-01T00:00:00Z']));
+  });
+
+  test('summary --markdown leaves out an empty Not re-reviewed section and lists a P1 or P2 still open', () => {
+    const root = brokenRepository();
+    loop(root, ['start', '--max-rounds', '1']);
+    loop(root, ['record'], { findings: [doubledPrice] });
+    const { markdown } = loop(root, ['summary', '--markdown']);
+    assert.match(markdown, /^1 review round, stopped: round limit reached with P1 or P2 still open\.$/m);
+    assert.match(markdown, /^\| 1 \| F-1 Price is doubled \| P2 \| Waiting for you \| Open \|$/m);
+    assert.doesNotMatch(markdown, /Not re-reviewed/);
+    assert.match(markdown, /## Checks\n\n- none detected, the review read the diff only$/);
+  });
+
+  test('summary --markdown says a failing check no longer fails only once its finding is resolved', () => {
+    const testScript = (code) => ({ 'package.json': JSON.stringify({ scripts: { test: `node -e "process.exit(${code})"` } }) });
+    const root = createRepository({ ...testScript(1), 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    assert.match(loop(root, ['summary', '--markdown']).markdown, /^\| 1 \| F-1 test fails \| P1 \| Fix \| Open \|$/m);
+
+    writeFiles(root, testScript(0));
+    loop(root, ['next']);
+    loop(root, ['record'], { findings: [] });
+    assert.match(
+      loop(root, ['summary', '--markdown']).markdown,
+      /^\| 1 \| F-1 test fails \| P1 \| Fix \| Resolved; npm run test no longer fails \|$/m,
+    );
+  });
+
+  test('summary --markdown does not show the previous round\'s checks after an integrity stop', () => {
+    const root = createRepository({
+      'package.json': JSON.stringify({ scripts: { test: 'node -e "0"' } }),
+      'src/cart.js': correctCart,
+      'src/cart.test.js': "it('totals', () => {});\n",
+    });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [doubledPrice] });
+    writeFiles(root, { 'src/cart.test.js': "it.skip('totals', () => {});\n" });
+    assert.equal(loop(root, ['next']).reason, 'integrity');
+    assert.match(loop(root, ['summary', '--markdown']).markdown, /## Checks\n\n- not run on the code after the last fix$/);
+
+    loop(root, ['checks']);
+    assert.match(loop(root, ['summary', '--markdown']).markdown, /## Checks\n\n- test \(`npm run test`\): passed$/);
+  });
+
+  test('summary --markdown does not call a fix decided after the last review fixed', () => {
+    const root = brokenRepository();
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [namingCard] });
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'once']);
+    const { markdown } = loop(root, ['summary', '--markdown']);
+    assert.match(markdown, /^\| 1 \| F-1 Name total as sumPrices \| P3 \| Fix this time \| Not re-reviewed \|$/m);
+    assert.doesNotMatch(markdown, /Fixed/);
+  });
+
+  test('summary --markdown shows the latest decision on a kept finding decided again', () => {
+    const root = brokenRepository();
+    loop(root, ['start', '--max-rounds', '3']);
+    loop(root, ['record'], { findings: [doubledPrice, designChoice] });
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'keep']);
+    writeFiles(root, { 'src/notes.js': 'export const notes = [];\n' });
+    loop(root, ['next']);
+    loop(root, ['record'], { findings: [] });
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'once']);
+    assert.match(
+      loop(root, ['summary', '--markdown']).markdown,
+      /^\| 1 \| F-1 Price is doubled \| P2 \| Fix this time \| Not re-reviewed \|$/m,
+    );
+  });
+
+  test('summary --markdown escapes HTML in a finding title outside code spans', () => {
+    const root = brokenRepository();
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [{ ...namingCard, title: 'Wrap the list in <Suspense> & keep `<details>`' }] });
+    assert.match(
+      loop(root, ['summary', '--markdown']).markdown,
+      /^\| 1 \| F-1 Wrap the list in &lt;Suspense&gt; &amp; keep `<details>` \| P3 \|/m,
+    );
+  });
+
+  test('summary --markdown says no review was recorded before the first one', () => {
+    const root = brokenRepository();
+    loop(root, ['start']);
+    const { markdown } = loop(root, ['summary', '--markdown']);
+    assert.match(markdown, /^## review-loop\n\nNo review has been recorded yet\.\n\n## Checks/);
+    assert.doesNotMatch(markdown, /No findings|0 review rounds/);
+  });
+
+  test('summary --markdown marks a finding outside the reviewed diff', () => {
+    const root = brokenRepository();
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [namingCard, { ...namingCard, file: 'src/other.js', title: 'Out of scope thing' }] });
+    const { markdown } = loop(root, ['summary', '--markdown']);
+    assert.match(markdown, /^\| 1 \| F-1 Name total as sumPrices \| P3 \| Waiting for you \| Open \|$/m);
+    assert.match(markdown, /^\| 1 \| F-2 Out of scope thing \| P3 \| Waiting for you \| Open \(outside the reviewed diff\) \|$/m);
   });
 
   test('summary leaves out a next that started another round', () => {
