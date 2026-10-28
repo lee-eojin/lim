@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
-  chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync,
+  chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
@@ -1780,6 +1781,108 @@ describe('commit gate', () => {
     const result = commit(root);
     assert.equal(result.decision, 'deny');
     assert.match(result.reason, /src\/other\.js/);
+  });
+
+  test('gate blocks a plain commit whose staged content was not reviewed', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    loop(root, ['delegate', '--scope', 'repo']);
+    writeFiles(root, { 'src/cart.js': `${correctCart}// staged, never reviewed\n` });
+    execFileSync('git', ['add', 'src/cart.js'], { cwd: root });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    for (const command of ['git commit -m x', 'git commit -F message.txt', 'git commit -v -m x', 'git commit --include src/cart.js -m x']) {
+      const result = commit(root, command);
+      assert.equal(result.decision, 'deny', command);
+      assert.match(result.reason, /staged content \(src\/cart\.js\) differs from what was reviewed/, command);
+      assert.match(result.reason, /git add -A/, command);
+    }
+    for (const command of ['git commit -a -m x', 'git commit -am x', 'git commit --all -m x', 'git add -A && git commit -m x', 'git commit -m x src/cart.js']) {
+      assert.equal(commit(root, command).decision, 'allow', command);
+    }
+    execFileSync('git', ['add', '-A'], { cwd: root });
+    assert.equal(commit(root, 'git commit -m x').decision, 'allow');
+  });
+
+  test('gate counts a git add in the same command as staging everything only when it stages the whole repository', () => {
+    const root = createRepository({ 'src/cart.js': correctCart, 'README.md': '# shop\n' });
+    loop(root, ['gate', '--on']);
+    loop(root, ['delegate', '--scope', 'repo']);
+    writeFiles(root, { 'src/cart.js': `${correctCart}// staged, never reviewed\n` });
+    execFileSync('git', ['add', 'src/cart.js'], { cwd: root });
+    writeFiles(root, { 'src/cart.js': brokenCart, 'README.md': '# shop\n\nCoupons.\n' });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    for (const command of ['git add -A -n && git commit -m x', 'git add --all --dry-run && git commit -m x', 'git add -An && git commit -m x']) {
+      const result = commit(root, command);
+      assert.equal(result.decision, 'deny', command);
+      assert.match(result.reason, /staged content \(README\.md, src\/cart\.js\) differs from what was reviewed/, command);
+    }
+    for (const command of ['git add . && git commit -m x', 'git add --all . && git commit -m x', `git -C ${JSON.stringify(root)} add . && git commit -m x`, 'git add -A && git commit -m x']) {
+      assert.equal(commit(root, command).decision, 'allow', command);
+    }
+    assert.notEqual(commit(root, 'cd src && git add . && git commit -m x').decision, 'allow');
+  });
+
+  test('gate does not treat a forced git add as the reviewed git add -A, because it stages ignored files', () => {
+    const root = createRepository({ 'src/cart.js': correctCart, '.gitignore': '.env\n' });
+    loop(root, ['gate', '--on']);
+    loop(root, ['delegate', '--scope', 'repo']);
+    writeFiles(root, { 'src/cart.js': brokenCart, '.env': 'SECRET=1\n' });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    for (const command of ['git add -Af && git commit -m x', 'git add --all --force && git commit -m x']) {
+      assert.notEqual(commit(root, command).decision, 'allow', command);
+    }
+    assert.equal(commit(root, 'git add -A && git commit -m x').decision, 'allow');
+  });
+
+  test('gate asks when a git add earlier in the command stages only some paths', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    loop(root, ['delegate', '--scope', 'repo']);
+    writeFiles(root, { 'src/cart.js': brokenCart, 'src/coupon.js': 'export const coupon = 0;\n' });
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    for (const command of ['git add src/cart.js && git commit -m x', 'git add -u && git commit -m x']) {
+      const result = commit(root, command);
+      assert.equal(result.decision, 'ask', command);
+      assert.match(result.reason, /only part of the reviewed change/, command);
+    }
+    assert.equal(commit(root, 'git commit -m x').decision, 'allow');
+    execFileSync('git', ['add', '-A'], { cwd: root });
+    assert.equal(commit(root, 'git add src/cart.js && git commit -m x').decision, 'allow');
+  });
+
+  test('gate says the staged content could not be read when the index has conflicts', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    const runGit = (...args) => execFileSync('git', ['-c', 'user.name=test', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', ...args], { cwd: root, stdio: 'ignore' });
+    runGit('checkout', '-qb', 'side');
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    runGit('commit', '-qam', 'side');
+    runGit('checkout', '-q', '-');
+    writeFiles(root, { 'src/cart.js': `${correctCart}// main\n` });
+    runGit('commit', '-qam', 'main');
+    assert.throws(() => runGit('merge', 'side'));
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['gate', '--on']);
+    loop(root, ['start']);
+    loop(root, ['record'], { findings: [] });
+    const result = commit(root, 'git commit -m x');
+    assert.equal(result.decision, 'deny');
+    assert.match(result.reason, /could not read the staged content/);
+    assert.match(result.reason, /resolve the conflicts/);
+  });
+
+  test('gate reads the staged content in its own temporary index on each call', () => {
+    const root = reviewedRepository();
+    loop(root, ['delegate', '--scope', 'repo']);
+    execFileSync('git', ['add', '-A'], { cwd: root });
+    const folder = path.join(root, '.git', 'lim', 'review-loop');
+    writeFileSync(path.join(folder, 'staged.index.lock'), '');
+    assert.equal(commit(root, 'git commit -m x').decision, 'allow');
+    assert.deepEqual(readdirSync(folder).filter((name) => name.includes('staged')), ['staged.index.lock']);
   });
 
   test('gate blocks reusing a review that is already committed', () => {

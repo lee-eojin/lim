@@ -902,6 +902,19 @@ function snapshotTree(repository) {
   return git(['write-tree'], { cwd: repository.root, env }).trim();
 }
 
+// Each call gets its own index file, since two gate calls can run at once.
+function stagedTree(repository) {
+  const index = repository.file(`staged-${process.pid}-${randomUUID()}.index`);
+  try {
+    if (!copyRealIndex(repository, index)) return EMPTY_TREE;
+    return git(['write-tree'], { cwd: repository.root, env: { ...process.env, GIT_INDEX_FILE: index }, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return null;
+  } finally {
+    rmSync(index, { force: true });
+  }
+}
+
 function excludeReviewFolder(repository) {
   const line = `${REVIEW_FOLDER}/`;
   const excludePath = path.resolve(repository.root, git(['rev-parse', '--git-path', 'info/exclude'], { cwd: repository.root }).trim());
@@ -2186,13 +2199,44 @@ function skipsHooks(args) {
   return false;
 }
 
-function commitVerdict(repository, { args }, gateSettings) {
-  const result = reviewVerdict(repository, gateSettings);
+// A commit records the index as it is, unless -a or paths without --include take the content from the working files.
+// A word after a long option without = may be its value, so it is not read as a path and the index stays checked.
+function commitsIndex(args) {
+  let all = false;
+  let include = false;
+  let paths = false;
+  let valueNext = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === '--') {
+      paths ||= index + 1 < args.length;
+      break;
+    }
+    const wasValue = valueNext;
+    valueNext = false;
+    if (arg === '--all') all = true;
+    else if (arg === '--include') include = true;
+    else if (arg.startsWith('--pathspec-from-file')) paths = true;
+    else if (arg.startsWith('--')) valueNext = !arg.includes('=');
+    else if (/^-[A-Za-z]/.test(arg)) {
+      for (const letter of arg.slice(1)) {
+        if (REQUIRED_VALUE_LETTERS.has(letter) || ATTACHED_VALUE_LETTERS.has(letter)) break;
+        if (letter === 'a') all = true;
+        if (letter === 'i') include = true;
+      }
+      valueNext = readCluster(arg).takesNextWord;
+    } else if (!wasValue) paths = true;
+  }
+  return !all && (include || !paths);
+}
+
+function commitVerdict(repository, { args }, gateSettings, stagedInCommand = 'none') {
+  const result = reviewVerdict(repository, gateSettings, commitsIndex(args) ? stagedInCommand : 'all');
   if (!skipsHooks(args) || result.decision === 'deny') return result;
   return verdict('ask', `${result.reason} The commit also skips git hooks with --no-verify. Confirm before Claude runs it.`);
 }
 
-function reviewVerdict(repository, gateSettings) {
+function reviewVerdict(repository, gateSettings, stagedInCommand) {
   const delegated = readSetting(repository, 'delegation.json', { scope: 'off' }).scope === 'repo';
   if (gateSettings.skipOnce) {
     logEvent(repository, { event: 'gate-skip' });
@@ -2217,6 +2261,22 @@ function reviewVerdict(repository, gateSettings) {
     const unreviewed = filesBetween(repository, state.reviewedTree, currentTree).filter((file) => !knownFiles.has(file));
     if (unreviewed.length) return verdict('deny', `review-loop: ${unreviewed.join(', ')} changed after the last review and were not reviewed. ${reviewFirst}`);
     return verdict('ask', 'review-loop: reviewed files or checked rule drafts changed after the last review, for example fixes and rules chosen in the decision step. Commit them without another review?');
+  }
+  const staged = stagedInCommand === 'all' ? state.reviewedTree : stagedTree(repository);
+  if (staged !== state.reviewedTree) {
+    // The index after a partial git add is unknown here, since the gate runs before the command.
+    if (stagedInCommand === 'some') {
+      return verdict('ask', 'review-loop: a git add earlier in this command stages only some paths, so the commit may record only part of the reviewed change. Stage everything with git add -A, or confirm before Claude runs it.');
+    }
+    if (staged === null) {
+      return verdict('deny', `review-loop: could not read the staged content, and git commit records it. If a merge or rebase left conflicts, resolve the conflicts and stage the result, then commit again, or run ${REVIEW_COMMAND} again.`);
+    }
+    // With nothing staged, git commit records nothing, so only a staged tree with changes can differ from the review.
+    if (staged !== state.baseTree) {
+      const files = filesBetween(repository, state.reviewedTree, staged);
+      const named = files.length ? ` (${files.join(', ')})` : '';
+      return verdict('deny', `review-loop: the staged content${named} differs from what was reviewed, and git commit records the staged content. Stage everything with git add -A, or run ${REVIEW_COMMAND} again.`);
+    }
   }
   if (delegated) return verdict('allow', 'review-loop: the review passed and commits are delegated in this repository.');
   return verdict('ask', 'review-loop: the review passed with no open P1 or P2. Commit now?');
@@ -2363,10 +2423,55 @@ function resolveInvocation(invocation) {
   return expandAlias(invocation, (name) => aliasOf(directory, name));
 }
 
+// --force is left out: it stages ignored files, which the reviewed git add -A snapshot never contained.
+const ADD_ALL_LETTERS = new Set(['A', 'v']);
+const ADD_ALL_OPTIONS = new Set(['--all', '--verbose', '--ignore-errors', '--sparse']);
+
+function isFolder(location, folder) {
+  try {
+    return realpathSync(location) === realpathSync(folder);
+  } catch {
+    return false;
+  }
+}
+
+// What a git add stages: null for a dry run, 'all' when it matches git add -A at the repository root, otherwise 'some'.
+function addStaging(args, directory, root) {
+  const paths = [];
+  let all = false;
+  let onlyAllOptions = true;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === '--') {
+      paths.push(...args.slice(index + 1));
+      break;
+    }
+    const name = arg.startsWith('--') ? arg.slice(2).split('=')[0] : null;
+    const letters = !name && /^-[A-Za-z]/.test(arg) ? [...arg.slice(1)] : [];
+    if ((name && 'dry-run'.startsWith(name)) || letters.includes('n')) return null;
+    if (name !== null) {
+      all ||= arg === '--all';
+      onlyAllOptions &&= ADD_ALL_OPTIONS.has(arg) || arg.startsWith('--chmod=');
+    } else if (letters.length) {
+      all ||= letters.includes('A');
+      onlyAllOptions &&= letters.every((letter) => ADD_ALL_LETTERS.has(letter));
+    } else paths.push(arg);
+  }
+  const wholeRepository = paths.length ? paths.every((pathspec) => isFolder(path.resolve(directory, pathspec), root)) : all;
+  return onlyAllOptions && wholeRepository ? 'all' : 'some';
+}
+
 function gateVerdicts(invocations, sessionFolders) {
   const verdicts = [];
   const skipped = new Set();
+  const stagedInCommand = new Map();
   for (const invocation of invocations) {
+    if (invocation.subcommand === 'add') {
+      for (const { directory, repository } of locateTargets(invocation.directories)) {
+        const staging = repository && addStaging(invocation.args, directory, repository.root);
+        if (staging && stagedInCommand.get(repository.root) !== 'all') stagedInCommand.set(repository.root, staging);
+      }
+    }
     if (invocation.shellAlias) {
       const gated = locateTargets(invocation.directories).some(({ repository }) => repository && readGate(repository).enabled);
       if (gated) {
@@ -2399,7 +2504,7 @@ function gateVerdicts(invocations, sessionFolders) {
       if (skipOnce) skipped.add(repository.root);
       const result = invocation.subcommand === 'push'
         ? pushVerdict(invocation)
-        : commitVerdict(repository, invocation, { ...gateSettings, skipOnce });
+        : commitVerdict(repository, invocation, { ...gateSettings, skipOnce }, stagedInCommand.get(repository.root));
       verdicts.push(ambiguousVerdict(result, ambiguous, gateSettings.skipOnce));
     }
   }
