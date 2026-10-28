@@ -2,11 +2,12 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-  accessSync, closeSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync,
+  accessSync, closeSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readlinkSync, readSync, realpathSync,
   rmSync, statSync, utimesSync, writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MessageChannel, receiveMessageOnPort, Worker } from 'node:worker_threads';
 
 export const MAP_FILE = 'verify.features.json';
 const CHECKS_FOLDER = 'verify-checks';
@@ -14,7 +15,10 @@ const REVIEW_FOLDER = '.lim-review';
 const DEFAULT_TIMEOUT_MS = 30 * 1000;
 const MAX_TIMEOUT_MS = 10 * 60 * 1000;
 const RUN_BUDGET_MS = 9 * 60 * 1000;
+const MAP_CHECK_BUDGET_MS = 30 * 1000;
+const MATCH_LIMIT_MS = 2000;
 const KEPT_RUNS = 20;
+const MAX_LINK_HOPS = 40;
 const CAPTURE_LIMIT = 1024 * 1024;
 const EXCERPT_HEAD = 1000;
 const EXCERPT_TAIL = 3000;
@@ -129,6 +133,33 @@ function shownPath(root, target) {
 const programPath = (run) => (INTERPRETERS.includes(run[0]) ? run[1] : run[0]);
 const argumentsOf = (run) => run.slice(INTERPRETERS.includes(run[0]) ? 2 : 1);
 
+const hasEntry = (target) => {
+  try {
+    lstatSync(target);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// A path that does not exist yet is written through the links in its nearest existing folder, and a link to a missing file
+// writes where its text points. null when a link cannot be followed, such as a loop.
+function realPathOf(target, hops = 0) {
+  let existing = target;
+  while (!hasEntry(existing)) existing = path.dirname(existing);
+  const rest = path.relative(existing, target);
+  try {
+    return path.join(realpathSync(existing), rest);
+  } catch {
+    if (hops >= MAX_LINK_HOPS || !lstatSync(existing).isSymbolicLink()) return null;
+    try {
+      return realPathOf(path.join(path.resolve(realpathSync(path.dirname(existing)), readlinkSync(existing)), rest), hops + 1);
+    } catch {
+      return null;
+    }
+  }
+}
+
 // Every path in an entry except run's arguments names a file from the repository root, whatever cwd is.
 function rootPathProblem(root, relative, { file = true } = {}) {
   if (typeof relative !== 'string' || !relative) return 'must be a relative path inside the repository';
@@ -136,6 +167,10 @@ function rootPathProblem(root, relative, { file = true } = {}) {
   const target = path.resolve(root, relative);
   const inside = insideOf(root, target);
   if (inside === null) return `${quote(relative)} resolves to ${target}, outside the repository; paths in an entry are relative to the repository root`;
+  const real = realPathOf(target);
+  if (real === null || insideOf(realpathSync(root), real) === null) {
+    return `${quote(relative)} resolves to ${target}, a link to ${real ?? 'a missing file'}, outside the repository; paths in an entry are relative to the repository root`;
+  }
   if (file && !inside) return `${quote(relative)} resolves to the repository root, not a file`;
   return null;
 }
@@ -283,10 +318,68 @@ export function compareRunFiles(left, right) {
   return leftSequence - rightSequence;
 }
 
+const MATCHER = `const { parentPort } = require('node:worker_threads');
+parentPort.on('message', ({ texts, tests, shared, port }) => {
+  const state = new Int32Array(shared);
+  const errors = {};
+  tests.forEach(([pattern, text], position) => {
+    try {
+      Atomics.store(state, position + 1, new RegExp(pattern, 'm').test(texts[text]) ? 2 : 1);
+    } catch (error) {
+      errors[position] = String(error);
+      Atomics.store(state, position + 1, 3);
+    }
+  });
+  port.postMessage(errors);
+  port.close();
+  Atomics.store(state, 0, 1);
+  Atomics.notify(state, 0);
+});`;
+
+let matcher;
+
+// A pattern can backtrack for hours, and RegExp.test cannot be stopped on the thread that runs it; a worker can be terminated.
+// One worker serves every match until a deadline passes, so a check pays its startup once, not once per rule.
+function matchAll(tests, deadline) {
+  if (!tests.length) return [];
+  const texts = [...new Set(tests.map(([, text]) => text))];
+  const shared = new SharedArrayBuffer(4 * (tests.length + 1));
+  const state = new Int32Array(shared);
+  if (!matcher) {
+    const worker = new Worker(MATCHER, { eval: true }).on('error', () => {
+      if (matcher === worker) matcher = undefined;
+    });
+    worker.unref();
+    matcher = worker;
+  }
+  const { port1, port2 } = new MessageChannel();
+  matcher.postMessage({ texts, tests: tests.map(([pattern, text]) => [pattern, texts.indexOf(text)]), shared, port: port2 }, [port2]);
+  Atomics.wait(state, 0, 0, Math.max(0, deadline - Date.now()));
+  const finished = Atomics.load(state, 0) === 1;
+  if (!finished) {
+    matcher.terminate();
+    matcher = undefined;
+  }
+  const errors = (finished && receiveMessageOnPort(port1)?.message) || {};
+  port1.close();
+  return tests.map((_, position) => [undefined, false, true, { error: errors[position] }][Atomics.load(state, position + 1)]);
+}
+
+// Matching gets a few seconds of its own, never past the end of the run, so a check cannot take twice its time limit.
+const matchLimitOf = (timeoutMs, deadline) => Math.max(0, Math.min(timeoutMs, MATCH_LIMIT_MS, deadline - Date.now()));
+
+const within = (limitMs, budget) => (limitMs > 0 ? `within ${limitMs} ms` : `before the time for ${budget} ran out`);
+
 export function satisfies(rule, text) {
   if ('includes' in rule) return text.includes(rule.includes);
   if ('matches' in rule) return new RegExp(rule.matches, 'm').test(text);
   return text.trimEnd() === rule.equals.trimEnd();
+}
+
+// Whether each text satisfies its rule, undefined for a pattern that did not finish by the deadline, or { error } for one that threw.
+function satisfiesAll(pairs, deadline) {
+  const matched = matchAll(pairs.filter(([rule]) => 'matches' in rule).map(([rule, text]) => [rule.matches, text]), deadline).values();
+  return pairs.map(([rule, text]) => ('matches' in rule ? matched.next().value : satisfies(rule, text)));
 }
 
 const withoutWhitespace = (text) => text.replace(/\s+/g, '');
@@ -308,7 +401,8 @@ function unknownKeys(value, allowed, where) {
   return Object.keys(value).filter((key) => !allowed.includes(key)).map((key) => `${where} has an unknown key ${quote(key)}`);
 }
 
-function ruleProblems(rule, where, inputs, allowed = MATCHERS) {
+// A rule whose kind and text are well formed is added to candidates, to be tried against the probes and inputs it must not satisfy.
+function ruleProblems(rule, where, inputs, candidates, allowed = MATCHERS) {
   if (!isObject(rule)) return [`${where} must be an object with one of ${MATCHERS.join(', ')}`];
   const problems = unknownKeys(rule, allowed, where);
   const kinds = MATCHERS.filter((matcher) => matcher in rule);
@@ -322,10 +416,21 @@ function ruleProblems(rule, where, inputs, allowed = MATCHERS) {
       return [...problems, `${where}.matches is not a valid regular expression: ${error.message}`];
     }
   }
-  const weak = PROBES.find(([, probe]) => satisfies(rule, probe))
-    ?? inputs.find(([, probe]) => satisfies(rule, probe) || satisfiesIgnoringWhitespace(rule, probe));
-  if (weak) problems.push(`${where}.${kind} ${quote(rule[kind])} is also satisfied by ${weak[0]}, so the check cannot fail`);
+  candidates.push({ where, kind, rule: { [kind]: rule[kind] }, inputs });
   return problems;
+}
+
+function weakRuleProblems(candidates, limitMs) {
+  const tried = candidates.map((candidate) => ({ ...candidate, probes: [...PROBES, ...candidate.inputs] }));
+  const results = satisfiesAll(tried.flatMap(({ rule, probes }) => probes.map(([, probe]) => [rule, probe])), Date.now() + limitMs).values();
+  return tried.flatMap(({ where, kind, rule, probes }) => {
+    const satisfied = probes.map(() => results.next().value);
+    const weak = probes.find(([, probe], position) => satisfied[position] === true || (position >= PROBES.length && satisfiesIgnoringWhitespace(rule, probe)));
+    if (weak) return [`${where}.${kind} ${quote(rule[kind])} is also satisfied by ${weak[0]}, so the check cannot fail`];
+    const failed = satisfied.find((result) => result?.error);
+    const untried = failed ? `: ${failed.error}` : satisfied.includes(undefined) ? ` ${within(limitMs, 'checking the map')}` : null;
+    return untried ? [`${where}.${kind} ${quote(rule[kind])} could not be tried against the run's inputs${untried}, so verify cannot tell whether the check can fail`] : [];
+  });
 }
 
 // The program can echo its stdin, so an expected text that the stdin already holds cannot fail.
@@ -361,7 +466,7 @@ function argumentFiles(root, entry) {
   });
 }
 
-function entryProblems(entry, index, root, seen) {
+function entryProblems(entry, index, root, seen, { defaultTimeoutMs, ids, deadline }) {
   const where = `features[${index}]${typeof entry?.id === 'string' ? ` (${entry.id})` : ''}`;
   if (!isObject(entry)) return [`${where} must be an object`];
   const problems = unknownKeys(entry, ENTRY_KEYS, where);
@@ -406,7 +511,8 @@ function entryProblems(entry, index, root, seen) {
       }
     }
   }
-  if (entry.timeoutMs !== undefined && !(Number.isInteger(entry.timeoutMs) && entry.timeoutMs > 0 && entry.timeoutMs <= MAX_TIMEOUT_MS)) {
+  const timeoutIsValid = Number.isInteger(entry.timeoutMs) && entry.timeoutMs > 0 && entry.timeoutMs <= MAX_TIMEOUT_MS;
+  if (entry.timeoutMs !== undefined && !timeoutIsValid) {
     problems.push(`${where}.timeoutMs must be a whole number of milliseconds up to ${MAX_TIMEOUT_MS}`);
   }
   const expect = entry.expect;
@@ -422,11 +528,12 @@ function entryProblems(entry, index, root, seen) {
   ];
   const named = runIsList ? argumentFiles(root, entry).filter((file) => !file.problem) : [];
   // A file that a check rewrites and expects is probed just before the run instead, so a second run is not refused.
+  const candidates = [];
   const inputsFor = (own) => [...inputs, ...named.filter((file) => file.path !== own).map((file) => [file.label, file.text])];
   for (const stream of ['stdout', 'stderr']) {
     rulesOf(expect[stream]).forEach((rule, position, rules) => {
       const label = rules.length > 1 || Array.isArray(expect[stream]) ? `${where}.expect.${stream}[${position}]` : `${where}.expect.${stream}`;
-      problems.push(...ruleProblems(rule, label, inputsFor(null)));
+      problems.push(...ruleProblems(rule, label, inputsFor(null), candidates));
     });
   }
   if (expect.files !== undefined) {
@@ -444,22 +551,24 @@ function entryProblems(entry, index, root, seen) {
           problems.push(`${label} needs one of ${MATCHERS.join(', ')}, because a file that was written does not show the feature's result`);
         } else {
           const own = pathProblem ? null : rootRelative(root, path.resolve(root, file.path));
-          problems.push(...ruleProblems(file, label, inputsFor(own), FILE_KEYS));
+          problems.push(...ruleProblems(file, label, inputsFor(own), candidates, FILE_KEYS));
         }
       });
     }
   }
   const expectsOutput = ['stdout', 'stderr'].some((stream) => rulesOf(expect[stream]).length) || expect.files?.length;
   if (!expectsOutput) problems.push(`${where}.expect needs stdout, stderr, or files, because an exit code alone does not show the feature's result`);
-  return problems;
+  if (ids && !ids.includes(entry.id)) return problems;
+  return [...problems, ...weakRuleProblems(candidates, matchLimitOf(timeoutIsValid ? entry.timeoutMs : defaultTimeoutMs, deadline))];
 }
 
-export function validateMap(map, root) {
+// With ids, only those entries' patterns are tried against their inputs; every entry is still checked for its form.
+export function validateMap(map, root, { defaultTimeoutMs = DEFAULT_TIMEOUT_MS, ids = null, deadline = Date.now() + MAP_CHECK_BUDGET_MS } = {}) {
   if (!isObject(map)) return ['the feature map must be a JSON object with a "features" list'];
   const problems = unknownKeys(map, ['features'], 'the feature map');
   if (!Array.isArray(map.features) || map.features.length === 0) return [...problems, '"features" must be a non-empty list'];
   const seen = new Set();
-  return [...problems, ...map.features.flatMap((entry, index) => entryProblems(entry, index, root, seen))];
+  return [...problems, ...map.features.flatMap((entry, index) => entryProblems(entry, index, root, seen, { defaultTimeoutMs, ids, deadline }))];
 }
 
 export function definitionOf(entry) {
@@ -541,13 +650,13 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
   const program = INTERPRETERS.includes(name) ? installedProgram(name) : name;
   if (!program) {
     return Promise.resolve({
-      stdout: '', stderr: '', truncated: false, timedOut: false, durationMs: 0, exitCode: null, signal: null, startError: `${quote(name)} was not found on PATH`,
+      stdout: '', stderr: '', truncated: [], timedOut: false, durationMs: 0, exitCode: null, signal: null, startError: `${quote(name)} was not found on PATH`,
     });
   }
   return new Promise((resolve) => {
     const started = Date.now();
     const output = { stdout: '', stderr: '' };
-    let truncated = false;
+    const truncated = new Set();
     let timedOut = false;
     let settled = false;
     const env = { ...process.env, CI: '1', NO_COLOR: '1', FORCE_COLOR: '0', ...extraEnv };
@@ -571,7 +680,7 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
     }
     const collect = (stream) => (chunk) => {
       if (output[stream].length >= CAPTURE_LIMIT) {
-        truncated = true;
+        truncated.add(stream);
         return;
       }
       output[stream] += chunk;
@@ -583,7 +692,7 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
       settled = true;
       clearTimeout(timer);
       resolve({
-        stdout: cleanOutput(output.stdout), stderr: cleanOutput(output.stderr), truncated, timedOut, durationMs: Date.now() - started, ...fields,
+        stdout: cleanOutput(output.stdout), stderr: cleanOutput(output.stderr), truncated: [...truncated], timedOut, durationMs: Date.now() - started, ...fields,
       });
     };
     const timer = setTimeout(() => {
@@ -606,24 +715,53 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
   });
 }
 
-export function judge(entry, outcome, files = []) {
+// A rule that cannot be decided, on output cut off at the capture limit, a file outside the repository, or a match that runs out
+// of time, neither passes nor fails.
+export function judge(entry, outcome, files = [], limitMs = Infinity) {
   if (outcome.startError) return { status: 'not-verified', reasons: [`the command could not start: ${outcome.startError}`] };
   if (outcome.timedOut) return { status: 'not-verified', reasons: [`timed out after ${outcome.timeoutMs} ms`] };
   const expect = entry.expect;
   const reasons = [];
+  const notJudged = [];
+  // A rule to match, as [subject, rule, text], or a reason already known, kept in order.
+  const findings = [];
   if (outcome.exitCode === null) reasons.push(`the command was killed by ${outcome.signal}`);
   else if (outcome.exitCode !== expect.exitCode) reasons.push(`exit code ${outcome.exitCode}, expected ${expect.exitCode}`);
   for (const stream of ['stdout', 'stderr']) {
-    for (const rule of rulesOf(expect[stream])) {
-      if (!satisfies(rule, outcome[stream])) reasons.push(`${stream} does not ${describeRule(rule)}`);
+    const rules = rulesOf(expect[stream]);
+    if (rules.length && outcome.truncated?.includes(stream)) {
+      notJudged.push(`${stream} was not judged: it is longer than the ${CAPTURE_LIMIT} characters verify keeps`);
+      continue;
     }
+    findings.push(...rules.map((rule) => [stream, rule, outcome[stream]]));
   }
   for (const file of files) {
-    if (!file.after.exists) reasons.push(`${file.path} was not created`);
-    else if (!file.written) reasons.push(`${file.path} was not written by this run`);
-    else if (!satisfies(file.rule, file.text)) reasons.push(`${file.path} does not ${describeRule(file.rule)}`);
+    if (file.outside) notJudged.push(`${file.path} was not judged: ${file.outside}`);
+    else if (!file.after.exists) findings.push(`${file.path} was not created`);
+    else if (!file.written) findings.push(`${file.path} was not written by this run`);
+    else findings.push([file.path, file.rule, file.text]);
   }
-  return { status: reasons.length ? 'fail' : 'pass', reasons };
+  const toMatch = findings.filter(Array.isArray);
+  const results = satisfiesAll(toMatch.map(([, rule, text]) => [rule, text]), Date.now() + limitMs).values();
+  let slowPattern;
+  for (const finding of findings) {
+    if (!Array.isArray(finding)) {
+      reasons.push(finding);
+      continue;
+    }
+    const [subject, rule] = finding;
+    const satisfied = results.next().value;
+    if (satisfied === undefined) {
+      // Patterns are matched in order, so only the first unfinished one ran out of time; the rest were never tried.
+      notJudged.push(slowPattern
+        ? `${subject} was not judged: matching ${quote(slowPattern)} ran out of time first`
+        : `${subject} was not judged: matching ${quote(rule.matches)} did not finish ${within(limitMs, 'this run')}`);
+      slowPattern ??= rule.matches;
+    } else if (satisfied.error) notJudged.push(`${subject} was not judged: matching ${quote(rule.matches)} could not be evaluated: ${satisfied.error}`);
+    else if (!satisfied) reasons.push(`${subject} does not ${describeRule(rule)}`);
+  }
+  const status = reasons.length ? 'fail' : notJudged.length ? 'not-verified' : 'pass';
+  return { status, reasons: [...reasons, ...notJudged] };
 }
 
 function stdinOf(root, entry) {
@@ -638,7 +776,7 @@ function stdinOf(root, entry) {
 }
 
 // Found only when the check is about to run: a file named in the map can change after the map was read.
-function notRunReasons(root, entry, stdin, watched) {
+function notRunReasons(root, entry, stdin, watched, limitMs) {
   if (stdin.problem) return [stdin.problem];
   const formProblem = runProblem(entry.run, realpathSync(root));
   if (formProblem) return [`run ${formProblem}`];
@@ -657,41 +795,71 @@ function notRunReasons(root, entry, stdin, watched) {
     ...(isObject(entry.stdin) ? [['the stdin file text', cleanOutput(stdin.text.toString('utf8')), null]] : []),
     ...named.filter((file) => !file.problem).map((file) => [file.label, file.text, file.path]),
   ];
+  const probes = [];
   for (const [source, text, sourcePath] of sources) {
     for (const [label, rule, rulePath] of rules) {
       if (sourcePath && sourcePath === rulePath) continue;
       if (!text) continue;
-      if (satisfies(rule, text)) reasons.push(`${source} satisfies ${label} (${describeRule(rule)}), so the check cannot fail`);
-      else if (satisfiesIgnoringWhitespace(rule, text)) {
-        reasons.push(`${source} satisfies ${label} (${describeRule(rule)}) once whitespace is ignored, so a command that only copies or reformats it would pass`);
-      }
+      probes.push({
+        source, label, rule, text,
+        satisfiedReason: `${source} satisfies ${label} (${describeRule(rule)}), so the check cannot fail`,
+        reformattedReason: `${source} satisfies ${label} (${describeRule(rule)}) once whitespace is ignored, so a command that only copies or reformats it would pass`,
+      });
     }
   }
   for (const file of watched.filter((watchedFile) => watchedFile.before.exists)) {
-    const content = cleanOutput(file.before.content.toString('utf8'));
-    if (satisfies(file.rule, content)) {
-      reasons.push(`${file.path} already satisfies its rule (${describeRule(file.rule)}) before the run, so the check cannot fail; write its starting content again, or write it empty, before running this check`);
-    } else if (satisfiesIgnoringWhitespace(file.rule, content)) {
-      reasons.push(`${file.path} already satisfies its rule (${describeRule(file.rule)}) before the run once whitespace is ignored, so a command that only rewrites its layout would pass; write a starting content that does not hold the expected text, or write it empty, before running this check`);
-    }
+    probes.push({
+      source: `the content of ${file.path} before the run`,
+      label: 'its rule',
+      rule: file.rule,
+      text: cleanOutput(file.before.content.toString('utf8')),
+      satisfiedReason: `${file.path} already satisfies its rule (${describeRule(file.rule)}) before the run, so the check cannot fail; write its starting content again, or write it empty, before running this check`,
+      reformattedReason: `${file.path} already satisfies its rule (${describeRule(file.rule)}) before the run once whitespace is ignored, so a command that only rewrites its layout would pass; write a starting content that does not hold the expected text, or write it empty, before running this check`,
+    });
   }
+  satisfiesAll(probes.map(({ rule, text }) => [rule, text]), Date.now() + limitMs).forEach((satisfied, position) => {
+    const { source, label, rule, text, satisfiedReason, reformattedReason } = probes[position];
+    if (satisfied === undefined || satisfied.error) {
+      const untried = satisfied?.error ? `: ${satisfied.error}` : ` ${within(limitMs, 'this run')}`;
+      reasons.push(`${source} could not be matched against ${label} (${describeRule(rule)})${untried}, so verify cannot tell whether the check can fail`);
+    } else if (satisfied) reasons.push(satisfiedReason);
+    else if (satisfiesIgnoringWhitespace(rule, text)) reasons.push(reformattedReason);
+  });
   return reasons;
 }
 
-async function runEntry(root, entry, timeoutMs) {
+// A link made after the map was read, by an earlier check or by this one, can turn a path in the repository into one outside it.
+function outsidePaths(root, entry) {
+  const paths = [
+    ...(entry.cwd === undefined ? [] : [['cwd', entry.cwd, { file: false }]]),
+    ...(isObject(entry.stdin) ? [['stdin.file', entry.stdin.file]] : []),
+    ...(entry.expect.files ?? []).map((file, position) => [`expect.files[${position}].path`, file.path]),
+  ];
+  return paths.flatMap(([where, relative, options]) => {
+    const problem = rootPathProblem(root, relative, options);
+    return problem ? [`${where} ${problem}`] : [];
+  });
+}
+
+async function runEntry(root, entry, timeoutMs, deadline) {
   const cwd = entry.cwd === undefined ? root : path.resolve(root, entry.cwd);
+  const outside = outsidePaths(root, entry);
   const watched = (entry.expect.files ?? []).map((file) => {
     const target = path.resolve(root, file.path);
     const [kind] = MATCHERS.filter((matcher) => matcher in file);
-    return { path: rootRelative(root, target), target, rule: { [kind]: file[kind] }, before: fileState(target) };
+    return { path: rootRelative(root, target), target, rule: { [kind]: file[kind] }, before: outside.length ? { exists: false } : fileState(target) };
   });
   const checkFiles = namedCheckFiles(root, entry, cwd).map((file) => ({ file, before: hashOf(path.join(root, file)) }));
-  const stdin = stdinOf(root, entry);
-  const notRun = timeoutMs > 0 ? notRunReasons(root, entry, stdin, watched) : ['the time budget for this run was used up'];
+  const stdin = outside.length ? {} : stdinOf(root, entry);
+  const notRun = timeoutMs <= 0 ? [] : outside.length ? outside : notRunReasons(root, entry, stdin, watched, matchLimitOf(timeoutMs, deadline));
+  const commandLimit = Math.min(timeoutMs, deadline - Date.now());
+  if (!notRun.length && commandLimit <= 0) notRun.push('the time budget for this run was used up');
   const outcome = notRun.length
     ? { notRun, durationMs: 0, stdout: '', stderr: '' }
-    : { ...(await runCommand(root, entry.run, { cwd, timeoutMs, stdin: stdin.text, env: entry.env })), timeoutMs };
+    : { ...(await runCommand(root, entry.run, { cwd, timeoutMs: commandLimit, stdin: stdin.text, env: entry.env })), timeoutMs: commandLimit };
   const files = watched.map((file) => {
+    const problem = rootPathProblem(root, file.path);
+    if (problem) return { ...file, after: { exists: false }, written: false, text: '', outside: problem };
     const after = fileState(file.target);
     const written = after.exists && (!file.before.exists || after.hash !== file.before.hash);
     return { ...file, after, written, text: after.exists ? cleanOutput(after.content.toString('utf8')) : '' };
@@ -699,7 +867,7 @@ async function runEntry(root, entry, timeoutMs) {
   for (const checkFile of checkFiles) checkFile.after = hashOf(path.join(root, checkFile.file));
   const verdict = outcome.notRun
     ? { status: 'not-verified', reasons: outcome.notRun.map((reason) => `not run: ${reason}`) }
-    : judge(entry, outcome, files);
+    : judge(entry, outcome, files, matchLimitOf(timeoutMs, deadline));
   const check = {
     id: entry.id,
     feature: entry.feature,
@@ -716,7 +884,7 @@ async function runEntry(root, entry, timeoutMs) {
     durationMs: outcome.durationMs,
     stdout: excerpt(outcome.stdout),
     stderr: excerpt(outcome.stderr),
-    outputTruncated: Boolean(outcome.truncated),
+    outputTruncated: Boolean(outcome.truncated?.length),
     files: files.map((file) => ({
       path: file.path, existedBefore: file.before.exists, exists: file.after.exists, written: file.written, content: excerpt(file.text),
     })),
@@ -824,7 +992,7 @@ function workingTree(repository) {
   }
 }
 
-function loadMap(repository, option) {
+function loadMap(repository, option, checking) {
   const relative = typeof option === 'string' ? option : MAP_FILE;
   const mapPath = path.resolve(repository.root, relative);
   if (!existsSync(mapPath)) throw new UsageError(`no feature map at ${rootRelative(repository.root, mapPath)}`);
@@ -835,7 +1003,7 @@ function loadMap(repository, option) {
   } catch (error) {
     throw new UsageError(`the feature map is not valid JSON: ${error.message}`);
   }
-  const problems = validateMap(map, realpathSync(repository.root));
+  const problems = validateMap(map, realpathSync(repository.root), checking);
   if (problems.length) throw Object.assign(new UsageError('the feature map has problems; fix them and run again'), { problems });
   return { map, mapPath, hash: createHash('sha1').update(text).digest('hex').slice(0, 12) };
 }
@@ -911,24 +1079,31 @@ const failureRecord = ({ definition, checkFiles }) => ({ definition, checkFiles 
 
 const overallStatus = ({ fail, notVerified }) => (fail ? 'failed' : notVerified ? 'not-verified' : 'passed');
 
+const countsOf = (checks) => ({
+  pass: checks.filter((check) => check.status === 'pass').length,
+  fail: checks.filter((check) => check.status === 'fail').length,
+  notVerified: checks.filter((check) => check.status === 'not-verified').length,
+});
+
 async function run(cwd, options) {
   const defaultTimeoutMs = defaultTimeoutOf(process.env.LIM_VERIFY_TIMEOUT_MS);
   const repository = openRepository(cwd);
-  const { map, mapPath, hash } = loadMap(repository, options.map);
+  // Reading the map counts toward the run's budget, so the whole command ends inside the Bash timeout SKILL.md sets.
+  const deadline = Date.now() + RUN_BUDGET_MS;
   const ids = options.id === undefined ? null : [options.id].flat().map(String);
+  const { map, mapPath, hash } = loadMap(repository, options.map, { defaultTimeoutMs, ids, deadline: Math.min(deadline, Date.now() + MAP_CHECK_BUDGET_MS) });
   const unknown = (ids ?? []).filter((id) => !map.features.some((entry) => entry.id === id));
   if (unknown.length) throw new UsageError(`no check with id ${unknown.join(', ')} in the feature map`);
   const selected = ids ? map.features.filter((entry) => ids.includes(entry.id)) : map.features;
   const indexPath = path.join(repository.stateDir, 'checks.json');
   const index = readJson(indexPath, {});
   const started = Date.now();
-  const deadline = started + RUN_BUDGET_MS;
   const gitState = gitStateOf(repository.root, mapPath);
   const tree = workingTree(repository);
   const checks = [];
   for (const entry of selected) {
     const limit = Math.min(entry.timeoutMs ?? defaultTimeoutMs, deadline - Date.now());
-    const { check, checkFiles } = await runEntry(repository.root, entry, limit);
+    const { check, checkFiles } = await runEntry(repository.root, entry, limit, deadline);
     const failed = failureOf(index[entry.id]);
     if (failed) {
       const changedFiles = filesChangedAfterFail(failed, checkFiles);
@@ -944,11 +1119,7 @@ async function run(cwd, options) {
   }
   const removedAfterFail = Object.keys(index).filter((id) => index[id].status === 'fail' && !map.features.some((entry) => entry.id === id));
   for (const id of removedAfterFail) index[id] = { status: 'removed', failed: failureRecord(index[id]) };
-  const counts = {
-    pass: checks.filter((check) => check.status === 'pass').length,
-    fail: checks.filter((check) => check.status === 'fail').length,
-    notVerified: checks.filter((check) => check.status === 'not-verified').length,
-  };
+  const counts = countsOf(checks);
   const record = {
     startedAt: new Date(started).toISOString(),
     durationMs: Date.now() - started,
@@ -984,8 +1155,13 @@ function last(cwd, options) {
   const evidencePath = path.join(repository.runsDir, newest);
   const record = JSON.parse(readFileSync(evidencePath, 'utf8'));
   const ids = options.id === undefined ? null : [options.id].flat().map(String);
+  const unknown = (ids ?? []).filter((id) => !record.checks.some((check) => check.id === id));
+  if (unknown.length) throw new UsageError(`no check with id ${unknown.join(', ')} in the last run`);
   const checks = ids ? record.checks.filter((check) => ids.includes(check.id)) : record.checks;
-  return { status: record.status, counts: record.counts, report: renderReport(record, evidencePath), evidencePath, ...record, checks };
+  const counts = countsOf(checks);
+  const selection = ids && { durationMs: checks.reduce((total, check) => total + check.durationMs, 0), removedAfterFail: [] };
+  const shown = { ...record, ...selection, status: overallStatus(counts), counts, checks };
+  return { status: shown.status, counts, report: renderReport(shown, evidencePath), evidencePath, ...shown };
 }
 
 const COMMANDS = { run, last };

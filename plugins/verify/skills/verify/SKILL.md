@@ -44,7 +44,7 @@ A check is only useful if it can fail. Before you write each one, ask: if this f
   - A path to a script file in the repository that starts as a program, then its arguments, such as `["./bin/tool", "--help"]`. Its first line must be `#!/usr/bin/env node` or `#!/usr/bin/env python3`, or `#!` and an absolute path ending in `/node` or `/python3`, with nothing after the interpreter.
 
   Any other program is refused: `npx`, `npm run`, `uv run`, and other package runners, wrappers such as `timeout`, `nice`, or `env`, shells, other interpreters including `python` and versioned names such as `python3.12`, files in `node_modules/`, `.git/`, `.venv/`, `venv/`, or `__pycache__/`, a binary such as a copy of node, a compiled `.node` addon, or compiled Python, a python3 script with a zip archive in it, and a script whose `#!` line runs a shell, another interpreter, or node or python3 with an option (such as `env -S node --require`). For a command in `package.json` `bin` or `scripts`, run the file it points to with `node`. A command in `[project.scripts]` names a function, not a file: call it from a helper in `verify-checks/`. The script starts the program without a shell, so there are no pipes, `&&`, redirects, globs, or `$VARIABLES`: give input with `stdin` (text, or `{ "file": "<path>" }` with the file in `verify-checks/`), extra variables with `env`, and the folder the program starts in with `cwd`. `env` cannot set `PATH`, `HOME`, `USERPROFILE`, `OPENSSL_CONF`, any `PYTHON` name, or a name that changes how a program loads code, such as `NODE_OPTIONS`, in any case; `NODE_ENV` is allowed. For a python3 run the script removes `PYTHONPATH` and turns off `__pycache__` folders.
-- Every path in an entry is relative to the repository root, whatever `cwd` is: the script or executable in `run`, `stdin.file`, and each path in `expect.files`. `cwd` only sets the folder the program starts in. The arguments after the script are passed to the program as they are, so the program reads them from `cwd`. A path that leaves the repository is refused.
+- Every path in an entry is relative to the repository root, whatever `cwd` is: the script or executable in `run`, `stdin.file`, and each path in `expect.files`. `cwd` only sets the folder the program starts in. The arguments after the script are passed to the program as they are, so the program reads them from `cwd`. A path that leaves the repository, also through a symbolic link, is refused.
 - Do not compute pass or fail inside a check (`assert`, printing PASS, catching an error and exiting 0). Print the real value and let `expect` judge it.
 - For a library, write a small script with the Write tool in `verify-checks/` that imports the function, calls it with one input, and prints the result with `console.log(JSON.stringify(...))`, or in Python with `print(json.dumps(...))`. A Python helper first adds the repository root to the import path itself with `sys.path.insert(0, str(Path(__file__).resolve().parent.parent))` (append `/ "src"` for a package under `src/`), then imports the package. Let errors escape, so a throw or an exception exits non-zero. Run it as `["node", "verify-checks/<name>.mjs"]` or `["python3", "verify-checks/<name>.py"]`, with any input as arguments after it. Keep the script to calling the feature and printing the result: it is code you write, and a person reviews it with the map.
 - When a feature needs earlier state, such as an item to change or a file to read, write that starting file with the Write tool in `verify-checks/` and name its path as an argument on its own, so the script can tell when it was edited. The starting file must not already hold the text an output or another file must show: the program could print or copy it, so the script refuses that check. A check that changes its file leaves it changed: before running that check again, write the starting content again.
@@ -60,7 +60,7 @@ Run `verify run`. To run one check, `verify run --id <id>` (repeat `--id` for mo
 The script decides each check with fixed rules:
 - `pass`: the command finished within its time limit, the exit code matched, and every expected output and file matched.
 - `fail`: the command finished, but the exit code, an output, or a file did not match. Each reason is listed.
-- `not verified`: the command timed out, or it was not run because its script, program, or `stdin` file does not exist, or because a file it expects, its `stdin` file, or a file named in `run` already satisfied a rule before the run. It is neither a pass nor a fail.
+- `not verified`: the command timed out, or it was not run because its script, program, or `stdin` file does not exist, or because a file it expects, its `stdin` file, or a file named in `run` already satisfied a rule before the run, or because a rule could not be judged: its stream was longer than the 1,048,576 characters the script keeps, or matching a `matches` rule threw an error or did not finish in time; or because a path in it now leaves the repository through a link an earlier check made. It is neither a pass nor a fail.
 
 ## 4. Report
 
@@ -74,13 +74,13 @@ When a check fails:
 - If you believe the check itself is wrong, say so, quote the source the expectation came from, and ask the user before changing it.
 - If the user asks you to fix the code, fix it, then run `verify run --id <id>` for that check and show the new report.
 
-When a check is not verified, say why (timeout, a missing file, a file that already matched) and what would let it run, such as a larger `timeoutMs` for a slow feature or writing a starting file again. Do not call it passed.
+When a check is not verified, say why (timeout, a missing file, a file that already matched, output too long to judge, a pattern too slow to match) and what would let it run, such as a larger `timeoutMs` for a slow feature, writing a starting file again, an input with shorter output, or a simpler pattern. Do not call it passed.
 
 If the report says a check changed after it failed, or was removed after it failed, tell the user which and why.
 
 ## 5. Later runs
 
-- `verify last` shows the last run's report and evidence without running anything. `--id <id>` narrows it.
+- `verify last` shows the last run's report and evidence without running anything. `--id <id>` narrows the report and its totals to that check.
 - When the user adds or changes a feature, add or update its entry, then run that entry.
 - Never remove an entry because it fails. Remove one only when the feature itself is gone, and say so.
 

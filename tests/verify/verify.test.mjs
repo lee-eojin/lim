@@ -24,6 +24,10 @@ else if (command === 'save') fs.writeFileSync('saved.txt', 'saved ' + value);
 else if (command === 'touch') fs.utimesSync(value, new Date(), new Date(Date.now() + 60000));
 else if (command === 'wait') setTimeout(() => console.log('done waiting'), 60000);
 else if (command === 'loud') process.stdout.write('x'.repeat(10000) + 'END');
+else if (command === 'flood') {
+  for (let count = 0; count < 32; count += 1) fs.writeSync(1, 'a'.repeat(65536));
+  fs.writeSync(1, 'FINAL ERROR');
+}
 else if (command === 'half') { console.log('HALF'); process.exit(3); }
 else if (command === 'read') {
   let text = '';
@@ -941,6 +945,76 @@ describe('paths in an entry are read from the repository root', () => {
       `features[1] (elsewhere).cwd "../app" resolves to ${outside('app')}, outside the repository; paths in an entry are relative to the repository root`,
     ]);
   });
+
+  test('a cwd or file path that leaves the repository through a symbolic link is refused before anything runs', () => {
+    const outside = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-outside-')));
+    const save = {
+      id: 'save', feature: 'Saves a value to a file in the folder it runs in', cwd: 'linked', run: ['node', 'cli.js', 'save', 'abc'],
+      expect: { exitCode: 0, files: [{ path: 'linked/saved.txt', includes: 'saved abc' }, { path: 'linked/new/saved.txt', includes: 'saved abc' }] },
+    };
+    const root = createRepository([save]);
+    symlinkSync(outside, path.join(root, 'linked'), 'junction');
+    const linked = path.join(realpathSync.native(root), 'linked');
+    const result = verify(root, 'run');
+    assert.equal(result.exit, 2);
+    assert.deepEqual(result.problems, [
+      `features[0] (save).cwd "linked" resolves to ${linked}, a link to ${outside}, outside the repository; paths in an entry are relative to the repository root`,
+      `features[0] (save).expect.files[0].path "linked/saved.txt" resolves to ${path.join(linked, 'saved.txt')}, a link to ${path.join(outside, 'saved.txt')}, outside the repository; paths in an entry are relative to the repository root`,
+      `features[0] (save).expect.files[1].path "linked/new/saved.txt" resolves to ${path.join(linked, 'new', 'saved.txt')}, a link to ${path.join(outside, 'new', 'saved.txt')}, outside the repository; paths in an entry are relative to the repository root`,
+    ]);
+    assert.equal(existsSync(path.join(outside, 'saved.txt')), false);
+  });
+
+  test('a link to a file that does not exist yet is followed to where it points', () => {
+    const outside = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-outside-')));
+    const latest = {
+      id: 'latest', feature: 'Writes the newest result where latest.txt points', run: ['node', 'writer.js'],
+      expect: { exitCode: 0, files: [{ path: 'latest.txt', equals: 'written' }] },
+    };
+    const root = createRepository([latest], { 'writer.js': "require('node:fs').mkdirSync('sub');\nrequire('node:fs').writeFileSync('sub/r.txt', 'written');\n" });
+    symlinkSync(path.join('sub', 'r.txt'), path.join(root, 'latest.txt'));
+    symlinkSync(path.join(outside, 'r.txt'), path.join(root, 'away.txt'));
+    assert.deepEqual(verify(root, 'run').checks?.map((check) => [check.status, check.reasons]), [['pass', []]]);
+    const real = realpathSync.native(root);
+    assert.deepEqual(validateMap({ features: [{ ...latest, expect: { exitCode: 0, files: [{ path: 'away.txt', equals: 'written' }] } }] }, real), [
+      `features[0] (latest).expect.files[0].path "away.txt" resolves to ${path.join(real, 'away.txt')}, a link to ${path.join(outside, 'r.txt')}, outside the repository; paths in an entry are relative to the repository root`,
+    ]);
+  });
+
+  test('a link that an earlier check makes is checked again before a later check runs or its files are read', () => {
+    const outside = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-outside-')));
+    const link = `const fs = require('node:fs');
+fs.rmSync('folder', { recursive: true });
+fs.symlinkSync(${JSON.stringify(outside)}, 'folder', 'junction');
+fs.symlinkSync(${JSON.stringify(outside)}, 'linked', 'junction');
+console.log('made links');
+`;
+    const own = `const fs = require('node:fs');
+fs.symlinkSync(${JSON.stringify(outside)}, 'own', 'junction');
+fs.writeFileSync('own/own.txt', 'own write');
+`;
+    const root = createRepository([
+      { id: 'link', feature: 'Makes links', run: ['node', 'link.js'], expect: { exitCode: 0, stdout: { includes: 'made links' } } },
+      {
+        id: 'save', feature: 'Saves a value in the folder it runs in', cwd: 'folder', run: ['node', 'cli.js', 'save', 'abc'],
+        expect: { exitCode: 0, files: [{ path: 'folder/saved.txt', includes: 'saved abc' }] },
+      },
+      { id: 'write', feature: 'Writes a result', run: ['node', 'write.js'], expect: { exitCode: 0, files: [{ path: 'linked/result.txt', includes: 'outside write' }] } },
+      { id: 'own', feature: 'Writes through its own link', run: ['node', 'own.js'], expect: { exitCode: 0, files: [{ path: 'own/own.txt', includes: 'own write' }] } },
+    ], {
+      'folder/.keep': '', 'link.js': link, 'own.js': own, 'write.js': "require('node:fs').writeFileSync('linked/result.txt', 'outside write');\n",
+    });
+    const real = realpathSync.native(root);
+    const leaves = (relative, file) => `${JSON.stringify(relative)} resolves to ${path.join(real, relative)}, a link to ${path.join(outside, file)}, outside the repository; paths in an entry are relative to the repository root`;
+    const result = verify(root, 'run');
+    assert.deepEqual(result.checks.map((check) => [check.id, check.status, check.reasons]), [
+      ['link', 'pass', []],
+      ['save', 'not-verified', [`not run: cwd ${leaves('folder', '')}`, `not run: expect.files[0].path ${leaves('folder/saved.txt', 'saved.txt')}`]],
+      ['write', 'not-verified', [`not run: expect.files[0].path ${leaves('linked/result.txt', 'result.txt')}`]],
+      ['own', 'not-verified', [`own/own.txt was not judged: ${leaves('own/own.txt', 'own.txt')}`]],
+    ]);
+    assert.deepEqual(readdirSync(outside), ['own.txt']);
+  });
 });
 
 describe('fixed rules', () => {
@@ -1001,6 +1075,151 @@ describe('evidence', () => {
     assert.equal(result.evidencePath, first.evidencePath);
     assert.equal(result.status, 'passed');
     assert.equal(evidenceFiles(root).length, 1);
+  });
+
+  test('output cut off at the capture limit is not judged, so its rules neither pass nor fail', () => {
+    const flood = { ...upper, id: 'flood', run: ['node', 'cli.js', 'flood'], expect: { exitCode: 0, stdout: { matches: 'a$' } } };
+    const root = createRepository([flood, { ...flood, id: 'flood-exit', expect: { exitCode: 4, stdout: { matches: 'a$' } } }]);
+    const result = verify(root, 'run');
+    const notJudged = 'stdout was not judged: it is longer than the 1048576 characters verify keeps';
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [
+      ['not-verified', [notJudged]],
+      ['fail', ['exit code 0, expected 4', notJudged]],
+    ]);
+    assert.equal(JSON.parse(readFileSync(result.evidencePath, 'utf8')).checks[0].outputTruncated, true);
+  });
+
+  test('a matches rule that runs past the check time limit leaves the check not verified and the run reported', () => {
+    const backtrack = {
+      ...upper, id: 'backtrack', run: ['node', 'cli.js', 'upper', `${'a'.repeat(32)}!`], timeoutMs: 1000, expect: { exitCode: 0, stdout: [{ matches: '^(A+)+$' }, { matches: '^A+!$' }] },
+    };
+    const root = createRepository([backtrack]);
+    const started = Date.now();
+    const finished = spawnSync(process.execPath, [script, 'run'], { cwd: root, encoding: 'utf8', timeout: 15000 });
+    assert.equal(finished.signal, null, `verify was still matching after ${Date.now() - started} ms`);
+    const result = JSON.parse(finished.stdout);
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [
+      ['not-verified', [
+        'stdout was not judged: matching "^(A+)+$" did not finish within 1000 ms',
+        'stdout was not judged: matching "^(A+)+$" ran out of time first',
+      ]],
+    ]);
+    assert.ok(existsSync(result.evidencePath));
+  });
+
+  const backtracking = `${'a'.repeat(34)}!`;
+  const runWithin = (root, limitMs, ...args) => {
+    const started = Date.now();
+    const finished = spawnSync(process.execPath, [script, 'run', ...args], { cwd: root, encoding: 'utf8', timeout: limitMs });
+    assert.equal(finished.signal, null, `verify was still matching after ${Date.now() - started} ms`);
+    return JSON.parse(finished.stdout || finished.stderr);
+  };
+
+  test('a matches rule that backtracks on a run argument or a file named in run is refused within the check time limit', () => {
+    const backtrack = {
+      ...upper, id: 'argument', run: ['node', 'cli.js', 'upper', backtracking], timeoutMs: 500, expect: { exitCode: 0, stdout: { matches: '^(a+)+$' } },
+    };
+    const root = createRepository([backtrack, { ...backtrack, id: 'named-file', run: ['node', 'cli.js', 'upper', 'in.txt'] }], { 'in.txt': backtracking });
+    const result = runWithin(root, 8000);
+    const cannotTell = 'could not be tried against the run\'s inputs within 500 ms, so verify cannot tell whether the check can fail';
+    assert.deepEqual(result.problems, [
+      `features[0] (argument).expect.stdout.matches "^(a+)+$" ${cannotTell}`,
+      `features[1] (named-file).expect.stdout.matches "^(a+)+$" ${cannotTell}`,
+    ]);
+  });
+
+  test('a matches rule that backtracks on the starting content of its file leaves the check not run within the time limit', () => {
+    const saved = {
+      ...upper, id: 'saved', run: ['node', 'cli.js', 'save', 'abc'], timeoutMs: 500, expect: { exitCode: 0, files: [{ path: 'out.txt', matches: '^(a+)+$' }] },
+    };
+    const root = createRepository([saved], { 'out.txt': backtracking });
+    const result = runWithin(root, 8000);
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [
+      ['not-verified', ['not run: the content of out.txt before the run could not be matched against its rule (match "^(a+)+$") within 500 ms, so verify cannot tell whether the check can fail']],
+    ]);
+    assert.ok(existsSync(result.evidencePath));
+  });
+
+  test('a check with many matches rules on a fast command passes within its time limit', () => {
+    const lines = { 'lines.js': 'for (let line = 0; line < 100; line += 1) console.log(`line ${line} ok`);\n' };
+    const rules = Array.from({ length: 100 }, (_, line) => ({ matches: `^line ${line} ok$` }));
+    const root = createRepository([{ ...upper, id: 'lines', run: ['node', 'lines.js'], timeoutMs: 500, expect: { exitCode: 0, stdout: rules } }], lines);
+    assert.deepEqual(verify(root, 'run').checks.map((check) => [check.status, check.reasons]), [['pass', []]]);
+  });
+
+  test('matching before a check runs and on its output gets at most 2000 ms, so a check does not take twice its time limit', () => {
+    const starting = {
+      ...upper, id: 'starting', run: ['node', 'cli.js', 'save', 'abc'], timeoutMs: 5000, expect: { exitCode: 0, files: [{ path: 'out.txt', matches: '^(a+)+$' }] },
+    };
+    const output = { ...upper, id: 'output', run: ['node', 'cli.js', 'upper', backtracking], timeoutMs: 5000, expect: { exitCode: 0, stdout: { matches: '^(A+)+$' } } };
+    const root = createRepository([starting, output], { 'out.txt': backtracking });
+    const result = runWithin(root, 7000);
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [
+      ['not-verified', ['not run: the content of out.txt before the run could not be matched against its rule (match "^(a+)+$") within 2000 ms, so verify cannot tell whether the check can fail']],
+      ['not-verified', ['stdout was not judged: matching "^(A+)+$" did not finish within 2000 ms']],
+    ]);
+  });
+
+  test('a pattern that throws on a huge output is reported with its error at once', () => {
+    const huge = { 'huge.js': "require('node:fs').writeFileSync('out.txt', 'ab'.repeat(10000000) + 'c');\n" };
+    const root = createRepository([{ ...upper, id: 'huge', run: ['node', 'huge.js'], timeoutMs: 5000, expect: { exitCode: 0, files: [{ path: 'out.txt', matches: '^(?:a|b)+c$' }] } }], huge);
+    const started = Date.now();
+    const result = runWithin(root, 15000);
+    assert.deepEqual(result.checks.map((check) => [check.status, check.reasons]), [
+      ['not-verified', ['out.txt was not judged: matching "^(?:a|b)+c$" could not be evaluated: RangeError: Maximum call stack size exceeded']],
+    ]);
+    assert.ok(Date.now() - started < 2000, `the run took ${Date.now() - started} ms`);
+  });
+
+  test('run --id tries only the selected checks\' patterns against their inputs', () => {
+    const backtrack = { ...upper, id: 'a', run: ['node', 'cli.js', 'upper', backtracking], timeoutMs: 500, expect: { exitCode: 0, stdout: { matches: '^(a+)+$' } } };
+    const root = createRepository([backtrack, { ...backtrack, id: 'b' }, { ...backtrack, id: 'c' }]);
+    assert.deepEqual(runWithin(root, 8000, '--id', 'a').problems, [
+      'features[0] (a).expect.stdout.matches "^(a+)+$" could not be tried against the run\'s inputs within 500 ms, so verify cannot tell whether the check can fail',
+    ]);
+  });
+
+  test('trying the patterns against their inputs shares one time budget for the whole map', () => {
+    const backtrack = { ...upper, id: 'a', run: ['node', 'cli.js', 'upper', backtracking], timeoutMs: 2000, expect: { exitCode: 0, stdout: { matches: '^(a+)+$' } } };
+    const root = realpathSync.native(createRepository(undefined));
+    const started = Date.now();
+    const problems = validateMap({ features: [backtrack, { ...backtrack, id: 'b' }, { ...backtrack, id: 'c' }] }, root, { deadline: Date.now() + 300 });
+    assert.ok(Date.now() - started < 1500, `checking the map took ${Date.now() - started} ms`);
+    assert.equal(problems.length, 3);
+    assert.match(problems[0], /^features\[0\] \(a\)\.expect\.stdout\.matches "\^\(a\+\)\+\$" could not be tried against the run's inputs within \d+ ms, /);
+    assert.deepEqual(problems.slice(1), ['b', 'c'].map((id, position) => (
+      `features[${position + 1}] (${id}).expect.stdout.matches "^(a+)+$" could not be tried against the run's inputs before the time for checking the map ran out, so verify cannot tell whether the check can fail`
+    )));
+  });
+
+  test('last --id leaves out what the run says about checks it did not select', () => {
+    const gone = { ...upper, id: 'gone', expect: { exitCode: 0, stdout: { equals: 'ABD' } } };
+    const second = { ...upper, id: 'second' };
+    const root = createRepository([upper, second, gone]);
+    verify(root, 'run');
+    writeMap(root, [upper, second]);
+    const run = verify(root, 'run');
+    assert.match(run.report, /Removed after it failed: gone\./);
+    const result = verify(root, 'last', '--id', 'upper');
+    assert.doesNotMatch(result.report, /Removed after it failed/);
+    const [check] = JSON.parse(readFileSync(run.evidencePath, 'utf8')).checks;
+    assert.equal(result.durationMs, check.durationMs);
+  });
+
+  test('last --id reports and counts only the checks it selects', () => {
+    const second = { ...upper, id: 'second', run: ['node', 'cli.js', 'upper', 'xyz'], expect: { exitCode: 0, stdout: { equals: 'XYW' } } };
+    const root = createRepository([upper, second]);
+    const run = verify(root, 'run');
+    assert.equal(run.status, 'failed');
+    const result = verify(root, 'last', '--id', 'upper');
+    assert.equal(result.status, 'passed');
+    assert.deepEqual(result.counts, { pass: 1, fail: 0, notVerified: 0 });
+    assert.deepEqual(result.checks.map((check) => check.id), ['upper']);
+    assert.match(result.report, /^verify: 1 passed, 0 failed, 0 not verified \(1 checks, /);
+    assert.doesNotMatch(result.report, /second/);
+    assert.equal(result.evidencePath, run.evidencePath);
+    assert.equal(verify(root, 'last', '--id', 'second').status, 'failed');
+    assert.match(verify(root, 'last', '--id', 'missing').error, /no check with id missing in the last run/);
   });
 
   test('last before any run says there is no evidence', () => {

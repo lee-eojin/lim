@@ -2,6 +2,13 @@
 
 All notable changes to verify. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: verify refuses a `cwd` or `expect.files` path that leaves the repository through a symbolic link, also when the file does not exist yet, and checks the paths again before each check runs and before reading its files. (#170)
+- Fixed: a check whose stdout or stderr is longer than the 1,048,576 characters verify keeps is not verified instead of judged on the part that was kept. (#171)
+- Fixed: `verify last --id` shows the report, counts, and status for the selected checks only, and refuses an id the last run does not have. (#172)
+- Fixed: matching a `matches` rule, when the map is read, before a check runs, and on its output, stops after the check's time limit or 2 seconds, whichever is shorter, instead of hanging the run, and a pattern that throws is reported with its error: the map is refused or the check is not verified. Reading the map tries patterns for 30 seconds in all, only for the selected checks with `--id`, and the whole run, reading the map included, ends within its 9 minutes. (#173)
+
 ## 0.5.0 (2026-10-28)
 
 - Fixed: verify refuses an `equals` or `matches` rule that one argument in `run` satisfies, and a compiled `.node` addon or binary file run with `node`; keeps a check marked as changed after it failed on every later run, also after removing and adding it back or running another map; makes a check not verified, instead of stopping the run, when its script or a file it names cannot be read, and says in the report when git could not record the working tree; and on macOS and Linux starts `node`, `python3`, and `git` only from absolute PATH folders and removes relative entries from the program's PATH. (#140)
