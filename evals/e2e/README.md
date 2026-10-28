@@ -88,6 +88,15 @@ After the audit fixes (#143 to #161), three more sessions of each review scenari
 
 No session regressed. In all three `failing-check` sessions the reviewer deferred nothing, so the `second-review-clean` miss seen earlier, which came from a second finding marked `behaviorChange`, did not come up; these runs do not show that miss is gone. Each session gave both other fixed findings a regression test.
 
+Three more sessions of each review scenario on review-loop 0.11.8 and verify 0.6.0 (commit `d02f136`), after the fixes from an outside review (#176 to #181), in `results/2026-10-28-claude-opus-5-5-v0118-1.json` to `-3.json`:
+
+| Scenario | Scores | Cost |
+|---|---|---|
+| `review-with-verify` | 11/11, 11/11, 11/11 | $0.70, $0.69, $0.63 |
+| `failing-check` | 10/11, 11/11, 11/11 | $0.53, $0.64, $0.65 |
+
+The miss is `regression-or-reason` again: the reviewer deferred F-2 (`behaviorChange`), the fix for F-1 and F-3 also resolved it, and the session's own `loop note` said so, but it gave F-2 neither a regression test nor a no-test reason. Since #134 the loop accepts one and SKILL.md asks for it, so this is the session skipping a step, not the loop refusing it; it happened in 1 of the 6 `failing-check` sessions run since #134.
+
 ### Harness limits
 
 - Claude Code runs read-only shell commands such as `git diff` and `cat` even under `dontAsk` with an allow list that does not name them, so sessions could read the diff with Bash. A chained command such as `L=...; node $L checks; node $L status` was denied.
