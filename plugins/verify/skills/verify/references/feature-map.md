@@ -20,7 +20,7 @@
 
 ## Paths
 
-Every path in an entry is relative to the repository root, whatever `cwd` is: the script or executable in `run`, `stdin.file`, and each path in `expect.files`. `cwd` only sets the folder the program starts in. The arguments after the script or executable are passed to the program as they are, so the program reads a path among them from `cwd`. A path that leaves the repository is refused, and messages show each path as it resolves from the root.
+Every path in an entry is relative to the repository root, whatever `cwd` is: the script or executable in `run`, `stdin.file`, and each path in `expect.files`. `cwd` only sets the folder the program starts in. The arguments after the script or executable are passed to the program as they are, so the program reads a path among them from `cwd`. A path that leaves the repository, also through a symbolic link, is refused, and messages show each path as it resolves from the root.
 
 ## Entry fields
 
@@ -32,7 +32,7 @@ Every path in an entry is relative to the repository root, whatever `cwd` is: th
 | `stdin` | no | What the program reads on stdin: a string, or `{ "file": "<path>" }`. Default: empty. |
 | `env` | no | Extra environment variables, such as `{ "TZ": "UTC" }`. Names are letters, digits, and `_`, not starting with a digit; values are strings. `PATH` and names that change how a program loads or runs code cannot be set: every name starting with `NODE_` except `NODE_ENV`, every name starting with `PYTHON`, `LD_` and `DYLD_` names, `HOME` and `USERPROFILE` (node looks for modules there), `OPENSSL_CONF` (loaded at startup), `BASH_ENV`, `ENV`, `BASHOPTS`, `SHELLOPTS`, `PS4`, `ZDOTDIR`, `PERL5OPT`, `PERL5LIB`, `PERLLIB`, `RUBYOPT`, and `RUBYLIB`. |
 | `cwd` | no | The folder inside the repository that the program starts in. Default: the root. |
-| `timeoutMs` | no | Time limit for this check. Default 30000 (or `LIM_VERIFY_TIMEOUT_MS`), at most 600000. |
+| `timeoutMs` | no | Time limit for this check's command. Matching `matches` rules before the run and on its output gets at most 2000 ms each time, or this limit if shorter, apart from the command's time. Default 30000 (or `LIM_VERIFY_TIMEOUT_MS`), at most 600000. |
 | `expect` | yes | What the result must show. |
 
 ## What a check can run
