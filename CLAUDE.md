@@ -27,3 +27,15 @@ Guidance for AI agents working in this repository. Humans are welcome to read it
 - English for code, docs, and skills. Skills reply in the user's language. The only exception is README translations in `docs/i18n/`.
 - Commit messages and pull request titles use `<type>: <summary>` with `feat`, `fix`, `refactor`, `test`, `docs`, or `chore`.
 - Keep it small. Follow the plugin rules in CONTRIBUTING.md.
+
+## Rules and what enforces them
+
+| Rule | Enforced by |
+|---|---|
+| A plugin's version is the same in its `plugin.json`, `.claude-plugin/marketplace.json`, and every README table | `node scripts/release.mjs <plugin> <version>` makes the edit; `tests/docs/versions.test.mjs` fails on a mismatch |
+| Behavior counts in the READMEs match `evals/*/behaviors.csv` | `node scripts/sync-counts.mjs` writes them; `--check` and `tests/docs/measured.test.mjs` fail on a mismatch or a broken `<!--total-->` marker |
+| Every tested row in a `behaviors.csv` names a real test | `tests/docs/measured.test.mjs` |
+| Plugin scripts compare real paths with `realpathSync.native` | `tests/scripts/realpath-native.test.mjs` |
+| No blocked words, no invalid JSON | `scripts/check.sh` (blocked words only with `LIM_DENYLIST` or `LIM_DENYLIST_FILE`) |
+| Translations keep the English README's headings, numbers, and links | `node scripts/check-i18n.mjs` |
+| A pull request merges only after both CI jobs (`check`, `windows`) pass | Not enforced by the repository yet: check each job with `gh pr checks <number>` before merging |
