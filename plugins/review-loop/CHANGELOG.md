@@ -4,6 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
+- Fixed: On Windows, the commit gate recognizes `git add .` at the repository root as staging everything when the path has an 8.3 short-name form. (#178)
 - Fixed: The commit gate no longer allows a plain `git commit` whose staged content differs from what the review saw, for example a file staged before later edits. It blocks the commit and says to stage everything with `git add -A` or run the review again. `git commit -a`, `git add -A && git commit`, and `git add . && git commit` at the repository root work as before. A `git add` of only some paths earlier in the same command makes the gate ask, since the commit may record only part of the change. (#169)
 
 ## 0.11.7 (2026-10-28)
