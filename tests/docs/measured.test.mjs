@@ -2,30 +2,10 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { measuredParagraph, proseLines } from '../../scripts/check-i18n.mjs';
+import { behaviorCounts, behaviorRows, countTargets, statedCounts, syncCounts } from '../../scripts/sync-counts.mjs';
 
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const pathOf = (file) => fileURLToPath(new URL(`../../${file}`, import.meta.url));
-
-function csvCells(line) {
-  const cells = [''];
-  let quoted = false;
-  for (let index = 0; index < line.length; index++) {
-    const character = line[index];
-    if (quoted && character === '"' && line[index + 1] === '"') cells[cells.length - 1] += line[++index];
-    else if (character === '"') quoted = !quoted;
-    else if (character === ',' && !quoted) cells.push('');
-    else cells[cells.length - 1] += character;
-  }
-  return cells;
-}
-
-const behaviorRows = (csv) => readFileSync(pathOf(csv), 'utf8').trim().split('\n').slice(1).map(csvCells);
-
-function behaviorCounts(csv) {
-  const rows = behaviorRows(csv);
-  const tested = rows.filter((row) => row[3].startsWith('test:')).length;
-  return [rows.length, tested, rows.length - tested];
-}
 
 const testTitles = new Set(
   readdirSync(pathOf('tests'), { recursive: true })
@@ -34,24 +14,22 @@ const testTitles = new Set(
     .map((match) => match[2].replace(/\\(.)/g, '$1')),
 );
 
-const readmes = [
-  ['README.md', 'evals/review-loop/behaviors.csv'],
-  ['plugins/review-loop/README.md', 'evals/review-loop/behaviors.csv'],
-  ['plugins/clear-explain/README.md', 'evals/clear-explain/behaviors.csv'],
-  ['plugins/verify/README.md', 'evals/verify/behaviors.csv'],
-];
+const targets = countTargets(root).map((file) => ({ file, ...statedCounts(root, file) }));
 
-for (const [file, csv] of readmes) {
+for (const { file, csv, marks } of targets) {
   test(`${file} states the behavior counts in ${csv}`, () => {
-    const measured = measuredParagraph(proseLines(pathOf(file)));
-    assert.ok(measured, `${file} has no paragraph that links behaviors.csv`);
-    assert.deepEqual(measured.numbers.slice(0, 3).map(Number), behaviorCounts(csv), 'total, covered by unit tests, and the rest');
+    const expected = behaviorCounts(pathOf(csv));
+    for (const { name, value } of marks) assert.equal(value, expected[name], `<!--${name}--> count; run node scripts/sync-counts.mjs`);
   });
 }
 
-for (const csv of new Set(readmes.map(([, csv]) => csv))) {
+test('node scripts/sync-counts.mjs --check finds nothing to change', () => {
+  assert.deepEqual(syncCounts(root, { write: false }).map(({ file }) => file), []);
+});
+
+for (const csv of new Set(targets.map(({ csv }) => csv))) {
   test(`every tested row in ${csv} names a test under tests/`, () => {
-    for (const [id, , , verifiedBy, ...rest] of behaviorRows(csv)) {
+    for (const [id, , , verifiedBy, ...rest] of behaviorRows(pathOf(csv))) {
       assert.equal(rest.length, 1, `${id} has 5 cells`);
       if (verifiedBy.startsWith('test:')) assert.ok(testTitles.has(verifiedBy.slice('test:'.length).trim()), `${id} names a test that does not exist: ${verifiedBy}`);
     }
