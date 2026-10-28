@@ -2429,7 +2429,7 @@ const ADD_ALL_OPTIONS = new Set(['--all', '--verbose', '--ignore-errors', '--spa
 
 function isFolder(location, folder) {
   try {
-    return realpathSync(location) === realpathSync(folder);
+    return realpathSync.native(location) === realpathSync.native(folder);
   } catch {
     return false;
   }
