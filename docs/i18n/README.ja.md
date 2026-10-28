@@ -30,7 +30,7 @@
 
 | プラグイン | 状態 | 担当する仕事 |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.11.5 | コミット前に変更をレビューし、P1とP2の指摘を修正し、再レビューしてから、残りをユーザーに渡します |
+| [review-loop](../../plugins/review-loop) | 0.11.6 | コミット前に変更をレビューし、P1とP2の指摘を修正し、再レビューしてから、残りをユーザーに渡します |
 | [clear-explain](../../plugins/clear-explain) | 0.1.4 | 概念、コード、エラーを説明するときに答えを先に書き、一つの言葉に一つの意味だけを持たせ、技術用語は公式の英語名で書きます |
 | [verify](../../plugins/verify) | 0.5.0 | 機能を実際に実行して動くことを確かめ、コマンドと出力を証拠として保存します |
 
@@ -218,7 +218,7 @@ Banksaladが公開しているPnルールに基づきます。
 
 ## 測定結果
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる246個の動作が記載されています。CIの単体テストが、そのうち235個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行と、コミットゲートhookのテストも含まれます。残りの11個はモデルの実行が必要です。その11個は、P3からP5について1回だけ確認すること、質問より先にレポートを表示すること、すべての手順をtodoリストに残し、飛ばす手順には理由を書くこと、修正したP1とP2ごとに回帰テストを書くこと、各指摘にmeasured、inferred、guessedのラベルを付けること、修正をどう確かめたかを伝えること、ユーザーが反論したら指摘をもう一度確かめること、何度も繰り返される種類の指摘にルール化を勧めること、無人実行では何も質問しないこと、選んだモデルでレビュアーを起動すること、原因が分からないまま追加されたコードを報告することです。最後の1個には、[`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)にfixtureがあり、最初の二つには[`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)に手動で実行した記録があります。
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)には、6つの軸(do、tell、ask、silence、stop、evidence)にわたる249個の動作が記載されています。CIの単体テストが、そのうち238個をカバーします。この単体テストには、実際の一時的なgitリポジトリに対する実行と、コミットゲートhookのテストも含まれます。残りの11個はモデルの実行が必要です。その11個は、P3からP5について1回だけ確認すること、質問より先にレポートを表示すること、すべての手順をtodoリストに残し、飛ばす手順には理由を書くこと、修正したP1とP2ごとに回帰テストを書くこと、各指摘にmeasured、inferred、guessedのラベルを付けること、修正をどう確かめたかを伝えること、ユーザーが反論したら指摘をもう一度確かめること、何度も繰り返される種類の指摘にルール化を勧めること、無人実行では何も質問しないこと、選んだモデルでレビュアーを起動すること、原因が分からないまま追加されたコードを報告することです。最後の1個には、[`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)にfixtureがあり、最初の二つには[`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)に手動で実行した記録があります。
 
 検出ベンチマークは、名前からはテストだと分からない一時的なリポジトリに置いた変更をレビュアーに渡します。[`evals/review-loop/detection/`](../../evals/review-loop/detection/)には、バグを一つずつ仕込んだ12個の変更と、問題のない6個の変更があります。[`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/)には、より難しい10個のバグと、怪しく見えるが問題のない6個の変更があります。難しいバグには、diffが触れていないファイルを見て初めて分かるバグ、四つのファイルをたどって初めて分かるバグ、183行のdiffの中にあるバグ、二つの検索の間の競合、非同期の書き込みが読む前に空にされるバッファ、エラー経路で保持されたままのロックなどがあります。各ケースを3回ずつ、通常セットは2026-10-25に、難しいセットは2026-10-26に実行した結果は次のとおりです。
 
