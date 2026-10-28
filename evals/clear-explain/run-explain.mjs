@@ -409,11 +409,15 @@ function triggerReport(results, out) {
   process.stdout.write(`results: ${out}\n`);
 }
 
-export function rescore(results) {
+function requireAnswers(results, option) {
   if (results.items.some((item) => !item.answers)) {
     const mode = results.set === 'held-out' ? '--held-out' : '--triggers';
-    throw new Error(`this file was written by ${mode} and stores no answers to score; --rescore takes the results of a judged run, so rerun ${mode} to measure triggers again`);
+    throw new Error(`this file was written by ${mode} and stores no answers; ${option} takes the results of a judged run, so rerun ${mode} to measure triggers again`);
   }
+}
+
+export function rescore(results) {
+  requireAnswers(results, '--rescore');
   const items = results.items.map((item) => ({
     ...item,
     answers: Object.fromEntries(ARMS.map((arm) => {
@@ -447,6 +451,7 @@ export function compareJudgePasses(items) {
 }
 
 export async function rejudge(results, options, judgeRun = judge) {
+  requireAnswers(results, '--rejudge');
   const started = Date.now();
   const items = results.items.map((item) => ({ ...item }));
   const tasks = items.map((item) => async () => {
