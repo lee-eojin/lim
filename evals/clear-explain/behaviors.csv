@@ -49,3 +49,7 @@ B47,silence,The script does not check an indented code block after a list and a 
 B48,silence,The script treats a fence right under a list item as the end of the list so a later indented block is not checked as prose,"test: a fence right under a list item ends the list, so a later indented block is code",yes
 B49,evidence,The script finds the Korean double negatives 안 되는 and 안 되지,test: a Korean double negative is found with 되는 and 되지 too,yes
 B50,evidence,The script finds an English possessive chain written with a curly apostrophe,test: an English possessive chain with a curly apostrophe is found,yes
+B51,evidence,The script counts a sentence wrapped across a soft line break as one sentence and reports it on its first line,test: a sentence wrapped across a soft line break counts as one sentence from its first line,yes
+B52,silence,"The script still ends a sentence at a blank line, list item, heading, table row, code block, or quote, where a soft line break does not",test: markdown blocks still end a sentence where a soft line break does not,yes
+B53,silence,The script does not check code indented under a list item as prose,test: code indented under a list item is not checked as prose,yes
+B54,silence,"The script ends a sentence at front matter, HTML lines, setext underlines, and tables without leading pipes","test: front matter, HTML lines, setext underlines, and tables without leading pipes end a sentence",yes

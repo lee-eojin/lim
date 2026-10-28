@@ -2,7 +2,7 @@
 
 All notable changes to verify. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.6.0 (2026-10-28)
 
 - Fixed: verify refuses a `cwd` or `expect.files` path that leaves the repository through a symbolic link, also when the file does not exist yet, and checks the paths again before each check runs and before reading its files. (#170)
 - Fixed: a check whose stdout or stderr is longer than the 1,048,576 characters verify keeps is not verified instead of judged on the part that was kept. (#171)
