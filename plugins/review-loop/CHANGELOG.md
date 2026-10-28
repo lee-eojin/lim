@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: The commit gate no longer allows a plain `git commit` whose staged content differs from what the review saw, for example a file staged before later edits. It blocks the commit and says to stage everything with `git add -A` or run the review again. `git commit -a`, `git add -A && git commit`, and `git add . && git commit` at the repository root work as before. A `git add` of only some paths earlier in the same command makes the gate ask, since the commit may record only part of the change. (#169)
+
 ## 0.11.7 (2026-10-28)
 
 - Added: `loop summary --markdown` prints the current run for a pull request description: how many rounds ran and why the loop stopped, a table of every finding with its decision and how the fix was proven, the findings decided after the last review that no review has seen, and the last checks. (#164)
