@@ -9,21 +9,21 @@
       "name": "review-loop",
       "source": "./plugins/review-loop",
       "description": "Review before you commit: checks first, a fresh reviewer labels findings P1 to P5, P1 and P2 are fixed and re-reviewed, and the rest is your call.",
-      "version": "0.11.3",
+      "version": "0.11.4",
       "category": "development"
     },
     {
       "name": "clear-explain",
       "source": "./plugins/clear-explain",
       "description": "Explanations you read once and understand the same way: the answer first, one meaning per word, one idea per sentence, and technical terms in their official English names.",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "category": "productivity"
     },
     {
       "name": "verify",
       "source": "./plugins/verify",
       "description": "Prove features by running them: a feature map of commands and expected results, run by a script that decides pass or fail and saves the output as evidence.",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "category": "development"
     }
   ]
