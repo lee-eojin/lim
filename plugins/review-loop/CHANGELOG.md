@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.11.6 (2026-10-28)
 
 - Fixed: In a gated repository, the commit gate asks before a command it cannot read in full, such as `sudo git ci -m x` or `sudo git -C . ci`, that runs a repository alias for commit or push, including a shell alias whose body runs either. (#157)
 
