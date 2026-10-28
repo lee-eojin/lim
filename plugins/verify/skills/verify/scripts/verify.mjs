@@ -149,11 +149,11 @@ function realPathOf(target, hops = 0) {
   while (!hasEntry(existing)) existing = path.dirname(existing);
   const rest = path.relative(existing, target);
   try {
-    return path.join(realpathSync(existing), rest);
+    return path.join(realpathSync.native(existing), rest);
   } catch {
     if (hops >= MAX_LINK_HOPS || !lstatSync(existing).isSymbolicLink()) return null;
     try {
-      return realPathOf(path.join(path.resolve(realpathSync(path.dirname(existing)), readlinkSync(existing)), rest), hops + 1);
+      return realPathOf(path.join(path.resolve(realpathSync.native(path.dirname(existing)), readlinkSync(existing)), rest), hops + 1);
     } catch {
       return null;
     }
@@ -168,19 +168,28 @@ function rootPathProblem(root, relative, { file = true } = {}) {
   const inside = insideOf(root, target);
   if (inside === null) return `${quote(relative)} resolves to ${target}, outside the repository; paths in an entry are relative to the repository root`;
   const real = realPathOf(target);
-  if (real === null || insideOf(realpathSync(root), real) === null) {
+  if (real === null || insideOf(realpathSync.native(root), real) === null) {
     return `${quote(relative)} resolves to ${target}, a link to ${real ?? 'a missing file'}, outside the repository; paths in an entry are relative to the repository root`;
   }
   if (file && !inside) return `${quote(relative)} resolves to the repository root, not a file`;
   return null;
 }
 
+// realpathSync.native also changes letter case on a case-insensitive disk, so a changed path alone does not mean a link.
+function passesThroughLink(target) {
+  for (let current = target; ; current = path.dirname(current)) {
+    if (lstatSync(current).isSymbolicLink()) return true;
+    if (path.dirname(current) === current) return false;
+  }
+}
+
 // Why a path is not a file the project itself holds, or null when it is: outside the repository or in an installed folder.
 function projectFileProblem(root, relative) {
   const target = path.resolve(root, relative);
   const exists = existsSync(target);
-  const real = exists ? realpathSync(target) : target;
-  const resolved = `which resolves to ${shownPath(root, target)}${real === target ? '' : `, a link to ${shownPath(root, real)}`}`;
+  const real = exists ? realpathSync.native(target) : target;
+  const throughLink = real !== target && passesThroughLink(target);
+  const resolved = `which resolves to ${shownPath(root, throughLink ? target : real)}${throughLink ? `, a link to ${shownPath(root, real)}` : ''}`;
   const notProject = `${resolved}, ${NOT_PROJECT_TEXT}`;
   if (exists && !statSync(target).isFile()) return notProject;
   for (const candidate of [target, real]) {
@@ -231,7 +240,7 @@ function executableProblem(root, target) {
     const sourceProblem = pythonSourceProblem(target);
     if (sourceProblem) return sourceProblem;
   }
-  const real = existsSync(interpreter) ? realpathSync(interpreter) : interpreter;
+  const real = existsSync(interpreter) ? realpathSync.native(interpreter) : interpreter;
   if (interpreter.startsWith('/usr/bin/env ') || ![interpreter, real].some((candidate) => insideOf(root, candidate) !== null)) return null;
   return `whose first line runs ${quote(interpreter)}, a file in the repository, not an installed ${name}`;
 }
@@ -257,7 +266,7 @@ function pythonScriptProblem(root, script) {
 function nodeScriptProblem(root, script) {
   const target = path.resolve(root, script);
   if (!existsSync(target)) return null;
-  if ([target, realpathSync(target)].some((file) => path.extname(file) === '.node')) return 'a compiled addon, not a script that node runs';
+  if ([target, realpathSync.native(target)].some((file) => path.extname(file) === '.node')) return 'a compiled addon, not a script that node runs';
   const bytes = readFirstBytes(target);
   return bytes && isBinary(bytes) ? 'a binary file, not a script that node runs' : null;
 }
@@ -451,11 +460,11 @@ function stdinProbes(entry, root) {
 // The program can print or copy a file named in run, so an expected text that the file already holds cannot fail.
 // A file that cannot be read gets a problem instead of its text: the check is not verified, not the whole map refused.
 function argumentFiles(root, entry) {
-  const realRoot = realpathSync(root);
+  const realRoot = realpathSync.native(root);
   const cwd = path.resolve(root, typeof entry.cwd === 'string' ? entry.cwd : '.');
   const targets = new Set(argumentsOf(entry.run).map((argument) => path.resolve(cwd, argument)));
   return [...targets].flatMap((target) => {
-    if (!existsSync(target) || !statSync(target).isFile() || insideOf(realRoot, realpathSync(target)) === null) return [];
+    if (!existsSync(target) || !statSync(target).isFile() || insideOf(realRoot, realpathSync.native(target)) === null) return [];
     let text;
     try {
       text = cleanOutput(readFileSync(target, 'utf8'));
@@ -778,7 +787,7 @@ function stdinOf(root, entry) {
 // Found only when the check is about to run: a file named in the map can change after the map was read.
 function notRunReasons(root, entry, stdin, watched, limitMs) {
   if (stdin.problem) return [stdin.problem];
-  const formProblem = runProblem(entry.run, realpathSync(root));
+  const formProblem = runProblem(entry.run, realpathSync.native(root));
   if (formProblem) return [`run ${formProblem}`];
   const program = path.resolve(root, programPath(entry.run));
   if (!existsSync(program)) return [`${shownPath(root, program)} does not exist`];
@@ -1003,7 +1012,7 @@ function loadMap(repository, option, checking) {
   } catch (error) {
     throw new UsageError(`the feature map is not valid JSON: ${error.message}`);
   }
-  const problems = validateMap(map, realpathSync(repository.root), checking);
+  const problems = validateMap(map, realpathSync.native(repository.root), checking);
   if (problems.length) throw Object.assign(new UsageError('the feature map has problems; fix them and run again'), { problems });
   return { map, mapPath, hash: createHash('sha1').update(text).digest('hex').slice(0, 12) };
 }
@@ -1202,7 +1211,7 @@ async function main() {
 function isEntryPoint() {
   if (!process.argv[1]) return false;
   try {
-    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+    return realpathSync.native(process.argv[1]) === realpathSync.native(fileURLToPath(import.meta.url));
   } catch {
     return false;
   }

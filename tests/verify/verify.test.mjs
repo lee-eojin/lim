@@ -532,7 +532,7 @@ describe('checks that cannot fail are refused', () => {
 });
 
 describe('only the project\'s own scripts and executables run', () => {
-  const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'verify-forms-')));
+  const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-forms-')));
   for (const file of ['bin/tool', 'node_modules/.bin/eslint', 'node_modules/eslint/bin/eslint.js', '.git/hooks/check.js']) {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     writeFileSync(path.join(root, file), '#!/usr/bin/env node\n', { mode: 0o755 });
@@ -576,7 +576,14 @@ describe('only the project\'s own scripts and executables run', () => {
     }
     assert.match(problemsFor({ run: ['node', 'node_modules/eslint/bin/eslint.js'] })[0], /on "node_modules\/eslint\/bin\/eslint\.js", which resolves to node_modules\/eslint\/bin\/eslint\.js, not a file/);
     assert.ok(problemsFor({ run: ['verify-checks/shell', '-c', 'exit 0'] })[0]
-      .includes(`starts "verify-checks/shell", which resolves to verify-checks/shell, a link to ${realpathSync(process.execPath)}, not a file`));
+      .includes(`starts "verify-checks/shell", which resolves to verify-checks/shell, a link to ${realpathSync.native(process.execPath)}, not a file`));
+  });
+
+  test('a path into node_modules in other letter case is refused as the file it resolves to, not a link', {
+    skip: !existsSync(path.join(root, 'NODE_MODULES')) && 'the file system tells letter case apart',
+  }, () => {
+    const [problem] = problemsFor({ run: ['node', 'Node_Modules/eslint/bin/eslint.js'] });
+    assert.match(problem ?? '', /on "Node_Modules\/eslint\/bin\/eslint\.js", which resolves to node_modules\/eslint\/bin\/eslint\.js, not a file in the repository outside node_modules/);
   });
 
   test('env names that change how a program loads or runs code are refused', () => {
@@ -813,7 +820,7 @@ describe('python3 scripts', () => {
   });
 
   describe('refusals', () => {
-    const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'verify-python-')));
+    const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-python-')));
     const files = {
       'tools/greet.py': greet, '.venv/bin/greet.py': greet, 'venv/lib/greet.py': greet, 'tools/__pycache__/greet.py': greet,
       'bin/absolute': '#!/usr/bin/python3\nprint(1)\n', 'bin/elsewhere': '#!/opt/python/bin/python3 \t\nprint(1)\n',
@@ -928,7 +935,7 @@ describe('paths in an entry are read from the repository root', () => {
   });
 
   test('a path that leaves the repository is refused with the path it resolves to', () => {
-    const root = realpathSync(mkdtempSync(path.join(tmpdir(), 'verify-paths-')));
+    const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-paths-')));
     mkdirSync(path.join(root, 'app'));
     writeFileSync(path.join(root, 'cli.js'), cli);
     const outside = (name) => path.join(path.dirname(root), name);
