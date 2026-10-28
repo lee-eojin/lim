@@ -94,3 +94,12 @@ V106,evidence,Every PYTHON name in env including PYTHONPATH and PYTHONWARNINGS i
 V107,evidence,An expectation that a Python traceback or a printed None would satisfy is refused,test: an expectation that a Python crash or a printed None satisfies is refused,yes
 V108,evidence,A sitecustomize.py in the repository root or next to the script that prints the expected text and exits 0 does not run so the script's own output decides the check,test: a sitecustomize.py in the repository root or next to the script does not run before a python3 script,yes
 V109,stop,A python3 script or #!/usr/bin/env python3 executable with a long text prefix before a zip archive is refused as a zip archive,test: a python3 script with a long text prefix before a zip archive is refused as a zip archive,yes
+V110,evidence,On macOS and Linux a node or git in a folder named by a relative PATH entry does not run in place of the installed one,test: a node or git in a folder named by a relative PATH entry does not run in place of the installed one,yes
+V111,stop,An equals or matches rule that one argument in run satisfies is refused,test: an equals or matches rule that only repeats a run argument is refused,yes
+V112,tell,A file named in run or a stdin file that cannot be read makes only that check not verified with the reason instead of stopping the run,test: a file named in run or a stdin file that cannot be read makes only that check not verified,yes
+V113,tell,A script that cannot be read makes only that check not verified with the reason instead of stopping the run,test: a script that cannot be read makes only that check not verified,yes
+V114,stop,A compiled .node addon or a binary file run with node is refused,test: a compiled addon or a binary file is refused as the script node runs,yes
+V115,evidence,A check stays marked as changed after it failed on every later run until its new definition fails once,test: a check stays marked as changed after it failed until its new definition fails once,yes
+V116,evidence,A check removed after it failed and added back changed is marked as changed,test: a check removed after it failed and added back changed is marked as changed,yes
+V117,evidence,A check run from another map with --map after it failed stays marked as changed,test: a check run from another map after it failed stays marked as changed,yes
+V118,tell,A git failure after the checks ran keeps their results and the report says the run records no tree,test: a git failure after the checks ran keeps their results and records no tree after them,yes
