@@ -248,3 +248,12 @@ B246,stop,A reproduced finding stays open when its verify check passes only afte
 B247,ask,A repository alias for commit or push behind a wrapper or after git global options or in quotes is asked about in a gated repository,test: a repository alias for commit behind a wrapper the gate cannot read is asked about,yes
 B248,silence,A repository alias that runs neither commit nor push or that shadows a built-in command stays unasked behind a wrapper,"test: a repository alias that runs neither commit nor push stays unasked behind a wrapper, as it does without one",yes
 B249,ask,A repository alias that closes a quoted command such as sh -c is still asked about,test: a repository alias that closes a quoted command is still asked about,yes
+B250,tell,summary --markdown prints every finding of the run with its decision and proof as a table for a pull request,test: summary --markdown prints every finding of the run with its decision and proof for a pull request,yes
+B251,tell,summary --markdown leaves out an empty Not re-reviewed section and lists a P1 or P2 still open,test: summary --markdown leaves out an empty Not re-reviewed section and lists a P1 or P2 still open,yes
+B252,tell,summary --markdown says a failing check no longer fails only once its finding is resolved,test: summary --markdown says a failing check no longer fails only once its finding is resolved,yes
+B253,tell,summary --markdown does not show the previous round's checks after an integrity stop,test: summary --markdown does not show the previous round's checks after an integrity stop,yes
+B254,tell,summary --markdown does not call a fix decided after the last review fixed,test: summary --markdown does not call a fix decided after the last review fixed,yes
+B255,tell,summary --markdown shows the latest decision on a kept finding decided again,test: summary --markdown shows the latest decision on a kept finding decided again,yes
+B256,tell,summary --markdown escapes HTML in a finding title outside code spans,test: summary --markdown escapes HTML in a finding title outside code spans,yes
+B257,tell,summary --markdown says no review was recorded before the first one,test: summary --markdown says no review was recorded before the first one,yes
+B258,tell,summary --markdown marks a finding outside the reviewed diff,test: summary --markdown marks a finding outside the reviewed diff,yes
