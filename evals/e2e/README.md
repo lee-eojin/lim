@@ -106,6 +106,8 @@ Three more sessions of each review scenario on review-loop 0.11.9 (commit `87fc5
 
 The `regression-or-reason` miss came back in run 1, and it shows a gap in #184 rather than a skipped step. The fix for F-1 also resolved the deferred P1 F-2, and F-3 (P2) stayed waiting for the user. Round 2 then stopped as `waiting`, because the loop checks for waiting findings before it checks for unproven ones, so it never asked for F-2's proof. The same session also misses `second-review-clean` for that `waiting` stop. #198 holds the proof state in this case too. In run 2 a task update ran between `loop summary` and its report.
 
+Three `failing-check` sessions on review-loop 0.11.10 (commit `7442758`), which holds the proof state when findings are waiting (#198), in `results/2026-10-29-claude-opus-5-5-v01110-1.json` to `-3.json`: 11/11 three times ($0.69, $0.54, $0.55). In all three the reviewer deferred nothing, each fixed finding got a regression test or a no-test reason in round 1, and round 2 stopped clean. None of them reached the case #198 fixed, a resolved finding with no proof while another waits, so these runs show no regression but do not show the fix in a session; the CLI test from #200 covers that case.
+
 ### Harness limits
 
 - Claude Code runs read-only shell commands such as `git diff` and `cat` even under `dontAsk` with an allow list that does not name them, so sessions could read the diff with Bash. A chained command such as `L=...; node $L checks; node $L status` was denied.
