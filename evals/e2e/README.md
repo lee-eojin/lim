@@ -97,6 +97,15 @@ Three more sessions of each review scenario on review-loop 0.11.8 and verify 0.6
 
 The miss is `regression-or-reason` again: the reviewer deferred F-2 (`behaviorChange`), the fix for F-1 and F-3 also resolved it, and the session's own `loop note` said so, but it gave F-2 neither a regression test nor a no-test reason. Since #134 the loop accepts one and SKILL.md asks for it, so this is the session skipping a step, not the loop refusing it; it happened in 1 of the 6 `failing-check` sessions run since #134.
 
+Three more sessions of each review scenario on review-loop 0.11.9 (commit `87fc591`), which holds the stop in a `proof` state until every resolved P1 or P2 has a regression test or a no-test reason (#184), in `results/2026-10-29-claude-opus-5-5-v0119-1.json` to `-3.json`:
+
+| Scenario | Scores | Cost |
+|---|---|---|
+| `review-with-verify` | 11/11, 11/11, 11/11 | $0.71, $0.60, $0.73 |
+| `failing-check` | 9/11, 10/11, 11/11 | $0.56, $0.49, $0.54 |
+
+The `regression-or-reason` miss came back in run 1, and it shows a gap in #184 rather than a skipped step. The fix for F-1 also resolved the deferred P1 F-2, and F-3 (P2) stayed waiting for the user. Round 2 then stopped as `waiting`, because the loop checks for waiting findings before it checks for unproven ones, so it never asked for F-2's proof. The same session also misses `second-review-clean` for that `waiting` stop. #198 holds the proof state in this case too. In run 2 a task update ran between `loop summary` and its report.
+
 ### Harness limits
 
 - Claude Code runs read-only shell commands such as `git diff` and `cat` even under `dontAsk` with an allow list that does not name them, so sessions could read the diff with Bash. A chained command such as `L=...; node $L checks; node $L status` was denied.
