@@ -38,4 +38,4 @@ Guidance for AI agents working in this repository. Humans are welcome to read it
 | Plugin scripts compare real paths with `realpathSync.native` | `tests/scripts/realpath-native.test.mjs` |
 | No blocked words, no invalid JSON | `scripts/check.sh` (blocked words only with `LIM_DENYLIST` or `LIM_DENYLIST_FILE`) |
 | Translations keep the English README's headings, numbers, and links | `node scripts/check-i18n.mjs` |
-| A pull request merges only after both CI jobs (`check`, `windows`) pass | Not enforced by the repository yet: check each job with `gh pr checks <number>` before merging |
+| A pull request merges only after both CI jobs (`check`, `windows`) pass | The `main` ruleset's required status checks |
