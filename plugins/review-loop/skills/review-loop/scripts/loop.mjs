@@ -147,8 +147,8 @@ export function isStalled(counts) {
 export function decideNext({ round, maxRounds, counts, open, waiting = 0, unproven = 0, stuck = [], regressions = [] }) {
   if (regressions.length) return { decision: 'stop', reason: 'regression' };
   if (stuck.length) return { decision: 'stop', reason: 'stuck' };
-  if (open === 0 && waiting) return { decision: 'stop', reason: 'waiting' };
-  if (open === 0) return unproven ? { decision: 'continue', reason: 'proof' } : { decision: 'stop', reason: 'clean' };
+  if (open === 0 && unproven) return { decision: 'continue', reason: 'proof' };
+  if (open === 0) return { decision: 'stop', reason: waiting ? 'waiting' : 'clean' };
   if (isStalled(counts)) return { decision: 'stop', reason: 'stalled' };
   if (round >= maxRounds) return { decision: 'stop', reason: 'max-rounds' };
   return { decision: 'continue', reason: 'fix' };
@@ -292,7 +292,7 @@ export function renderReport(view) {
     ...describeFinding(item), `  waiting because: ${item.deferredReason}`,
   ]);
   section('Came back after being resolved:', regressions, describeFinding);
-  section('Needs a regression test or a no-test reason before the loop stops clean:', needsProof, (item) => [
+  section('Needs a regression test or a no-test reason before the loop stops:', needsProof, (item) => [
     `- ${item.id} [${item.severity}] ${location(item)} ${item.title}`,
     `  why: ${normalize(item.scenario)}`,
     `  run: loop rule --id ${item.id} --draft <test file>, or loop rule --id ${item.id} --no-test "<reason>"`,
@@ -310,7 +310,7 @@ export function renderReport(view) {
   }
   lines.push('', `Trend (P1 + P2): ${counts.length ? counts.join(' -> ') : '-'}`);
   if (reason === 'proof') {
-    lines.push('Next: record a regression test or a no-test reason with loop rule; the last one stops the loop clean without another review');
+    lines.push('Next: record a regression test or a no-test reason with loop rule; the last one stops the loop without another review');
   } else if (decision === 'continue') {
     lines.push(`Next: fix, then re-review in round ${round + 1} of ${maxRounds}`);
   } else {
@@ -1698,16 +1698,18 @@ function stopIfProven(repository, state) {
     };
   }
   const resolvedInRound = new Set(state.resolvedInRound);
+  const deferred = state.deferred ?? [];
+  const reason = deferred.length ? 'waiting' : 'clean';
   const report = renderReport({
     round: state.round, maxRounds: state.maxRounds, reviewerModel: state.reviewerModel ?? 'inherit', checks,
-    checksLeftOut: leftOut, resolved: state.resolved.filter((item) => resolvedInRound.has(item.id)), cards: state.cards,
-    kept: state.kept, counts: state.counts, decision: 'stop', reason: 'clean', looped: state.resolved,
+    checksLeftOut: leftOut, resolved: state.resolved.filter((item) => resolvedInRound.has(item.id)), deferred, cards: state.cards,
+    kept: state.kept, counts: state.counts, decision: 'stop', reason, looped: [...state.resolved, ...deferred],
     featureMap: readFeatureMap(repository.root),
   });
-  Object.assign(state, { awaiting: 'decisions', stopped: { reason: 'clean', at: now() }, lastReport: report });
+  Object.assign(state, { awaiting: 'decisions', stopped: { reason, at: now() }, lastReport: report });
   saveState(repository, state);
-  logEvent(repository, { event: 'stop', round: state.round, decision: 'stop', reason: 'clean' });
-  return { decision: 'stop', reason: 'clean', report, cards: state.cards, checks };
+  logEvent(repository, { event: 'stop', round: state.round, decision: 'stop', reason });
+  return { decision: 'stop', reason, report, cards: state.cards, checks };
 }
 
 function isTestCheck(id) {
