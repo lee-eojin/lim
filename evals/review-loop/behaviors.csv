@@ -275,3 +275,5 @@ B273,stop,The loop stops clean when no resolved finding needs proof any more,tes
 B274,evidence,A regression test that fails only lint on the code before the fix does not end the wait for proof,test: a regression test that fails only lint on the code before the fix does not end the wait for proof,yes
 B275,silence,A deferred finding a fix also resolved needs proof in an unattended run and nothing asks,"test: a deferred finding a fix also resolved needs proof in an unattended run, and nothing asks",yes
 B276,silence,A project with no test check and a finding from a failing check stop clean without proof,test: a project with no test check and a finding from a failing check stop clean without proof,yes
+B277,stop,A round with no open findings and an unproven resolved P1 or P2 waits for proof before it stops as waiting,test: decideNext holds for proof before stopping as waiting,yes
+B278,do,"When findings wait for you, the last proof stops the loop as waiting and its report lists what waits","test: a resolved deferred finding needs proof while another still waits, and the last proof stops the loop as waiting",yes

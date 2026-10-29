@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.11.10 (2026-10-29)
 
 - Fixed: On Windows, `loop record --file` removes the review file it read when the path has an 8.3 short-name form, instead of leaving it in `.lim-review`. (#189)
 - Fixed: A resolved P1 or P2 without a regression test or a no-test reason now holds the loop in `proof` even when other findings are waiting for you, instead of stopping as `waiting` without proof. The last `loop rule` then stops the loop as `waiting` and its report still lists what waits for you. (#198)
