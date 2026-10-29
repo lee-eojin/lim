@@ -117,3 +117,4 @@ V129,do,run --id tries only the selected checks' patterns against their inputs,t
 V130,evidence,Trying the patterns against their inputs shares one time budget for the whole map and names the rules it ran out of time for,test: trying the patterns against their inputs shares one time budget for the whole map,yes
 V131,silence,last --id leaves out what the run says about checks it did not select,test: last --id leaves out what the run says about checks it did not select,yes
 V132,do,"last --id reports and counts only the checks it selects, and says when no check with that id was in the last run",test: last --id reports and counts only the checks it selects,yes
+V133,stop,"On a disk that ignores letter case, a script path into node_modules in other letter case is refused as the file it resolves to","test: a path into node_modules in other letter case is refused as the file it resolves to, not a link",yes

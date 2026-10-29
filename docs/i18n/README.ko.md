@@ -34,9 +34,9 @@ fork해서 바꾸고, 자기 것으로 만들어 써도 좋습니다. 이슈와 
 
 | 플러그인 | 상태 | 하는 일 |
 |---|---|---|
-| [review-loop](../../plugins/review-loop) | 0.11.9 | 커밋 전에 변경 사항을 리뷰하고, P1과 P2 지적 사항을 수정하고, 다시 리뷰한 뒤, 나머지를 사용자에게 넘깁니다. |
+| [review-loop](../../plugins/review-loop) | 0.11.10 | 커밋 전에 변경 사항을 리뷰하고, P1과 P2 지적 사항을 수정하고, 다시 리뷰한 뒤, 나머지를 사용자에게 넘깁니다. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | 개념, 코드, 에러를 설명할 때 결론을 먼저 쓰고, 한 단어에 한 뜻만 담고, 개발 용어는 공식 영어 이름으로 씁니다. |
-| [verify](../../plugins/verify) | 0.6.0 | 기능을 직접 실행해서 동작하는지 증명하고, 명령과 출력을 증거로 남깁니다. |
+| [verify](../../plugins/verify) | 0.6.1 | 기능을 직접 실행해서 동작하는지 증명하고, 명령과 출력을 증거로 남깁니다. |
 
 ## 설치
 
@@ -222,7 +222,7 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 
 ## 측정 결과
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 <!--total-->276개 동작이 있습니다. CI의 단위 테스트가 그중 <!--tested-->265개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 <!--rest-->11개는 모델 실행이 필요합니다. 그 <!--rest-->11개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 같은 종류로 되풀이되는 지적 사항에 규칙 만들기 권하기, 무인 실행에서는 아무것도 묻지 않기, 고른 모델로 리뷰어 시작하기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있고, 처음 두 동작은 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)에 수동 실행 기록이 있습니다.
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv)에는 6개 축(do, tell, ask, silence, stop, evidence)에 걸친 <!--total-->278개 동작이 있습니다. CI의 단위 테스트가 그중 <!--tested-->267개를 다룹니다. 이 테스트에는 실제 임시 git 저장소에서 실행하는 테스트와 커밋 게이트 hook 테스트도 있습니다. 나머지 <!--rest-->11개는 모델 실행이 필요합니다. 그 <!--rest-->11개는 P3부터 P5까지를 한 번만 묻기, 질문보다 보고서를 먼저 보여 주기, 모든 단계를 할 일 목록에 남기고 건너뛴 단계에 이유 적기, 수정한 P1과 P2마다 회귀 테스트 작성하기, 지적 사항마다 measured, inferred, guessed 표시하기, 수정을 어떻게 확인했는지 말하기, 사용자가 반박하면 동의하기 전에 다시 확인하기, 같은 종류로 되풀이되는 지적 사항에 규칙 만들기 권하기, 무인 실행에서는 아무것도 묻지 않기, 고른 모델로 리뷰어 시작하기, 원인을 모른 채 추가한 코드를 보고하기입니다. 마지막 동작의 fixture는 [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/)에 있고, 처음 두 동작은 [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md)에 수동 실행 기록이 있습니다.
 
 탐지 벤치마크는 이름만 봐서는 테스트인지 알 수 없는 임시 저장소에 변경을 만들어 리뷰어에게 줍니다. [`evals/review-loop/detection/`](../../evals/review-loop/detection/)에는 버그를 하나씩 심은 변경 12개와 깨끗한 변경 6개가 있습니다. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/)에는 더 어려운 버그 10개와, 수상해 보이지만 깨끗한 변경 6개가 있습니다. 더 어려운 버그에는 diff가 건드리지 않은 파일을 봐야만 보이는 버그, 파일 네 개를 따라가야만 보이는 버그, 183줄짜리 diff 안에 있는 버그, 두 검색 사이의 경쟁 상태, 비동기 쓰기가 읽기 전에 비워지는 버퍼, 에러 경로에서 풀리지 않고 남은 락 같은 것이 있습니다. 케이스마다 3번씩, 기본 세트는 2026-10-25에, 어려운 세트는 2026-10-26에 실행한 결과입니다.
 
