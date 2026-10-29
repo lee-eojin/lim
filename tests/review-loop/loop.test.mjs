@@ -164,6 +164,10 @@ describe('stop rules', () => {
     assert.equal(decideNext({ round: 1, maxRounds: 3, counts: [1], open: 1, waiting: 2 }).decision, 'continue');
   });
 
+  test('decideNext holds for proof before stopping as waiting', () => {
+    assert.deepEqual(decideNext({ round: 2, maxRounds: 3, counts: [2, 0], open: 0, waiting: 1, unproven: 1 }), { decision: 'continue', reason: 'proof' });
+  });
+
   test('isStalled needs two rounds without a decrease', () => {
     assert.equal(isStalled([2, 2]), false);
     assert.equal(isStalled([2, 2, 2]), true);
@@ -1485,8 +1489,8 @@ describe('regression tests', () => {
   test('a resolved P1 or P2 without a regression test or a no-test reason keeps the loop from stopping clean', () => {
     const { root, recorded } = resolvedWithoutProof();
     assert.deepEqual([recorded.decision, recorded.reason, recorded.needsProof.map((item) => item.id)], ['continue', 'proof', ['F-1']]);
-    assert.match(recorded.report, /Needs a regression test or a no-test reason before the loop stops clean:\n- F-1 \[P2\] src\/cart\.js:1 Price is doubled\n.*\n {2}run: loop rule --id F-1 --draft <test file>, or loop rule --id F-1 --no-test "<reason>"/);
-    assert.match(recorded.report, /Next: record a regression test or a no-test reason with loop rule; the last one stops the loop clean without another review/);
+    assert.match(recorded.report, /Needs a regression test or a no-test reason before the loop stops:\n- F-1 \[P2\] src\/cart\.js:1 Price is doubled\n.*\n {2}run: loop rule --id F-1 --draft <test file>, or loop rule --id F-1 --no-test "<reason>"/);
+    assert.match(recorded.report, /Next: record a regression test or a no-test reason with loop rule; the last one stops the loop without another review/);
     assert.throws(() => loop(root, ['next']), /record a regression test or a no-test reason for F-1 with loop rule/);
     assert.equal(loop(root, ['start']).awaiting, 'proof');
     loop(root, ['gate', '--on']);
@@ -1590,6 +1594,26 @@ describe('regression tests', () => {
     const recorded = loop(root, ['record'], { resolved: ['F-1', 'F-2'], findings: [] });
     assert.deepEqual([recorded.reason, recorded.ask, recorded.needsProof.map((item) => item.id)], ['proof', [], ['F-2']]);
     assert.equal(loop(root, ['rule', '--id', 'F-2', '--no-test', 'the rounding rule is a product choice']).reason, 'clean');
+  });
+
+  test('a resolved deferred finding needs proof while another still waits, and the last proof stops the loop as waiting', () => {
+    const designChoice = { ...doubledPrice, title: 'Pick a rounding rule', quote: 'items.reduce', behaviorChange: true };
+    const rename = { ...doubledPrice, title: 'Rename total to sumPrices', quote: 'export const total', removesFeature: true };
+    const { root } = fixing({ findings: [doubledPrice, designChoice, rename], startArgs: ['--unattended'] });
+    loop(root, ['rule', '--id', 'F-1', '--no-test', 'the total is only visible in the browser']);
+    loop(root, ['next']);
+    const recorded = loop(root, ['record'], { resolved: ['F-1', 'F-2'], findings: [] });
+    assert.deepEqual([recorded.decision, recorded.reason, recorded.needsProof.map((item) => item.id)], ['continue', 'proof', ['F-2']]);
+    assert.throws(() => loop(root, ['next']), /record a regression test or a no-test reason for F-2 with loop rule/);
+
+    const stopped = loop(root, ['rule', '--id', 'F-2', '--no-test', 'the rounding rule is a product choice']);
+    assert.deepEqual([stopped.decision, stopped.reason], ['stop', 'waiting']);
+    assert.match(stopped.report, /Waiting for you \(not fixed in an unattended run\):\n- F-3 \[P2\] src\/cart\.js:1 Rename total to sumPrices\n[\s\S]* {2}waiting because: removesFeature/);
+    assert.match(stopped.report, /Stopped: nothing left to fix without you; 1 P1 or P2 waiting for you/);
+    assert.deepEqual(ledger(root).filter((line) => line.event === 'stop').map((line) => line.reason), ['waiting']);
+    const { review } = loop(root, ['status']);
+    assert.equal(review.awaiting, 'decisions');
+    assert.equal(JSON.parse(readFileSync(path.join(root, '.git/lim/review-loop/state.json'), 'utf8')).stopped.reason, 'waiting');
   });
 
   test('a project with no test check and a finding from a failing check stop clean without proof', () => {
@@ -3281,6 +3305,7 @@ describe('unattended runs', () => {
 
     const stillFailing = deferredCheck();
     attemptFix(stillFailing, 2);
+    loop(stillFailing, ['rule', '--id', 'F-2', '--no-test', 'the attempt counter has no behavior to test']);
     loop(stillFailing, ['next']);
     const third = loop(stillFailing, ['record'], { resolved: ['F-2'], findings: [] });
     assert.deepEqual([third.decision, third.reason], ['stop', 'waiting']);
