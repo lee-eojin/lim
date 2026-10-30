@@ -7,6 +7,7 @@
 [![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![gap-map](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=gap-map--*&sort=semver&label=gap-map)](../../plugins/gap-map/CHANGELOG.md)
+[![ledger](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=ledger--*&sort=semver&label=ledger)](../../plugins/ledger/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 > 이 문서는 2026-10-27 시점의 [영어 README](../../README.md)를 번역한 문서입니다. 두 문서의 내용이 다르면 영어 README가 맞습니다.
@@ -39,6 +40,7 @@ fork해서 바꾸고, 자기 것으로 만들어 써도 좋습니다. 이슈와 
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | 개념, 코드, 에러를 설명할 때 결론을 먼저 쓰고, 한 단어에 한 뜻만 담고, 개발 용어는 공식 영어 이름으로 씁니다. |
 | [verify](../../plugins/verify) | 0.6.1 | 기능을 직접 실행해서 동작하는지 증명하고, 명령과 출력을 증거로 남깁니다. |
 | [gap-map](../../plugins/gap-map) | 0.1.0 | 언어 구현을 그 언어가 스스로 한 약속과 대조해 지도로 그리고, 실제 테스트가 통과할 때만 빈틈을 닫힌 것으로 표시합니다. |
+| [ledger](../../plugins/ledger) | 0.1.0 | 조사에서 관찰, 추론, 미해결을 나눠 기록하고, 증거가 지금도 유효할 때만 질문에 답이 났다고 표시합니다. |
 
 ## 설치
 
