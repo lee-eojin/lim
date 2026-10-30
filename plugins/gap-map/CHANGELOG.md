@@ -2,7 +2,7 @@
 
 All notable changes to gap-map. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.1.1 (2026-10-31)
 
 - Fixed: A `file:line` pointer one line past the end of a file that ends in a newline no longer resolves, and a map whose `root` is a drive root such as `C:\` or `/` no longer refuses every fixture path. (#216)
 

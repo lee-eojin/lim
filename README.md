@@ -37,7 +37,7 @@ Fork it, change it, make it yours. Issues and pull requests are welcome.
 | [review-loop](plugins/review-loop) | 0.11.11 | Reviews your changes before you commit, fixes P1 and P2 findings, re-reviews, and hands the rest to you. |
 | [clear-explain](plugins/clear-explain) | 0.1.5 | Explains concepts, code, and errors with the answer first, one meaning per word, and technical terms in their official English names. |
 | [verify](plugins/verify) | 0.6.1 | Proves your features work by running them, and saves the commands and output as evidence. |
-| [gap-map](plugins/gap-map) | 0.1.0 | Maps a language implementation against its own promises, and marks a gap closed only when real tests pass. |
+| [gap-map](plugins/gap-map) | 0.1.1 | Maps a language implementation against its own promises, and marks a gap closed only when real tests pass. |
 | [ledger](plugins/ledger) | 0.1.0 | Keeps an investigation's observations, inferences, and unknowns apart, and marks a question answered only when its evidence still holds. |
 
 ## Install

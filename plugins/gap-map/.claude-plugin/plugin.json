@@ -1,6 +1,6 @@
 {
   "name": "gap-map",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Map a language implementation against its own promises: a statechart of its pipeline and a gap ledger whose obligations close only when real fixtures pass.",
   "author": {
     "name": "lee-eojin"
