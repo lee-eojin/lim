@@ -19,7 +19,7 @@ L17,evidence,A forged output record with only a hash does not count as a saved r
 L18,evidence,A saved output swapped for another record breaks the claim that cited the first,test: a saved output swapped for another record breaks the claim that cited the first,yes
 L19,stop,A contradiction across two questions marks both contradicted,test: a contradiction across two questions marks both contradicted,yes
 L20,evidence,A search does not follow links and does not crash on a dangling one,test: a search does not follow links and does not crash on a dangling one,yes
-L21,stop,A search scope is a path and not a file and line,test: a search scope is a path, not a file and line,yes
+L21,stop,A search scope is a path and not a file and line,test: a search scope is a path and not a file and line,yes
 L22,evidence,Lines are counted without the empty piece after the last newline,test: lines are counted without the empty piece after the last newline,yes
 L23,evidence,A path under a root that ends in a separator is inside it,test: a path under a root that ends in a separator is inside it,yes
 L24,do,On Bend the ledger answered three questions about the termination rule from code lines and saved runs,manual: 2026-10-31 investigation in ~/orca/workspaces/bend/ledger against Bend b2fe9ce0,no

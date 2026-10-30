@@ -250,7 +250,7 @@ test('a search does not follow links and does not crash on a dangling one', { sk
   assert.match(result.stdout, /now finds 0, the claim says 1/);
 });
 
-test('a search scope is a path, not a file and line', () => {
+test('a search scope is a path and not a file and line', () => {
   const dir = workspace({ claims: [{ id: 'c.x', question: 'q.dead-only', statement: 's', kind: 'observed', evidence: [{ search: 'evict', scope: 'src:1', hits: 0 }] }] });
   assert.match(ledger(dir, 'check').stdout, /scope src:1 does not exist/);
 });
