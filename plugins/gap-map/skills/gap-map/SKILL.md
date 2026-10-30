@@ -59,7 +59,7 @@ Run `gapmap run`. It runs every fixture, saves each result with the fixture's SH
 The script decides each obligation:
 
 - `closed`: source and owner resolve, every case has a fixture, and every fixture passed a run of sufficient authority on its current bytes.
-- `open`: anything is missing, failed, stale (the fixture or the verifier changed after the run), or unknown. Each reason is listed.
+- `open`: anything is missing, failed, stale (the fixture, the owner file, the verifier, or a script it runs changed after the run), or unknown. Each reason is listed.
 - `contradicted`: the sources disagree. It never counts as proven, even when every fixture passes.
 - `blocked`: this machine cannot observe the claim.
 - `wontfix`: shown in the map and the ledger, never counted.

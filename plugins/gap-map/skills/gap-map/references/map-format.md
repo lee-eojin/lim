@@ -78,7 +78,7 @@ Every field the script reads. The script refuses unknown references (a stage, gr
 
 All next to the map, in `gap-map/`:
 
-- `results.json`: each fixture's last run (command, exit code, duration, pass or fail and why, output excerpts, fixture SHA-256, verifier digest, time).
+- `results.json`: each fixture's last run (command, exit code, duration, pass or fail and why, output excerpts, time), with the SHA-256 of the fixture and of the owner file, and a digest of the verifier and every file its command names.
 - `status.json`: the counts and each obligation's status and reasons.
 - `gaps.md`: the design decisions, then one table per stage.
 - `map.svg`: the statechart, with each stage's count of proven obligations.

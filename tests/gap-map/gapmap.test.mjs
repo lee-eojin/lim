@@ -119,7 +119,7 @@ test('a verifier edited after the run reopens the obligation', () => {
   map.verifiers.tail.pass.exitCode = 1;
   writeFileSync(path.join(dir, 'gap-map.json'), JSON.stringify(map));
   gapmap(dir, 'check');
-  assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('positive: verifier tail changed after the last run'));
+  assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('positive: verifier tail or a file it runs changed after the last run'));
 });
 
 test('extra output after the expected lines fails the fixture with the line that differs', () => {
@@ -255,4 +255,39 @@ test('decide reads only the results it is given', () => {
   assert.deepEqual(loaded.problems, []);
   const decision = decide(loaded.map.obligations[0], { root: loaded.root, verifiers: loaded.map.verifiers, results: {} });
   assert.deepEqual(decision.reasons, ['positive: tests/ok.bend has not been run', 'negative: tests/refuse.bend has not been run']);
+});
+
+test('a script the verifier runs edited after the run reopens the obligation', () => {
+  const { dir } = project();
+  gapmap(dir, 'run');
+  writeFileSync(path.join(dir, 'print.mjs'), `${PRINT_TAIL}// edited\n`);
+  gapmap(dir, 'check');
+  assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('positive: verifier tail or a file it runs changed after the last run'));
+});
+
+test('a pointer to a folder does not resolve', () => {
+  const { dir } = project(withObligation(() => ({ owner: 'src' })));
+  gapmap(dir, 'run');
+  assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('owner src does not resolve to a file and line'));
+});
+
+test('a verifier whose program does not exist fails the fixture instead of crashing the run', () => {
+  const { dir } = project({
+    verifiers: { gone: { run: [path.join(tmpdir(), 'no-such-program-gap-map'), '{fixture}'], authority: 'run', pass: { exitCode: 0, fixtureLines: { prefix: '#|', streams: 'stdout+stderr' } } } },
+  });
+  const map = JSON.parse(readFileSync(path.join(dir, 'gap-map.json'), 'utf8'));
+  map.obligations[0].fixtures = map.obligations[0].fixtures.map((fixture) => ({ ...fixture, verifier: 'gone' }));
+  writeFileSync(path.join(dir, 'gap-map.json'), JSON.stringify(map));
+  const result = gapmap(dir, 'run');
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /0 passed, 2 failed/);
+  assert.match(result.stdout, /could not start/);
+});
+
+test('an owner file changed after the run reopens the obligation', () => {
+  const { dir } = project();
+  gapmap(dir, 'run');
+  writeFileSync(path.join(dir, 'src/check.ts'), 'export function check() {\n  return false;\n}\n');
+  gapmap(dir, 'check');
+  assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('positive: owner src/check.ts:1 changed after its last run'.replace('its last run', 'the last run')));
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -137,10 +137,15 @@ export function resolvePointer(root, pointer) {
   const file = match ? match[1] : pointer;
   if (!insideRoot(root, file)) return false;
   const target = path.resolve(root, file);
-  if (!existsSync(target)) return false;
+  if (!existsSync(target) || !statSync(target).isFile()) return false;
   if (!match) return true;
   const line = Number(match[2]);
   return line >= 1 && line <= readFileSync(target, 'utf8').split('\n').length;
+}
+
+export function ownerDigest(root, owner) {
+  if (!resolvePointer(root, owner)) return null;
+  return fixtureDigest(root, POINTER.exec(owner)?.[1] ?? owner);
 }
 
 export function fixtureDigest(root, fixturePath) {
@@ -148,8 +153,12 @@ export function fixtureDigest(root, fixturePath) {
   return existsSync(target) ? createHash('sha256').update(readFileSync(target)).digest('hex') : null;
 }
 
-export function verifierDigest(verifier) {
-  return createHash('sha256').update(JSON.stringify([verifier.run, verifier.pass, verifier.authority])).digest('hex');
+export function verifierDigest(verifier, root) {
+  const scripts = verifier.run.map((part) => {
+    const target = path.resolve(root, part);
+    return part !== '{fixture}' && existsSync(target) && statSync(target).isFile() ? createHash('sha256').update(readFileSync(target)).digest('hex') : null;
+  });
+  return createHash('sha256').update(JSON.stringify([verifier.run, verifier.pass, verifier.authority, verifier.timeoutMs ?? null, scripts])).digest('hex');
 }
 
 export const resultKey = (obligationId, fixture) => `${obligationId}|${fixture.case}|${fixture.path}`;
@@ -175,7 +184,8 @@ export function decide(obligation, { root, verifiers, results }) {
         reasons.push(`${kind}: verifier ${fixture.verifier} only reads, the claim needs a run`);
       } else if (!result) reasons.push(`${kind}: ${fixture.path} has not been run`);
       else if (result.fixtureSha256 !== digest) reasons.push(`${kind}: ${fixture.path} changed after its last run`);
-      else if (result.verifierSha256 !== verifierDigest(verifier)) reasons.push(`${kind}: verifier ${fixture.verifier} changed after the last run`);
+      else if (result.ownerSha256 !== ownerDigest(root, obligation.owner)) reasons.push(`${kind}: owner ${obligation.owner} changed after the last run`);
+      else if (result.verifierSha256 !== verifierDigest(verifier, root)) reasons.push(`${kind}: verifier ${fixture.verifier} or a file it runs changed after the last run`);
       else if (!result.passed) reasons.push(`${kind}: ${fixture.path} failed (${result.why})`);
     }
   }
@@ -222,7 +232,10 @@ function runOnce(root, verifier, fixturePath) {
     let stdout = '';
     let stderr = '';
     let timedOut = false;
+    let finished = false;
     const finish = (exitCode, extra = '') => {
+      if (finished) return;
+      finished = true;
       clearTimeout(timer);
       if (scratch) {
         closeSync(descriptor);
@@ -269,7 +282,7 @@ export async function runFixtures({ map, root }, results, { only = [], jobs = 4 
       const record = {
         obligation: obligation.id, case: fixture.case, path: fixture.path, verifier: fixture.verifier,
         command: verifier.run.map((part) => (part === '{fixture}' ? fixture.path : part)),
-        fixtureSha256: fixtureDigest(root, fixture.path), verifierSha256: verifierDigest(verifier),
+        fixtureSha256: fixtureDigest(root, fixture.path), ownerSha256: ownerDigest(root, obligation.owner), verifierSha256: verifierDigest(verifier, root),
         exitCode: outcome.exitCode, ms: outcome.ms, passed: verdict.passed, why: verdict.why,
         stdout: excerpt(outcome.stdout), stderr: excerpt(outcome.stderr), at: new Date().toISOString(),
       };

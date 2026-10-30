@@ -40,13 +40,13 @@ An obligation is proven only when all of these hold:
 - its `source` and `owner` pointers resolve to a file and line that exist;
 - every case kind it needs has at least one fixture;
 - every fixture passed a verifier run whose authority can observe the claim (a verifier that only reads files never closes a claim that needs a run);
-- the result applies to what is there now: a fixture or verifier changed after its run reopens the obligation.
+- the result applies to what is there now: a fixture, the owner file, the verifier, or a script it runs changed after the run reopens the obligation.
 
 A contradiction between two sources makes it `contradicted`, even when every fixture passes. An open unknown keeps it `open`. `blocked` means this machine cannot observe it. `wontfix` is shown in the map and the ledger and never counted as proven. The rule comes from the closure rule of [REA's reconstruction obligation ledgers](https://github.com/morluto/rea/blob/main/docs/reconstruction-obligation-ledgers.md): authenticity, authority, and applicability are checked separately, and nothing counts as verified by being marked.
 
 ## Measured
 
-[`evals/gap-map/behaviors.csv`](../../evals/gap-map/behaviors.csv) lists <!--total-->19 behaviors. Unit tests in CI cover <!--tested-->18 of them, running the script against temporary projects with `node` verifiers. The other <!--rest-->1 is the run against Bend itself, recorded in [references/bend.md](skills/gap-map/references/bend.md): 39 real Bend tests passed on the interpreter, C, and JS lanes, and the interpreter verifier failed two expected-failure tests once stderr was left out.
+[`evals/gap-map/behaviors.csv`](../../evals/gap-map/behaviors.csv) lists <!--total-->23 behaviors. Unit tests in CI cover <!--tested-->22 of them, running the script against temporary projects with `node` verifiers. The other <!--rest-->1 is the run against Bend itself, recorded in [references/bend.md](skills/gap-map/references/bend.md): 39 real Bend tests passed on the interpreter, C, and JS lanes, and the interpreter verifier failed two expected-failure tests once stderr was left out.
 
 ## Files
 
