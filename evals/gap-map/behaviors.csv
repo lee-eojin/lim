@@ -21,4 +21,8 @@ G20,evidence,A script the verifier runs edited after the run reopens the obligat
 G21,evidence,An owner file changed after the run reopens the obligation,test: an owner file changed after the run reopens the obligation,yes
 G22,stop,A pointer to a folder does not resolve,test: a pointer to a folder does not resolve,yes
 G23,stop,A verifier whose program does not exist fails the fixture instead of crashing the run,test: a verifier whose program does not exist fails the fixture instead of crashing the run,yes
-G24,do,On Bend the interpreter and C and JS verifiers pass 39 real tests and fail when stderr is left out,manual: 2026-10-31 run against Bend b2fe9ce0 (references/bend.md),no
+G24,evidence,One fixture checked by two verifiers keeps both results,test: one fixture checked by two verifiers keeps both results,yes
+G25,evidence,A character split across output chunks is decoded whole,test: a character split across output chunks is decoded whole,yes
+G26,evidence,A fixture with CRLF line endings compares like one with LF,test: a fixture with CRLF line endings compares like one with LF,yes
+G27,tell,A stage whose id looks like an internal routing id still renders,test: a stage whose id looks like an internal routing id still renders,yes
+G28,do,On Bend the interpreter and C and JS verifiers pass 39 real tests and fail when stderr is left out,manual: 2026-10-31 run against Bend b2fe9ce0 (references/bend.md),no

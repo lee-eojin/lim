@@ -291,3 +291,41 @@ test('an owner file changed after the run reopens the obligation', () => {
   gapmap(dir, 'check');
   assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('positive: owner src/check.ts:1 changed after its last run'.replace('its last run', 'the last run')));
 });
+
+test('one fixture checked by two verifiers keeps both results', () => {
+  const { dir, map } = project();
+  map.obligations[0].cases = ['positive'];
+  map.obligations[0].fixtures = [
+    { case: 'positive', path: 'tests/ok.bend', verifier: 'tail' },
+    { case: 'positive', path: 'tests/ok.bend', verifier: 'reads' },
+  ];
+  map.obligations[0].authority = 'read';
+  writeFileSync(path.join(dir, 'gap-map.json'), JSON.stringify(map));
+  assert.match(gapmap(dir, 'run').stdout, /ran 2 fixture\(s\): 2 passed/);
+  gapmap(dir, 'check');
+  assert.equal(status(dir).obligations['check.mismatch'].status, 'closed');
+});
+
+test('a character split across output chunks is decoded whole', () => {
+  const { dir, map } = project({}, {
+    'split.mjs': "const bytes = Buffer.from([0xed, 0x95, 0x9c, 0x0a]);\nprocess.stdout.write(bytes.subarray(0, 1));\nsetTimeout(() => process.stdout.write(bytes.subarray(1)), 50);\n",
+    'tests/han.bend': '#|\uD55C\n',
+  });
+  map.verifiers.split = { run: [process.execPath, 'split.mjs', '{fixture}'], authority: 'run', pass: { exitCode: 0, fixtureLines: { prefix: '#|' } } };
+  map.obligations[0].cases = ['positive'];
+  map.obligations[0].fixtures = [{ case: 'positive', path: 'tests/han.bend', verifier: 'split' }];
+  writeFileSync(path.join(dir, 'gap-map.json'), JSON.stringify(map));
+  assert.match(gapmap(dir, 'run').stdout, /1 passed, 0 failed/);
+});
+
+test('a fixture with CRLF line endings compares like one with LF', () => {
+  const verifier = { pass: { exitCode: 0, fixtureLines: { prefix: '#|' } } };
+  assert.equal(judge(verifier, '#|one\r\n#|two\r\n', 0, 'one\r\ntwo\r\n', false).passed, true);
+});
+
+test('a stage whose id looks like an internal routing id still renders', () => {
+  const stages = ['a', 'b', 'c', 'edge-0-1'].map((id) => ({ id, label: id, group: 'g' }));
+  const edges = [{ from: 'a', to: 'c', label: 'skip' }, { from: 'a', to: 'b', label: 'x' }, { from: 'b', to: 'c', label: 'y' }, { from: 'c', to: 'edge-0-1', label: 'z' }];
+  const svg = renderSvg({ target: 'T', groups: [{ id: 'g', label: 'G' }], stages, edges }, { byStage: new Map() });
+  assert.ok(svg.includes('>edge-0-1<'));
+});

@@ -109,7 +109,7 @@ function layout(map, summary) {
     for (let step = 1; step < span; step += 1) {
       const carries = step === Math.ceil(span / 2);
       const dummy = {
-        id: `edge-${index}-${step}`, dummy: true, order: from.order + step / 100, region, rank: from.rank + step,
+        id: `#edge-${index}-${step}`, dummy: true, order: from.order + step / 100, region, rank: from.rank + step,
         width: carries ? label.width : 14, height: carries ? label.height : 0, label: carries ? label : undefined,
       };
       items.set(dummy.id, dummy);

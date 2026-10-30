@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -19,6 +19,8 @@ const POINTER = /^(.+?):(\d+)$/;
 const DEFAULT_TIMEOUT_MS = 60 * 1000;
 const MAX_TIMEOUT_MS = 10 * 60 * 1000;
 const EXCERPT = 2000;
+// A descendant that left the process group can keep a pipe open after the kill.
+const CLOSE_GRACE_MS = 2000;
 
 const STATUS_ORDER = ['contradicted', 'open', 'blocked', 'closed', 'wontfix'];
 
@@ -161,7 +163,7 @@ export function verifierDigest(verifier, root) {
   return createHash('sha256').update(JSON.stringify([verifier.run, verifier.pass, verifier.authority, verifier.timeoutMs ?? null, scripts])).digest('hex');
 }
 
-export const resultKey = (obligationId, fixture) => `${obligationId}|${fixture.case}|${fixture.path}`;
+export const resultKey = (obligationId, fixture) => `${obligationId}|${fixture.case}|${fixture.path}|${fixture.verifier}`;
 
 export function decide(obligation, { root, verifiers, results }) {
   const reasons = [];
@@ -205,7 +207,7 @@ export function judge(verifier, fixtureText, exitCode, output, timedOut) {
   if (wantedCode !== undefined && exitCode !== wantedCode) return { passed: false, why: `exit code ${exitCode}, expected ${wantedCode}` };
   if (fixtureLines === undefined) return { passed: true, why: 'exit code matched' };
   const { prefix, exitLine } = fixtureLines;
-  const wanted = fixtureText.split('\n').filter((line) => line.startsWith(prefix));
+  const wanted = fixtureText.replace(/\r\n/g, '\n').split('\n').filter((line) => line.startsWith(prefix));
   if (wanted.length === 0) return { passed: false, why: `the fixture has no ${prefix} lines to compare` };
   const expected = tidy(wanted.map((line) => line.slice(prefix.length)).join('\n')).split('\n');
   let text = tidy(output.replace(/\r\n/g, '\n'));
@@ -229,20 +231,23 @@ function runOnce(root, verifier, fixturePath) {
   const descriptor = scratch && openSync(outputFile, 'w');
   return new Promise((resolve) => {
     const started = Date.now();
-    let stdout = '';
-    let stderr = '';
+    const stdout = [];
+    const stderr = [];
     let timedOut = false;
     let finished = false;
+    let grace;
     const finish = (exitCode, extra = '') => {
       if (finished) return;
       finished = true;
       clearTimeout(timer);
+      clearTimeout(grace);
+      let output = Buffer.concat(stdout).toString('utf8');
       if (scratch) {
         closeSync(descriptor);
-        stdout = readFileSync(outputFile, 'utf8');
+        output = readFileSync(outputFile, 'utf8');
         rmSync(scratch, { recursive: true, force: true });
       }
-      resolve({ exitCode, stdout, stderr: stderr + extra, timedOut, ms: Date.now() - started });
+      resolve({ exitCode, stdout: output, stderr: Buffer.concat(stderr).toString('utf8') + extra, timedOut, ms: Date.now() - started });
     };
     const child = spawn(program, args, {
       cwd: root, detached: process.platform !== 'win32', windowsHide: true,
@@ -251,12 +256,13 @@ function runOnce(root, verifier, fixturePath) {
     const timer = setTimeout(() => {
       timedOut = true;
       try {
-        if (process.platform === 'win32') child.kill();
+        if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
         else process.kill(-child.pid, 'SIGKILL');
       } catch {}
+      grace = setTimeout(() => finish(null), CLOSE_GRACE_MS);
     }, timeoutMs);
-    child.stdout?.on('data', (chunk) => { stdout += chunk; });
-    child.stderr?.on('data', (chunk) => { stderr += chunk; });
+    child.stdout?.on('data', (chunk) => stdout.push(chunk));
+    child.stderr?.on('data', (chunk) => stderr.push(chunk));
     child.on('error', (error) => finish(null, error.message));
     child.on('close', (code) => finish(code));
   });
@@ -274,7 +280,8 @@ export async function runFixtures({ map, root }, results, { only = [], jobs = 4 
     while (queue.length) {
       const { obligation, fixture } = queue.shift();
       const verifier = map.verifiers[fixture.verifier];
-      const fixtureText = readFileSync(path.resolve(root, fixture.path), 'utf8');
+      const fixtureBytes = readFileSync(path.resolve(root, fixture.path));
+      const fixtureText = fixtureBytes.toString('utf8');
       const outcome = await runOnce(root, verifier, fixture.path);
       const verdict = outcome.exitCode === null && !outcome.timedOut
         ? { passed: false, why: `could not start: ${outcome.stderr.trim()}` }
@@ -282,7 +289,7 @@ export async function runFixtures({ map, root }, results, { only = [], jobs = 4 
       const record = {
         obligation: obligation.id, case: fixture.case, path: fixture.path, verifier: fixture.verifier,
         command: verifier.run.map((part) => (part === '{fixture}' ? fixture.path : part)),
-        fixtureSha256: fixtureDigest(root, fixture.path), ownerSha256: ownerDigest(root, obligation.owner), verifierSha256: verifierDigest(verifier, root),
+        fixtureSha256: createHash('sha256').update(fixtureBytes).digest('hex'), ownerSha256: ownerDigest(root, obligation.owner), verifierSha256: verifierDigest(verifier, root),
         exitCode: outcome.exitCode, ms: outcome.ms, passed: verdict.passed, why: verdict.why,
         stdout: excerpt(outcome.stdout), stderr: excerpt(outcome.stderr), at: new Date().toISOString(),
       };

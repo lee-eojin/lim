@@ -60,7 +60,7 @@ Every field the script reads. The script refuses unknown references (a stage, gr
 - `run`: the command as a list, with the literal `{fixture}` as one argument. No shell runs it, so there are no pipes or variables; use a wrapper script for more than one command.
 - `authority`: `run` executes the claim; `read` only inspects. A `read` verifier cannot close an obligation whose `authority` is `run`.
 - `pass.exitCode`: the exit code a pass needs. Optional when `fixtureLines.exitLine` is set.
-- `pass.fixtureLines`: compare the output with the fixture's lines that start with `prefix`, the prefix removed. Both sides drop trailing spaces on each line and blank lines at the start and end. `streams` is `stdout` (the default) or `stdout+stderr`, which keeps the order the program wrote them in. `exitLine`, such as `exit {code}`, is appended to the output when the exit code is not 0, the way a harness that records the exit does.
+- `pass.fixtureLines`: compare the output with the fixture's lines that start with `prefix`, the prefix removed. Both sides drop trailing spaces on each line and the whitespace around the whole text, as Bend's gate does, so spaces at the start of the first line are not compared. A fixture with CRLF line endings compares like one with LF. `streams` is `stdout` (the default) or `stdout+stderr`, which keeps the order the program wrote them in. `exitLine`, such as `exit {code}`, is appended to the output when the exit code is not 0, the way a harness that records the exit does.
 - `timeoutMs`: from 1 to 600000; the default is 60000. The whole process group is killed at the limit.
 
 ## Obligations
