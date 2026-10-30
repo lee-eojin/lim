@@ -25,4 +25,6 @@ G24,evidence,One fixture checked by two verifiers keeps both results,test: one f
 G25,evidence,A character split across output chunks is decoded whole,test: a character split across output chunks is decoded whole,yes
 G26,evidence,A fixture with CRLF line endings compares like one with LF,test: a fixture with CRLF line endings compares like one with LF,yes
 G27,tell,A stage whose id looks like an internal routing id still renders,test: a stage whose id looks like an internal routing id still renders,yes
-G28,do,On Bend the interpreter and C and JS verifiers pass 39 real tests and fail when stderr is left out,manual: 2026-10-31 run against Bend b2fe9ce0 (references/bend.md),no
+G28,stop,A pointer one line past the last newline does not resolve,test: a pointer one line past the last newline does not resolve,yes
+G29,stop,A path under a root that ends in a separator is inside it,test: a path under a root that ends in a separator is inside it,yes
+G30,do,On Bend the interpreter and C and JS verifiers pass 39 real tests and fail when stderr is left out,manual: 2026-10-31 run against Bend b2fe9ce0 (references/bend.md),no
