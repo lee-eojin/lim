@@ -108,6 +108,7 @@ Then run `loop checks` on the fixed code. If a check fails, say which one and as
 Run `loop status`.
 - Compare your todo list with `review.doneSteps`, the steps the script saw done (it cannot see commit). Steps marked `skip: <reason>` are not in it and need nothing. If a step you marked done without `skip:` is missing from it, do that step now or mark it `skip: <reason>` and tell the user why.
 - If `review.pendingDecisions` is not empty, go back to section 5 (Decide) for those ids.
+- If `review.needsProof` is not empty, a stop with findings still open left those resolved findings without a regression test or a no-test reason. Do the regression test sub-step of section 4 for each; `loop rule` still records it after the loop stopped. Until then the commit gate blocks the commit.
 - If `gate.configured` is false, ask once whether to turn on the commit gate in this repository: "Turn on" or "Not in this repo". Run `loop gate --on` or `loop gate --off`. With the gate on, a hook blocks Claude's commits until a review passes and asks before each commit unless commits are delegated.
 - If `review.notVerifiedChecks` is not empty, say which checks timed out or could not run and were not verified, and ask whether the user wants to run them before committing.
 - If `treeMatchesReview` is false, first list what changed after the last review, such as the fixes from section 5 (Decide) or a fix that stopped the loop for weakening a test.
