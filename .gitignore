@@ -7,3 +7,5 @@ task_plan.md
 target/
 __pycache__/
 evals/**/Cargo.lock
+
+.tools/
