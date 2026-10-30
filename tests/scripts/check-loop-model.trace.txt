@@ -1,0 +1,160 @@
+Error: Invariant StopWaitingStopHasProof is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ loop = [ findings |->
+      << [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "none",
+  stopReason |-> "none",
+  stoppedBy |-> "none",
+  stopUnproven |-> FALSE,
+  unattended |-> FALSE,
+  counts |-> <<>>,
+  round |-> 0 ]
+/\ cmd = [name |-> "init"]
+
+State 2: <StartFresh line 134, col 3 to line 137, col 80 of module ReviewLoop>
+/\ loop = [ findings |->
+      << [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "review",
+  stopReason |-> "none",
+  stoppedBy |-> "none",
+  stopUnproven |-> FALSE,
+  unattended |-> FALSE,
+  counts |-> <<>>,
+  round |-> 1 ]
+/\ cmd = [unattended |-> FALSE, name |-> "start", resume |-> FALSE]
+
+State 3: <Record line 151, col 3 to line 159, col 82 of module ReviewLoop>
+/\ loop = [ findings |->
+      << [ where |-> "open",
+           kind |-> "reviewer",
+           route |-> "fix",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "fix",
+  stopReason |-> "none",
+  stoppedBy |-> "none",
+  stopUnproven |-> FALSE,
+  unattended |-> FALSE,
+  counts |-> <<1>>,
+  round |-> 1 ]
+/\ cmd = [ regression |-> FALSE,
+  new |-> {<<1, "reviewerFix">>},
+  round |-> 1,
+  name |-> "record",
+  resolved |-> {} ]
+
+State 4: <NextCommand line 164, col 6 to line 165, col 73 of module ReviewLoop>
+/\ loop = [ findings |->
+      << [ where |-> "open",
+           kind |-> "reviewer",
+           route |-> "fix",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "review",
+  stopReason |-> "none",
+  stoppedBy |-> "none",
+  stopUnproven |-> FALSE,
+  unattended |-> FALSE,
+  counts |-> <<1>>,
+  round |-> 2 ]
+/\ cmd = [name |-> "next"]
+
+State 5: <Record line 151, col 3 to line 159, col 82 of module ReviewLoop>
+/\ loop = [ findings |->
+      << [ where |-> "resolved",
+           kind |-> "reviewer",
+           route |-> "fix",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "open",
+           kind |-> "reviewer",
+           route |-> "ask",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "fix",
+  stopReason |-> "none",
+  stoppedBy |-> "none",
+  stopUnproven |-> FALSE,
+  unattended |-> FALSE,
+  counts |-> <<1, 1>>,
+  round |-> 2 ]
+/\ cmd = [ regression |-> FALSE,
+  new |-> {<<2, "reviewerAsk">>},
+  round |-> 2,
+  name |-> "record",
+  resolved |-> {1} ]
+
+State 6: <StartResume line 141, col 3 to line 147, col 82 of module ReviewLoop>
+/\ loop = [ findings |->
+      << [ where |-> "resolved",
+           kind |-> "reviewer",
+           route |-> "fix",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "deferred",
+           kind |-> "reviewer",
+           route |-> "ask",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "decisions",
+  stopReason |-> "waiting",
+  stoppedBy |-> "stopWaiting",
+  stopUnproven |-> TRUE,
+  unattended |-> TRUE,
+  counts |-> <<1, 1>>,
+  round |-> 2 ]
+/\ cmd = [unattended |-> TRUE, name |-> "start", resume |-> TRUE]
+
