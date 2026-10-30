@@ -6,6 +6,7 @@
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
 [![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
+[![gap-map](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=gap-map--*&sort=semver&label=gap-map)](../../plugins/gap-map/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 Este documento es una traducción del [README en inglés](../../README.md) en su versión del 2026-10-27. Si los dos documentos son diferentes, el README en inglés es el correcto.
@@ -37,6 +38,7 @@ Haz un fork, cámbialo, hazlo tuyo. Los issues y los pull requests son bienvenid
 | [review-loop](../../plugins/review-loop) | 0.11.10 | Revisa tus cambios antes del commit, corrige los hallazgos P1 y P2, vuelve a revisar y te entrega el resto. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Explica conceptos, código y errores con la respuesta primero, un solo significado por palabra y los términos técnicos con su nombre oficial en inglés. |
 | [verify](../../plugins/verify) | 0.6.1 | Demuestra que tus funcionalidades funcionan ejecutándolas y guarda los comandos y la salida como evidencia. |
+| [gap-map](../../plugins/gap-map) | 0.1.0 | Mapea la implementación de un lenguaje frente a sus propias promesas y solo da por cerrada una brecha cuando pasan pruebas reales. |
 
 ## Instalación
 

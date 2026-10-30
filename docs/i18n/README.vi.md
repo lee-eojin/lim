@@ -6,6 +6,7 @@
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
 [![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
+[![gap-map](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=gap-map--*&sort=semver&label=gap-map)](../../plugins/gap-map/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 Đây là bản dịch của [README tiếng Anh](../../README.md) tại ngày 2026-10-27. Nếu hai bản khác nhau, README tiếng Anh là bản đúng.
@@ -37,6 +38,7 @@ Hãy fork, chỉnh sửa và biến nó thành của bạn. Chúng tôi hoan ngh
 | [review-loop](../../plugins/review-loop) | 0.11.10 | Review các thay đổi của bạn trước khi commit, sửa các phát hiện P1 và P2, review lại và giao phần còn lại cho bạn. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Giải thích khái niệm, code và lỗi với câu trả lời đặt trước, mỗi từ một nghĩa, và thuật ngữ kỹ thuật giữ tên tiếng Anh chính thức. |
 | [verify](../../plugins/verify) | 0.6.1 | Chứng minh các tính năng hoạt động bằng cách chạy chúng, và lưu lệnh cùng output làm bằng chứng. |
+| [gap-map](../../plugins/gap-map) | 0.1.0 | Đối chiếu bản cài đặt của một ngôn ngữ với chính những gì nó hứa, và chỉ đóng một lỗ hổng khi test thật chạy qua. |
 
 ## Cài đặt
 

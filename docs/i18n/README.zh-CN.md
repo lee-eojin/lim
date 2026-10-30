@@ -6,6 +6,7 @@
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
 [![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
+[![gap-map](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=gap-map--*&sort=semver&label=gap-map)](../../plugins/gap-map/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 本文是截至 2026-10-27 的 [英文 README](../../README.md) 的翻译。如果两者内容不一致，以英文 README 为准。
@@ -37,6 +38,7 @@ Fork 它、修改它，把它变成你自己的。欢迎提交 issue 和 pull re
 | [review-loop](../../plugins/review-loop) | 0.11.10 | 在你提交之前审查你的改动，修复 P1 和 P2 发现项，再次审查，然后把其余发现项交给你 |
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | 解释概念、代码和错误时先给出答案，一个词只表示一个意思，技术术语使用官方英文名称 |
 | [verify](../../plugins/verify) | 0.6.1 | 通过实际运行来证明功能可用，并把命令和输出保存为证据 |
+| [gap-map](../../plugins/gap-map) | 0.1.0 | 把语言实现与它自己的承诺对照画成地图，只有真实测试通过时才把缺口标为已关闭 |
 
 ## 安装
 

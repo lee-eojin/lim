@@ -6,6 +6,7 @@
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
 [![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
+[![gap-map](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=gap-map--*&sort=semver&label=gap-map)](../../plugins/gap-map/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 Это перевод [README на английском](../../README.md) по состоянию на 2026-10-27. Если тексты различаются, правильным считается README на английском.
@@ -37,6 +38,7 @@
 | [review-loop](../../plugins/review-loop) | 0.11.10 | Проводит ревью ваших изменений до коммита, исправляет замечания P1 и P2, проводит повторное ревью и передаёт остальные замечания вам. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Объясняет понятия, код и ошибки: сначала ответ, одно значение на слово, технические термины под официальными английскими названиями. |
 | [verify](../../plugins/verify) | 0.6.1 | Доказывает, что функции работают, запуская их, и сохраняет команды и вывод как доказательство. |
+| [gap-map](../../plugins/gap-map) | 0.1.0 | Сопоставляет реализацию языка с его собственными обещаниями и закрывает пробел, только когда проходят настоящие тесты. |
 
 ## Установка
 
