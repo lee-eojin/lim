@@ -1189,19 +1189,23 @@ function makeUnattended(repository, state) {
   state.unattended = true;
   state.open = state.open.filter((item) => !moved.includes(item));
   state.deferred = [...(state.deferred ?? []), ...moved.map((item) => defer(item, confirmSetting))];
-  if (state.awaiting === 'fix' && !state.open.length) stopWaiting(state);
+  if (state.awaiting === 'fix' && !state.open.length) finishFixing(repository, state);
   saveState(repository, state);
   return moved.map((item) => item.id);
 }
 
-function stopWaiting(state) {
+function finishFixing(repository, state) {
   const deferred = state.deferred ?? [];
+  const unproven = needsProof(repository.root, state.resolved);
+  const { decision, reason } = decideNext({
+    round: state.round, maxRounds: state.maxRounds, counts: state.counts, open: 0, waiting: deferred.length, unproven: unproven.length,
+  });
   state.lastReport = renderReport({
     round: state.round, maxRounds: state.maxRounds, reviewerModel: state.reviewerModel ?? 'inherit', checks: state.checks,
     checksLeftOut: state.checksLeftOut, deferred, cards: state.cards, kept: state.kept, counts: state.counts,
-    decision: 'stop', reason: 'waiting', looped: [...state.resolved, ...deferred],
+    decision, reason, needsProof: reason === 'proof' ? unproven : [], looped: [...state.resolved, ...deferred],
   });
-  Object.assign(state, { awaiting: 'decisions', stopped: { reason: 'waiting', at: now() } });
+  Object.assign(state, decision === 'stop' ? { awaiting: 'decisions', stopped: { reason, at: now() } } : { awaiting: 'proof' });
 }
 
 function makeAttended(repository, state) {
@@ -1240,7 +1244,7 @@ function resumeView(repository, state) {
     stillOpen: deciding ? [...state.open.filter((item) => !item.decision), ...deferred] : [],
     deferred,
     cards: deciding ? state.cards.filter((card) => !card.decision) : [],
-    needsProof: state.awaiting === 'proof' ? needsProof(repository.root, state.resolved).map(proofTarget) : [],
+    needsProof: needsProof(repository.root, state.resolved).map(proofTarget),
     treeMatchesReview: snapshotTree(repository) === state.reviewedTree,
     ...featureMapFields(repository.root),
   };
@@ -1654,7 +1658,7 @@ function isBeingFixed(state, item) {
   if (!BLOCKING.has(item.severity) || item.fromChecks) return false;
   // A fix can also resolve a deferred finding, which then needs the same proof as the findings it was meant for.
   return (state.awaiting === 'fix' && [...state.open, ...(state.deferred ?? [])].includes(item))
-    || item.decision === 'once' || (state.awaiting === 'proof' && state.resolved.includes(item));
+    || item.decision === 'once' || (state.resolved.includes(item) && (state.awaiting === 'proof' || !hasRegressionProof(item)));
 }
 
 // A draft proves the fix only when the test check fails with it on the code before the fix and passes on the code after.
@@ -2363,7 +2367,7 @@ function reviewVerdict(repository, gateSettings, stagedInCommand) {
   const state = readSavedState(repository);
   const reviewFirst = `Run ${REVIEW_COMMAND} before committing, or ask to skip the review once.`;
   if (!state) return verdict('deny', `review-loop: this change has not been reviewed. ${reviewFirst}`);
-  const unproven = state.awaiting === 'proof' ? needsProof(repository.root, state.resolved) : [];
+  const unproven = needsProof(repository.root, state.resolved);
   if (unproven.length) {
     const ids = unproven.map((item) => item.id).join(', ');
     return verdict('deny', `review-loop: ${ids} were resolved without a regression test or a no-test reason. Record one with loop rule as ${REVIEW_COMMAND} says before committing.`);
@@ -2679,6 +2683,7 @@ function status(cwd) {
       open: state.open.map(summarize),
       deferred: (state.deferred ?? []).map(describeDeferred),
       pendingDecisions: pendingDecisionIds(state),
+      needsProof: needsProof(repository.root, state.resolved).map(summarize),
       rules: decidableFindings(state)
         .filter((item) => item.decision === 'rule')
         .map((item) => ({ id: item.id, drafts: item.rule?.drafts ?? [], proof: item.rule?.proof ?? null })),
@@ -2737,7 +2742,7 @@ function waitingFor(repository, state) {
     deferred: undecided(state?.deferred).map(describeDeferred),
     pendingDecisions: undecided(state?.cards).map(summarize),
     stillOpen: undecided(state?.open).map(summarize),
-    needsProof: state?.awaiting === 'proof' ? needsProof(repository.root, state.resolved).map(summarize) : [],
+    needsProof: state ? needsProof(repository.root, state.resolved).map(summarize) : [],
     notVerifiedChecks: (state?.latestChecks ?? state?.checks ?? []).filter(isNotVerified).map(checkId),
     gateNotConfigured: !readGate(repository).configured,
   };

@@ -1616,6 +1616,44 @@ describe('regression tests', () => {
     assert.equal(JSON.parse(readFileSync(path.join(root, '.git/lim/review-loop/state.json'), 'utf8')).stopped.reason, 'waiting');
   });
 
+  test('an unattended resume that defers the last open finding holds for proof, and the last proof stops the loop as waiting', () => {
+    const designChoice = { ...doubledPrice, title: 'Pick a rounding rule', quote: 'items.reduce', behaviorChange: true };
+    const { root } = fixing();
+    loop(root, ['next']);
+    loop(root, ['record'], { resolved: ['F-1'], findings: [designChoice] });
+    const resumed = loop(root, ['start', '--unattended']);
+    assert.deepEqual(
+      [resumed.awaiting, resumed.needsProof.map((item) => item.id), resumed.deferred.map((item) => item.id)],
+      ['proof', ['F-1'], ['F-2']],
+    );
+    assert.match(resumed.report, /Needs a regression test or a no-test reason before the loop stops:\n- F-1 \[P2\]/);
+    loop(root, ['decide', '--id', 'F-2', '--choice', 'keep']);
+    loop(root, ['gate', '--on']);
+    const commit = gateDecision({ cwd: root, command: 'git commit -m "fix: cart"' });
+    assert.deepEqual([commit.decision, /F-1/.test(commit.reason)], ['deny', true]);
+
+    const stopped = loop(root, ['rule', '--id', 'F-1', '--no-test', 'the total is only visible in the browser']);
+    assert.deepEqual([stopped.decision, stopped.reason], ['stop', 'waiting']);
+  });
+
+  test('after a stop with findings still open, the gate blocks until each resolved P1 or P2 has proof, which loop rule can still record', () => {
+    const emptyCart = { ...doubledPrice, title: 'Empty cart total', quote: 'items.reduce', scenario: 'an empty cart totals 0' };
+    const { root } = fixing();
+    loop(root, ['next']);
+    loop(root, ['record'], { resolved: ['F-1'], findings: [emptyCart] });
+    writeFiles(root, { 'src/cart.js': `// eslint-disable-next-line no-unused-vars\n${correctCart}` });
+    assert.equal(loop(root, ['next']).reason, 'integrity');
+    loop(root, ['decide', '--id', 'F-2', '--choice', 'keep']);
+    loop(root, ['gate', '--on']);
+    const commit = () => gateDecision({ cwd: root, command: 'git commit -m "fix: cart"' });
+    assert.deepEqual([commit().decision, /F-1/.test(commit().reason)], ['deny', true]);
+    assert.deepEqual(loop(root, ['status']).review.needsProof.map((item) => item.id), ['F-1']);
+
+    loop(root, ['rule', '--id', 'F-1', '--no-test', 'the total is only visible in the browser']);
+    assert.deepEqual(loop(root, ['status']).review.needsProof, []);
+    assert.equal(commit().decision, 'ask');
+  });
+
   test('a project with no test check and a finding from a failing check stop clean without proof', () => {
     const plain = createRepository({ 'src/cart.js': correctCart });
     writeFiles(plain, { 'src/cart.js': brokenCart });

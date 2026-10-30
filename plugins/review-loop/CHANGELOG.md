@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: A resolved P1 or P2 without a regression test or a no-test reason now holds the loop in `proof` when `start --unattended` or `unattended --on` defers the last open finding, and the commit gate blocks the commit after any stop until each one has proof, which `loop rule` can still record after the loop stopped. (#210, #211)
+
 ## 0.11.10 (2026-10-29)
 
 - Fixed: On Windows, `loop record --file` removes the review file it read when the path has an 8.3 short-name form, instead of leaving it in `.lim-review`. (#189)
