@@ -59,9 +59,9 @@ Each piece has exactly one of these keys:
 | Key | Holds when | Counts as |
 |---|---|---|
 | `file` (`path`, `path:line`, or `path:first-last`) | the file exists, the lines are inside it, and, after `ledger pin`, its SHA-256 is unchanged | static |
-| `output` (a `ledger-evidence/<n>.json` written by `ledger save`) | the record exists and its SHA-256 still matches its content | runtime |
-| `search` with `scope` and `hits` | searching `scope` for the literal text again finds exactly `hits` (`.git`, `node_modules`, and `ledger-evidence` are skipped; at most 20000 files) | static, reported with its scope |
-| `rea` (`ev_` and 64 hex digits) with `bundle` | the exported REA Evidence bundle contains that id; `runtime: true` for runtime Evidence | static, or runtime with `runtime: true` |
+| `output` (a `ledger-evidence/<n>.json` written by `ledger save`), with the `sha256` that `save` printed | the record has the fields `save` writes, its SHA-256 still matches its content, and it is the record the claim cited | runtime |
+| `search` with `scope` and `hits` | searching `scope` for the literal text again finds exactly `hits` (`.git`, `node_modules`, and `ledger-evidence` are skipped, links are not followed, at most 20000 files) | static, reported with its scope |
+| `rea` (`ev_` and 64 hex digits) with `bundle` | the exported REA Evidence bundle is JSON and has a record whose `evidence_id` is that id; `runtime: true` for runtime Evidence | static, or runtime with `runtime: true` |
 
 ## Output
 

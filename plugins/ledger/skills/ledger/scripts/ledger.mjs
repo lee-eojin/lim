@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,9 +19,13 @@ const REA_ID = /^ev_[0-9a-f]{64}$/;
 
 const sha256 = (data) => createHash('sha256').update(data).digest('hex');
 
+export function within(base, file) {
+  const relative = path.relative(base, file);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
 function insideRoot(root, relative) {
   const target = path.resolve(root, relative);
-  const within = (base, file) => file === base || file.startsWith(base + path.sep);
   if (!within(root, target)) return false;
   if (!existsSync(target)) return true;
   return within(realpathSync.native(root), realpathSync.native(target));
@@ -83,9 +87,8 @@ export function validate(ledger, root, ledgerDir = root) {
       } else if (shape === 'rea' && (!REA_ID.test(evidence.rea) || typeof evidence.bundle !== 'string')) {
         problems.push(`${label} rea evidence needs rea (an ev_ id) and bundle (the exported Evidence bundle file)`);
       }
-      for (const key of ['file', 'scope']) {
-        if (typeof evidence?.[key] === 'string' && !insideRoot(root, evidence[key].replace(POINTER, '$1'))) problems.push(`${label} evidence path ${evidence[key]} leaves the root`);
-      }
+      if (typeof evidence?.file === 'string' && !insideRoot(root, evidence.file.replace(POINTER, '$1'))) problems.push(`${label} evidence path ${evidence.file} leaves the root`);
+      if (typeof evidence?.scope === 'string' && !insideRoot(root, evidence.scope)) problems.push(`${label} evidence path ${evidence.scope} leaves the root`);
       for (const key of ['output', 'bundle']) {
         if (typeof evidence?.[key] === 'string' && !insideRoot(ledgerDir, evidence[key])) problems.push(`${label} evidence path ${evidence[key]} leaves the ledger's folder`);
       }
@@ -109,7 +112,7 @@ export function validate(ledger, root, ledgerDir = root) {
 
 function listFiles(target, files = []) {
   if (files.length > SEARCH_FILE_LIMIT) return files;
-  const stat = statSync(target);
+  const stat = lstatSync(target);
   if (stat.isFile()) files.push(target);
   else if (stat.isDirectory()) {
     for (const name of readdirSync(target).sort()) {
@@ -132,6 +135,16 @@ export function countHits(root, scope, needle) {
   return { hits, files: files.length };
 }
 
+export const lineCount = (text) => (text === '' ? 0 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0));
+
+const RECORD_KEYS = ['command', 'cwd', 'exitCode', 'signal', 'error', 'ms', 'at', 'stdout', 'stderr', 'sha256'];
+
+function findEvidenceId(value, id) {
+  if (Array.isArray(value)) return value.some((entry) => findEvidenceId(entry, id));
+  if (value === null || typeof value !== 'object') return false;
+  return value.evidence_id === id || Object.values(value).some((entry) => findEvidenceId(entry, id));
+}
+
 export function checkEvidence(root, ledgerDir, evidence) {
   const shape = evidenceShape(evidence);
   if (shape === 'file') {
@@ -141,7 +154,7 @@ export function checkEvidence(root, ledgerDir, evidence) {
     if (!existsSync(target) || !statSync(target).isFile()) return { ok: false, why: `${evidence.file} does not exist` };
     const content = readFileSync(target);
     if (match) {
-      const lines = content.toString('utf8').split('\n').length;
+      const lines = lineCount(content.toString('utf8'));
       const last = Number(match[3] ?? match[2]);
       if (Number(match[2]) < 1 || last < Number(match[2]) || last > lines) return { ok: false, why: `${evidence.file} is past the end of ${file} (${lines} lines)` };
     }
@@ -157,8 +170,13 @@ export function checkEvidence(root, ledgerDir, evidence) {
     } catch {
       return { ok: false, why: `saved output ${evidence.output} is not a record written by ledger.mjs save` };
     }
+    const keys = Object.keys(record ?? {});
+    if (keys.length !== RECORD_KEYS.length || !RECORD_KEYS.every((key) => keys.includes(key)) || !Array.isArray(record.command) || record.command.length === 0) {
+      return { ok: false, why: `saved output ${evidence.output} is not a record written by ledger.mjs save` };
+    }
     const { sha256: stated, ...body } = record;
     if (stated !== sha256(JSON.stringify(body))) return { ok: false, why: `saved output ${evidence.output} was edited after it was saved` };
+    if (evidence.sha256 !== undefined && evidence.sha256 !== stated) return { ok: false, why: `saved output ${evidence.output} is not the record this claim cited` };
     return { ok: true, runtime: true };
   }
   if (shape === 'search') {
@@ -169,7 +187,13 @@ export function checkEvidence(root, ledgerDir, evidence) {
   }
   const bundle = path.resolve(ledgerDir, evidence.bundle);
   if (!existsSync(bundle)) return { ok: false, why: `Evidence bundle ${evidence.bundle} does not exist` };
-  if (!readFileSync(bundle, 'utf8').includes(`"${evidence.rea}"`)) return { ok: false, why: `${evidence.rea} is not in ${evidence.bundle}` };
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(bundle, 'utf8'));
+  } catch {
+    return { ok: false, why: `Evidence bundle ${evidence.bundle} is not JSON` };
+  }
+  if (!findEvidenceId(parsed, evidence.rea)) return { ok: false, why: `${evidence.rea} is not an evidence_id in ${evidence.bundle}` };
   return { ok: true, runtime: evidence.runtime === true };
 }
 
@@ -186,6 +210,8 @@ export function decide(ledger, root, ledgerDir = root) {
     const broken = checks.filter((check) => !check.ok).map((check) => check.why);
     return [claim.id, { status: broken.length ? 'broken' : 'holds', reasons: broken, runtime: checks.some((check) => check.ok && check.runtime), bounded: checks.map((check) => check.bounded).filter(Boolean) }];
   }));
+  const holds = (id) => claimResults.get(id)?.status === 'holds';
+  const clashing = ledger.claims.flatMap((claim) => [claim.contradicts].flat().filter(Boolean).map((other) => [claim.id, other])).filter(([left, right]) => holds(left) && holds(right));
   return ledger.questions.map((question) => {
     const active = ledger.claims.filter((claim) => claim.question === question.id && !superseded.has(claim.id));
     const reasons = [];
@@ -194,7 +220,7 @@ export function decide(ledger, root, ledgerDir = root) {
       for (const why of result.reasons) reasons.push(`${claim.id}: ${why}`);
     }
     const holding = active.filter((claim) => claimResults.get(claim.id).status === 'holds');
-    const clashes = holding.flatMap((claim) => [claim.contradicts].flat().filter((other) => holding.some((candidate) => candidate.id === other)).map((other) => `${claim.id} contradicts ${other}`));
+    const clashes = clashing.filter(([left, right]) => holding.some((claim) => claim.id === left || claim.id === right)).map(([left, right]) => `${left} contradicts ${right}`);
     const open = [...latestUnknowns.values()].filter((unknown) => unknown.question === question.id && unknown.state === 'open');
     for (const unknown of open) reasons.push(`unknown ${unknown.id}: ${unknown.text ?? ''} (next: ${unknown.probe})`.replace(':  (', ': ('));
     const answering = holding.filter((claim) => claim.kind === 'observed' && (question.needs === 'static' || claimResults.get(claim.id).runtime));
@@ -303,7 +329,8 @@ async function main(argv) {
       return 2;
     }
     const { file, body } = saveOutput(loaded.root, loaded.ledgerDir, program);
-    console.log(`saved ${path.relative(loaded.ledgerDir, file).split(path.sep).join('/')} (exit ${body.exitCode}); cite it as {"output": "${path.relative(loaded.ledgerDir, file).split(path.sep).join('/')}"}`);
+    const cite = JSON.stringify({ output: path.relative(loaded.ledgerDir, file).split(path.sep).join('/'), sha256: sha256(JSON.stringify(body)) });
+    console.log(`saved ${path.relative(loaded.ledgerDir, file).split(path.sep).join('/')} (exit ${body.exitCode}); cite it as ${cite}`);
     return 0;
   }
   if (loaded.problems.length) {

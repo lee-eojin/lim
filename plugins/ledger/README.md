@@ -56,7 +56,7 @@ These rules come from REA's skill, which keeps every conclusion an observation, 
 
 ## Measured
 
-[`evals/ledger/behaviors.csv`](../../evals/ledger/behaviors.csv) lists <!--total-->17 behaviors. Unit tests in CI cover <!--tested-->16 of them, running the script against temporary folders. The other <!--rest-->1 is the Bend investigation above, run against Bend at commit b2fe9ce0.
+[`evals/ledger/behaviors.csv`](../../evals/ledger/behaviors.csv) lists <!--total-->24 behaviors. Unit tests in CI cover <!--tested-->23 of them, running the script against temporary folders. The other <!--rest-->1 is the Bend investigation above, run against Bend at commit b2fe9ce0.
 
 ## Files
 
@@ -66,4 +66,5 @@ These rules come from REA's skill, which keeps every conclusion an observation, 
 
 - A search is a literal text search over at most 20000 files. It is a bound you state, not proof of absence everywhere.
 - The script checks that evidence still holds, not that a claim's sentence follows from it. That part is for the reader, which is why each claim names its evidence.
-- REA Evidence is checked by its id appearing in the exported bundle; the bundle's own authentication is REA's job.
+- REA Evidence is checked by its `evidence_id` appearing in the exported bundle; the bundle's own authentication is REA's job.
+- A saved output's SHA-256 catches an edit or a swap made by mistake. It is not a signature: someone who can write the folder can write a matching record. Review `ledger-evidence/` with the ledger when the stakes need it.

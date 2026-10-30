@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { lineCount, within } from '../../plugins/ledger/skills/ledger/scripts/ledger.mjs';
 
 const script = fileURLToPath(new URL('../../plugins/ledger/skills/ledger/scripts/ledger.mjs', import.meta.url));
 
@@ -80,7 +81,7 @@ test('a saved output edited after it was saved breaks the claim', () => {
 
 test('a file line past the end of the file breaks the claim', () => {
   const dir = workspace({ claims: [{ id: 'c.guard', question: 'q.dead-only', statement: 's', kind: 'observed', evidence: [{ file: 'src/cache.js:40' }] }] });
-  assert.match(ledger(dir, 'check').stdout, /src\/cache.js:40 is past the end of src\/cache.js \(5 lines\)/);
+  assert.match(ledger(dir, 'check').stdout, /src\/cache.js:40 is past the end of src\/cache.js \(4 lines\)/);
 });
 
 test('a pinned file that changes afterwards breaks the claim', () => {
@@ -156,7 +157,9 @@ test('REA evidence resolves only when its id is in the exported bundle', () => {
   const dir = workspace({ claims: [claim] }, { 'evidence.json': JSON.stringify({ records: [{ evidence_id: id }] }) });
   assert.equal(ledger(dir, 'check').status, 0);
   writeFileSync(path.join(dir, 'evidence.json'), JSON.stringify({ records: [] }));
-  assert.match(ledger(dir, 'check').stdout, new RegExp(`${id} is not in evidence.json`));
+  assert.match(ledger(dir, 'check').stdout, new RegExp(`${id} is not an evidence_id in evidence.json`));
+  writeFileSync(path.join(dir, 'evidence.json'), JSON.stringify({ records: [], note: id }));
+  assert.match(ledger(dir, 'check').stdout, new RegExp(`${id} is not an evidence_id in evidence.json`));
 });
 
 test('a ledger with problems lists every problem and exits 2', () => {
@@ -201,4 +204,64 @@ test('saved outputs are read from the ledger folder when root is another folder'
   writeFileSync(file, JSON.stringify(current));
   const checked = spawnSync(process.execPath, [script, 'check', '--ledger', file], { encoding: 'utf8' });
   assert.equal(checked.status, 0, checked.stdout);
+});
+
+test('a forged output record with only a hash does not count as a saved run', () => {
+  const dir = workspace({ questions: [{ id: 'q.dead-only', question: 'q', needs: 'runtime' }] });
+  mkdirSync(path.join(dir, 'ledger-evidence'));
+  writeFileSync(path.join(dir, 'ledger-evidence', '1.json'), JSON.stringify({ sha256: '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a' }));
+  const current = read(dir);
+  current.claims[0].evidence = [{ output: 'ledger-evidence/1.json' }];
+  write(dir, current);
+  assert.match(ledger(dir, 'check').stdout, /is not a record written by ledger.mjs save/);
+});
+
+test('a saved output swapped for another record breaks the claim that cited the first', () => {
+  const dir = workspace({ questions: [{ id: 'q.dead-only', question: 'q', needs: 'runtime' }] });
+  const first = JSON.parse(/cite it as (\{.*\})/.exec(ledger(dir, 'save', '--', process.execPath, 'print.mjs').stdout)[1]);
+  ledger(dir, 'save', '--', process.execPath, '-e', 'console.log(1)');
+  const current = read(dir);
+  current.claims[0].evidence = [{ ...first, output: 'ledger-evidence/2.json' }];
+  write(dir, current);
+  assert.match(ledger(dir, 'check').stdout, /is not the record this claim cited/);
+});
+
+test('a contradiction across two questions marks both contradicted', () => {
+  const dir = workspace({
+    questions: [{ id: 'q.one', question: 'one', needs: 'static' }, { id: 'q.two', question: 'two', needs: 'static' }],
+    claims: [
+      { id: 'c.one', question: 'q.one', statement: 'a', kind: 'observed', evidence: [{ file: 'src/cache.js:2' }] },
+      { id: 'c.two', question: 'q.two', statement: 'b', kind: 'observed', evidence: [{ file: 'src/cache.js:3' }], contradicts: 'c.one' },
+    ],
+  });
+  const result = ledger(dir, 'check');
+  assert.match(result.stdout, /\[!\] `q.one`/);
+  assert.match(result.stdout, /\[!\] `q.two`/);
+});
+
+test('a search does not follow links and does not crash on a dangling one', { skip: process.platform === 'win32' && 'symbolic links need extra rights on Windows' }, () => {
+  const outside = mkdtempSync(path.join(tmpdir(), 'ledger-outside-'));
+  writeFileSync(path.join(outside, 'proof.js'), 'EXTERNAL_PROOF\n');
+  const dir = workspace({ claims: [{ id: 'c.x', question: 'q.dead-only', statement: 's', kind: 'observed', evidence: [{ search: 'EXTERNAL_PROOF', scope: 'src', hits: 1 }] }] });
+  symlinkSync(path.join(outside, 'proof.js'), path.join(dir, 'src', 'external.js'));
+  symlinkSync(path.join(outside, 'missing.js'), path.join(dir, 'src', 'dangling.js'));
+  const result = ledger(dir, 'check');
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stdout, /now finds 0, the claim says 1/);
+});
+
+test('a search scope is a path, not a file and line', () => {
+  const dir = workspace({ claims: [{ id: 'c.x', question: 'q.dead-only', statement: 's', kind: 'observed', evidence: [{ search: 'evict', scope: 'src:1', hits: 0 }] }] });
+  assert.match(ledger(dir, 'check').stdout, /scope src:1 does not exist/);
+});
+
+test('lines are counted without the empty piece after the last newline', () => {
+  assert.equal(lineCount(''), 0);
+  assert.equal(lineCount('x\n'), 1);
+  assert.equal(lineCount('x\ny'), 2);
+});
+
+test('a path under a root that ends in a separator is inside it', () => {
+  assert.equal(within(path.parse(process.cwd()).root, path.join(path.parse(process.cwd()).root, 'src', 'a.js')), true);
+  assert.equal(within(path.join(tmpdir(), 'a'), path.join(tmpdir(), 'ab')), false);
 });

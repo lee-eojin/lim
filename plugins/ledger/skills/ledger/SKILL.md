@@ -28,7 +28,7 @@ Write the questions the user's request depends on, one per fact, before reading 
 Start from the smallest view that can answer the question, follow it from its entry point to its result, and widen only where the evidence leaves a concrete gap. For each fact, add a claim with one or more pieces of evidence:
 
 - `{ "file": "src/cache.js:12" }` or `"src/cache.js:12-20"`: a line or range you read. Run `ledger pin` after writing claims so a later change to the file marks them broken.
-- `{ "output": "ledger-evidence/3.json" }`: a command you ran with `ledger save -- <program> <arguments...>`. The script runs it from the ledger's root without a shell and saves the command, exit code, and output with a SHA-256, so an edited record is caught.
+- `{ "output": "ledger-evidence/3.json", "sha256": "..." }`: a command you ran with `ledger save -- <program> <arguments...>`. The script runs it from the ledger's root without a shell, saves the command, exit code, and output with a SHA-256, and prints the exact evidence to cite. An edited or swapped record is caught. Never write a record by hand.
 - `{ "search": "evict(", "scope": "src", "hits": 1 }`: a literal-text search. The script runs it again every time; a different count breaks the claim.
 - `{ "rea": "ev_...", "bundle": "evidence.json", "runtime": true }`: an Evidence ID from REA, with the bundle exported from the REA session. Set `runtime` only for Evidence from a runtime observation.
 
