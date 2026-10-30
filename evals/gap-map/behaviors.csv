@@ -1,0 +1,20 @@
+id,axis,behavior,verified_by,blocking
+G01,do,An obligation closes when its source and owner resolve and every case passed a run,test: an obligation closes when its source and owner resolve and every case passed a run,yes
+G02,stop,An obligation with no run stays open,test: check alone never runs a fixture so an obligation with no run stays open,yes
+G03,stop,A required case with no fixture keeps the obligation open,test: a required case with no fixture keeps the obligation open,yes
+G04,evidence,A verifier that only reads cannot close a claim that needs a run,test: a verifier that only reads cannot close a claim that needs a run,yes
+G05,evidence,A fixture edited after its run reopens the obligation,test: a fixture edited after its run is stale and the obligation reopens,yes
+G06,evidence,A verifier edited after its run reopens the obligation,test: a verifier edited after the run reopens the obligation,yes
+G07,evidence,Extra output after the expected lines fails the fixture,test: extra output after the expected lines fails the fixture with the line that differs,yes
+G08,evidence,Output is compared with the fixture lines after the same trimming as the target harness,test: judge compares stdout with the #| lines and nothing else,yes
+G09,evidence,Merged stdout and stderr keep the order the program wrote them in,test: stdout+stderr keeps the order the program wrote them in,yes
+G10,stop,A verifier past its time limit fails with the limit as the reason,test: a verifier past its time limit fails with the limit as the reason,yes
+G11,stop,A contradiction marks the obligation contradicted even when every case passed,test: a contradiction marks the obligation contradicted even when every case passed,yes
+G12,stop,An open unknown keeps a passing obligation open,test: an open unknown keeps a passing obligation open,yes
+G13,tell,A won't-fix obligation is shown but never counted as proven,test: a won't-fix obligation is shown but never counted as proven,yes
+G14,stop,A pointer past the end of its file does not resolve,test: a source or owner pointer past the end of its file does not resolve,yes
+G15,stop,A map with problems writes nothing and lists every problem,test: a map with problems writes nothing and lists every problem and exits 2,yes
+G16,do,run --id runs only the named obligation and refuses an unknown id,test: run --id runs only the named obligation and refuses an unknown id,yes
+G17,tell,The map draws the legend and every stage and region and transition label and the same map draws the same bytes,test: the map draws a legend chip per group and a box per stage and the region title and every transition label,yes
+G18,tell,A transition back to an earlier stage is drawn dashed and does not change the ranks,test: a transition back to an earlier stage does not change the ranks and is drawn dashed,yes
+G19,do,On Bend the interpreter and C and JS verifiers pass 39 real tests and fail when stderr is left out,manual: 2026-10-31 run against Bend b2fe9ce0 (references/bend.md),no

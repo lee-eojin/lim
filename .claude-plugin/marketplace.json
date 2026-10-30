@@ -25,6 +25,13 @@
       "description": "Prove features by running them: a feature map of commands and expected results, run by a script that decides pass or fail and saves the output as evidence.",
       "version": "0.6.1",
       "category": "development"
+    },
+    {
+      "name": "gap-map",
+      "source": "./plugins/gap-map",
+      "description": "Map a language implementation against its own promises: a statechart of its pipeline and a gap ledger whose obligations close only when real fixtures pass.",
+      "version": "0.1.0",
+      "category": "development"
     }
   ]
 }

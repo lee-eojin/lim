@@ -6,6 +6,7 @@
 [![review-loop](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=review-loop--*&sort=semver&label=review-loop)](../../plugins/review-loop/CHANGELOG.md)
 [![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
+[![gap-map](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=gap-map--*&sort=semver&label=gap-map)](../../plugins/gap-map/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 > このドキュメントは、2026-10-27時点の[英語版README](../../README.md)の翻訳です。両者の内容が異なる場合は、英語版READMEが正しい内容です。
@@ -37,6 +38,7 @@
 | [review-loop](../../plugins/review-loop) | 0.11.10 | コミット前に変更をレビューし、P1とP2の指摘を修正し、再レビューしてから、残りをユーザーに渡します |
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | 概念、コード、エラーを説明するときに答えを先に書き、一つの言葉に一つの意味だけを持たせ、技術用語は公式の英語名で書きます |
 | [verify](../../plugins/verify) | 0.6.1 | 機能を実際に実行して動くことを確かめ、コマンドと出力を証拠として保存します |
+| [gap-map](../../plugins/gap-map) | 0.1.0 | 言語の実装をその言語自身の約束と照らし合わせて地図にし、実際のテストが通ったときだけ穴を閉じたと記録します |
 
 ## インストール
 
