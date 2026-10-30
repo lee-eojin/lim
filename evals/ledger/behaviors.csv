@@ -1,0 +1,18 @@
+id,axis,behavior,verified_by,blocking
+L01,do,An observed claim with a file line that exists answers a static question,test: an observed claim with a file line that exists answers a static question,yes
+L02,stop,An inference never answers a question,test: an inference never answers a question,yes
+L03,evidence,A runtime question needs a saved command output and not a file line,test: a runtime question needs a saved command output and not a file line,yes
+L04,evidence,A saved output edited after it was saved breaks the claim,test: a saved output edited after it was saved breaks the claim,yes
+L05,evidence,A file line past the end of the file breaks the claim,test: a file line past the end of the file breaks the claim,yes
+L06,evidence,A pinned file that changes afterwards breaks the claim,test: a pinned file that changes afterwards breaks the claim,yes
+L07,evidence,A bounded search is rerun and its scope is reported,test: a bounded search is rerun and its scope is reported,yes
+L08,stop,An open unknown keeps the question partial and names the next probe,test: an open unknown keeps the question partial and names the next probe,yes
+L09,do,The latest revision of an unknown decides,test: the latest revision of an unknown decides so a resolved unknown no longer blocks,yes
+L10,stop,Two holding claims that contradict each other mark the question contradicted,test: two holding claims that contradict each other mark the question contradicted,yes
+L11,do,A claim that supersedes another replaces it without deleting it,test: a claim that supersedes another replaces it without deleting it,yes
+L12,tell,A question with no claims is unresolved,test: a question with no claims is unresolved,yes
+L13,evidence,REA evidence resolves only when its id is in the exported bundle,test: REA evidence resolves only when its id is in the exported bundle,yes
+L14,stop,A ledger with problems lists every problem and exits 2,test: a ledger with problems lists every problem and exits 2,yes
+L15,do,save runs the command without a shell from the ledger root,test: save runs the command without a shell from the ledger root,yes
+L16,do,Saved outputs live next to the ledger when root is another folder,test: saved outputs are read from the ledger folder when root is another folder,yes
+L17,do,On Bend the ledger answered three questions about the termination rule from code lines and saved runs,manual: 2026-10-31 investigation in ~/orca/workspaces/bend/ledger against Bend b2fe9ce0,no

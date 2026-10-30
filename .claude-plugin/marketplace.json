@@ -32,6 +32,13 @@
       "description": "Map a language implementation against its own promises: a statechart of its pipeline and a gap ledger whose obligations close only when real fixtures pass.",
       "version": "0.1.0",
       "category": "development"
+    },
+    {
+      "name": "ledger",
+      "source": "./plugins/ledger",
+      "description": "Keep an investigation's observations, inferences, and unknowns apart, each tied to evidence a script checks again, and end with every question marked answered, partial, unresolved, or contradicted.",
+      "version": "0.1.0",
+      "category": "development"
     }
   ]
 }

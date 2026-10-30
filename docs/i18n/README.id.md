@@ -7,6 +7,7 @@
 [![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](../../plugins/verify/CHANGELOG.md)
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](../../plugins/clear-explain/CHANGELOG.md)
 [![gap-map](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=gap-map--*&sort=semver&label=gap-map)](../../plugins/gap-map/CHANGELOG.md)
+[![ledger](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=ledger--*&sort=semver&label=ledger)](../../plugins/ledger/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
 Ini adalah terjemahan dari [README bahasa Inggris](../../README.md) per 2026-10-27. Jika keduanya berbeda, README bahasa Inggris yang benar.
@@ -39,6 +40,7 @@ Silakan fork, ubah, dan jadikan milikmu. Issue dan pull request dipersilakan.
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Menjelaskan konsep, kode, dan error dengan jawaban di awal, satu makna untuk setiap kata, dan istilah teknis dengan nama resmi berbahasa Inggris. |
 | [verify](../../plugins/verify) | 0.6.1 | Membuktikan fitur-fiturmu berjalan dengan menjalankannya, lalu menyimpan perintah dan output-nya sebagai bukti. |
 | [gap-map](../../plugins/gap-map) | 0.1.0 | Memetakan implementasi sebuah bahasa terhadap janjinya sendiri, dan hanya menutup celah saat tes nyata lolos. |
+| [ledger](../../plugins/ledger) | 0.1.0 | Memisahkan pengamatan, inferensi, dan hal yang belum diketahui dalam penyelidikan, dan hanya menandai pertanyaan terjawab saat buktinya masih berlaku. |
 
 ## Pemasangan
 

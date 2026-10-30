@@ -7,6 +7,7 @@
 [![verify](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=verify--*&sort=semver&label=verify)](plugins/verify/CHANGELOG.md)
 [![clear-explain](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=clear-explain--*&sort=semver&label=clear-explain)](plugins/clear-explain/CHANGELOG.md)
 [![gap-map](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=gap-map--*&sort=semver&label=gap-map)](plugins/gap-map/CHANGELOG.md)
+[![ledger](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=ledger--*&sort=semver&label=ledger)](plugins/ledger/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 English | [한국어](docs/i18n/README.ko.md) | [日本語](docs/i18n/README.ja.md) | [简体中文](docs/i18n/README.zh-CN.md) | [繁體中文](docs/i18n/README.zh-TW.md) | [Español](docs/i18n/README.es.md) | [Português (Brasil)](docs/i18n/README.pt-BR.md) | [Français](docs/i18n/README.fr.md) | [Deutsch](docs/i18n/README.de.md) | [Русский](docs/i18n/README.ru.md) | [Tiếng Việt](docs/i18n/README.vi.md) | [Bahasa Indonesia](docs/i18n/README.id.md)
@@ -37,6 +38,7 @@ Fork it, change it, make it yours. Issues and pull requests are welcome.
 | [clear-explain](plugins/clear-explain) | 0.1.5 | Explains concepts, code, and errors with the answer first, one meaning per word, and technical terms in their official English names. |
 | [verify](plugins/verify) | 0.6.1 | Proves your features work by running them, and saves the commands and output as evidence. |
 | [gap-map](plugins/gap-map) | 0.1.0 | Maps a language implementation against its own promises, and marks a gap closed only when real tests pass. |
+| [ledger](plugins/ledger) | 0.1.0 | Keeps an investigation's observations, inferences, and unknowns apart, and marks a question answered only when its evidence still holds. |
 
 ## Install
 
