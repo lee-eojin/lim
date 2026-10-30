@@ -57,7 +57,8 @@ StopIfProven(l) ==
                                                         ELSE l.findings[s]]]
                 : blamed \in (SUBSET tested) \ {{}}}
 
-\* makeUnattended in loop.mjs, with stopWaiting when a fix round has nothing left to fix.
+\* makeUnattended in loop.mjs, with finishFixing when a fix round has nothing left to fix: decideNext with no open
+\* finding holds for proof while a resolved finding lacks it, else stops as waiting or clean.
 MakeUnattended(l) ==
   LET asking == IF l.awaiting = "fix" THEN {s \in InState(l, "open") : l.findings[s].route = "ask"} ELSE {}
       moved == {s \in asking : ~(l.findings[s].attempts = 0 /\ l.findings[s].fixable)}
@@ -66,7 +67,10 @@ MakeUnattended(l) ==
                         CASE s \in moved -> [l.findings[s] EXCEPT !.where = "deferred"]
                           [] s \in asking -> [l.findings[s] EXCEPT !.route = "unattendedFix"]
                           [] OTHER -> l.findings[s]]]
-  IN IF l.awaiting = "fix" /\ InState(l1, "open") = {} THEN Stopped(l1, "waiting", "stopWaiting") ELSE l1
+  IN IF l.awaiting = "fix" /\ InState(l1, "open") = {}
+     THEN IF Unproven(l1) # {} THEN [l1 EXCEPT !.awaiting = "proof"]
+          ELSE Stopped(l1, IF InState(l1, "deferred") # {} THEN "waiting" ELSE "clean", "stopWaiting")
+     ELSE l1
 
 \* makeAttended in loop.mjs.
 MakeAttended(l) ==
@@ -122,7 +126,7 @@ BeingFixed(l, s) ==
   IN /\ f.kind = "reviewer"
      /\ \/ l.awaiting = "fix" /\ f.where \in {"open", "deferred"}
         \/ f.decision = "once"
-        \/ l.awaiting = "proof" /\ f.where = "resolved"
+        \/ f.where = "resolved" /\ (l.awaiting = "proof" \/ f.regression = "none")
 
 Init ==
   /\ loop = [awaiting |-> "none", round |-> 0, counts |-> <<>>, unattended |-> FALSE, stopReason |-> "none",
@@ -210,11 +214,11 @@ View == loop
 WithinBounds == loop.round <= RoundLimit
 
 \* reviewVerdict in loop.mjs, when HEAD, the working tree, and the staged tree all match the review and no
-\* skip-once is pending: deny while a resolved finding lacks proof in the proof state, while the loop is
+\* skip-once is pending: deny while a resolved finding lacks proof in any state, while the loop is
 \* unfinished, or while a finding waits for a decision. Otherwise it allows the commit or asks to confirm it.
 GateAllows(l) ==
   /\ l.awaiting # "none"
-  /\ ~(l.awaiting = "proof" /\ Unproven(l) # {})
+  /\ Unproven(l) = {}
   /\ l.awaiting \notin Unfinished
   /\ Pending(l) = {}
 

@@ -24,16 +24,14 @@ It needs Java 11 or later. It downloads `.tools/tla2tools.jar` (TLA+ tools v1.7.
 
 | Invariant | Stop path it checks | Result |
 | --- | --- | --- |
-| `DecideNextStopHasProof` | `recordReview` stops clean or waiting through `decideNext` | PASS, 653213 distinct states |
-| `StopIfProvenStopHasProof` | `stopIfProven` stops after the final checks | PASS, 653213 distinct states |
-| `StopWaitingStopHasProof` | `makeUnattended` calls `stopWaiting` | FAIL, known finding 1 |
-| `GateNeedsProof` | `reviewVerdict` after any stop | FAIL, known finding 2 |
+| `DecideNextStopHasProof` | `recordReview` stops clean or waiting through `decideNext` | PASS, 657321 distinct states |
+| `StopIfProvenStopHasProof` | `stopIfProven` stops after the final checks | PASS, 657321 distinct states |
+| `StopWaitingStopHasProof` | `makeUnattended` finishes the fix round through `finishFixing` and `decideNext` | PASS, 657321 distinct states |
+| `GateNeedsProof` | `reviewVerdict` after any stop | PASS, 657321 distinct states |
 
-Known finding 1. Round 1 has F-1 to fix. Round 2 resolves F-1 and reports F-2, which needs your call. `start --unattended` (or `unattended --on`) moves F-2 to deferred and `stopWaiting` stops the loop as waiting with F-1 unproven. The trace has 5 steps and ends in `start --unattended (resumes the run)`.
+Two findings this check reported were fixed by #213 (issues #210 and #211), and the model's `MakeUnattended`, `BeingFixed`, and `GateAllows` actions were updated to match. Finding 1: an unattended resume that deferred the last open finding stopped as waiting with F-1 unproven; `tests/scripts/check-loop-model.trace.txt` is its 5-step counterexample from before the fix. Finding 2: after a stop with findings still open (`integrity`, `max-rounds`, `stalled`, `stuck`, `regression`), the gate asked "Commit now?" once every finding was decided, with F-1 unproven. Reverting either action's fix in the model makes its invariant fail again, which is how the check shows it can still fail on these paths.
 
-Known finding 2. A stop with findings still open (`integrity`, `max-rounds`, `stalled`, `stuck`, `regression`) never asks for proof, and #198 left that out of scope. Once every open finding is decided, the gate trusts the stop and asks "Commit now?". The trace has 6 steps: F-1 is resolved in round 2, `next` weakens a test, and `decide --id F-2 --choice keep` follows.
-
-Both findings were replayed on the real CLI at the sync commit: after the last step, `loop status` shows the loop stopped, and once every finding is decided `gateDecision` answers `ask` ("Commit now?" for finding 1) while F-1 has no regression test or no-test reason.
+Only `decideNext` is read from `loop.mjs`. The other actions are written by hand, so a change to `makeUnattended`, `isBeingFixed`, or `reviewVerdict` reaches the check only after its action is updated.
 
 Any other result is new. When a known finding is fixed, its invariant passes. Update this table in the same pull request.
 
@@ -67,6 +65,6 @@ Any other result is new. When a known finding is fixed, its invariant passes. Up
 - `plugins/review-loop/skills/review-loop/scripts/loop.mjs`: `decideNext` (generated table), `recordReview`, `next`, `stopIfProven`, `needsProof`, `hasRegressionProof`, `isBeingFixed`, `rule`, `recordNoTest`, `decide`, `start`, `isInProgress`, `pendingDecisionIds`, `decidableFindings`, `setUnattended`, `makeUnattended`, `makeAttended`, `stopWaiting`, `unattendedFixable`, `defer`, `reviewVerdict`, `UNFINISHED`.
 - `scripts/loop-model/ReviewLoop.tla`, `scripts/loop-model/ReviewLoop.cfg`, `scripts/check-loop-model.mjs`, `tests/scripts/check-loop-model.test.mjs`.
 
-Sync commit: `b2ebb32`. The model was last confirmed against `loop.mjs` at this commit.
+Sync commit: `ff6611b`. The model was last confirmed against `loop.mjs` at this commit.
 
-To see what changed in covered code since then, run `git diff b2ebb32 -- plugins/review-loop/skills/review-loop/scripts/loop.mjs | grep '^@@'`. Git names the enclosing function in each hunk header. Move the sync commit forward only after you have read every changed covered function against its action and the check gives the expected result. Use `git rev-parse --short refs/remotes/origin/main` for the new value.
+To see what changed in covered code since then, run `git diff ff6611b -- plugins/review-loop/skills/review-loop/scripts/loop.mjs | grep '^@@'`. Git names the enclosing function in each hunk header. Move the sync commit forward only after you have read every changed covered function against its action and the check gives the expected result. Use `git rev-parse --short refs/remotes/origin/main` for the new value.
