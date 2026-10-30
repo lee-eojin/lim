@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { decide, judge, loadMap } from '../../plugins/gap-map/skills/gap-map/scripts/gapmap.mjs';
+import { decide, judge, lineCount, loadMap, within } from '../../plugins/gap-map/skills/gap-map/scripts/gapmap.mjs';
 import { rank as rankStages, renderSvg, wrap } from '../../plugins/gap-map/skills/gap-map/scripts/render.mjs';
 
 const script = fileURLToPath(new URL('../../plugins/gap-map/skills/gap-map/scripts/gapmap.mjs', import.meta.url));
@@ -328,4 +328,17 @@ test('a stage whose id looks like an internal routing id still renders', () => {
   const edges = [{ from: 'a', to: 'c', label: 'skip' }, { from: 'a', to: 'b', label: 'x' }, { from: 'b', to: 'c', label: 'y' }, { from: 'c', to: 'edge-0-1', label: 'z' }];
   const svg = renderSvg({ target: 'T', groups: [{ id: 'g', label: 'G' }], stages, edges }, { byStage: new Map() });
   assert.ok(svg.includes('>edge-0-1<'));
+});
+
+test('a pointer one line past the last newline does not resolve', () => {
+  const { dir } = project(withObligation(() => ({ owner: 'src/check.ts:4' })));
+  gapmap(dir, 'run');
+  assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('owner src/check.ts:4 does not resolve to a file and line'));
+  assert.deepEqual([lineCount(''), lineCount('x\n'), lineCount('x\ny')], [0, 1, 2]);
+});
+
+test('a path under a root that ends in a separator is inside it', () => {
+  const top = path.parse(process.cwd()).root;
+  assert.equal(within(top, path.join(top, 'src', 'a.bend')), true);
+  assert.equal(within(path.join(tmpdir(), 'a'), path.join(tmpdir(), 'ab')), false);
 });

@@ -47,9 +47,15 @@ function ids(list, label, problems) {
   return seen;
 }
 
+export function within(base, file) {
+  const relative = path.relative(base, file);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+export const lineCount = (text) => (text === '' ? 0 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0));
+
 function insideRoot(root, relative) {
   const target = path.resolve(root, relative);
-  const within = (base, file) => file === base || file.startsWith(base + path.sep);
   if (!within(root, target)) return false;
   if (!existsSync(target)) return true;
   return within(realpathSync.native(root), realpathSync.native(target));
@@ -142,7 +148,7 @@ export function resolvePointer(root, pointer) {
   if (!existsSync(target) || !statSync(target).isFile()) return false;
   if (!match) return true;
   const line = Number(match[2]);
-  return line >= 1 && line <= readFileSync(target, 'utf8').split('\n').length;
+  return line >= 1 && line <= lineCount(readFileSync(target, 'utf8'));
 }
 
 export function ownerDigest(root, owner) {
