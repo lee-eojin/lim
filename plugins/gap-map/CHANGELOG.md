@@ -2,6 +2,11 @@
 
 All notable changes to gap-map. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## 0.2.2 (2026-10-31)
+
+- Fixed: The skill runs `gapmap.mjs` as a command of its own, so an allow rule such as `Bash(node:*)` matches it. (#227)
+- Fixed: A `basis` search whose scope holds the map no longer counts `gap-map.json` and the `gap-map/` outputs. (#228)
+
 ## 0.2.1 (2026-10-31)
 
 - Fixed: A `source`, `owner`, or `basis` pointer can name a line range such as `WONTFIX.txt:30-32`, as ledger already allowed; it used to be read as a file name and never resolved. (#224)

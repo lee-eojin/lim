@@ -2,7 +2,7 @@
 
 All notable changes to ledger. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.1.1 (2026-10-31)
 
 - Fixed: The skill runs `ledger.mjs` as a command of its own, so an allow rule such as `Bash(node:*)` matches it; a headless run used to chain it after `ls` and get it refused. (#227)
 - Fixed: A search whose scope holds the ledger no longer counts `ledger.json` and `ledger.md`, so a claim backed by a search of the whole folder does not break the moment it is written. (#228)
