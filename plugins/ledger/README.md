@@ -56,7 +56,7 @@ These rules come from REA's skill, which keeps every conclusion an observation, 
 
 ## Measured
 
-[`evals/ledger/behaviors.csv`](../../evals/ledger/behaviors.csv) lists <!--total-->24 behaviors. Unit tests in CI cover <!--tested-->23 of them, running the script against temporary folders. The other <!--rest-->1 is the Bend investigation above, run against Bend at commit b2fe9ce0.
+[`evals/ledger/behaviors.csv`](../../evals/ledger/behaviors.csv) lists <!--total-->25 behaviors. Unit tests in CI cover <!--tested-->24 of them, running the script against temporary folders. The other <!--rest-->1 is the Bend investigation above, run against Bend at commit b2fe9ce0.
 
 ## Files
 

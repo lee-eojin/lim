@@ -63,6 +63,8 @@ Each piece has exactly one of these keys:
 | `search` with `scope` and `hits` | searching `scope` for the literal text again finds exactly `hits` (`.git`, `node_modules`, and `ledger-evidence` are skipped, links are not followed, at most 20000 files) | static, reported with its scope |
 | `rea` (`ev_` and 64 hex digits) with `bundle` | the exported REA Evidence bundle is JSON and has a record whose `evidence_id` is that id; `runtime: true` for runtime Evidence | static, or runtime with `runtime: true` |
 
+gap-map's `basis` uses the same `file` and `search` rules; ledger adds `output`, `rea`, and `pin`. A test runs both plugins' copies of these rules against the same cases, so they cannot drift apart.
+
 ## Output
 
 - `ledger.md`: the checklist with each claim's kind and state, the bounded searches, and why each unanswered question is not answered.

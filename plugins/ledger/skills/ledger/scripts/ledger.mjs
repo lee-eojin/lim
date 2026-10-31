@@ -145,6 +145,19 @@ function findEvidenceId(value, id) {
   return value.evidence_id === id || Object.values(value).some((entry) => findEvidenceId(entry, id));
 }
 
+export function resolvePointer(root, pointer) {
+  if (typeof pointer !== 'string' || !pointer.trim()) return false;
+  const match = POINTER.exec(pointer);
+  const file = match ? match[1] : pointer;
+  if (!insideRoot(root, file)) return false;
+  const target = path.resolve(root, file);
+  if (!existsSync(target) || !statSync(target).isFile()) return false;
+  if (!match) return true;
+  const first = Number(match[2]);
+  const last = Number(match[3] ?? match[2]);
+  return first >= 1 && last >= first && last <= lineCount(readFileSync(target, 'utf8'));
+}
+
 export function checkEvidence(root, ledgerDir, evidence) {
   const shape = evidenceShape(evidence);
   if (shape === 'file') {
@@ -153,11 +166,7 @@ export function checkEvidence(root, ledgerDir, evidence) {
     const target = path.resolve(root, file);
     if (!existsSync(target) || !statSync(target).isFile()) return { ok: false, why: `${evidence.file} does not exist` };
     const content = readFileSync(target);
-    if (match) {
-      const lines = lineCount(content.toString('utf8'));
-      const last = Number(match[3] ?? match[2]);
-      if (Number(match[2]) < 1 || last < Number(match[2]) || last > lines) return { ok: false, why: `${evidence.file} is past the end of ${file} (${lines} lines)` };
-    }
+    if (!resolvePointer(root, evidence.file)) return { ok: false, why: `${evidence.file} is past the end of ${file} (${lineCount(content.toString('utf8'))} lines)` };
     if (evidence.sha256 !== undefined && evidence.sha256 !== sha256(content)) return { ok: false, why: `${file} changed after the claim was pinned` };
     return { ok: true, runtime: false };
   }
