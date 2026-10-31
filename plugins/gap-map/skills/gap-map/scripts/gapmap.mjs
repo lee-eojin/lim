@@ -15,7 +15,7 @@ export const DISPOSITIONS = ['active', 'wontfix', 'blocked'];
 const STAGE_KINDS = ['state', 'end', 'stopped'];
 const STREAMS = ['stdout', 'stdout+stderr'];
 const ID_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
-const POINTER = /^(.+?):(\d+)$/;
+const POINTER = /^(.+?):(\d+)(?:-(\d+))?$/;
 const DEFAULT_TIMEOUT_MS = 60 * 1000;
 const MAX_TIMEOUT_MS = 10 * 60 * 1000;
 const EXCERPT = 2000;
@@ -161,8 +161,9 @@ export function resolvePointer(root, pointer) {
   const target = path.resolve(root, file);
   if (!existsSync(target) || !statSync(target).isFile()) return false;
   if (!match) return true;
-  const line = Number(match[2]);
-  return line >= 1 && line <= lineCount(readFileSync(target, 'utf8'));
+  const first = Number(match[2]);
+  const last = Number(match[3] ?? match[2]);
+  return first >= 1 && last >= first && last <= lineCount(readFileSync(target, 'utf8'));
 }
 
 export function ownerDigest(root, owner) {

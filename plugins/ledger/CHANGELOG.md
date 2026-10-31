@@ -4,7 +4,7 @@ All notable changes to ledger. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
-Nothing yet.
+- Internal: The file, line, and search rules are tested against gap-map's copy on the same cases. (#224)
 
 ## 0.1.0 (2026-10-31)
 

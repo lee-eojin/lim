@@ -66,14 +66,14 @@ Every field the script reads. The script refuses unknown references (a stage, gr
 ## Obligations
 
 - `id`: lowercase letters, digits, `.`, `_`, `-`.
-- `stage`, `claim`, `source`, `owner`: `source` and `owner` are `file:line` or a file. A pointer that does not resolve keeps the obligation open.
+- `stage`, `claim`, `source`, `owner`: `source` and `owner` are `file`, `file:line`, or `file:first-last`. A pointer that does not resolve keeps the obligation open.
 - `cases`: one or more of `positive`, `negative`, `malformed`, `boundary`, `parity`, `teardown`.
 - `authority`: `run` or `read`.
 - `fixtures`: `{ case, path, verifier }`, with `case` from this obligation's `cases`.
 - `disposition` (optional): `active` (the default), `blocked`, or `wontfix`.
 - `unknowns`, `contradictions` (optional): lists of sentences. Any unknown keeps the obligation open; any contradiction makes it `contradicted`.
 - `question` (optional): the design decision the project has to make. Listed first in `gaps.md`.
-- `basis` (required with `question`): what the question rests on, each entry `{ "file": "path:line" }` or `{ "search": "literal text", "scope": "folder or file", "hits": 0 }`. The script checks each line and reruns each search (links are not followed, `.git` and `node_modules` are skipped, at most 20000 files). A basis that no longer holds keeps the obligation open and marks the question stale.
+- `basis` (required with `question`): what the question rests on, with the same file and search rules as ledger's `evidence`. Each entry is `{ "file": "path:line" }` or `{ "search": "literal text", "scope": "folder or file", "hits": 0 }`. The script checks each line and reruns each search (links are not followed, `.git` and `node_modules` are skipped, at most 20000 files). A basis that no longer holds keeps the obligation open and marks the question stale.
 
 ## Output
 
