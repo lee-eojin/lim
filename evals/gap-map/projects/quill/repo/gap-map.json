@@ -1,0 +1,28 @@
+{
+  "target": "Quill",
+  "goal": "Every promise in README.md and GUIDE.md holds when a program runs, and WONTFIX.md lists what it will not do.",
+  "groups": [
+    { "id": "run", "label": "Run", "tone": "teal" },
+    { "id": "done", "label": "Printed", "tone": "orange" },
+    { "id": "refused", "label": "Refused", "tone": "pink" }
+  ],
+  "stages": [
+    { "id": "read", "label": "Reading the program", "group": "run" },
+    { "id": "evaluate", "label": "Evaluating each line", "group": "run" },
+    { "id": "printed", "label": "Printed every result, exit 0", "group": "done", "kind": "end" },
+    { "id": "refused", "label": "Printed an error, exit 1", "group": "refused", "kind": "end" }
+  ],
+  "edges": [
+    { "from": "read", "to": "evaluate", "label": "every line reads" },
+    { "from": "evaluate", "to": "printed", "label": "every line evaluates" },
+    { "from": "evaluate", "to": "refused", "label": "a line is refused" }
+  ],
+  "verifiers": {
+    "quill": {
+      "run": ["node", "quill.js", "{fixture}"],
+      "authority": "run",
+      "pass": { "fixtureLines": { "prefix": "#|", "streams": "stdout+stderr", "exitLine": "exit {code}" } }
+    }
+  },
+  "obligations": []
+}

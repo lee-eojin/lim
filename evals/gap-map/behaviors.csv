@@ -34,3 +34,9 @@ G33,evidence,A basis line past the end of its file keeps the obligation open,tes
 G34,do,On Bend the interpreter and C and JS verifiers pass 39 real tests and fail when stderr is left out,manual: 2026-10-31 run against Bend b2fe9ce0 (references/bend.md),no
 G35,evidence,A pointer can name a line range and resolves only when the whole range is inside the file,test: gap-map resolves file and line pointers by the shared rules,yes
 G36,evidence,A basis search over the root does not count the map that cites it or its outputs,test: a basis search over the root does not count the map that cites it or its outputs,yes
+G37,evidence,Claude does not mark a promise proven when its test fails or no test exists,eval: right-associative-power and comments in evals/gap-map/run-benchmark.mjs,no
+G38,evidence,Claude records two sources that disagree as a contradiction,eval: number-size in evals/gap-map/run-benchmark.mjs,no
+G39,do,Claude writes an obligation for every promise and closes the ones real tests prove,eval: arithmetic and division-by-zero and immutable-bindings and no-floats in evals/gap-map/run-benchmark.mjs,no
+G40,stop,Claude does not edit the target's tests or code while mapping it,eval: tampered in evals/gap-map/results/,no
+G41,evidence,The benchmark scorer marks an honest reference map correct and an overclaiming one not,test: the gap-map benchmark scores the honest reference map correct and the overclaiming one not,yes
+G42,evidence,No file in the plugin names a benchmark language or its tests,test: no file in the gap-map plugin names a benchmark language or its tests,yes
