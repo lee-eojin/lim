@@ -36,7 +36,8 @@ export function loadMap(mapPath) {
   }
   const mapDir = path.dirname(path.resolve(mapPath));
   const root = path.resolve(mapDir, map.root ?? '.');
-  return { map, mapDir, root, problems: validate(map, root) };
+  const ignored = [path.resolve(mapPath), path.join(mapDir, OUT_FOLDER)];
+  return { map, mapDir, root, ignored, problems: validate(map, root) };
 }
 
 function ids(list, label, problems) {
@@ -186,7 +187,7 @@ export function verifierDigest(verifier, root) {
 
 export const resultKey = (obligationId, fixture) => `${obligationId}|${fixture.case}|${fixture.path}|${fixture.verifier}`;
 
-export function decide(obligation, { root, verifiers, results }) {
+export function decide(obligation, { root, verifiers, results, ignored = [] }) {
   const reasons = [];
   if (obligation.disposition === 'wontfix') return { status: 'wontfix', reasons: ['the project will not fix this; shown, never counted as proven'] };
   if (obligation.disposition === 'blocked') reasons.push('blocked: the authority this claim needs is not available here');
@@ -212,7 +213,7 @@ export function decide(obligation, { root, verifiers, results }) {
       else if (!result.passed) reasons.push(`${kind}: ${fixture.path} failed (${result.why})`);
     }
   }
-  for (const why of checkBasis(root, obligation.basis ?? [])) reasons.push(`basis: ${why}`);
+  for (const why of checkBasis(root, obligation.basis ?? [], ignored)) reasons.push(`basis: ${why}`);
   for (const unknown of obligation.unknowns ?? []) reasons.push(`unknown: ${unknown}`);
   const contradictions = obligation.contradictions ?? [];
   for (const contradiction of contradictions) reasons.push(`contradiction: ${contradiction}`);
@@ -223,20 +224,20 @@ export function decide(obligation, { root, verifiers, results }) {
 
 const tidy = (text) => text.replace(/[ \t]+$/gm, '').trim();
 
-function listFiles(target, files = []) {
-  if (files.length > SEARCH_FILE_LIMIT) return files;
+function listFiles(target, files = [], ignored = new Set()) {
+  if (files.length > SEARCH_FILE_LIMIT || ignored.has(target)) return files;
   const stat = lstatSync(target);
   if (stat.isFile()) files.push(target);
   else if (stat.isDirectory()) {
-    for (const name of readdirSync(target).sort()) if (!SKIPPED_FOLDERS.has(name)) listFiles(path.join(target, name), files);
+    for (const name of readdirSync(target).sort()) if (!SKIPPED_FOLDERS.has(name)) listFiles(path.join(target, name), files, ignored);
   }
   return files;
 }
 
-export function countHits(root, scope, needle) {
+export function countHits(root, scope, needle, ignored = []) {
   const target = path.resolve(root, scope);
   if (!existsSync(target)) return { error: `scope ${scope} does not exist` };
-  const files = listFiles(target);
+  const files = listFiles(target, [], new Set(ignored.map((file) => path.resolve(file))));
   if (files.length > SEARCH_FILE_LIMIT) return { error: `scope ${scope} has more than ${SEARCH_FILE_LIMIT} files; narrow it` };
   let hits = 0;
   for (const file of files) {
@@ -246,10 +247,10 @@ export function countHits(root, scope, needle) {
   return { hits };
 }
 
-export function checkBasis(root, basis) {
+export function checkBasis(root, basis, ignored = []) {
   return basis.flatMap((entry) => {
     if (entry.file !== undefined) return resolvePointer(root, entry.file) ? [] : [`${entry.file} does not resolve to a file and line`];
-    const counted = countHits(root, entry.scope, entry.search);
+    const counted = countHits(root, entry.scope, entry.search, ignored);
     if (counted.error) return [counted.error];
     return counted.hits === entry.hits ? [] : [`searching ${entry.scope} for ${JSON.stringify(entry.search)} now finds ${counted.hits}, the question says ${entry.hits}`];
   });
@@ -461,7 +462,7 @@ async function main(argv) {
     console.log(`ran ${ran.length} fixture(s): ${ran.length - failed.length} passed, ${failed.length} failed`);
     for (const record of failed) console.log(`- ${record.obligation} ${record.case} ${record.path}: ${record.why}`);
   }
-  const context = { root: loaded.root, verifiers: loaded.map.verifiers ?? {}, results };
+  const context = { root: loaded.root, verifiers: loaded.map.verifiers ?? {}, results, ignored: loaded.ignored };
   const decisions = new Map(loaded.map.obligations.map((obligation) => [obligation.id, decide(obligation, context)]));
   const summary = summarize(loaded.map, decisions);
   writeFileSync(path.join(outDir, 'gaps.md'), `${gapsMarkdown(loaded.map, decisions, summary)}\n`);

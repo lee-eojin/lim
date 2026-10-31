@@ -46,7 +46,7 @@ A contradiction between two sources makes it `contradicted`, even when every fix
 
 ## Measured
 
-[`evals/gap-map/behaviors.csv`](../../evals/gap-map/behaviors.csv) lists <!--total-->34 behaviors. Unit tests in CI cover <!--tested-->33 of them, running the script against temporary projects with `node` verifiers. The other <!--rest-->1 is the run against Bend itself, recorded in [references/bend.md](skills/gap-map/references/bend.md): 39 real Bend tests passed on the interpreter, C, and JS lanes, and the interpreter verifier failed two expected-failure tests once stderr was left out.
+[`evals/gap-map/behaviors.csv`](../../evals/gap-map/behaviors.csv) lists <!--total-->35 behaviors. Unit tests in CI cover <!--tested-->34 of them, running the script against temporary projects with `node` verifiers. The other <!--rest-->1 is the run against Bend itself, recorded in [references/bend.md](skills/gap-map/references/bend.md): 39 real Bend tests passed on the interpreter, C, and JS lanes, and the interpreter verifier failed two expected-failure tests once stderr was left out.
 
 ## Files
 

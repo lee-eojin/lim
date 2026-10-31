@@ -373,3 +373,10 @@ test('a basis line past the end of its file keeps the obligation open', () => {
   gapmap(dir, 'run');
   assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('basis: docs/guide.md:9 does not resolve to a file and line'));
 });
+
+test('a basis search over the root does not count the map that cites it or its outputs', () => {
+  const { dir } = project(withObligation(() => ({ question: 'Should the guide list every refusal?', basis: [{ search: 'is refused', scope: '.', hits: 1 }] })));
+  gapmap(dir, 'run');
+  gapmap(dir, 'check');
+  assert.equal(status(dir).obligations['check.mismatch'].status, 'closed', JSON.stringify(status(dir).obligations['check.mismatch'].reasons));
+});

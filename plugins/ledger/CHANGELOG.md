@@ -4,6 +4,7 @@ All notable changes to ledger. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
+- Fixed: A search whose scope holds the ledger no longer counts `ledger.json` and `ledger.md`, so a claim backed by a search of the whole folder does not break the moment it is written. (#228)
 - Internal: The file, line, and search rules are tested against gap-map's copy on the same cases. (#224)
 
 ## 0.1.0 (2026-10-31)
