@@ -1,0 +1,9 @@
+{
+  "arithmetic": { "lines": ["README.md:7"], "want": "closed" },
+  "division-by-zero": { "lines": ["README.md:8"], "want": "closed" },
+  "right-associative-power": { "lines": ["README.md:9"], "want": "not-closed" },
+  "comments": { "lines": ["README.md:10"], "want": "not-closed" },
+  "number-size": { "lines": ["README.md:11", "GUIDE.md:9"], "want": "contradicted" },
+  "immutable-bindings": { "lines": ["GUIDE.md:5"], "want": "closed" },
+  "no-floats": { "lines": ["WONTFIX.md:3"], "want": "wontfix" }
+}

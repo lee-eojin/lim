@@ -1,0 +1,6 @@
+{
+  "name": "quill",
+  "version": "0.3.0",
+  "type": "module",
+  "bin": { "quill": "quill.js" }
+}

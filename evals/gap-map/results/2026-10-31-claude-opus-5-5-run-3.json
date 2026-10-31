@@ -1,0 +1,140 @@
+{
+  "date": "2026-10-31T15:10:04.426Z",
+  "model": "claude-opus-5-5",
+  "claudeVersion": "2.1.316 (Claude Code)",
+  "skill": {
+    "path": "plugins/gap-map/skills/gap-map/SKILL.md",
+    "sha256": "d765a69380ffc66c3b58ddc9b792973186aba4cbc6920aa032cc9906fae6bb41"
+  },
+  "prompt": "/gap-map:gap-map Map this language against its README, guide, and won't-fix list: add an obligation for every promise to gap-map.json and run it.",
+  "summary": {
+    "runs": 1,
+    "errors": 0,
+    "verdicts": {
+      "correct": 7
+    },
+    "tamperedRuns": 0,
+    "totalTokens": 350136,
+    "totalCostUsd": 0.4539,
+    "totalWallSeconds": 81
+  },
+  "runs": [
+    {
+      "case": "quill",
+      "wallMs": 81131,
+      "bashCommands": [
+        {
+          "command": "git ls-files | head -100; git ls-files | wc -l",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        },
+        {
+          "command": "for f in README.md GUIDE.md WONTFIX.md gap-map.json package.json; do echo \"=== $f\"; cat -n $f; done; echo \"=== quill.js\"; cat -n quill.js; for f in tests/*; do echo \"=== $f\"; cat -n $f; done",
+          "denied": true,
+          "isError": true,
+          "permission": "reject",
+          "output": "Permission to use Bash has been denied because Claude Code is running in don't ask mode. IMPORTANT: You *may* attempt to accomplish this action using other tools that might naturally be used to accomplish this goal, e.g. using head instead of cat. But you *should not* attempt to work around this den"
+        },
+        {
+          "command": "node /Users/lej/lim-232/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map /private/tmp/quill-vcheck/gap-map.json",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        },
+        {
+          "command": "node /Users/lej/lim-232/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/quill-JP9s8k/gap-map.json",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        }
+      ],
+      "permissionDenials": [
+        {
+          "tool": "Bash",
+          "input": "for f in README.md GUIDE.md WONTFIX.md gap-map.json package.json; do echo \"=== $f\"; cat -n $f; done; echo \"=== quill.js\"; cat -n quill.js; for f in tests/*; do echo \"=== $f\"; cat -n $f; done"
+        }
+      ],
+      "filesWritten": [
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/quill-JP9s8k/gap-map.json",
+        "/private/tmp/quill-vcheck/gap-map.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": 350136,
+      "costUsd": 0.4538600000000001,
+      "turns": 22,
+      "finalMessage": "I ran the gap map. The script counted 4 of 9 obligations as proven:\n\n```\n4 of 9 proven; 4 open, 1 contradicted, 0 blocked, 1 won't fix\n```\n\nThe script ran 6 fixtures: 5 passed and 1 failed. Before trusting the result, I checked that the verifier can fail: a copy outside the repo that leaves out stderr failed on `div_zero.q`, as it should.\n\n## 1. Decisions for the project\n\n- **Contradiction: how big numbers can get** (`numbers.width`)\n  - `README.md:11` says numbers are 64-bit signed integers.\n  - `GUIDE.md:9` says they are arbitrary-precision, so `2 ** 100` prints all 31 digits.\n  - `tests/big.q` expects the 31-digit value, which only the guide allows. If the answer is 64-bit, a second decision follows: what happens on overflow, wrap or error? Neither document mentions overflow (0 hits in each).\n- **Question: the error for `1.5`** (`numbers.float-refused`). `WONTFIX.md:3` says `1.5` will not parse, but no document gives the error text or the exit code. No test contains `1.5`, and neither README nor guide uses the word \"parse\".\n\n## 2. Gaps, stage by stage\n\n**Reading the program (0 of 2 proven)**\n- `read.comments` (`README.md:10`): no test contains `--`. It closes with a test that has a whole-line comment and a comment after code, plus their `#|` expectations.\n- `numbers.float-refused` (`WONTFIX.md:3`): there is no malformed-input test. It can only be written once the `1.5` question above is answered.\n\n**Evaluating each line (1 of 4 proven)**\n- `arith.power-right-assoc` (`README.md:9`): **fails.** `tests/power.q` expects `512` and the program prints `64`. The `power` loop at `quill.js:22-29` groups `**` from the left. The fix is in the interpreter, for example parsing the right side by recursion. The test is correct as written.\n- `bind.let` (`GUIDE.md:5`): no test reads a bound name back. `rebind.q` only binds the same name twice. It closes with a test containing `let x = 2 * 21`, `print x` and `#|42`.\n- `numbers.width`: stays contradicted until the decision above is made, even though `big.q` passes.\n\n## 3. Proven\n- **Printed every result, exit 0:** `run.prints`, each `print` is output (`arith.q`).\n- **Printed an error, exit 1:** `arith.div-zero` (`div_zero.q`) and `bind.immutable` (`rebind.q`).\n- **Evaluating each line:** `arith.add-sub-mul` (`arith.q`).\n\n## 4. What the map leaves out\n- There is one lane (`node quill.js`) and one verifier, the one already in `gap-map.json`. I wrote no verifier of my own.\n- The sample covers all 5 tests in `tests/`.\n- The \"won't fix\" item (floating-point arithmetic) appears in the map but is never counted.\n- I did not map `README.md:13` (\"every test ends in `#|` lines\"). It is a rule about the tests, not behavior a user sees.\n- Two behaviors exist in the code but no document promises them, so they have no obligation: the `x is not bound` and `cannot read:` errors, and division rounding.\n\n## 5. Files\nI edited `gap-map.json` in the repo, as you asked. The script wrote its output next to it in the repo, under `gap-map/`, so these files are new and uncommitted. The scratch map for the failure check is outside the repo, in `/private/tmp/quill-vcheck/`.\n- `gap-map/gaps.md`\n- `gap-map/map.svg`\n- `gap-map/status.json`\n- `gap-map/results.json`\n\nTo regenerate everything:\n```\nnode /Users/lej/lim-232/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/quill-JP9s8k/gap-map.json\n```",
+      "result": "scored",
+      "promises": {
+        "arithmetic": {
+          "verdict": "correct",
+          "obligations": [
+            "arith.add-sub-mul"
+          ],
+          "statuses": [
+            "closed"
+          ]
+        },
+        "division-by-zero": {
+          "verdict": "correct",
+          "obligations": [
+            "arith.div-zero"
+          ],
+          "statuses": [
+            "closed"
+          ]
+        },
+        "right-associative-power": {
+          "verdict": "correct",
+          "obligations": [
+            "arith.power-right-assoc"
+          ],
+          "statuses": [
+            "open"
+          ]
+        },
+        "comments": {
+          "verdict": "correct",
+          "obligations": [
+            "read.comments"
+          ],
+          "statuses": [
+            "open"
+          ]
+        },
+        "number-size": {
+          "verdict": "correct",
+          "obligations": [
+            "numbers.width"
+          ],
+          "statuses": [
+            "contradicted"
+          ]
+        },
+        "immutable-bindings": {
+          "verdict": "correct",
+          "obligations": [
+            "bind.let",
+            "bind.immutable"
+          ],
+          "statuses": [
+            "open",
+            "closed"
+          ]
+        },
+        "no-floats": {
+          "verdict": "correct",
+          "obligations": [
+            "numbers.float-refused",
+            "numbers.floats"
+          ],
+          "statuses": [
+            "open",
+            "wontfix"
+          ]
+        }
+      },
+      "tampered": []
+    }
+  ]
+}

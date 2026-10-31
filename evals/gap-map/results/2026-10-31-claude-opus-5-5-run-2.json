@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-31T15:08:43.128Z",
+  "model": "claude-opus-5-5",
+  "claudeVersion": "2.1.316 (Claude Code)",
+  "skill": {
+    "path": "plugins/gap-map/skills/gap-map/SKILL.md",
+    "sha256": "d765a69380ffc66c3b58ddc9b792973186aba4cbc6920aa032cc9906fae6bb41"
+  },
+  "prompt": "/gap-map:gap-map Map this language against its README, guide, and won't-fix list: add an obligation for every promise to gap-map.json and run it.",
+  "summary": {
+    "runs": 1,
+    "errors": 0,
+    "verdicts": {
+      "correct": 6,
+      "incomplete": 1
+    },
+    "tamperedRuns": 0,
+    "totalTokens": 441239,
+    "totalCostUsd": 0.5421,
+    "totalWallSeconds": 99
+  },
+  "runs": [
+    {
+      "case": "quill",
+      "wallMs": 99388,
+      "bashCommands": [
+        {
+          "command": "git ls-files | head -200; echo; git ls-files | wc -l",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        },
+        {
+          "command": "for f in README.md GUIDE.md WONTFIX.md gap-map.json package.json; do echo \"=== $f\"; cat -n \"$f\"; done",
+          "denied": true,
+          "isError": true,
+          "permission": "reject",
+          "output": "Permission to use Bash has been denied because Claude Code is running in don't ask mode. IMPORTANT: You *may* attempt to accomplish this action using other tools that might naturally be used to accomplish this goal, e.g. using head instead of cat. But you *should not* attempt to work around this den"
+        },
+        {
+          "command": "cat -n quill.js; for f in tests/*.q; do echo \"=== $f\"; cat -n \"$f\"; done",
+          "denied": true,
+          "isError": true,
+          "permission": "reject",
+          "output": "Permission to use Bash has been denied because Claude Code is running in don't ask mode. IMPORTANT: You *may* attempt to accomplish this action using other tools that might naturally be used to accomplish this goal, e.g. using head instead of cat. But you *should not* attempt to work around this den"
+        },
+        {
+          "command": "node /Users/lej/lim-232/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/quill-gapmap-probe/gap-map.json",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        },
+        {
+          "command": "node /Users/lej/lim-232/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/quill-eVN5Qf/gap-map.json",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        }
+      ],
+      "permissionDenials": [
+        {
+          "tool": "Bash",
+          "input": "for f in README.md GUIDE.md WONTFIX.md gap-map.json package.json; do echo \"=== $f\"; cat -n \"$f\"; done"
+        },
+        {
+          "tool": "Bash",
+          "input": "cat -n quill.js; for f in tests/*.q; do echo \"=== $f\"; cat -n \"$f\"; done"
+        }
+      ],
+      "filesWritten": [
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/quill-eVN5Qf/gap-map.json",
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/quill-gapmap-probe/gap-map.json",
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/quill-eVN5Qf/gap-map/decisions.tsv"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": 441239,
+      "costUsd": 0.5420911999999999,
+      "turns": 27,
+      "finalMessage": "```\n3 of 8 proven; 4 open, 1 contradicted, 0 blocked, 1 won't fix\n```\n\nI added 9 obligations to `gap-map.json`, one for each promise in the README, the guide and the won't-fix list, and ran them. One shipped test fails: `tests/power.q` prints `64` instead of `512`.\n\n## 1. A decision for you to make\n\n**`numbers.width`: how big can a number be?** The two documents disagree:\n- `README.md:11`: \"Numbers are 64-bit signed integers.\"\n- `GUIDE.md:9`: \"Numbers are arbitrary-precision integers, so `2 ** 100` prints all 31 digits.\"\n\n`tests/big.q` passes and follows the guide. If you choose 64-bit, you also need to decide what happens on overflow (wrap around, or stop with an error), and `big.q` has to change. If you choose arbitrary precision, `README.md:11` has to change. Neither document mentions overflow (I searched and found nothing).\n\n## 2. The gaps, stage by stage\n\n**Reading the program (0 of 3 proven)**\n- `parse.power_right_assoc`: **the test fails.** The README promises `2 ** 3 ** 2` is `512` (`README.md:9`), but it prints `64`. The parser in `quill.js:24-27` groups `**` from the left, so it computes `(2 ** 3) ** 2`. Making `**` group from the right would fix it, and `power.q` already tests it.\n- `read.comments`: no test contains a `--` comment. A test with a line like `print 1 -- note` and the line `#|1` would close it.\n- `read.float_refused`: `WONTFIX.md:3` says `1.5` \"will not parse\", but no test tries it. The docs also don't say what error message or exit code a parse failure gives, so that needs deciding before a test can be written.\n\n**Evaluating each line (1 of 3 proven, plus 1 contradicted and 1 won't fix)**\n- `let.bind`: rebinding a name is refused, and `tests/rebind.q` proves that. Nothing shows that a bound name can then be used. A test with `let x = 2 * 21` then `print x` and the line `#|42` would close it.\n\n## 3. What is proven\n- **Evaluating each line:** add, subtract and multiply, with `*` before `+` (`arith.q`).\n- **Printed every result, exit 0:** `node quill.js program.q` prints each `print` (`arith.q`).\n- **Printed an error, exit 1:** division by zero is refused with `error: division by zero` and exit 1 (`div_zero.q`).\n\nFloating-point support is on the map as won't fix (`WONTFIX.md:3`) and doesn't count either way.\n\n## 4. What the map leaves out\n- There is one way to run Quill (`node quill.js`) and I ran it on this Mac only.\n- The test runner config was already in `gap-map.json` and I kept it unchanged. To check that it can fail, I ran `div_zero.q` with error output left out, in a separate map outside the repository. It failed as it should.\n- All 5 tests in `tests/` are in use, covering 6 checks. `arith.q` counts for two promises.\n- I didn't count unpromised behavior, such as an unknown name or an unreadable line (`quill.js:46,71`). Nothing in the docs promises it.\n\n## 5. Files\n- `gap-map/gaps.md`, `gap-map/map.svg`, `gap-map/status.json`, `gap-map/results.json`\n- `gap-map/decisions.tsv`: why each obligation is shaped the way it is\n- To regenerate everything: `node /Users/lej/lim-232/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/quill-eVN5Qf/gap-map.json`\n\nThe only changes in the repository are `gap-map.json` and the new `gap-map/` folder, and nothing is committed. The failure-check map is outside the repository, in `../quill-gapmap-probe/`.",
+      "result": "scored",
+      "promises": {
+        "arithmetic": {
+          "verdict": "correct",
+          "obligations": [
+            "arith.int"
+          ],
+          "statuses": [
+            "closed"
+          ]
+        },
+        "division-by-zero": {
+          "verdict": "correct",
+          "obligations": [
+            "arith.div_zero"
+          ],
+          "statuses": [
+            "closed"
+          ]
+        },
+        "right-associative-power": {
+          "verdict": "correct",
+          "obligations": [
+            "parse.power_right_assoc"
+          ],
+          "statuses": [
+            "open"
+          ]
+        },
+        "comments": {
+          "verdict": "correct",
+          "obligations": [
+            "read.comments"
+          ],
+          "statuses": [
+            "open"
+          ]
+        },
+        "number-size": {
+          "verdict": "correct",
+          "obligations": [
+            "numbers.width"
+          ],
+          "statuses": [
+            "contradicted"
+          ]
+        },
+        "immutable-bindings": {
+          "verdict": "incomplete",
+          "obligations": [
+            "let.bind"
+          ],
+          "statuses": [
+            "open"
+          ]
+        },
+        "no-floats": {
+          "verdict": "correct",
+          "obligations": [
+            "read.float_refused",
+            "numbers.float"
+          ],
+          "statuses": [
+            "open",
+            "wontfix"
+          ]
+        }
+      },
+      "tampered": []
+    }
+  ]
+}

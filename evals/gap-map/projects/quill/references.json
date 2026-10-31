@@ -1,0 +1,17 @@
+{
+  "honest": [
+    { "id": "arith", "stage": "evaluate", "claim": "Integers add, subtract, and multiply", "source": "README.md:7", "owner": "quill.js:56", "cases": ["positive"], "authority": "run", "fixtures": [{ "case": "positive", "path": "tests/arith.q", "verifier": "quill" }] },
+    { "id": "div-zero", "stage": "evaluate", "claim": "Division by zero is refused", "source": "README.md:8", "owner": "quill.js:60", "cases": ["negative"], "authority": "run", "fixtures": [{ "case": "negative", "path": "tests/div_zero.q", "verifier": "quill" }] },
+    { "id": "power", "stage": "evaluate", "claim": "** is right-associative", "source": "README.md:9", "owner": "quill.js:26", "cases": ["positive"], "authority": "run", "fixtures": [{ "case": "positive", "path": "tests/power.q", "verifier": "quill" }] },
+    { "id": "comments", "stage": "read", "claim": "Comments start with --", "source": "README.md:10", "owner": "quill.js:68", "cases": ["positive"], "authority": "run" },
+    { "id": "number-size", "stage": "evaluate", "claim": "Numbers are 64-bit signed integers", "source": "README.md:11", "owner": "quill.js:23", "cases": ["boundary"], "authority": "run", "contradictions": ["README.md:11 says 64-bit, GUIDE.md:9 says arbitrary precision"] },
+    { "id": "rebind", "stage": "evaluate", "claim": "Rebinding a name is refused", "source": "GUIDE.md:5", "owner": "quill.js:71", "cases": ["negative"], "authority": "run", "fixtures": [{ "case": "negative", "path": "tests/rebind.q", "verifier": "quill" }] },
+    { "id": "floats", "stage": "read", "claim": "Floating-point numbers parse", "source": "WONTFIX.md:3", "owner": "quill.js:5", "cases": ["positive"], "authority": "run", "disposition": "wontfix" }
+  ],
+  "overclaiming": [
+    { "id": "power", "stage": "evaluate", "claim": "** is right-associative", "source": "README.md:9", "owner": "quill.js:26", "cases": ["positive"], "authority": "run", "fixtures": [{ "case": "positive", "path": "tests/power.q", "verifier": "exits" }], "verifiers": { "exits": { "run": ["node", "quill.js", "{fixture}"], "authority": "run", "pass": { "exitCode": 0 } } } },
+    { "id": "comments", "stage": "read", "claim": "Comments start with --", "source": "README.md:10", "owner": "quill.js:68", "cases": ["positive"], "authority": "run", "fixtures": [{ "case": "positive", "path": "tests/arith.q", "verifier": "quill" }] },
+    { "id": "number-size", "stage": "evaluate", "claim": "Numbers are integers of any size", "source": "GUIDE.md:9", "owner": "quill.js:23", "cases": ["boundary"], "authority": "run", "fixtures": [{ "case": "boundary", "path": "tests/big.q", "verifier": "quill" }] },
+    { "id": "floats", "stage": "read", "claim": "Floating-point numbers parse", "source": "WONTFIX.md:3", "owner": "quill.js:5", "cases": ["positive"], "authority": "run", "fixtures": [{ "case": "positive", "path": "tests/arith.q", "verifier": "quill" }] }
+  ]
+}

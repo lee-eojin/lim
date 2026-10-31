@@ -55,9 +55,9 @@ export function scoreLedger(ledgerPath, seed, expected) {
   }));
 }
 
-function runClaude({ cwd, model, timeoutSeconds }) {
+export function runClaude({ cwd, model, timeoutSeconds, prompt = PROMPT, plugin = pluginDir }) {
   const args = [
-    '-p', PROMPT, '--plugin-dir', pluginDir, '--setting-sources', '', '--strict-mcp-config',
+    '-p', prompt, '--plugin-dir', plugin, '--setting-sources', '', '--strict-mcp-config',
     '--permission-mode', 'dontAsk', '--allowedTools', ALLOWED_TOOLS, '--no-session-persistence',
     '--output-format', 'stream-json', '--verbose',
   ];
@@ -93,14 +93,7 @@ async function runOne(project, options) {
     if (!output || output.is_error) {
       return { ...record, result: 'error', error: String(output?.result ?? `claude exited with ${run.signal ?? run.code}: ${(run.stderr || run.stdout).slice(-500)}`).slice(0, 500) };
     }
-    const usage = output.usage ?? {};
-    Object.assign(record, {
-      model: Object.entries(output.modelUsage ?? {}).sort((a, b) => (b[1].outputTokens ?? 0) - (a[1].outputTokens ?? 0))[0]?.[0],
-      tokens: ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens', 'output_tokens'].reduce((sum, key) => sum + (usage[key] ?? 0), 0),
-      costUsd: output.total_cost_usd,
-      turns: output.num_turns,
-      finalMessage: String(output.result ?? '').slice(0, 4000),
-    });
+    Object.assign(record, tokensAndCost(output));
     const questions = scoreLedger(path.join(workDir, 'ledger.json'), seed, readJson(path.join(projectDir, 'expected.json')));
     return { ...record, result: 'scored', questions };
   } finally {
@@ -134,6 +127,17 @@ export function referenceLedgers(projectDir) {
   } finally {
     rmSync(workDir, { recursive: true, force: true });
   }
+}
+
+export function tokensAndCost(output) {
+  const usage = output.usage ?? {};
+  return {
+    model: Object.entries(output.modelUsage ?? {}).sort((a, b) => (b[1].outputTokens ?? 0) - (a[1].outputTokens ?? 0))[0]?.[0],
+    tokens: ['input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens', 'output_tokens'].reduce((sum, key) => sum + (usage[key] ?? 0), 0),
+    costUsd: output.total_cost_usd,
+    turns: output.num_turns,
+    finalMessage: String(output.result ?? '').slice(0, 4000),
+  };
 }
 
 export function summarize(runs) {
