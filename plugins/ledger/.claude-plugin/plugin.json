@@ -1,6 +1,6 @@
 {
   "name": "ledger",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Keep an investigation's observations, inferences, and unknowns apart, each tied to evidence a script checks again, and end with every question marked answered, partial, unresolved, or contradicted.",
   "author": {
     "name": "lee-eojin"
