@@ -265,3 +265,10 @@ test('a path under a root that ends in a separator is inside it', () => {
   assert.equal(within(path.parse(process.cwd()).root, path.join(path.parse(process.cwd()).root, 'src', 'a.js')), true);
   assert.equal(within(path.join(tmpdir(), 'a'), path.join(tmpdir(), 'ab')), false);
 });
+
+test('a search over the whole folder does not count the ledger that cites it', () => {
+  const dir = workspace({ claims: [{ id: 'c.callers', question: 'q.dead-only', statement: 'evict( appears once in the repository', kind: 'observed', evidence: [{ search: 'evict(', scope: '.', hits: 1 }] }] });
+  const result = ledger(dir, 'check');
+  assert.equal(result.status, 0, result.stdout);
+  assert.equal(ledger(dir, 'check').status, 0, 'still holds once ledger.md exists');
+});

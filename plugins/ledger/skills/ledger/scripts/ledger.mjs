@@ -41,7 +41,8 @@ export function loadLedger(ledgerPath) {
   }
   const ledgerDir = path.dirname(path.resolve(ledgerPath));
   const root = path.resolve(ledgerDir, ledger.root ?? '.');
-  return { ledger, ledgerDir, root, problems: validate(ledger, root, ledgerDir) };
+  const ignored = [path.resolve(ledgerPath), path.join(ledgerDir, 'ledger.md')];
+  return { ledger, ledgerDir, root, ignored, problems: validate(ledger, root, ledgerDir) };
 }
 
 function checkIds(list, label, problems) {
@@ -110,22 +111,22 @@ export function validate(ledger, root, ledgerDir = root) {
   return problems;
 }
 
-function listFiles(target, files = []) {
-  if (files.length > SEARCH_FILE_LIMIT) return files;
+function listFiles(target, files = [], ignored = new Set()) {
+  if (files.length > SEARCH_FILE_LIMIT || ignored.has(target)) return files;
   const stat = lstatSync(target);
   if (stat.isFile()) files.push(target);
   else if (stat.isDirectory()) {
     for (const name of readdirSync(target).sort()) {
-      if (!SKIPPED_FOLDERS.has(name)) listFiles(path.join(target, name), files);
+      if (!SKIPPED_FOLDERS.has(name)) listFiles(path.join(target, name), files, ignored);
     }
   }
   return files;
 }
 
-export function countHits(root, scope, needle) {
+export function countHits(root, scope, needle, ignored = []) {
   const target = path.resolve(root, scope);
   if (!existsSync(target)) return { error: `scope ${scope} does not exist` };
-  const files = listFiles(target);
+  const files = listFiles(target, [], new Set(ignored.map((file) => path.resolve(file))));
   if (files.length > SEARCH_FILE_LIMIT) return { error: `scope ${scope} has more than ${SEARCH_FILE_LIMIT} files; narrow it` };
   let hits = 0;
   for (const file of files) {
@@ -158,7 +159,7 @@ export function resolvePointer(root, pointer) {
   return first >= 1 && last >= first && last <= lineCount(readFileSync(target, 'utf8'));
 }
 
-export function checkEvidence(root, ledgerDir, evidence) {
+export function checkEvidence(root, ledgerDir, evidence, ignored = []) {
   const shape = evidenceShape(evidence);
   if (shape === 'file') {
     const match = POINTER.exec(evidence.file);
@@ -189,7 +190,7 @@ export function checkEvidence(root, ledgerDir, evidence) {
     return { ok: true, runtime: true };
   }
   if (shape === 'search') {
-    const counted = countHits(root, evidence.scope, evidence.search);
+    const counted = countHits(root, evidence.scope, evidence.search, ignored);
     if (counted.error) return { ok: false, why: counted.error };
     if (counted.hits !== evidence.hits) return { ok: false, why: `searching ${evidence.scope} for ${JSON.stringify(evidence.search)} now finds ${counted.hits}, the claim says ${evidence.hits}` };
     return { ok: true, runtime: false, bounded: `${evidence.hits} hit(s) for ${JSON.stringify(evidence.search)} within ${evidence.scope}` };
@@ -206,7 +207,7 @@ export function checkEvidence(root, ledgerDir, evidence) {
   return { ok: true, runtime: evidence.runtime === true };
 }
 
-export function decide(ledger, root, ledgerDir = root) {
+export function decide(ledger, root, ledgerDir = root, ignored = []) {
   const superseded = new Set(ledger.claims.flatMap((claim) => [claim.supersedes].flat().filter(Boolean)));
   const latestUnknowns = new Map();
   for (const unknown of ledger.unknowns ?? []) {
@@ -215,7 +216,7 @@ export function decide(ledger, root, ledgerDir = root) {
   }
   const claimResults = new Map(ledger.claims.map((claim) => {
     if (superseded.has(claim.id)) return [claim.id, { status: 'superseded', reasons: [] }];
-    const checks = claim.evidence.map((evidence) => checkEvidence(root, ledgerDir, evidence));
+    const checks = claim.evidence.map((evidence) => checkEvidence(root, ledgerDir, evidence, ignored));
     const broken = checks.filter((check) => !check.ok).map((check) => check.why);
     return [claim.id, { status: broken.length ? 'broken' : 'holds', reasons: broken, runtime: checks.some((check) => check.ok && check.runtime), bounded: checks.map((check) => check.bounded).filter(Boolean) }];
   }));
@@ -352,7 +353,7 @@ async function main(argv) {
     console.log(`pinned ${pinned} file(s)`);
     return 0;
   }
-  const decisions = decide(loaded.ledger, loaded.root, loaded.ledgerDir);
+  const decisions = decide(loaded.ledger, loaded.root, loaded.ledgerDir, loaded.ignored);
   const { text, counts } = report(loaded.ledger, decisions);
   writeFileSync(path.join(loaded.ledgerDir, 'ledger.md'), text);
   console.log(text.trimEnd());

@@ -24,3 +24,4 @@ L22,evidence,Lines are counted without the empty piece after the last newline,te
 L23,evidence,A path under a root that ends in a separator is inside it,test: a path under a root that ends in a separator is inside it,yes
 L24,do,On Bend the ledger answered three questions about the termination rule from code lines and saved runs,manual: 2026-10-31 investigation in ~/orca/workspaces/bend/gap-map/ledger against Bend b2fe9ce0,no
 L25,evidence,The file and line and search rules match gap-map's copy on the same cases,test: ledger resolves file and line pointers by the shared rules,yes
+L26,evidence,A search over the whole folder does not count the ledger that cites it,test: a search over the whole folder does not count the ledger that cites it,yes
