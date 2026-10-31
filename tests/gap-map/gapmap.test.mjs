@@ -342,3 +342,34 @@ test('a path under a root that ends in a separator is inside it', () => {
   assert.equal(within(top, path.join(top, 'src', 'a.bend')), true);
   assert.equal(within(path.join(tmpdir(), 'a'), path.join(tmpdir(), 'ab')), false);
 });
+
+test('a question without a basis is refused', () => {
+  const { dir } = project(withObligation(() => ({ question: 'Should the guide name the order?' })));
+  const result = gapmap(dir, 'check');
+  assert.equal(result.status, 2);
+  assert.match(result.stdout, /has a question, so basis must list the file lines or searches it rests on/);
+});
+
+test('a question whose search basis no longer holds is marked stale and keeps the obligation open', () => {
+  const question = { question: 'The guide never says which values are refused; decide whether it should.', basis: [{ search: 'is refused', scope: 'docs', hits: 0 }] };
+  const { dir } = project(withObligation(() => question));
+  gapmap(dir, 'run');
+  const decision = status(dir).obligations['check.mismatch'];
+  assert.equal(decision.status, 'open');
+  assert.ok(decision.reasons.includes('basis: searching docs for "is refused" now finds 1, the question says 0'));
+  const gaps = readFileSync(path.join(dir, 'gap-map', 'gaps.md'), 'utf8');
+  assert.match(gaps, /`check.mismatch` \(stale, recheck before deciding\)/);
+  assert.match(gaps, /basis: 0 hit\(s\) for "is refused" within docs/);
+});
+
+test('a question whose basis holds does not keep a proven obligation open', () => {
+  const { dir } = project(withObligation(() => ({ question: 'Should Bool coerce?', basis: [{ file: 'docs/guide.md:2' }, { search: 'coerce', scope: 'docs', hits: 0 }] })));
+  gapmap(dir, 'run');
+  assert.equal(status(dir).obligations['check.mismatch'].status, 'closed');
+});
+
+test('a basis line past the end of its file keeps the obligation open', () => {
+  const { dir } = project(withObligation(() => ({ question: 'q', basis: [{ file: 'docs/guide.md:9' }] })));
+  gapmap(dir, 'run');
+  assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('basis: docs/guide.md:9 does not resolve to a file and line'));
+});

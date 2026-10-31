@@ -44,6 +44,7 @@ One obligation is one promised behavior that a user can observe.
 - `cases` lists the kinds of evidence the claim needs: `positive` (it works), `negative` (it refuses what it must refuse), `malformed` (bad input), `boundary` (a limit), `parity` (every lane agrees), `teardown` (it cleans up). Ask of each claim: if this were broken, which case would show it?
 - `fixtures` names existing tests, one or more per case, each with the verifier that runs it. A case with no fixture stays open. That is the gap, so leave it open and say which test is missing.
 - `unknowns` holds what you could not find out, `contradictions` holds disagreements between sources, and `question` holds a design decision the project has to make before the obligation can be written or closed. These are the most useful lines in the report.
+- A `question` needs `basis`: the file lines it rests on, and, for every claim that something is absent ("the guide does not say", "no test covers"), a literal-text search with its scope and the hit count you saw. Run that search before writing the question; if it finds something, read it, because the decision may already be made and pinned by tests. The script reruns every search, and a basis that no longer holds marks the question stale.
 - Include the promises with no implementation yet (planned types, targets, features). They are open with no fixtures and usually carry a `question`.
 
 ## 4. Define the verifiers
