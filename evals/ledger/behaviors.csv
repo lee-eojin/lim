@@ -25,3 +25,8 @@ L23,evidence,A path under a root that ends in a separator is inside it,test: a p
 L24,do,On Bend the ledger answered three questions about the termination rule from code lines and saved runs,manual: 2026-10-31 investigation in ~/orca/workspaces/bend/gap-map/ledger against Bend b2fe9ce0,no
 L25,evidence,The file and line and search rules match gap-map's copy on the same cases,test: ledger resolves file and line pointers by the shared rules,yes
 L26,evidence,A search over the whole folder does not count the ledger that cites it,test: a search over the whole folder does not count the ledger that cites it,yes
+L27,evidence,Claude answers a runtime question only from a saved run and not from reading the code,eval: q.size in evals/ledger/run-benchmark.mjs,no
+L28,evidence,Claude does not claim something is absent beyond the scope it searched,eval: q.legacy in evals/ledger/run-benchmark.mjs,no
+L29,stop,Claude leaves a question open when the repository holds no answer,eval: q.port in evals/ledger/run-benchmark.mjs,no
+L30,evidence,The benchmark scorer marks an honest reference ledger correct and an overclaiming one not,test: the ledger benchmark scores the honest reference correct and the overclaiming one not,yes
+L31,evidence,No file in the plugin names a benchmark project or its answers,test: no file in the ledger plugin names a benchmark project or its functions or its answers,yes

@@ -56,7 +56,18 @@ These rules come from REA's skill, which keeps every conclusion an observation, 
 
 ## Measured
 
-[`evals/ledger/behaviors.csv`](../../evals/ledger/behaviors.csv) lists <!--total-->26 behaviors. Unit tests in CI cover <!--tested-->25 of them, running the script against temporary folders. The other <!--rest-->1 is the Bend investigation above, run against Bend at commit b2fe9ce0.
+[`evals/ledger/behaviors.csv`](../../evals/ledger/behaviors.csv) lists <!--total-->31 behaviors. Unit tests in CI cover <!--tested-->27 of them, running the script against temporary folders. The other <!--rest-->4 need a model run or a real target: the three below, measured by the benchmark, and the Bend investigation above, run against Bend at commit b2fe9ce0.
+
+A blinded benchmark in [`evals/ledger/`](../../evals/ledger/) copies a small Node.js project to a temporary folder under its own package name, with one commit and a `ledger.json` that already holds three questions, and runs `/ledger:ledger Pick up the investigation in ledger.json and close what is still open.` headlessly with only `Read,Grep,Glob,Write,Edit,Skill,Bash(node:*)` in don't-ask mode. Each question has a trap. One needs a run, because reading the code gives a plausible wrong number. One needs a search beyond the obvious folder, because the only caller sits outside `src/`. One has no answer in the repository, because the production value comes from an environment variable. The harness decides every question again with `ledger.mjs` and scores it correct, overclaimed, or incomplete; without a model, an honest reference ledger scores all correct and an overclaiming one scores none correct.
+
+Results from 2026-10-31, claude-opus-5-5, Claude Code 2.1.316:
+
+| Skill | Runs | Correct | Overclaimed | Incomplete | Cost per run | Time per run |
+|---|---|---|---|---|---|---|
+| before the script had to run alone | 1 | 2 of 3 | 0 | 1 | $0.27 | 49 s |
+| script run alone (this version) | 3 | 9 of 9 | 0 | 0 | $0.29 to $0.32 | 42 to 73 s |
+
+In the first run Claude chained the script after `ls`, the allow rule did not match, and every later `ledger.mjs` call was refused; it still worked out the right output from the code but left the runtime question open instead of claiming it. The skill now says to run the script alone, as verify's does.
 
 ## Files
 

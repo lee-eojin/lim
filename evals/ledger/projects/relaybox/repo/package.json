@@ -1,0 +1,6 @@
+{
+  "name": "relaybox",
+  "version": "0.4.2",
+  "type": "module",
+  "bin": { "relaybox": "cli.js" }
+}

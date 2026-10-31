@@ -1,0 +1,10 @@
+{
+  "subject": "Three open questions about relaybox from the last review",
+  "questions": [
+    { "id": "q.size", "question": "What exactly does `node cli.js 1536` print?", "needs": "runtime" },
+    { "id": "q.legacy", "question": "Is legacyExport still called anywhere in the repository?", "needs": "static" },
+    { "id": "q.port", "question": "Which port number does the production deployment listen on?", "needs": "static" }
+  ],
+  "claims": [],
+  "unknowns": []
+}

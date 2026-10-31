@@ -7,7 +7,7 @@ description: Keeps an investigation's conclusions apart as observations, inferen
 
 An investigation's write-up reads the same whether its claims were seen, reasoned out, or guessed. Keep them apart. You write `ledger.json`: the questions, the claims that answer them with their kind and evidence, and the unknowns still open. The script `ledger.mjs` checks every piece of evidence again and decides each question. You never mark a question answered yourself.
 
-Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/ledger.mjs <command> --ledger <path>`. Below, that is written as `ledger <command>`.
+Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/ledger.mjs <command> --ledger <path>`. Below, that is written as `ledger <command>`. Run it alone in its own Bash call, exactly in that form, with nothing before `node`: no `cd`, `ls`, `&&`, `;`, pipe, or environment variable. Then a permission rule such as `Bash(node:*)` matches it, also in a session that cannot ask. If some other Bash command is refused, the script is not blocked: still run it. Only if the script command itself is refused, stop, say so, and show the exact command the user can allow.
 
 ## Rules
 

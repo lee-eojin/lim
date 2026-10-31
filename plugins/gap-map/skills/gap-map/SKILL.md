@@ -7,7 +7,7 @@ description: Maps a language implementation (or any tool with a stated goal and 
 
 Answer "what is left before this language does everything it promises?" with evidence, not an essay. You write `gap-map.json`: the stages a program passes through, and one obligation per promised behavior. The script `gapmap.mjs` runs the fixtures, decides every obligation's status, and draws the map. You never decide that an obligation is proven.
 
-Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/gapmap.mjs <command> --map <path>` with a Bash timeout of 600000 ms. Below, that is written as `gapmap <command>`.
+Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/gapmap.mjs <command> --map <path>` with a Bash timeout of 600000 ms. Below, that is written as `gapmap <command>`. Run it alone in its own Bash call, exactly in that form, with nothing before `node`: no `cd`, `ls`, `&&`, `;`, pipe, or environment variable. Then a permission rule such as `Bash(node:*)` matches it, also in a session that cannot ask. If some other Bash command is refused, the script is not blocked: still run it. Only if the script command itself is refused, stop, say so, and show the exact command the user can allow.
 
 ## Rules
 
