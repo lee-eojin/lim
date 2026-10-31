@@ -2,7 +2,7 @@
 
 All notable changes to gap-map. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.2.1 (2026-10-31)
 
 - Fixed: A `source`, `owner`, or `basis` pointer can name a line range such as `WONTFIX.txt:30-32`, as ledger already allowed; it used to be read as a file name and never resolved. (#224)
 - Changed: The Bend reference shows how to run Bend's `--verdict` gate (`gates/safe_node.ts`) locally as a verifier, with the first run's counts. (#222)
