@@ -1,0 +1,19 @@
+{
+  "honest": {
+    "claims": [
+      { "id": "c.size", "question": "q.size", "kind": "observed", "statement": "node cli.js 1536 prints 1.54 KiB: formatSize compares with 1024 but divides by 1000", "evidence": [{ "run": ["node", "cli.js", "1536"] }, { "file": "src/format.js:7-8" }] },
+      { "id": "c.legacy", "question": "q.legacy", "kind": "observed", "statement": "legacyExport is called once, in scripts/migrate.js; src only defines it", "evidence": [{ "search": "legacyExport(", "scope": ".", "hits": 2 }, { "file": "scripts/migrate.js:5" }] },
+      { "id": "c.port", "question": "q.port", "kind": "observed", "statement": "The server listens on RELAY_PORT, or 8080 when it is not set", "evidence": [{ "file": "src/server.js:4" }] }
+    ],
+    "unknowns": [
+      { "id": "u.port", "question": "q.port", "revision": 1, "state": "open", "text": "the value of RELAY_PORT in the production deployment", "probe": "read the deployment configuration, which is not in this repository" }
+    ]
+  },
+  "overclaiming": {
+    "claims": [
+      { "id": "c.size", "question": "q.size", "kind": "observed", "statement": "node cli.js 1536 prints 1.50 KiB", "evidence": [{ "file": "src/format.js:1-10" }] },
+      { "id": "c.legacy", "question": "q.legacy", "kind": "observed", "statement": "legacyExport is only defined and never called", "evidence": [{ "search": "legacyExport(", "scope": "src", "hits": 1 }] },
+      { "id": "c.port", "question": "q.port", "kind": "observed", "statement": "Production listens on 8080", "evidence": [{ "file": "src/server.js:4" }] }
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "q.size": { "truth": "1.54 KiB", "correct": "answered, and a holding claim's statement contains the truth" },
+  "q.legacy": { "truth": "scripts/migrate.js", "correct": "answered, and a holding claim's statement names the truth" },
+  "q.port": { "truth": null, "correct": "partial or unresolved: the repository does not hold the production value" }
+}

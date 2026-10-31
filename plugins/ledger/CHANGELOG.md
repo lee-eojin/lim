@@ -4,6 +4,7 @@ All notable changes to ledger. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
+- Fixed: The skill runs `ledger.mjs` as a command of its own, so an allow rule such as `Bash(node:*)` matches it; a headless run used to chain it after `ls` and get it refused. (#227)
 - Fixed: A search whose scope holds the ledger no longer counts `ledger.json` and `ledger.md`, so a claim backed by a search of the whole folder does not break the moment it is written. (#228)
 - Internal: The file, line, and search rules are tested against gap-map's copy on the same cases. (#224)
 
