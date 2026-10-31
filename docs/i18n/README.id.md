@@ -39,7 +39,7 @@ Silakan fork, ubah, dan jadikan milikmu. Issue dan pull request dipersilakan.
 | [review-loop](../../plugins/review-loop) | 0.11.11 | Me-review perubahanmu sebelum kamu commit, memperbaiki temuan P1 dan P2, me-review ulang, dan menyerahkan sisanya kepadamu. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Menjelaskan konsep, kode, dan error dengan jawaban di awal, satu makna untuk setiap kata, dan istilah teknis dengan nama resmi berbahasa Inggris. |
 | [verify](../../plugins/verify) | 0.6.1 | Membuktikan fitur-fiturmu berjalan dengan menjalankannya, lalu menyimpan perintah dan output-nya sebagai bukti. |
-| [gap-map](../../plugins/gap-map) | 0.1.1 | Memetakan implementasi sebuah bahasa terhadap janjinya sendiri, dan hanya menutup celah saat tes nyata lolos. |
+| [gap-map](../../plugins/gap-map) | 0.2.0 | Memetakan implementasi sebuah bahasa terhadap janjinya sendiri, dan hanya menutup celah saat tes nyata lolos. |
 | [ledger](../../plugins/ledger) | 0.1.0 | Memisahkan pengamatan, inferensi, dan hal yang belum diketahui dalam penyelidikan, dan hanya menandai pertanyaan terjawab saat buktinya masih berlaku. |
 
 ## Pemasangan

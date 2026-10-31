@@ -30,7 +30,7 @@
       "name": "gap-map",
       "source": "./plugins/gap-map",
       "description": "Map a language implementation against its own promises: a statechart of its pipeline and a gap ledger whose obligations close only when real fixtures pass.",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "category": "development"
     },
     {
