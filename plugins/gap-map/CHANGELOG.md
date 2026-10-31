@@ -2,7 +2,7 @@
 
 All notable changes to gap-map. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.2.0 (2026-10-31)
 
 - Changed: An obligation with a `question` now needs `basis`, the file lines or literal-text searches it rests on; a map without it is refused. The script reruns each search and checks each line on every run, and a basis that no longer holds keeps the obligation open and marks the question stale in `gaps.md`. (#219)
 
