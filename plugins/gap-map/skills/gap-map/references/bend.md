@@ -24,7 +24,7 @@ Every test in `tests/<namespace>/` is a `.bend` file that ends in the lines its 
 - A test with `!(` gets one GPU warm-up run before it is judged.
 - The gate merges stderr into stdout, trims trailing spaces, and appends `exit N` when a lane exits non-zero (`gates/test.ts:136-186`).
 
-The gates themselves (`gates/test.ts`, `perf.ts`, `safe.ts`) run on a cluster of Mac minis over ssh, so they cannot be the verifier on a laptop. One test runs locally in about 0.05 seconds.
+`gates/test.ts`, `perf.ts`, and `safe.ts` run on a cluster of Mac minis over ssh. `test.ts` and `perf.ts` cannot be the verifier on a laptop. One test runs locally in about 0.05 seconds. The `--verdict` gate is different: its node side runs locally (see below).
 
 ## Verifiers that match the gate
 
@@ -60,9 +60,21 @@ exit "$code"
 
 Use it as `"run": ["/abs/path/lane.sh", "c", "{fixture}"]` with the same `pass` as the interpreter lane. The C lane needs clang 14 or later; a program with `!` builds for Metal on macOS. `--verdict` builds the Lean kernel once into `~/.bend/bendtt/` and needs `lean`.
 
+## The --verdict gate, locally
+
+`gates/safe_node.ts` is the part of `gates/safe.ts` that runs on each mini. It reads file names on stdin, runs `bun bend2/main.ts <f> --verdict` on each, and prints a JSON array that `judge` in the same file classifies: agree, bend2 rejects, `u` unsafe, `-` out of scope, `!` false reject (bend2 checks, the kernel rejects), `t` timeout, `e` infrastructure. The gate fails on any `!`, `t`, or `e`. It needs `BENDTT` set to a built kernel; `--verdict` builds one into `~/.bend/bendtt/<hash>/bendtt`, and the right one is the folder whose `bendtt.lean` equals `bend2/bendtt.lean`.
+
+```bash
+cd <bend repository>
+find tests -name '*.bend' | sort \
+  | BEND_NO_TELEMETRY=1 BENDTT=<kernel> PAR=10 CAP=30 bun gates/safe_node.ts > got.json
+```
+
+Classify `got.json` with `judge` and exit 1 on any `!`, `t`, or `e`, and the run is a verifier. On 2026-10-31 at `b2fe9ce0` it checked all 1785 test files in 27.5 s on one Mac: 1143 agree, 507 bend2 rejects, 132 unsafe, 3 out of scope, and no `!`, `t`, or `e`. With `BENDTT=/usr/bin/false`, the 1143 became `e` and the run exited 1, so the agreement depends on the real kernel.
+
 ## Gaps the repository already states
 
-- No gate runs CUDA or Linux, and `gates/safe.ts` (the `--verdict` agreement check) is not one of the four gates in `gates/_run.ts`.
+- No gate runs CUDA or Linux, and `gates/safe.ts` (the `--verdict` agreement check) is not one of the four gates in `gates/_run.ts`, so nothing runs it on every change. Run it locally as above.
 - README Limitations: no U64, I64, or F64; the JS lane runs on one core with no graphics or audio; parallelism needs balanced calls; the checker has no proof; the parser and the translation into the kernel are not proven.
 - Refusal call sites are the real gap markers, not `TODO` (every `TODO` in the sources is the `?TODO` hole feature): `die(` in `bend2/comp.ts` and `oos(` (out of scope for BendTT) in `bend2/safe.ts`.
 
