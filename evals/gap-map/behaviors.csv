@@ -27,4 +27,8 @@ G26,evidence,A fixture with CRLF line endings compares like one with LF,test: a 
 G27,tell,A stage whose id looks like an internal routing id still renders,test: a stage whose id looks like an internal routing id still renders,yes
 G28,stop,A pointer one line past the last newline does not resolve,test: a pointer one line past the last newline does not resolve,yes
 G29,stop,A path under a root that ends in a separator is inside it,test: a path under a root that ends in a separator is inside it,yes
-G30,do,On Bend the interpreter and C and JS verifiers pass 39 real tests and fail when stderr is left out,manual: 2026-10-31 run against Bend b2fe9ce0 (references/bend.md),no
+G30,stop,A question without a basis is refused,test: a question without a basis is refused,yes
+G31,evidence,A question whose search basis no longer holds is marked stale and keeps the obligation open,test: a question whose search basis no longer holds is marked stale and keeps the obligation open,yes
+G32,silence,A question whose basis holds does not keep a proven obligation open,test: a question whose basis holds does not keep a proven obligation open,yes
+G33,evidence,A basis line past the end of its file keeps the obligation open,test: a basis line past the end of its file keeps the obligation open,yes
+G34,do,On Bend the interpreter and C and JS verifiers pass 39 real tests and fail when stderr is left out,manual: 2026-10-31 run against Bend b2fe9ce0 (references/bend.md),no

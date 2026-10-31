@@ -66,6 +66,17 @@ Use it as `"run": ["/abs/path/lane.sh", "c", "{fixture}"]` with the same `pass` 
 - README Limitations: no U64, I64, or F64; the JS lane runs on one core with no graphics or audio; parallelism needs balanced calls; the checker has no proof; the parser and the translation into the kernel are not proven.
 - Refusal call sites are the real gap markers, not `TODO` (every `TODO` in the sources is the `?TODO` hole feature): `die(` in `bend2/comp.ts` and `oos(` (out of scope for BendTT) in `bend2/safe.ts`.
 
+## A negative claim, written as a search
+
+The first map asked whether a future checker may search for the decreasing argument "since GUIDE.md:87 teaches recursion without naming the order". That was wrong: `guide/GUIDE.md:105-109` names the order, and `tests/halt/threaded_state_before.bend`, `threaded_state_after.bend`, `column_order_search.bend`, and `size_change_accept.bend` pin that bend3's column search is gone on purpose. Written with its basis, the question fails at once:
+
+```json
+"question": "Should a future checker search for the decreasing argument?",
+"basis": [{ "search": "left to right", "scope": "guide/GUIDE.md", "hits": 0 }]
+```
+
+`gapmap check` reports `searching guide/GUIDE.md for "left to right" now finds 1, the question says 0` and marks the question stale.
+
 ## The map built from this file
 
 The first map, built on 2026-10-31 against `b2fe9ce0`, lives outside the repository in `~/orca/workspaces/bend/gap-map/`: `build_map.py` writes `gap-map.json`, `lane.sh` is the wrapper above, and `gapmap run` gave 11 of 24 obligations proven from 39 fixtures, 10 open, 2 contradicted, 1 blocked, and 4 won't fix. Start from it rather than from nothing, and rerun it after the repository moves.

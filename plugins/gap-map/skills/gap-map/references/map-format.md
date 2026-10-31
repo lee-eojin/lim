@@ -73,6 +73,7 @@ Every field the script reads. The script refuses unknown references (a stage, gr
 - `disposition` (optional): `active` (the default), `blocked`, or `wontfix`.
 - `unknowns`, `contradictions` (optional): lists of sentences. Any unknown keeps the obligation open; any contradiction makes it `contradicted`.
 - `question` (optional): the design decision the project has to make. Listed first in `gaps.md`.
+- `basis` (required with `question`): what the question rests on, each entry `{ "file": "path:line" }` or `{ "search": "literal text", "scope": "folder or file", "hits": 0 }`. The script checks each line and reruns each search (links are not followed, `.git` and `node_modules` are skipped, at most 20000 files). A basis that no longer holds keeps the obligation open and marks the question stale.
 
 ## Output
 

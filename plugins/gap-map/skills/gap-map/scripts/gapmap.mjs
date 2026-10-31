@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,6 +19,8 @@ const POINTER = /^(.+?):(\d+)$/;
 const DEFAULT_TIMEOUT_MS = 60 * 1000;
 const MAX_TIMEOUT_MS = 10 * 60 * 1000;
 const EXCERPT = 2000;
+const SEARCH_FILE_LIMIT = 20000;
+const SKIPPED_FOLDERS = new Set(['.git', 'node_modules']);
 // A descendant that left the process group can keep a pipe open after the kill.
 const CLOSE_GRACE_MS = 2000;
 
@@ -130,6 +132,18 @@ export function validate(map, root) {
       if (typeof fixture.path !== 'string' || !insideRoot(root, fixture.path)) problems.push(`${label} fixture path ${fixture.path} leaves the root`);
       if (!verifiers.has(fixture.verifier)) problems.push(`${label} fixture ${fixture.path} names verifier ${fixture.verifier}, which is not in verifiers`);
     }
+    if (obligation.question !== undefined) {
+      if (typeof obligation.question !== 'string' || !obligation.question.trim()) problems.push(`${label} question must be a sentence`);
+      if (!Array.isArray(obligation.basis) || obligation.basis.length === 0) {
+        problems.push(`${label} has a question, so basis must list the file lines or searches it rests on`);
+      }
+    }
+    for (const entry of obligation.basis ?? []) {
+      const isFile = typeof entry?.file === 'string' && !('search' in entry);
+      const isSearch = typeof entry?.search === 'string' && entry.search !== '' && typeof entry.scope === 'string' && Number.isInteger(entry.hits) && !('file' in entry);
+      if (!isFile && !isSearch) problems.push(`${label} basis ${JSON.stringify(entry)} must be { file } or { search, scope, hits }`);
+      else if (!insideRoot(root, isFile ? entry.file.replace(POINTER, '$1') : entry.scope)) problems.push(`${label} basis path ${isFile ? entry.file : entry.scope} leaves the root`);
+    }
     for (const key of ['unknowns', 'contradictions']) {
       if (obligation[key] !== undefined && !(Array.isArray(obligation[key]) && obligation[key].every((entry) => typeof entry === 'string'))) {
         problems.push(`${label} ${key} must be a list of sentences`);
@@ -197,6 +211,7 @@ export function decide(obligation, { root, verifiers, results }) {
       else if (!result.passed) reasons.push(`${kind}: ${fixture.path} failed (${result.why})`);
     }
   }
+  for (const why of checkBasis(root, obligation.basis ?? [])) reasons.push(`basis: ${why}`);
   for (const unknown of obligation.unknowns ?? []) reasons.push(`unknown: ${unknown}`);
   const contradictions = obligation.contradictions ?? [];
   for (const contradiction of contradictions) reasons.push(`contradiction: ${contradiction}`);
@@ -206,6 +221,38 @@ export function decide(obligation, { root, verifiers, results }) {
 }
 
 const tidy = (text) => text.replace(/[ \t]+$/gm, '').trim();
+
+function listFiles(target, files = []) {
+  if (files.length > SEARCH_FILE_LIMIT) return files;
+  const stat = lstatSync(target);
+  if (stat.isFile()) files.push(target);
+  else if (stat.isDirectory()) {
+    for (const name of readdirSync(target).sort()) if (!SKIPPED_FOLDERS.has(name)) listFiles(path.join(target, name), files);
+  }
+  return files;
+}
+
+export function countHits(root, scope, needle) {
+  const target = path.resolve(root, scope);
+  if (!existsSync(target)) return { error: `scope ${scope} does not exist` };
+  const files = listFiles(target);
+  if (files.length > SEARCH_FILE_LIMIT) return { error: `scope ${scope} has more than ${SEARCH_FILE_LIMIT} files; narrow it` };
+  let hits = 0;
+  for (const file of files) {
+    const text = readFileSync(file, 'utf8');
+    for (let index = text.indexOf(needle); index !== -1; index = text.indexOf(needle, index + needle.length)) hits += 1;
+  }
+  return { hits };
+}
+
+export function checkBasis(root, basis) {
+  return basis.flatMap((entry) => {
+    if (entry.file !== undefined) return resolvePointer(root, entry.file) ? [] : [`${entry.file} does not resolve to a file and line`];
+    const counted = countHits(root, entry.scope, entry.search);
+    if (counted.error) return [counted.error];
+    return counted.hits === entry.hits ? [] : [`searching ${entry.scope} for ${JSON.stringify(entry.search)} now finds ${counted.hits}, the question says ${entry.hits}`];
+  });
+}
 
 export function judge(verifier, fixtureText, exitCode, output, timedOut) {
   if (timedOut) return { passed: false, why: `timed out after ${verifier.timeoutMs ?? DEFAULT_TIMEOUT_MS} ms` };
@@ -334,7 +381,12 @@ export function gapsMarkdown(map, decisions, { counts, byStage }) {
     lines.push('## Design decisions to make', '');
     for (const obligation of questions) {
       const parts = [obligation.question, ...(obligation.contradictions ?? [])].filter(Boolean);
-      lines.push(`- \`${obligation.id}\`: ${parts.join(' ')}`);
+      const stale = decisions.get(obligation.id).reasons.filter((reason) => reason.startsWith('basis: '));
+      lines.push(`- \`${obligation.id}\`${stale.length ? ' (stale, recheck before deciding)' : ''}: ${parts.join(' ')}`);
+      for (const entry of obligation.basis ?? []) {
+        lines.push(`  - basis: ${entry.file ?? `${entry.hits} hit(s) for ${JSON.stringify(entry.search)} within ${entry.scope}`}`);
+      }
+      for (const reason of stale) lines.push(`  - ${reason}`);
     }
     lines.push('');
   }
