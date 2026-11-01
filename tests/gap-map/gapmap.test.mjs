@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { decide, judge, lineCount, loadMap, within } from '../../plugins/gap-map/skills/gap-map/scripts/gapmap.mjs';
+import { decide, lineCount, loadMap, within } from '../../plugins/gap-map/skills/gap-map/scripts/gapmap.mjs';
+import { judge } from '../../plugins/gap-map/skills/gap-map/scripts/run.mjs';
 import { rank as rankStages, renderSvg, wrap } from '../../plugins/gap-map/skills/gap-map/scripts/render.mjs';
 
 const script = fileURLToPath(new URL('../../plugins/gap-map/skills/gap-map/scripts/gapmap.mjs', import.meta.url));

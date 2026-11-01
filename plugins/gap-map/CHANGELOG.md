@@ -2,6 +2,10 @@
 
 All notable changes to gap-map. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Internal: The verifier runner (spawning, timeouts, merged output, comparing with the fixture's lines) lives in `scripts/run.mjs`, apart from the decision rules in `gapmap.mjs`. (#238)
+
 ## 0.2.2 (2026-10-31)
 
 - Fixed: The skill runs `gapmap.mjs` as a command of its own, so an allow rule such as `Bash(node:*)` matches it. (#227)
