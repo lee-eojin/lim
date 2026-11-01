@@ -1,0 +1,10 @@
+{
+  "subject": "Questions about courier from an incident review",
+  "questions": [
+    { "id": "q.timeout", "question": "How many seconds does a request wait by default before it times out?", "needs": "static" },
+    { "id": "q.retry", "question": "Which HTTP status codes does should_retry retry on?", "needs": "static" },
+    { "id": "q.nightly", "question": "How long does the nightly export take in production?", "needs": "static" }
+  ],
+  "claims": [],
+  "unknowns": []
+}

@@ -1,0 +1,5 @@
+{
+  "q.timeout": { "truth": ["60"], "acceptContradicted": true, "correct": "a holding claim names 60 seconds, answered or recorded as contradicting the README's 30" },
+  "q.retry": { "truth": ["502", "503", "504"], "correct": "answered, and a holding claim names all three codes" },
+  "q.nightly": { "truth": null, "correct": "partial or unresolved: the repository does not hold production timings" }
+}

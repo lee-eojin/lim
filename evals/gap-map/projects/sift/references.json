@@ -1,0 +1,13 @@
+{
+  "honest": [
+    { "id": "eq", "stage": "evaluate", "claim": "field = value keeps equal lines", "source": "README.md:7", "owner": "sift.js:5", "cases": ["positive"], "authority": "run", "fixtures": [{ "case": "positive", "path": "tests/eq.sift", "verifier": "sift" }] },
+    { "id": "ne", "stage": "evaluate", "claim": "field != value keeps differing lines", "source": "README.md:8", "owner": "sift.js:6", "cases": ["positive"], "authority": "run", "fixtures": [{ "case": "positive", "path": "tests/regress/2024/ne.sift", "verifier": "sift" }] },
+    { "id": "missing", "stage": "evaluate", "claim": "A line without the field never matches", "source": "README.md:9", "owner": "sift.js:15", "cases": ["boundary"], "authority": "run", "fixtures": [{ "case": "boundary", "path": "tests/missing.sift", "verifier": "sift" }] },
+    { "id": "or", "stage": "read", "claim": "or joins two conditions", "source": "README.md:13", "owner": "sift.js:12", "cases": ["positive"], "authority": "run" },
+    { "id": "gt", "stage": "evaluate", "claim": "field > n keeps larger numbers", "source": "CHANGELOG.md:5", "owner": "sift.js:7", "cases": ["positive"], "authority": "run", "fixtures": [{ "case": "positive", "path": "tests/gt.sift", "verifier": "sift" }] }
+  ],
+  "overclaiming": [
+    { "id": "missing", "stage": "evaluate", "claim": "A line without the field never matches", "source": "README.md:9", "owner": "sift.js:15", "cases": ["boundary"], "authority": "run", "fixtures": [{ "case": "boundary", "path": "tests/missing.sift", "verifier": "exits" }], "verifiers": { "exits": { "run": ["node", "sift.js", "{fixture}"], "authority": "run", "pass": { "exitCode": 0 } } } },
+    { "id": "or", "stage": "read", "claim": "or joins two conditions", "source": "README.md:13", "owner": "sift.js:12", "cases": ["positive"], "authority": "run", "fixtures": [{ "case": "positive", "path": "tests/eq.sift", "verifier": "sift" }] }
+  ]
+}

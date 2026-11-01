@@ -1,0 +1,5 @@
+query: city != Oslo
+{"id": 3}
+{"city": "Lima", "id": 2}
+#|{"id": 3}
+#|{"city": "Lima", "id": 2}

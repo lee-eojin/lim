@@ -13,7 +13,7 @@ const repoRoot = path.resolve(here, '../..');
 const pluginDir = path.join(repoRoot, 'plugins/gap-map');
 const skillFile = path.join(pluginDir, 'skills/gap-map/SKILL.md');
 const gapmapScript = path.join(pluginDir, 'skills/gap-map/scripts/gapmap.mjs');
-const PROMPT = '/gap-map:gap-map Map this language against its README, guide, and won\'t-fix list: add an obligation for every promise to gap-map.json and run it.';
+const PROMPT = '/gap-map:gap-map Map this project against what its documentation promises: add an obligation for every promise to gap-map.json and run it.';
 const OWN = /^(gap-map\.json|gap-map\/)/;
 
 const usage = `Usage: node evals/gap-map/run-benchmark.mjs [options]
@@ -62,7 +62,8 @@ export function scoreMap(workDir, expected) {
     const matched = map.obligations.filter((obligation) => lines.some((line) => covers(obligation.source, line)));
     if (matched.length === 0) return [id, { verdict: 'missed' }];
     const statuses = matched.map((obligation) => obligations[obligation.id].status);
-    return [id, { verdict: WANTED[want](statuses), obligations: matched.map((obligation) => obligation.id), statuses }];
+    const reasons = matched.map((obligation) => obligations[obligation.id].reasons);
+    return [id, { verdict: WANTED[want](statuses), obligations: matched.map((obligation) => obligation.id), statuses, reasons }];
   }));
   const changed = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: workDir, encoding: 'utf8' })
     .split('\n').filter(Boolean).map((line) => line.slice(3)).filter((file) => !OWN.test(file));

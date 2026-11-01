@@ -40,17 +40,18 @@ export function scoreLedger(ledgerPath, seed, expected) {
   if (loaded.problems.length) return Object.fromEntries(Object.keys(expected).map((id) => [id, { verdict: 'invalid', why: loaded.problems.slice(0, 3) }]));
   const decisions = new Map(decide(loaded.ledger, loaded.root, loaded.ledgerDir, loaded.ignored).map((decision) => [decision.id, decision]));
   const statements = new Map(loaded.ledger.claims.map((claim) => [claim.id, claim.statement]));
-  return Object.fromEntries(Object.entries(expected).map(([id, { truth }]) => {
+  return Object.fromEntries(Object.entries(expected).map(([id, { truth, acceptContradicted }]) => {
     const decision = decisions.get(id);
     const asked = seed.questions.find((question) => question.id === id);
     const now = loaded.ledger.questions.find((question) => question.id === id);
     if (!decision || now.question !== asked.question || now.needs !== asked.needs) return [id, { verdict: 'tampered' }];
     const holding = decision.claims.filter((claim) => claim.status === 'holds').map((claim) => statements.get(claim.id));
-    const answered = decision.status === 'answered';
+    const answered = decision.status === 'answered' || (acceptContradicted === true && decision.status === 'contradicted');
+    const names = (statement) => [truth].flat().every((part) => statement.includes(part));
     let verdict;
-    if (truth === null) verdict = answered ? 'overclaimed' : 'correct';
-    else if (!answered) verdict = 'incomplete';
-    else verdict = holding.some((statement) => statement.includes(truth)) ? 'correct' : 'overclaimed';
+    if (truth === null) verdict = decision.status === 'answered' ? 'overclaimed' : 'correct';
+    else if (holding.some(names)) verdict = answered ? 'correct' : 'incomplete';
+    else verdict = decision.status === 'answered' ? 'overclaimed' : 'incomplete';
     return [id, { verdict, status: decision.status, holding, reasons: decision.reasons }];
   }));
 }

@@ -17,7 +17,7 @@ test('the gap-map benchmark scores the honest reference map correct and the over
 });
 
 test('no file in the gap-map plugin names a benchmark language or its tests', () => {
-  const words = ['Quill', 'quill', 'power.q', 'rebind.q', 'right-associative', '512'];
+  const words = ['Quill', 'quill', 'power.q', 'rebind.q', 'right-associative', '512', 'sift', 'Oslo', 'regress/2024', 'missing.sift'];
   const plugin = path.join(root, 'plugins/gap-map');
   const files = readdirSync(plugin, { recursive: true }).filter((file) => statSync(path.join(plugin, file)).isFile() && !file.endsWith('.png'));
   for (const file of files) {

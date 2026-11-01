@@ -1,0 +1,28 @@
+{
+  "target": "sift",
+  "goal": "Every promise in README.md and CHANGELOG.md holds when a program runs.",
+  "groups": [
+    { "id": "run", "label": "Run", "tone": "teal" },
+    { "id": "done", "label": "Printed", "tone": "orange" },
+    { "id": "refused", "label": "Refused", "tone": "pink" }
+  ],
+  "stages": [
+    { "id": "read", "label": "Reading the query", "group": "run" },
+    { "id": "evaluate", "label": "Matching each line", "group": "run" },
+    { "id": "printed", "label": "Printed the matching lines", "group": "done", "kind": "end" },
+    { "id": "refused", "label": "Stopped with an error", "group": "refused", "kind": "end" }
+  ],
+  "edges": [
+    { "from": "read", "to": "evaluate", "label": "every line reads" },
+    { "from": "evaluate", "to": "printed", "label": "every line is read" },
+    { "from": "evaluate", "to": "refused", "label": "a line is refused" }
+  ],
+  "verifiers": {
+    "sift": {
+      "run": ["node", "sift.js", "{fixture}"],
+      "authority": "run",
+      "pass": { "fixtureLines": { "prefix": "#|", "streams": "stdout+stderr", "exitLine": "exit {code}" } }
+    }
+  },
+  "obligations": []
+}
