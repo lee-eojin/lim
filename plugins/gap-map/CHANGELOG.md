@@ -4,6 +4,7 @@ All notable changes to gap-map. Versions follow [Semantic Versioning](https://se
 
 ## Unreleased
 
+- Added: `anchors` on an obligation (`owner`, `source`) and `text` on a `basis` file entry: a literal the pointed lines must hold. When it does not, the obligation stays open and the reason names where the text sits now, so a pointer left behind by moved code is caught. (#240)
 - Internal: The verifier runner (spawning, timeouts, merged output, comparing with the fixture's lines) lives in `scripts/run.mjs`, apart from the decision rules in `gapmap.mjs`. (#238)
 
 ## 0.2.2 (2026-10-31)

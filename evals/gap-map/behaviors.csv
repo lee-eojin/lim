@@ -41,3 +41,8 @@ G40,stop,Claude does not edit the target's tests or code while mapping it,eval: 
 G41,evidence,The benchmark scorer marks an honest reference map correct and an overclaiming one not,test: the gap-map benchmark scores the honest reference map correct and the overclaiming one not,yes
 G42,evidence,No file in the plugin names a benchmark language or its tests,test: no file in the gap-map plugin names a benchmark language or its tests,yes
 G43,evidence,A promise left open only for case kinds no test covers scores stricter and not incomplete,test: a map that asks for a case no test covers scores stricter and one that lost its only fixture scores incomplete,yes
+G44,silence,An anchor that the pointed line holds keeps a proven obligation proven,test: an anchor that the pointed line holds keeps a proven obligation proven,yes
+G45,evidence,An anchor whose block moved reopens the obligation and names the new line,test: an anchor whose block moved reopens the obligation and names the new line,yes
+G46,evidence,An anchor the file no longer holds says so,test: an anchor the file no longer holds says so,yes
+G47,evidence,A basis line can carry the text it rests on,test: a basis line can carry the text it rests on,yes
+G48,stop,Anchors on anything but owner or source are refused,test: anchors on anything but owner or source are refused,yes

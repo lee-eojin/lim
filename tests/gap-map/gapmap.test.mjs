@@ -381,3 +381,38 @@ test('a basis search over the root does not count the map that cites it or its o
   gapmap(dir, 'check');
   assert.equal(status(dir).obligations['check.mismatch'].status, 'closed', JSON.stringify(status(dir).obligations['check.mismatch'].reasons));
 });
+
+test('an anchor that the pointed line holds keeps a proven obligation proven', () => {
+  const { dir } = project(withObligation(() => ({ anchors: { owner: 'function check', source: 'is refused' } })));
+  gapmap(dir, 'run');
+  assert.equal(status(dir).obligations['check.mismatch'].status, 'closed');
+});
+
+test('an anchor whose block moved reopens the obligation and names the new line', () => {
+  const { dir } = project(withObligation(() => ({ anchors: { owner: 'function check' } })));
+  gapmap(dir, 'run');
+  writeFileSync(path.join(dir, 'src/check.ts'), '// moved down\n\nexport function check() {\n  return true;\n}\n');
+  gapmap(dir, 'run');
+  const { status: state, reasons } = status(dir).obligations['check.mismatch'];
+  assert.equal(state, 'open');
+  assert.ok(reasons.includes('owner src/check.ts:1 does not contain "function check"; it is now at src/check.ts:3'), JSON.stringify(reasons));
+});
+
+test('an anchor the file no longer holds says so', () => {
+  const { dir } = project(withObligation(() => ({ anchors: { source: 'coerced silently' } })));
+  gapmap(dir, 'run');
+  assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('source docs/guide.md:2 does not contain "coerced silently"; the file no longer contains it'));
+});
+
+test('a basis line can carry the text it rests on', () => {
+  const { dir } = project(withObligation(() => ({ question: 'Should Bool coerce?', basis: [{ file: 'docs/guide.md:1', text: 'is refused' }] })));
+  gapmap(dir, 'run');
+  assert.ok(status(dir).obligations['check.mismatch'].reasons.includes('basis: docs/guide.md:1 does not contain "is refused"; it is now at docs/guide.md:2'));
+});
+
+test('anchors on anything but owner or source are refused', () => {
+  const { dir } = project(withObligation(() => ({ anchors: { claim: 'x' } })));
+  const result = gapmap(dir, 'check');
+  assert.equal(result.status, 2);
+  assert.match(result.stdout, /anchors must map owner or source to the literal text their lines hold/);
+});

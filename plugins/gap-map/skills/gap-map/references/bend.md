@@ -91,4 +91,4 @@ The first map asked whether a future checker may search for the decreasing argum
 
 ## The map built from this file
 
-The first map, built on 2026-10-31 against `b2fe9ce0`, lives outside the repository in `~/orca/workspaces/bend/gap-map/`: `build_map.py` writes `gap-map.json`, `lane.sh` is the wrapper above, and `gapmap run` gave 11 of 24 obligations proven from 39 fixtures, 10 open, 2 contradicted, 1 blocked, and 4 won't fix. Start from it rather than from nothing, and rerun it after the repository moves.
+The first map, built on 2026-10-31 against `b2fe9ce0`, lives outside the repository in `~/orca/workspaces/bend/gap-map/`: `build_map.py` writes `gap-map.json`, `lane.sh` is the wrapper above, and `gapmap run` gave 11 of 24 obligations proven from 39 fixtures, 10 open, 2 contradicted, 1 blocked, and 4 won't fix. Start from it rather than from nothing, and rerun it after the repository moves. When the checkout moved from `b2fe9ce0` to `9e8d7b79`, 16 of the 17 `owner` lines that carried an anchor no longer held their function, though every one still resolved; the anchors named where each one went. Give every owner an anchor.
