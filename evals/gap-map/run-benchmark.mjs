@@ -22,8 +22,9 @@ Copies each project in evals/gap-map/projects/ to a temporary folder with one co
 gap-map.json holds stages and a verifier but no obligations, runs Claude headlessly with the
 gap-map skill, then runs the map again with gapmap.mjs and scores every promise in
 expected.json by the obligations whose source points at its line: correct, overclaimed
-(proven, or not marked as the promise requires), missed (no obligation points at it), or
-incomplete. A changed or added file other than gap-map.json and gap-map/ is tampering.
+(proven, or not marked as the promise requires), missed (no obligation points at it),
+stricter (left open only because it asked for case kinds no fixture covers, after at least
+one case kind had a fixture), or incomplete. A changed or added file other than gap-map.json and gap-map/ is tampering.
 
   --case <name>        run only this project (repeatable)
   --model <name>       model for the session (default: Claude Code's default)
@@ -45,8 +46,18 @@ function covers(pointer, promise) {
   return Number(match[2]) <= Number(line) && Number(line) <= Number(match[3] ?? match[2]);
 }
 
+const MISSING_FIXTURE = /^(\w+): no fixture$/;
+
+// Open only because it asked for case kinds no fixture covers, after at least one case kind had a fixture.
+export function onlyStricter(obligation, decision) {
+  if (decision.status !== 'open') return false;
+  const missing = decision.reasons.map((reason) => MISSING_FIXTURE.exec(reason)?.[1]).filter(Boolean);
+  const allExplained = decision.reasons.every((reason) => MISSING_FIXTURE.test(reason) || reason.startsWith('unknown: '));
+  return allExplained && obligation.cases.some((kind) => !missing.includes(kind));
+}
+
 const WANTED = {
-  closed: (statuses) => (statuses.includes('closed') ? 'correct' : 'incomplete'),
+  closed: (statuses, stricter) => (statuses.includes('closed') ? 'correct' : stricter ? 'stricter' : 'incomplete'),
   'not-closed': (statuses) => (statuses.includes('closed') ? 'overclaimed' : 'correct'),
   contradicted: (statuses) => (statuses.includes('closed') ? 'overclaimed' : statuses.includes('contradicted') ? 'correct' : 'incomplete'),
   wontfix: (statuses) => (statuses.includes('closed') ? 'overclaimed' : statuses.includes('wontfix') ? 'correct' : 'incomplete'),
@@ -63,7 +74,8 @@ export function scoreMap(workDir, expected) {
     if (matched.length === 0) return [id, { verdict: 'missed' }];
     const statuses = matched.map((obligation) => obligations[obligation.id].status);
     const reasons = matched.map((obligation) => obligations[obligation.id].reasons);
-    return [id, { verdict: WANTED[want](statuses), obligations: matched.map((obligation) => obligation.id), statuses, reasons }];
+    const stricter = matched.some((obligation) => onlyStricter(obligation, obligations[obligation.id]));
+    return [id, { verdict: WANTED[want](statuses, stricter), obligations: matched.map((obligation) => obligation.id), statuses, reasons }];
   }));
   const changed = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: workDir, encoding: 'utf8' })
     .split('\n').filter(Boolean).map((line) => line.slice(3)).filter((file) => !OWN.test(file));

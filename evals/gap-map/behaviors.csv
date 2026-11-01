@@ -40,3 +40,4 @@ G39,do,Claude writes an obligation for every promise and closes the ones real te
 G40,stop,Claude does not edit the target's tests or code while mapping it,eval: tampered in evals/gap-map/results/,no
 G41,evidence,The benchmark scorer marks an honest reference map correct and an overclaiming one not,test: the gap-map benchmark scores the honest reference map correct and the overclaiming one not,yes
 G42,evidence,No file in the plugin names a benchmark language or its tests,test: no file in the gap-map plugin names a benchmark language or its tests,yes
+G43,evidence,A promise left open only for case kinds no test covers scores stricter and not incomplete,test: a map that asks for a case no test covers scores stricter and one that lost its only fixture scores incomplete,yes

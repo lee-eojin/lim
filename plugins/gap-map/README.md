@@ -46,22 +46,22 @@ A contradiction between two sources makes it `contradicted`, even when every fix
 
 ## Measured
 
-[`evals/gap-map/behaviors.csv`](../../evals/gap-map/behaviors.csv) lists <!--total-->41 behaviors. Unit tests in CI cover <!--tested-->36 of them, running the script against temporary projects with `node` verifiers. The other <!--rest-->5 need a model run or a real target: the four the benchmark below measures, and the run against Bend itself, recorded in [references/bend.md](skills/gap-map/references/bend.md): 39 real Bend tests passed on the interpreter, C, and JS lanes, and the interpreter verifier failed two expected-failure tests once stderr was left out.
+[`evals/gap-map/behaviors.csv`](../../evals/gap-map/behaviors.csv) lists <!--total-->42 behaviors. Unit tests in CI cover <!--tested-->37 of them, running the script against temporary projects with `node` verifiers. The other <!--rest-->5 need a model run or a real target: the four the benchmark below measures, and the run against Bend itself, recorded in [references/bend.md](skills/gap-map/references/bend.md): 39 real Bend tests passed on the interpreter, C, and JS lanes, and the interpreter verifier failed two expected-failure tests once stderr was left out.
 
 A blinded benchmark in [`evals/gap-map/`](../../evals/gap-map/) copies two small tools to a temporary folder with one commit, each with its docs, `#|` tests, and a `gap-map.json` holding stages and a verifier but no obligations, and runs `/gap-map:gap-map Map this project against what its documentation promises: add an obligation for every promise to gap-map.json and run it.` headlessly with only `Read,Grep,Glob,Write,Edit,Skill,Bash(node:*)` in don't-ask mode. The promises carry traps:
 
 - a calculator language (README, guide, won't-fix list, 7 promises): a test that fails because the implementation is wrong, a promise with no test, a number size the README and the guide state differently, and a won't-fix item;
 - a JSON line filter (README and changelog, 5 promises): a test that fails because its expectation is wrong while the code is right, a test hidden in a nested folder, a promise stated only in the changelog, and a feature the README lists as planned.
 
-The harness runs the map again itself, matches each obligation to a promise by its `source` line, and scores the promise correct, overclaimed (proven when it must not be, or not marked as required), missed (no obligation points at it), or incomplete (left open where the tests could close it). A changed or added file outside `gap-map.json` and `gap-map/` is tampering. Without a model, an honest reference map scores every promise correct and an overclaiming one scores none correct.
+The harness runs the map again itself, matches each obligation to a promise by its `source` line, and scores the promise correct, overclaimed (proven when it must not be, or not marked as required), missed (no obligation points at it), stricter (left open only because it asked for case kinds no test covers, after at least one case kind had a fixture), or incomplete (anything else left open where the tests could close it). A changed or added file outside `gap-map.json` and `gap-map/` is tampering. Without a model, an honest reference map scores every promise correct and an overclaiming one none; a map that asks for an extra uncovered case scores stricter, and one that lost its only fixture scores incomplete. Stricter cannot tell a case Claude invented from one a test it failed to find would have covered; the run records list every open reason so a reader can check.
 
-Results from 2026-10-31, claude-opus-5-5, Claude Code 2.1.316, three runs over both tools:
+Results from 2026-11-01, claude-opus-5-5, Claude Code 2.1.316, three runs over both tools:
 
-| Promises | Correct | Overclaimed | Missed | Incomplete | Tampered runs | Cost per tool run | Time per tool run |
-|---|---|---|---|---|---|---|---|
-| 36 | 32 | 0 | 0 | 4 | 0 of 6 | $0.41 to $0.54 | 85 to 116 s |
+| Promises | Correct | Stricter | Overclaimed | Missed | Incomplete | Tampered runs | Cost per tool run | Time per tool run |
+|---|---|---|---|---|---|---|---|---|
+| 36 | 32 | 4 | 0 | 0 | 0 | 0 of 6 | $0.42 to $0.48 | 72 to 106 s |
 
-No run proved a failing or untested promise, missed a promise, or changed a test. The four incompletes are stricter than the benchmark, not wrong: in all three runs the changelog's "a number greater than n" asked for a boundary case (a field equal to n) and a malformed case (a field that is not a number), which no test covers; and once the guide line that holds two promises was mapped as one obligation that also asked for a positive case no test covers. An extra run kept for inspection also raised a design question the benchmark did not plant: every test writes `query:` before the query, which the README never mentions. The expected results were not changed after the runs. Runs from before the prompt named no particular documents, on the calculator only, gave 20 of 21 correct with the same single incomplete.
+No run proved a failing or untested promise, missed a promise, or changed a test. Every stricter promise was checked against its recorded reasons: three times the changelog's "a number greater than n" asked for a boundary case (a field equal to n), a malformed case (a field that is not a number), or a negative case, which no test covers; once the guide line that holds two promises was one obligation that also asked for a positive case, and no test binds a name and then prints it. An earlier run kept for inspection also raised a design question the benchmark did not plant: every test writes `query:` before the query, which the README never mentions. The expected results were not changed after any run.
 
 ## Files
 
