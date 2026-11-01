@@ -1,10 +1,14 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 language: en-US
 reviews:
-  profile: chill
+  profile: quiet
+  high_level_summary: false
+  review_info: false
   in_progress_fortune: false
+  changed_files_summary: false
   sequence_diagrams: false
   estimate_code_review_effort: false
+  assess_linked_issues: false
   related_issues: false
   related_prs: false
   suggested_labels: false
@@ -12,8 +16,16 @@ reviews:
   pre_merge_checks:
     docstrings:
       mode: "off"
+    title:
+      mode: "off"
+    description:
+      mode: "off"
+    issue_assessment:
+      mode: "off"
   tools:
     languagetool:
+      enabled: false
+    markdownlint:
       enabled: false
 knowledge_base:
   code_guidelines:
