@@ -1,0 +1,295 @@
+{
+  "date": "2026-11-01T08:05:41.951Z",
+  "model": "claude-opus-5-5",
+  "claudeVersion": "2.1.316 (Claude Code)",
+  "skill": {
+    "path": "plugins/gap-map/skills/gap-map/SKILL.md",
+    "sha256": "d765a69380ffc66c3b58ddc9b792973186aba4cbc6920aa032cc9906fae6bb41"
+  },
+  "prompt": "/gap-map:gap-map Map this project against what its documentation promises: add an obligation for every promise to gap-map.json and run it.",
+  "summary": {
+    "runs": 2,
+    "errors": 0,
+    "verdicts": {
+      "correct": 11,
+      "stricter": 1
+    },
+    "tamperedRuns": 0,
+    "totalTokens": 627221,
+    "totalCostUsd": 0.9069,
+    "totalWallSeconds": 195
+  },
+  "runs": [
+    {
+      "case": "quill",
+      "wallMs": 89134,
+      "bashCommands": [
+        {
+          "command": "git ls-files | head -200; echo; git ls-files | wc -l",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        },
+        {
+          "command": "for f in README.md GUIDE.md WONTFIX.md gap-map.json package.json; do echo \"=== $f\"; cat -n $f; done; echo \"=== quill.js\"; cat -n quill.js; for f in tests/*; do echo \"=== $f\"; cat -n $f; done",
+          "denied": true,
+          "isError": true,
+          "permission": "reject",
+          "output": "Permission to use Bash has been denied because Claude Code is running in don't ask mode. IMPORTANT: You *may* attempt to accomplish this action using other tools that might naturally be used to accomplish this goal, e.g. using head instead of cat. But you *should not* attempt to work around this den"
+        },
+        {
+          "command": "node /Users/lej/lim-236/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map gap-map.json",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        }
+      ],
+      "permissionDenials": [
+        {
+          "tool": "Bash",
+          "input": "for f in README.md GUIDE.md WONTFIX.md gap-map.json package.json; do echo \"=== $f\"; cat -n $f; done; echo \"=== quill.js\"; cat -n quill.js; for f in tests/*; do echo \"=== $f\"; cat -n $f; done"
+        }
+      ],
+      "filesWritten": [
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/quill-HkLLHQ/gap-map.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": 281202,
+      "costUsd": 0.44179559999999996,
+      "turns": 21,
+      "finalMessage": "```\n4 of 9 proven; 4 open, 1 contradicted, 0 blocked, 1 won't fix\n```\n\nI added 10 obligations to `gap-map.json`: 9 count toward the total, and 1 is marked won't fix. One fixture failed: `tests/power.q`. It expected `512` and got `64`.\n\n## 1. Design decisions to make\n\n- **Contradiction: how wide are numbers?** (`evaluate.number-width`)\n  - `README.md:11` says numbers are 64-bit signed integers.\n  - `GUIDE.md:9` says they are arbitrary-precision, so `2 ** 100` prints all 31 digits.\n  - `tests/big.q` follows the guide, and it passes. The map counts it as contradicted, not proven, until the project picks one side. If you choose 64-bit, you also need to say what happens past the limit: wrap around, or refuse with which error. Neither README nor GUIDE mentions overflow (0 hits for \"overflow\").\n- **Question: what does `1.5` print?** (`read.float-refused`)\n  - `WONTFIX.md:3` says `1.5` will not parse, but no document gives the error text or the exit code. `WONTFIX.md` has 0 hits for `error:`, and no test contains `1.5`.\n\n## 2. Gaps, stage by stage\n\n**Reading the program (0 of 2 proven)**\n- `read.comments` (`README.md:10`): no test uses a `--` comment. A test like `tests/comment.q` would close it, for example `print 1 -- note` expecting `#|1`.\n- `read.float-refused` (`WONTFIX.md:3`): no refusal test exists. Answer the question above first, then add a test like `tests/float.q` that expects that error and `#|exit 1`.\n\n**Evaluating each line (1 of 4 proven)**\n- `evaluate.power-right-assoc` (`README.md:9`): `tests/power.q` **fails**, printing 64 instead of 512. The code that parses `**` (`quill.js:22-29`) groups left to right, so `2 ** 3 ** 2` runs as `(2**3)**2`. The fix is in the code: the right-hand side of `**` should be parsed recursively. The test is already correct.\n- `evaluate.let-binds` (`GUIDE.md:5`): no test reads a bound name back. `tests/rebind.q` only covers the refusal. A test with `let x = 2 * 21`, then `print x`, expecting `#|42`, would close it.\n- `evaluate.number-width`: blocked by the contradiction above.\n\n## 3. What is proven\n\n- **Printed every result, exit 0:** each `print` is printed in order (`tests/arith.q`).\n- **Evaluating each line:** `+`, `-`, `*` and operator precedence work, so `2 + 3 * 4` prints 14 (`tests/arith.q`).\n- **Printed an error, exit 1:** division by zero is refused (`tests/div_zero.q`), and so is binding a name twice (`tests/rebind.q`).\n- **Won't fix (not counted):** floating-point numbers, per `WONTFIX.md:3`.\n\n## 4. What the map leaves out\n\n- There is only one lane, `node quill.js` with stdout and stderr merged and `exit N` appended. Its `#|` comparison rules are copied from `README.md:13`. I wrote no wrapper scripts.\n- All 5 tests in `tests/` are used as fixtures, which is the whole suite.\n- I did not run a deliberately broken variant of the verifier, such as one that ignores stderr. The real failure in `power.q` does show that a mismatch fails.\n- `README.md:13` (\"every test ends in its `#|` lines\") is a rule for writing tests, not behavior a user sees. It shaped the verifier but is not an obligation of its own.\n- The code also refuses names that were never bound (`quill.js:46`) and lines it cannot read (`quill.js:71`). No document promises either, so neither is mapped. If the project wants them guaranteed, they need to be documented first.\n- I did not keep `decisions.tsv`.\n\n## 5. Files\n\n- `gap-map/gaps.md`\n- `gap-map/map.svg`\n- `gap-map/status.json`\n- `gap-map/results.json`\n\nTo regenerate everything:\n```\nnode /Users/lej/lim-236/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map gap-map.json\n```",
+      "result": "scored",
+      "promises": {
+        "arithmetic": {
+          "verdict": "correct",
+          "obligations": [
+            "evaluate.arith"
+          ],
+          "statuses": [
+            "closed"
+          ],
+          "reasons": [
+            []
+          ]
+        },
+        "division-by-zero": {
+          "verdict": "correct",
+          "obligations": [
+            "refused.div-zero"
+          ],
+          "statuses": [
+            "closed"
+          ],
+          "reasons": [
+            []
+          ]
+        },
+        "right-associative-power": {
+          "verdict": "correct",
+          "obligations": [
+            "evaluate.power-right-assoc"
+          ],
+          "statuses": [
+            "open"
+          ],
+          "reasons": [
+            [
+              "positive: tests/power.q failed (line 1: expected \"512\", got \"64\")"
+            ]
+          ]
+        },
+        "comments": {
+          "verdict": "correct",
+          "obligations": [
+            "read.comments"
+          ],
+          "statuses": [
+            "open"
+          ],
+          "reasons": [
+            [
+              "positive: no fixture"
+            ]
+          ]
+        },
+        "number-size": {
+          "verdict": "correct",
+          "obligations": [
+            "evaluate.number-width"
+          ],
+          "statuses": [
+            "contradicted"
+          ],
+          "reasons": [
+            [
+              "contradiction: README.md:11 says numbers are 64-bit signed integers; GUIDE.md:9 says numbers are arbitrary-precision integers and 2 ** 100 prints all 31 digits. tests/big.q follows the guide."
+            ]
+          ]
+        },
+        "immutable-bindings": {
+          "verdict": "correct",
+          "obligations": [
+            "evaluate.let-binds",
+            "refused.rebind"
+          ],
+          "statuses": [
+            "open",
+            "closed"
+          ],
+          "reasons": [
+            [
+              "positive: no fixture"
+            ],
+            []
+          ]
+        },
+        "no-floats": {
+          "verdict": "correct",
+          "obligations": [
+            "read.float-refused",
+            "evaluate.floats"
+          ],
+          "statuses": [
+            "open",
+            "wontfix"
+          ],
+          "reasons": [
+            [
+              "negative: no fixture"
+            ],
+            [
+              "the project will not fix this; shown, never counted as proven"
+            ]
+          ]
+        }
+      },
+      "tampered": []
+    },
+    {
+      "case": "sift",
+      "wallMs": 105508,
+      "bashCommands": [
+        {
+          "command": "git ls-files | head -100; git ls-files | wc -l",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        },
+        {
+          "command": "for f in README.md CHANGELOG.md package.json gap-map.json sift.js tests/eq.sift tests/gt.sift tests/missing.sift tests/regress/2024/ne.sift; do echo \"=== $f\"; cat -n \"$f\"; done",
+          "denied": true,
+          "isError": true,
+          "permission": "reject",
+          "output": "Permission to use Bash has been denied because Claude Code is running in don't ask mode. IMPORTANT: You *may* attempt to accomplish this action using other tools that might naturally be used to accomplish this goal, e.g. using head instead of cat. But you *should not* attempt to work around this den"
+        },
+        {
+          "command": "node /Users/lej/lim-236/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/sift-IOGJAy/gap-map.json",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        },
+        {
+          "command": "node /Users/lej/lim-236/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --id eval.missing-field --map /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/sift-IOGJAy/gap-map.json",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        },
+        {
+          "command": "node /Users/lej/lim-236/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/sift-IOGJAy/gap-map.json",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        }
+      ],
+      "permissionDenials": [
+        {
+          "tool": "Bash",
+          "input": "for f in README.md CHANGELOG.md package.json gap-map.json sift.js tests/eq.sift tests/gt.sift tests/missing.sift tests/regress/2024/ne.sift; do echo \"=== $f\"; cat -n \"$f\"; done"
+        }
+      ],
+      "filesWritten": [
+        "/private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/sift-IOGJAy/gap-map.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": 346019,
+      "costUsd": 0.4650996,
+      "turns": 22,
+      "finalMessage": "I added six obligations to `gap-map.json` and ran them. Two are proven. The map reads in order from the start dot, and its stage labels read as plain sentences.\n\n```\nran 6 fixture(s): 6 passed, 0 failed\n2 of 6 proven; 3 open, 1 contradicted, 0 blocked, 0 won't fix\n```\n\n## 1. Decisions the project needs to make\n\n- **Contradiction: lines without the field** (`eval.missing-field`)\n  - `README.md:9` says a line without the field never matches.\n  - `tests/missing.sift:1-4` expects `{\"id\": 3}`, which has no `city` field, to be printed by `city != Oslo`.\n  - The code (`sift.js:14`) follows the README, so this test fails today. I ran it once to prove the verifier can fail: it expected `{\"id\": 3}` and got `{\"city\": \"Lima\", \"id\": 2}`. Then I took it back out of the map, because it asserts the opposite of the claim and can't count as evidence for it.\n  - You need to decide which one is right: change the README or the test.\n- **Question: is `query:` part of the syntax?** (`read.first-line`) Every test and the parser (`sift.js:11`) need the `query:` prefix. `README.md:3,7` and `CHANGELOG.md:9` never mention it (0 hits in each file).\n- **Question: does `\"12\"` count as a number for `>`?** (`eval.gt`) `CHANGELOG.md:5` says the field must be \"a number\". No source says whether a string that looks like a number qualifies (0 hits for \"number\" in the README). The code accepts it.\n- **Question: how does `or` treat a missing field?** (`planned.or`) If a line lacks one condition's field, does it still match when the other condition holds? This depends on `README.md:9` and `README.md:13`. No test uses ` or ` (0 hits in `tests/`).\n\n## 2. Gaps, stage by stage\n\n**Reading the query (0 of 2 proven)**\n- `read.first-line`: there's no test for a malformed first line. No document says what a bad query should print or which exit code it should give. The code currently crashes with a TypeError. Answering that would allow one test, `tests/bad-query.sift`.\n- `planned.or`: there's no implementation and no tests for the keep or drop cases. Answer the question first, then add `tests/or.sift`.\n\n**Matching each line (2 of 4 proven, 1 contradicted)**\n- `eval.gt` is missing two tests:\n  - a non-number field, which needs the `\"12\"` question answered first;\n  - a field equal to `n`, which should be dropped.\n\n  The README's query list also doesn't mention `>`.\n- `eval.missing-field` has no test that asserts the README's side. The contradiction has to be settled first.\n\n## 3. Proven\n\n- **Matching each line:** `=` (`tests/eq.sift`) and `!=` (`tests/regress/2024/ne.sift`) keep the matching lines and drop the others.\n- **Printed / Stopped with an error:** no obligations, because no document promises anything about errors or exit codes.\n\n## 4. What the map leaves out\n\n- I didn't add a wrapper script.\n- The verifier is the one that was already in `gap-map.json`: `node sift.js`, with stdout and stderr merged and `#|` lines.\n- All four tests in the suite were considered. Three are used as evidence and `missing.sift` is recorded as the contradiction.\n- `eq.sift` and `ne.sift` each cover both the keep and drop cases, because each holds a line that matches and one that doesn't.\n- One node version, one platform (macOS), no other hosts.\n- I didn't create a `decisions.tsv` trail.\n- The output folder `gap-map/` was written inside the repository, next to the `gap-map.json` that was already there, and is untracked.\n\n## 5. Files\n\n- `gap-map/gaps.md`\n- `gap-map/map.svg`\n- `gap-map/status.json`\n- To regenerate everything:\n  `node /Users/lej/lim-236/plugins/gap-map/skills/gap-map/scripts/gapmap.mjs run --map /private/var/folders/rw/ngxdjk6d21b7fv0z9c7m0sqw0000gn/T/sift-IOGJAy/gap-map.json`",
+      "result": "scored",
+      "promises": {
+        "equals": {
+          "verdict": "correct",
+          "obligations": [
+            "eval.eq"
+          ],
+          "statuses": [
+            "closed"
+          ],
+          "reasons": [
+            []
+          ]
+        },
+        "not-equals": {
+          "verdict": "correct",
+          "obligations": [
+            "eval.ne"
+          ],
+          "statuses": [
+            "closed"
+          ],
+          "reasons": [
+            []
+          ]
+        },
+        "missing-field": {
+          "verdict": "correct",
+          "obligations": [
+            "eval.missing-field"
+          ],
+          "statuses": [
+            "contradicted"
+          ],
+          "reasons": [
+            [
+              "negative: no fixture",
+              "contradiction: README.md:9 says a line without the field never matches, but tests/missing.sift:1-4 expects `{\"id\": 3}` (no `city` field) to be printed by `city != Oslo`."
+            ]
+          ]
+        },
+        "planned-or": {
+          "verdict": "correct",
+          "obligations": [
+            "planned.or"
+          ],
+          "statuses": [
+            "open"
+          ],
+          "reasons": [
+            [
+              "positive: no fixture",
+              "negative: no fixture"
+            ]
+          ]
+        },
+        "greater-than": {
+          "verdict": "stricter",
+          "obligations": [
+            "eval.gt"
+          ],
+          "statuses": [
+            "open"
+          ],
+          "reasons": [
+            [
+              "negative: no fixture",
+              "boundary: no fixture",
+              "unknown: README.md's query list (lines 5-9) does not mention `>`; whether that omission is deliberate is unknown.",
+              "unknown: No test covers a field equal to n (boundary)."
+            ]
+          ]
+        }
+      },
+      "tampered": []
+    }
+  ]
+}

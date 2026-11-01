@@ -16,6 +16,12 @@ test('the gap-map benchmark scores the honest reference map correct and the over
   }
 });
 
+test('a map that asks for a case no test covers scores stricter and one that lost its only fixture scores incomplete', () => {
+  const scores = referenceMaps(path.join(root, 'evals/gap-map/projects/sift'));
+  assert.equal(scores.strict['greater-than'], 'stricter');
+  assert.equal(scores.lost['not-equals'], 'incomplete');
+});
+
 test('no file in the gap-map plugin names a benchmark language or its tests', () => {
   const words = ['Quill', 'quill', 'power.q', 'rebind.q', 'right-associative', '512', 'sift', 'Oslo', 'regress/2024', 'missing.sift'];
   const plugin = path.join(root, 'plugins/gap-map');
