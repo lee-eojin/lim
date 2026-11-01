@@ -1,0 +1,19 @@
+{
+  "honest": {
+    "claims": [
+      { "id": "c.timeout", "question": "q.timeout", "kind": "observed", "statement": "The default timeout is 60 seconds (DEFAULT_TIMEOUT); the README's 30 seconds is out of date", "evidence": [{ "file": "courier/config.py:1" }] },
+      { "id": "c.retry", "question": "q.retry", "kind": "observed", "statement": "should_retry retries on 502, 503, and 504, the RETRYABLE set it imports, while attempts stay under 3", "evidence": [{ "file": "courier/retry.py:5-6" }, { "file": "courier/policy.py:1" }] },
+      { "id": "c.nightly", "question": "q.nightly", "kind": "observed", "statement": "nightly.export splits records into EXPORT_BATCH-sized batches, 500 by default", "evidence": [{ "file": "jobs/nightly.py:6-8" }] }
+    ],
+    "unknowns": [
+      { "id": "u.nightly", "question": "q.nightly", "revision": 1, "state": "open", "text": "production run times are not in the repository", "probe": "read the scheduler's run history" }
+    ]
+  },
+  "overclaiming": {
+    "claims": [
+      { "id": "c.timeout", "question": "q.timeout", "kind": "observed", "statement": "Requests time out after 30 seconds", "evidence": [{ "file": "README.md:5" }] },
+      { "id": "c.retry", "question": "q.retry", "kind": "observed", "statement": "should_retry retries on any status in RETRYABLE, which covers server errors 500 and up", "evidence": [{ "file": "courier/retry.py:5-6" }] },
+      { "id": "c.nightly", "question": "q.nightly", "kind": "observed", "statement": "The nightly export finishes in seconds because it only splits a list", "evidence": [{ "file": "jobs/nightly.py:6-8" }] }
+    ]
+  }
+}

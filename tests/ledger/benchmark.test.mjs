@@ -17,7 +17,7 @@ test('the ledger benchmark scores the honest reference correct and the overclaim
 });
 
 test('no file in the ledger plugin names a benchmark project or its functions or its answers', () => {
-  const words = ['relaybox', 'legacyExport', 'formatSize', 'migrate.js', 'RELAY_PORT', '1536', '1.54 KiB'];
+  const words = ['relaybox', 'legacyExport', 'formatSize', 'migrate.js', 'RELAY_PORT', '1536', '1.54 KiB', 'courier', 'should_retry', 'RETRYABLE', 'EXPORT_BATCH', 'DEFAULT_TIMEOUT'];
   const plugin = path.join(root, 'plugins/ledger');
   const files = readdirSync(plugin, { recursive: true }).filter((file) => statSync(path.join(plugin, file)).isFile());
   for (const file of files) {

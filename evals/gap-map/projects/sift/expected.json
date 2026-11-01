@@ -1,0 +1,7 @@
+{
+  "equals": { "lines": ["README.md:7"], "want": "closed" },
+  "not-equals": { "lines": ["README.md:8"], "want": "closed" },
+  "missing-field": { "lines": ["README.md:9"], "want": "not-closed" },
+  "planned-or": { "lines": ["README.md:13"], "want": "not-closed" },
+  "greater-than": { "lines": ["CHANGELOG.md:5"], "want": "closed" }
+}

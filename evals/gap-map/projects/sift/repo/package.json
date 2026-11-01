@@ -1,0 +1,6 @@
+{
+  "name": "sift",
+  "version": "2.1.0",
+  "type": "module",
+  "bin": { "sift": "sift.js" }
+}
