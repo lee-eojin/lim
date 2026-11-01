@@ -137,10 +137,18 @@ export function validate(map, root) {
       }
     }
     for (const entry of obligation.basis ?? []) {
-      const isFile = typeof entry?.file === 'string' && !('search' in entry);
+      const isFile = typeof entry?.file === 'string' && !('search' in entry)
+        && (entry.text === undefined || (typeof entry.text === 'string' && entry.text.trim() !== ''));
       const isSearch = typeof entry?.search === 'string' && entry.search !== '' && typeof entry.scope === 'string' && Number.isInteger(entry.hits) && !('file' in entry);
       if (!isFile && !isSearch) problems.push(`${label} basis ${JSON.stringify(entry)} must be { file } or { search, scope, hits }`);
       else if (!insideRoot(root, isFile ? entry.file.replace(POINTER, '$1') : entry.scope)) problems.push(`${label} basis path ${isFile ? entry.file : entry.scope} leaves the root`);
+    }
+    if (obligation.anchors !== undefined) {
+      const keys = Object.keys(obligation.anchors ?? {});
+      if (typeof obligation.anchors !== 'object' || keys.length === 0 || keys.some((key) => !['owner', 'source'].includes(key))
+        || keys.some((key) => typeof obligation.anchors[key] !== 'string' || !obligation.anchors[key].trim())) {
+        problems.push(`${label} anchors must map owner or source to the literal text their lines hold`);
+      }
     }
     for (const key of ['unknowns', 'contradictions']) {
       if (obligation[key] !== undefined && !(Array.isArray(obligation[key]) && obligation[key].every((entry) => typeof entry === 'string'))) {
@@ -162,6 +170,20 @@ export function resolvePointer(root, pointer) {
   const first = Number(match[2]);
   const last = Number(match[3] ?? match[2]);
   return first >= 1 && last >= first && last <= lineCount(readFileSync(target, 'utf8'));
+}
+
+// null when the pointed lines hold the text; otherwise why not, naming where the text sits now if it moved.
+export function anchorProblem(root, pointer, text) {
+  if (!resolvePointer(root, pointer)) return null;
+  const match = POINTER.exec(pointer);
+  const file = match ? match[1] : pointer;
+  const lines = readFileSync(path.resolve(root, file), 'utf8').split('\n');
+  const first = match ? Number(match[2]) : 1;
+  const last = match ? Number(match[3] ?? match[2]) : lines.length;
+  if (lines.slice(first - 1, last).join('\n').includes(text)) return null;
+  const elsewhere = lines.flatMap((line, index) => (line.includes(text) ? [index + 1] : []));
+  return `${pointer} does not contain ${JSON.stringify(text)}`
+    + (elsewhere.length ? `; it is now at ${file}:${elsewhere.slice(0, 3).join(', ')}` : '; the file no longer contains it');
 }
 
 export function ownerDigest(root, owner) {
@@ -190,6 +212,10 @@ export function decide(obligation, { root, verifiers, results, ignored = [] }) {
   if (obligation.disposition === 'blocked') reasons.push('blocked: the authority this claim needs is not available here');
   if (!resolvePointer(root, obligation.source)) reasons.push(`source ${obligation.source ?? '(none)'} does not resolve to a file and line`);
   if (!resolvePointer(root, obligation.owner)) reasons.push(`owner ${obligation.owner ?? '(none)'} does not resolve to a file and line`);
+  for (const [key, text] of Object.entries(obligation.anchors ?? {})) {
+    const problem = anchorProblem(root, obligation[key], text);
+    if (problem) reasons.push(`${key} ${problem}`);
+  }
   for (const kind of obligation.cases) {
     const fixtures = (obligation.fixtures ?? []).filter((fixture) => fixture.case === kind);
     if (fixtures.length === 0) {
@@ -244,7 +270,11 @@ export function countHits(root, scope, needle, ignored = []) {
 
 export function checkBasis(root, basis, ignored = []) {
   return basis.flatMap((entry) => {
-    if (entry.file !== undefined) return resolvePointer(root, entry.file) ? [] : [`${entry.file} does not resolve to a file and line`];
+    if (entry.file !== undefined) {
+      if (!resolvePointer(root, entry.file)) return [`${entry.file} does not resolve to a file and line`];
+      const problem = entry.text === undefined ? null : anchorProblem(root, entry.file, entry.text);
+      return problem ? [problem] : [];
+    }
     const counted = countHits(root, entry.scope, entry.search, ignored);
     if (counted.error) return [counted.error];
     return counted.hits === entry.hits ? [] : [`searching ${entry.scope} for ${JSON.stringify(entry.search)} now finds ${counted.hits}, the question says ${entry.hits}`];

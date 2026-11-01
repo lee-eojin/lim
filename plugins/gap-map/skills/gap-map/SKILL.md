@@ -41,6 +41,7 @@ The map is a statechart of what a program goes through, as its author sees it. R
 One obligation is one promised behavior that a user can observe.
 
 - `source` is the `file:line` that promises it. `owner` is the `file:line` of the code that decides it. The script reopens an obligation whose pointer does not resolve.
+- Add `anchors` with a short literal from each pointed line, such as the function name at `owner` and a phrase of the promise at `source`. Line numbers drift as the target changes; an anchor makes the script reopen the obligation and say where the text moved, instead of trusting a line that now holds other code.
 - `cases` lists the kinds of evidence the claim needs: `positive` (it works), `negative` (it refuses what it must refuse), `malformed` (bad input), `boundary` (a limit), `parity` (every lane agrees), `teardown` (it cleans up). Ask of each claim: if this were broken, which case would show it?
 - `fixtures` names existing tests, one or more per case, each with the verifier that runs it. A case with no fixture stays open. That is the gap, so leave it open and say which test is missing.
 - `unknowns` holds what you could not find out, `contradictions` holds disagreements between sources, and `question` holds a design decision the project has to make before the obligation can be written or closed. These are the most useful lines in the report.
