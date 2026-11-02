@@ -33,3 +33,6 @@ L31,evidence,No file in the plugin names a benchmark project or its answers,test
 L32,evidence,A pin break names its kind: the cited lines unchanged or moved or changed,test: a pin break names its kind: other lines changed or the cited lines moved or they changed,yes
 L33,tell,The same pin break is counted once however many times check runs,test: the same pin break is counted once however many times check runs,yes
 L34,do,pin records the cited lines of evidence pinned before lines were kept,test: pin records the cited lines of evidence pinned before lines were kept,yes
+L35,evidence,A cited line that gained a suffix is a change and not a move,test: a cited line that gained a suffix is a change and not a move,yes
+L36,evidence,A pinned range pushed past the end of its file is still classified as a pin break,test: a pinned range pushed past the end of its file is still classified as a pin break,yes
+L37,tell,A break of evidence pinned before lines were kept is recorded as not recorded,test: a break of evidence pinned before lines were kept is recorded as not recorded,yes

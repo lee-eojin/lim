@@ -171,10 +171,12 @@ export function classifyBreak(text, evidence) {
   if (evidence.lines === undefined) return { kind: 'not recorded' };
   const match = POINTER.exec(evidence.file);
   if (citedLines(text, match) === evidence.lines) return { kind: 'unchanged' };
-  const at = text.indexOf(evidence.lines);
-  if (at === -1 || evidence.lines === '') return { kind: 'changed' };
-  const first = text.slice(0, at).split('\n').length;
-  const last = first + evidence.lines.split('\n').length - 1;
+  const wanted = evidence.lines.split('\n');
+  const lines = text.split('\n');
+  const start = evidence.lines === '' ? -1
+    : lines.findIndex((_, index) => wanted.every((line, offset) => lines[index + offset] === line));
+  if (start === -1) return { kind: 'changed' };
+  const [first, last] = [start + 1, start + wanted.length];
   return { kind: 'moved', at: first === last ? `${first}` : `${first}-${last}` };
 }
 
@@ -192,12 +194,12 @@ export function checkEvidence(root, ledgerDir, evidence, ignored = []) {
     const target = path.resolve(root, file);
     if (!existsSync(target) || !statSync(target).isFile()) return { ok: false, why: `${evidence.file} does not exist` };
     const content = readFileSync(target);
-    if (!resolvePointer(root, evidence.file)) return { ok: false, why: `${evidence.file} is past the end of ${file} (${lineCount(content.toString('utf8'))} lines)` };
     if (evidence.sha256 !== undefined && evidence.sha256 !== sha256(content)) {
       const pinBreak = classifyBreak(content.toString('utf8'), evidence);
       const detail = pinBreak.kind === 'moved' ? `the cited lines moved to ${file}:${pinBreak.at}` : BREAK_WORDS[pinBreak.kind];
       return { ok: false, why: `${file} changed after the claim was pinned (${detail})`, pinBreak: { ...pinBreak, file: evidence.file, fileSha256: sha256(content) } };
     }
+    if (!resolvePointer(root, evidence.file)) return { ok: false, why: `${evidence.file} is past the end of ${file} (${lineCount(content.toString('utf8'))} lines)` };
     return { ok: true, runtime: false };
   }
   if (shape === 'output') {
