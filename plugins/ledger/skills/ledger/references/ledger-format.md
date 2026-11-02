@@ -58,7 +58,7 @@ Each piece has exactly one of these keys:
 
 | Key | Holds when | Counts as |
 |---|---|---|
-| `file` (`path`, `path:line`, or `path:first-last`) | the file exists, the lines are inside it, and, after `ledger pin`, its SHA-256 is unchanged | static |
+| `file` (`path`, `path:line`, or `path:first-last`) | the file exists, the lines are inside it, and, after `ledger pin`, its SHA-256 is unchanged; pin also stores the cited `lines`, so a break is reported as the cited lines unchanged, moved (with the new lines), or changed | static |
 | `output` (a `ledger-evidence/<n>.json` written by `ledger save`), with the `sha256` that `save` printed | the record has the fields `save` writes, its SHA-256 still matches its content, and it is the record the claim cited | runtime |
 | `search` with `scope` and `hits` | searching `scope` for the literal text again finds exactly `hits` (`.git`, `node_modules`, and `ledger-evidence` are skipped, links are not followed, at most 20000 files) | static, reported with its scope |
 | `rea` (`ev_` and 64 hex digits) with `bundle` | the exported REA Evidence bundle is JSON and has a record whose `evidence_id` is that id; `runtime: true` for runtime Evidence | static, or runtime with `runtime: true` |
@@ -67,5 +67,6 @@ gap-map's `basis` uses the same `file` and `search` rules; ledger adds `output`,
 
 ## Output
 
+- `ledger-breaks.tsv`: one row per pin break, recorded once per claim, pointer, and file state: when, the claim, the pointer, the kind (`unchanged`, `moved`, `changed`, or `not recorded` for evidence pinned before lines were kept), where it moved, and the file's SHA-256. `ledger check` prints the totals. Searches skip this file.
 - `ledger.md`: the checklist with each claim's kind and state, the bounded searches, and why each unanswered question is not answered.
 - `ledger-evidence/<n>.json`: one saved command each: `command`, `cwd`, `exitCode`, `signal`, `error`, `ms`, `at`, `stdout`, `stderr` (each stream keeps its first and last 100000 characters), and `sha256` over the rest.

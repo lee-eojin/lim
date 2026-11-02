@@ -272,3 +272,63 @@ test('a search over the whole folder does not count the ledger that cites it', (
   assert.equal(result.status, 0, result.stdout);
   assert.equal(ledger(dir, 'check').status, 0, 'still holds once ledger.md exists');
 });
+
+test('a pin break names its kind: other lines changed or the cited lines moved or they changed', () => {
+  const dir = workspace({});
+  ledger(dir, 'pin');
+  writeFileSync(path.join(dir, 'src/cache.js'), 'export function evict(entry) {\n  if (entry.dead) return true;\n  return null;\n}\n');
+  assert.match(ledger(dir, 'check').stdout, /src\/cache.js changed after the claim was pinned \(the cited lines are unchanged\)/);
+  writeFileSync(path.join(dir, 'src/cache.js'), '// moved\n\nexport function evict(entry) {\n  if (entry.dead) return true;\n  return false;\n}\n');
+  assert.match(ledger(dir, 'check').stdout, /\(the cited lines moved to src\/cache.js:4\)/);
+  writeFileSync(path.join(dir, 'src/cache.js'), 'export function evict() {\n  return true;\n}\n');
+  const last = ledger(dir, 'check').stdout;
+  assert.match(last, /\(the cited lines changed\)/);
+  assert.match(last, /pin breaks so far \(ledger-breaks.tsv\): 1 with the cited lines unchanged, 1 moved, 1 changed/);
+});
+
+test('the same pin break is counted once however many times check runs', () => {
+  const dir = workspace({});
+  ledger(dir, 'pin');
+  writeFileSync(path.join(dir, 'src/cache.js'), 'export function evict(entry) {\n  if (entry.dead) return true;\n  return null;\n}\n');
+  ledger(dir, 'check');
+  const again = ledger(dir, 'check').stdout;
+  assert.match(again, /: 1 with the cited lines unchanged, 0 moved, 0 changed/);
+  assert.equal(readFileSync(path.join(dir, 'ledger-breaks.tsv'), 'utf8').trim().split('\n').length, 2);
+});
+
+test('pin records the cited lines of evidence pinned before lines were kept', () => {
+  const dir = workspace({});
+  ledger(dir, 'pin');
+  const current = read(dir);
+  delete current.claims[0].evidence[0].lines;
+  write(dir, current);
+  ledger(dir, 'pin');
+  assert.equal(read(dir).claims[0].evidence[0].lines, '  if (entry.dead) return true;');
+});
+
+test('a cited line that gained a suffix is a change and not a move', () => {
+  const dir = workspace({});
+  ledger(dir, 'pin');
+  writeFileSync(path.join(dir, 'src/cache.js'), 'export function evict(entry) {\n  if (entry.dead) return true; // note\n  return false;\n}\n');
+  assert.match(ledger(dir, 'check').stdout, /\(the cited lines changed\)/);
+});
+
+test('a pinned range pushed past the end of its file is still classified as a pin break', () => {
+  const dir = workspace({ claims: [{ id: 'c.tail', question: 'q.dead-only', statement: 'the function ends on the last line', kind: 'observed', evidence: [{ file: 'src/cache.js:3-4' }] }] });
+  ledger(dir, 'pin');
+  writeFileSync(path.join(dir, 'src/cache.js'), '  return false;\n}\n');
+  const result = ledger(dir, 'check').stdout;
+  assert.match(result, /\(the cited lines moved to src\/cache.js:1-2\)/);
+  assert.match(readFileSync(path.join(dir, 'ledger-breaks.tsv'), 'utf8'), /\tc.tail\tsrc\/cache.js:3-4\tmoved\t1-2\t/);
+});
+
+test('a break of evidence pinned before lines were kept is recorded as not recorded', () => {
+  const dir = workspace({});
+  ledger(dir, 'pin');
+  const current = read(dir);
+  delete current.claims[0].evidence[0].lines;
+  write(dir, current);
+  writeFileSync(path.join(dir, 'src/cache.js'), 'export function evict() {\n  return true;\n}\n');
+  assert.match(ledger(dir, 'check').stdout, /\(the cited lines were not recorded when it was pinned\)/);
+  assert.match(readFileSync(path.join(dir, 'ledger-breaks.tsv'), 'utf8'), /\tc.guard\tsrc\/cache.js:2\tnot recorded\t/);
+});

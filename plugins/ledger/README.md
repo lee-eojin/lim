@@ -56,7 +56,7 @@ These rules come from REA's skill, which keeps every conclusion an observation, 
 
 ## Measured
 
-[`evals/ledger/behaviors.csv`](../../evals/ledger/behaviors.csv) lists <!--total-->31 behaviors. Unit tests in CI cover <!--tested-->27 of them, running the script against temporary folders. The other <!--rest-->4 need a model run or a real target: the three below, measured by the benchmark, and the Bend investigation above, run against Bend at commit b2fe9ce0.
+[`evals/ledger/behaviors.csv`](../../evals/ledger/behaviors.csv) lists <!--total-->37 behaviors. Unit tests in CI cover <!--tested-->33 of them, running the script against temporary folders. The other <!--rest-->4 need a model run or a real target: the three below, measured by the benchmark, and the Bend investigation above, run against Bend at commit b2fe9ce0.
 
 A blinded benchmark in [`evals/ledger/`](../../evals/ledger/) copies two small projects to a temporary folder under their own package names, each with one commit and a `ledger.json` that already holds three questions, and runs `/ledger:ledger Pick up the investigation in ledger.json and close what is still open.` headlessly with only `Read,Grep,Glob,Write,Edit,Skill,Bash(node:*)` in don't-ask mode. Each question has a trap:
 
@@ -77,7 +77,7 @@ In the first run Claude chained the script after `ls`, the allow rule did not ma
 
 ## Files
 
-`ledger.json` lives where you choose. Next to it, `ledger.md` is the last checklist and `ledger-evidence/` holds the saved command outputs. `root` points at the code under investigation, so the ledger can sit outside a repository that keeps an allow list of files. The three together are the handoff: the next agent runs `ledger.mjs check` first.
+`ledger.json` lives where you choose. Next to it, `ledger.md` is the last checklist, `ledger-evidence/` holds the saved command outputs, and `ledger-breaks.tsv` counts how pinned claims broke. `root` points at the code under investigation, so the ledger can sit outside a repository that keeps an allow list of files. The three together are the handoff: the next agent runs `ledger.mjs check` first.
 
 ## Limits
 

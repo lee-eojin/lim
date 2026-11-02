@@ -6,6 +6,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const LEDGER_FILE = 'ledger.json';
+export const BREAKS_FILE = 'ledger-breaks.tsv';
+const BREAK_KINDS = ['unchanged', 'moved', 'changed', 'not recorded'];
 export const EVIDENCE_FOLDER = 'ledger-evidence';
 export const KINDS = ['observed', 'inferred'];
 export const NEEDS = ['static', 'runtime'];
@@ -41,7 +43,7 @@ export function loadLedger(ledgerPath) {
   }
   const ledgerDir = path.dirname(path.resolve(ledgerPath));
   const root = path.resolve(ledgerDir, ledger.root ?? '.');
-  const ignored = [path.resolve(ledgerPath), path.join(ledgerDir, 'ledger.md')];
+  const ignored = [path.resolve(ledgerPath), path.join(ledgerDir, 'ledger.md'), path.join(ledgerDir, BREAKS_FILE)];
   return { ledger, ledgerDir, root, ignored, problems: validate(ledger, root, ledgerDir) };
 }
 
@@ -159,6 +161,31 @@ export function resolvePointer(root, pointer) {
   return first >= 1 && last >= first && last <= lineCount(readFileSync(target, 'utf8'));
 }
 
+function citedLines(text, match) {
+  if (!match) return text;
+  return text.split('\n').slice(Number(match[2]) - 1, Number(match[3] ?? match[2])).join('\n');
+}
+
+// Which kind of change broke a pinned claim: only other lines, the cited text moved, or the cited text changed.
+export function classifyBreak(text, evidence) {
+  if (evidence.lines === undefined) return { kind: 'not recorded' };
+  const match = POINTER.exec(evidence.file);
+  if (citedLines(text, match) === evidence.lines) return { kind: 'unchanged' };
+  const wanted = evidence.lines.split('\n');
+  const lines = text.split('\n');
+  const start = evidence.lines === '' ? -1
+    : lines.findIndex((_, index) => wanted.every((line, offset) => lines[index + offset] === line));
+  if (start === -1) return { kind: 'changed' };
+  const [first, last] = [start + 1, start + wanted.length];
+  return { kind: 'moved', at: first === last ? `${first}` : `${first}-${last}` };
+}
+
+const BREAK_WORDS = {
+  unchanged: 'the cited lines are unchanged',
+  changed: 'the cited lines changed',
+  'not recorded': 'the cited lines were not recorded when it was pinned',
+};
+
 export function checkEvidence(root, ledgerDir, evidence, ignored = []) {
   const shape = evidenceShape(evidence);
   if (shape === 'file') {
@@ -167,8 +194,12 @@ export function checkEvidence(root, ledgerDir, evidence, ignored = []) {
     const target = path.resolve(root, file);
     if (!existsSync(target) || !statSync(target).isFile()) return { ok: false, why: `${evidence.file} does not exist` };
     const content = readFileSync(target);
+    if (evidence.sha256 !== undefined && evidence.sha256 !== sha256(content)) {
+      const pinBreak = classifyBreak(content.toString('utf8'), evidence);
+      const detail = pinBreak.kind === 'moved' ? `the cited lines moved to ${file}:${pinBreak.at}` : BREAK_WORDS[pinBreak.kind];
+      return { ok: false, why: `${file} changed after the claim was pinned (${detail})`, pinBreak: { ...pinBreak, file: evidence.file, fileSha256: sha256(content) } };
+    }
     if (!resolvePointer(root, evidence.file)) return { ok: false, why: `${evidence.file} is past the end of ${file} (${lineCount(content.toString('utf8'))} lines)` };
-    if (evidence.sha256 !== undefined && evidence.sha256 !== sha256(content)) return { ok: false, why: `${file} changed after the claim was pinned` };
     return { ok: true, runtime: false };
   }
   if (shape === 'output') {
@@ -218,7 +249,10 @@ export function decide(ledger, root, ledgerDir = root, ignored = []) {
     if (superseded.has(claim.id)) return [claim.id, { status: 'superseded', reasons: [] }];
     const checks = claim.evidence.map((evidence) => checkEvidence(root, ledgerDir, evidence, ignored));
     const broken = checks.filter((check) => !check.ok).map((check) => check.why);
-    return [claim.id, { status: broken.length ? 'broken' : 'holds', reasons: broken, runtime: checks.some((check) => check.ok && check.runtime), bounded: checks.map((check) => check.bounded).filter(Boolean) }];
+    return [claim.id, {
+      status: broken.length ? 'broken' : 'holds', reasons: broken, runtime: checks.some((check) => check.ok && check.runtime),
+      bounded: checks.map((check) => check.bounded).filter(Boolean), pinBreaks: checks.map((check) => check.pinBreak).filter(Boolean),
+    }];
   }));
   const holds = (id) => claimResults.get(id)?.status === 'holds';
   const clashing = ledger.claims.flatMap((claim) => [claim.contradicts].flat().filter(Boolean).map((other) => [claim.id, other])).filter(([left, right]) => holds(left) && holds(right));
@@ -288,15 +322,43 @@ export function saveOutput(root, ledgerDir, command) {
   return { file, body };
 }
 
+// Appends each pin break not seen before (same claim, pointer, and file state) and returns the totals by kind.
+export function recordBreaks(ledgerDir, decisions) {
+  const file = path.join(ledgerDir, BREAKS_FILE);
+  const rows = existsSync(file) ? readFileSync(file, 'utf8').split('\n').slice(1).filter(Boolean).map((line) => line.split('\t')) : [];
+  const seen = new Set(rows.map(([, claim, pointer, , , fileSha]) => `${claim}|${pointer}|${fileSha}`));
+  const added = [];
+  for (const decision of decisions) {
+    for (const claim of decision.claims) {
+      for (const pinBreak of claim.pinBreaks ?? []) {
+        const key = `${claim.id}|${pinBreak.file}|${pinBreak.fileSha256}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        added.push([new Date().toISOString(), claim.id, pinBreak.file, pinBreak.kind, pinBreak.at ?? '', pinBreak.fileSha256]);
+      }
+    }
+  }
+  if (added.length) {
+    const before = existsSync(file) ? readFileSync(file, 'utf8') : 'at\tclaim\tpointer\tkind\tmoved_to\tfile_sha256\n';
+    writeFileSync(file, `${before}${added.map((row) => row.join('\t')).join('\n')}\n`);
+  }
+  const totals = Object.fromEntries(BREAK_KINDS.map((kind) => [kind, 0]));
+  for (const [, , , kind] of [...rows, ...added]) totals[kind] = (totals[kind] ?? 0) + 1;
+  return totals;
+}
+
 export function pin(ledger, root) {
   let pinned = 0;
   for (const claim of ledger.claims) {
     for (const evidence of claim.evidence) {
-      if (evidenceShape(evidence) !== 'file' || evidence.sha256 !== undefined) continue;
+      if (evidenceShape(evidence) !== 'file') continue;
       const target = path.resolve(root, evidence.file.replace(POINTER, '$1'));
       if (!existsSync(target)) continue;
-      evidence.sha256 = sha256(readFileSync(target));
-      pinned += 1;
+      const content = readFileSync(target);
+      if (evidence.sha256 !== undefined && (evidence.lines !== undefined || evidence.sha256 !== sha256(content))) continue;
+      if (evidence.sha256 === undefined) pinned += 1;
+      evidence.sha256 = sha256(content);
+      evidence.lines = citedLines(content.toString('utf8'), POINTER.exec(evidence.file));
     }
   }
   return pinned;
@@ -357,6 +419,10 @@ async function main(argv) {
   const { text, counts } = report(loaded.ledger, decisions);
   writeFileSync(path.join(loaded.ledgerDir, 'ledger.md'), text);
   console.log(text.trimEnd());
+  const totals = recordBreaks(loaded.ledgerDir, decisions);
+  if (Object.values(totals).some(Boolean)) {
+    console.log(`\npin breaks so far (${BREAKS_FILE}): ${totals.unchanged} with the cited lines unchanged, ${totals.moved} moved, ${totals.changed} changed${totals['not recorded'] ? `, ${totals['not recorded']} pinned before lines were recorded` : ''}`);
+  }
   return counts.answered === decisions.length ? 0 : 1;
 }
 
