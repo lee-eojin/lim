@@ -51,7 +51,9 @@ Write the reviewer's JSON to `reviewPath` with the Write tool, exactly as return
 
 If the script says the JSON is invalid, the file stays. Ask the reviewer once to fix only the format, read the file and write the new JSON over it, and record again. If it fails again, stop and report what happened.
 
-Show `report` first, as the Rules say.
+After a successful `loop record` in an interactive run, do these in order:
+1. Send an assistant text message starting with a fenced code block containing the full `report` value, exactly as printed. Do not summarize or translate it. The Bash result is not this message.
+2. Only after sending that text, continue below. Do not call AskUserQuestion, update todos, or use any other tool before sending it.
 
 Then reproduce, before fixing anything: for each id in `reproducible` (open findings, deferred findings, and cards, P1 or P2, with a `check`), run the verify skill's `run --id <check>` as that skill says, then `loop reproduce --id <id>`. If the verify skill is not installed, mark reproduce `skip: verify is not installed` and say so. `fail` marks the finding reproduced, the strongest evidence it can have. `pass` marks it not reproduced and changes nothing else, because the check may not cover the scenario. `not-verified` records nothing; say why.
 
@@ -64,7 +66,7 @@ When `reason` is `proof`, nothing is left to fix, but each finding in `needsProo
 
 Otherwise, when `decision` is `continue`:
 1. Say in one line what you will fix, for example "Fixing F-1 and F-3, then re-reviewing."
-2. If `ask` is not empty, ask once with AskUserQuestion before fixing: one question per finding, options are concrete fixes, your recommendation first, and "Keep as is" last. These are findings where the fix needs a design choice, a first fix did not work, or the user asked to confirm that severity before any fix. For each finding the user keeps, run `loop decide --id <id> --choice keep` before `loop next`; the script then stops looping it and lists it as kept.
+2. If `ask` is not empty, first show the returned `report`, exactly as printed, in a code block before any tool call or question, unless you already showed it after that command. A report inside a tool result does not count. Then ask once with AskUserQuestion before fixing: one question per finding, options are concrete fixes, your recommendation first, and "Keep as is" last. These are findings where the fix needs a design choice, a first fix did not work, or the user asked to confirm that severity before any fix. For each finding the user keeps, run `loop decide --id <id> --choice keep` before `loop next`; the script then stops looping it and lists it as kept.
 3. Fix the `fix` and `ask` findings, except those the user chose to keep.
 4. Prove each P1 or P2 fix with a regression test, without asking. Skip findings with category `checks`: the failing check is their test. If the project has no test check, skip this step; the report says so.
    - Write a test from the finding's `scenario`, in a test file, never in the finding's own file. It must fail on the old code for the reason the scenario gives.
@@ -80,7 +82,9 @@ When `decision` is `stop`, go to section 5 (Decide).
 
 Collect `stillOpen` first, then `cards` in severity order. Cards with `unproven: true` are P1 or P2 claims without evidence or with `basis: guessed`. Present them as "could not be verified". Show each card's `basis` next to it when it has one, and `reproduced` ("reproduced: verify check <id> failed") or `notReproduced` ("not reproduced: verify check <id> passed") when it has one. Cards with `outOfScope: true` are about files outside the diff of the round that found them: the whole change in round 1, only the files the fixes touched in later rounds. They were not looped. Present them as "outside the reviewed diff" and keep their severity, so a P1 there is still shown as a P1.
 
-Ask once with AskUserQuestion. It takes at most 4 questions. With more items, ask about the 3 most severe and use the fourth question for the rest as a group. P4 and P5 can share one question. Options for each:
+Before any tool call or question, show the returned `report`, exactly as printed, in a code block, unless you already showed it after that command. A report inside a tool result does not count.
+
+Then ask once with AskUserQuestion. It takes at most 4 questions. With more items, ask about the 3 most severe and use the fourth question for the rest as a group. P4 and P5 can share one question. Options for each:
 - Keep as is
 - Fix this time only
 - Make it a rule (fix it, and add a lint rule or test that catches it next time)
@@ -90,6 +94,8 @@ Mark the option you recommend and give one reason and the cost of undoing it in 
 Items with `repeat` are a kind of finding (`repeat.category`) that earlier reviews in this repository raised `repeat.seenBefore` times. Say so in the question, for example "speculative-guard, seen 3 times before". Recommend "Make it a rule" for them under the same condition, and name in its description the strongest layer that fits: a type or architecture change that makes the mistake impossible to write, then a lint rule, then a test. Never offer a line in CLAUDE.md or another rules file as the rule. For a P1 or P2 with `repeat` that you fixed this run (`review.resolvedRepeats` in `loop status`), tell the user in one line that this kind keeps coming back and name the strongest layer that fits; the rule flow runs when a finding of that kind reaches a card.
 
 Record every answer with `loop decide --id <id> --choice keep|once|rule`. If the result has `ruleSkipped`, the choice was recorded as `once`: tell the user why in one line and do not draft a rule.
+
+A finding recorded as `keep` is settled for this review unless the user reopens it. You may list it as kept, but never ask to fix it again in the closing message or when proposing a commit.
 
 Apply the "fix this time" and "make it a rule" fixes. Prove each P1 or P2 fixed this time only with a regression test, as in the regression test sub-step of section 4.
 
@@ -116,7 +122,7 @@ Run `loop status`.
 - If `review.rules` is not empty, list each rule's drafts and `proof`, and name the rules in the commit message. The drafts go into the same commit as the change. With the gate on, files that `loop rule` checked count as known while their content is unchanged, so the gate asks instead of blocking. If you edit a draft after `loop rule`, run `loop rule` again; otherwise the gate blocks it like any file the review did not cover.
 - If `delegation.scope` is `repo` and nothing above needs the user, commit and say so in one line.
 - If `gate.enabled` is true and commits are not delegated, do not ask with AskUserQuestion. Run the commit; the gate shows the user one confirmation prompt.
-- Otherwise ask once with AskUserQuestion: "Commit now", "Commit, and stop asking in this repo", or "Not now". For the second option, run `loop delegate --scope repo` before committing.
+- Otherwise ask once with AskUserQuestion: "Commit now", "Commit, and stop asking in this repo", or "Not now". For the second option, run `loop delegate --scope repo` before committing. Commit options and closing suggestions must not offer to fix a finding already recorded as `keep`.
 
 The review covered everything `git add -A` includes, so stage with `git add -A` before committing. If the user wants to commit only part of it, say that the review covered the whole set and ask how to proceed.
 
@@ -125,6 +131,8 @@ Use the repository's commit message convention. If it has none, use `<type>: <su
 The user can turn delegation off with `loop delegate --scope off`.
 
 If the user asks to commit without a review just this once and `gate.enabled` is true in `loop status`, run `loop gate --skip-once` before the commit. With the gate off, nothing blocks the commit, so skip that command. If the gate blocks a commit, follow the reason it gives; it names the step to take.
+
+Before the closing message, run `loop summary`. Your next message starts with its `report`, exactly as printed, in a code block before any other text, tool call, or question.
 
 ## Unattended
 
