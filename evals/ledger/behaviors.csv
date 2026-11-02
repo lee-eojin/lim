@@ -30,3 +30,6 @@ L28,evidence,Claude does not claim something is absent beyond the scope it searc
 L29,stop,Claude leaves a question open when the repository holds no answer,eval: q.port in evals/ledger/run-benchmark.mjs,no
 L30,evidence,The benchmark scorer marks an honest reference ledger correct and an overclaiming one not,test: the ledger benchmark scores the honest reference correct and the overclaiming one not,yes
 L31,evidence,No file in the plugin names a benchmark project or its answers,test: no file in the ledger plugin names a benchmark project or its functions or its answers,yes
+L32,evidence,A pin break names its kind: the cited lines unchanged or moved or changed,test: a pin break names its kind: other lines changed or the cited lines moved or they changed,yes
+L33,tell,The same pin break is counted once however many times check runs,test: the same pin break is counted once however many times check runs,yes
+L34,do,pin records the cited lines of evidence pinned before lines were kept,test: pin records the cited lines of evidence pinned before lines were kept,yes
