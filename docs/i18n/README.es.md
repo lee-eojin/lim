@@ -40,7 +40,7 @@ Haz un fork, cámbialo, hazlo tuyo. Los issues y los pull requests son bienvenid
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Explica conceptos, código y errores con la respuesta primero, un solo significado por palabra y los términos técnicos con su nombre oficial en inglés. |
 | [verify](../../plugins/verify) | 0.6.1 | Demuestra que tus funcionalidades funcionan ejecutándolas y guarda los comandos y la salida como evidencia. |
 | [gap-map](../../plugins/gap-map) | 0.3.0 | Mapea la implementación de un lenguaje frente a sus propias promesas y solo da por cerrada una brecha cuando pasan pruebas reales. |
-| [ledger](../../plugins/ledger) | 0.1.1 | Separa las observaciones, inferencias e incógnitas de una investigación, y solo da una pregunta por respondida cuando su evidencia sigue en pie. |
+| [ledger](../../plugins/ledger) | 0.2.0 | Separa las observaciones, inferencias e incógnitas de una investigación, y solo da una pregunta por respondida cuando su evidencia sigue en pie. |
 
 ## Instalación
 
