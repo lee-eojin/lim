@@ -2,7 +2,7 @@
 
 All notable changes to ledger. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.2.0 (2026-11-02)
 
 - Added: `ledger pin` keeps the cited lines, and a pin break now says whether only other lines changed, the cited lines moved (naming where), or they changed. `ledger check` records each break once in `ledger-breaks.tsv` and prints the totals, so you can see how often pinning whole files breaks a claim whose lines are unchanged. Claims still break the same way. (#245)
 

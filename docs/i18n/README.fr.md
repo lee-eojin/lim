@@ -40,7 +40,7 @@ Forkez-le, modifiez-le, faites-en le vôtre. Les issues et les pull requests son
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Explique les concepts, le code et les erreurs avec la réponse d'abord, un seul sens par mot et les termes techniques sous leur nom officiel en anglais. |
 | [verify](../../plugins/verify) | 0.6.1 | Prouve que vos fonctionnalités marchent en les exécutant, et enregistre les commandes et la sortie comme preuves. |
 | [gap-map](../../plugins/gap-map) | 0.3.0 | Cartographie l'implémentation d'un langage face à ses propres promesses, et ne ferme un manque que quand de vrais tests passent. |
-| [ledger](../../plugins/ledger) | 0.1.1 | Sépare les observations, les inférences et les inconnues d'une enquête, et ne marque une question comme résolue que si ses preuves tiennent encore. |
+| [ledger](../../plugins/ledger) | 0.2.0 | Sépare les observations, les inférences et les inconnues d'une enquête, et ne marque une question comme résolue que si ses preuves tiennent encore. |
 
 ## Installation
 

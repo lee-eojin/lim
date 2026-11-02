@@ -40,7 +40,7 @@ Hãy fork, chỉnh sửa và biến nó thành của bạn. Chúng tôi hoan ngh
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Giải thích khái niệm, code và lỗi với câu trả lời đặt trước, mỗi từ một nghĩa, và thuật ngữ kỹ thuật giữ tên tiếng Anh chính thức. |
 | [verify](../../plugins/verify) | 0.6.1 | Chứng minh các tính năng hoạt động bằng cách chạy chúng, và lưu lệnh cùng output làm bằng chứng. |
 | [gap-map](../../plugins/gap-map) | 0.3.0 | Đối chiếu bản cài đặt của một ngôn ngữ với chính những gì nó hứa, và chỉ đóng một lỗ hổng khi test thật chạy qua. |
-| [ledger](../../plugins/ledger) | 0.1.1 | Tách riêng quan sát, suy luận và điều chưa biết trong một cuộc điều tra, và chỉ đánh dấu một câu hỏi đã trả lời khi bằng chứng vẫn còn đúng. |
+| [ledger](../../plugins/ledger) | 0.2.0 | Tách riêng quan sát, suy luận và điều chưa biết trong một cuộc điều tra, và chỉ đánh dấu một câu hỏi đã trả lời khi bằng chứng vẫn còn đúng. |
 
 ## Cài đặt
 
