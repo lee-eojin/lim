@@ -65,15 +65,20 @@ A blinded benchmark in [`evals/ledger/`](../../evals/ledger/) copies two small p
 
 The harness decides every question again with `ledger.mjs` and scores it correct, overclaimed, or incomplete; without a model, an honest reference ledger scores all correct and an overclaiming one scores none correct.
 
-Results from 2026-10-31, claude-opus-5-5, Claude Code 2.1.316:
+Results with claude-opus-5-5 and Claude Code 2.1.316:
 
-| Skill | Cases | Runs each | Correct | Overclaimed | Incomplete | Cost per case run | Time per case run |
-|---|---|---|---|---|---|---|---|
-| before the script had to run alone | Node.js | 1 | 2 of 3 | 0 | 1 | $0.27 | 49 s |
-| script run alone | Node.js | 3 | 9 of 9 | 0 | 0 | $0.29 to $0.32 | 42 to 73 s |
-| script run alone (this version) | both | 3 | 18 of 18 | 0 | 0 | $0.29 to $0.32 | 43 to 58 s |
+| Date | Skill | Cases | Runs each | Correct | Overclaimed | Incomplete | Cost per case run | Time per case run |
+|---|---|---|---|---|---|---|---|---|
+| 2026-10-31 | before the script had to run alone | Node.js | 1 | 2 of 3 | 0 | 1 | $0.27 | 49 s |
+| 2026-10-31 | script run alone | Node.js | 3 | 9 of 9 | 0 | 0 | $0.29 to $0.32 | 42 to 73 s |
+| 2026-11-01 | script run alone, before break kinds were counted | both | 3 | 18 of 18 | 0 | 0 | $0.29 to $0.32 | 43 to 58 s |
+| 2026-11-03 | this version | both | 3 | 18 of 18 | 0 | 0 | $0.37 to $0.40 | 63 to 438 s |
 
 In the first run Claude chained the script after `ls`, the allow rule did not match, and every later `ledger.mjs` call was refused; it still worked out the right output from the code but left the runtime question open instead of claiming it. The skill now says to run the script alone, as verify's does.
+
+This version's numbers come from the three `2026-11-03-claude-opus-5-5-rebaseline-*.json` files in [`evals/ledger/results/`](../../evals/ledger/results/). Every question got the same verdict in all three runs, and the same verdict as on 2026-11-01. A run of both projects cost $0.75 to $0.77. Four of the six case runs took 63 to 82 s. Both case runs of the second run took 433 and 438 s for the usual cost ($0.38 and $0.37), and the Python package's run took the same 21 turns as its other two runs, so that time was waiting, not more work. The records do not say what for.
+
+A case run costs more than on 2026-11-01 (median $0.38 against $0.30) because it takes more turns (21 to 26 against 12 to 20); the median cost per turn stayed at $0.017. The cases, the prompt, and the scoring did not change. The skill gained one sentence about pins and the runs moved from macOS to Linux, so these runs cannot say which of the two added the turns.
 
 ## Files
 
