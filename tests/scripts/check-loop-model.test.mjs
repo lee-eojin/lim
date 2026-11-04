@@ -6,7 +6,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
-  decideNextModule, describeTrace, parseTrace, parseValue, readConfig, TLA_TOOLS,
+  decideNextModule, describeTrace, tlcCommand, parseTrace, parseValue, readConfig, TLA_TOOLS,
 } from '../../scripts/check-loop-model.mjs';
 import { decideNext } from '../../plugins/review-loop/skills/review-loop/scripts/loop.mjs';
 
@@ -91,5 +91,17 @@ test('the model check passes the record stop on main and fails it on the decideN
     assert.match(broken.stdout, /Now the loop is stopped \(waiting\)\.\n {2}Broken: record stopped the loop as waiting while F-1 had no regression test or no-test reason\./);
   } finally {
     rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test('each TLC run unpacks standard modules into its own temp folder inside the work folder', () => {
+  const folder = path.join('work', 'loop-model');
+  const runs = ['Safety.cfg', 'GateNeedsProof.cfg'].flatMap((config) => [1, 4].map((workers) =>
+    tlcCommand('tla2tools.jar', folder, path.join(folder, config), workers, { TMPDIR: '/tmp' })));
+  assert.equal(new Set(runs.map((run) => run.env.TMPDIR)).size, runs.length);
+  for (const run of runs) {
+    assert.equal(run.env.TMPDIR, run.tempFolder);
+    assert.ok(run.tempFolder.startsWith(folder + path.sep));
+    assert.ok(run.args.includes(`-Djava.io.tmpdir=${run.tempFolder}`));
   }
 });

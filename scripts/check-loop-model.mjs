@@ -268,13 +268,22 @@ async function ensureJar() {
 }
 
 // Several workers make a full search fast; one worker keeps breadth-first order, so its counterexample is a shortest one.
+// TLC unpacks its standard modules (Naturals.tla, ...) into $TMPDIR, so runs sharing one folder overwrite each other's files.
+export function tlcCommand(jar, folder, config, workers, env = process.env) {
+  const run = `${path.basename(config, '.cfg')}-${workers}`;
+  const tempFolder = path.join(folder, 'tmp', run);
+  const args = [
+    '-XX:+UseParallelGC', `-Djava.io.tmpdir=${tempFolder}`, '-cp', jar, 'tlc2.TLC', '-config', config, '-deadlock',
+    '-workers', String(workers), '-metadir', path.join(folder, 'states', run), 'ReviewLoop',
+  ];
+  return { args, tempFolder, env: { ...env, TMPDIR: tempFolder, TMP: tempFolder, TEMP: tempFolder } };
+}
+
 function runTlc(jar, folder, config, workers) {
   return new Promise((resolve, reject) => {
-    const args = [
-      '-XX:+UseParallelGC', '-cp', jar, 'tlc2.TLC', '-config', config, '-deadlock', '-workers', String(workers),
-      '-metadir', path.join(folder, 'states', `${path.basename(config, '.cfg')}-${workers}`), 'ReviewLoop',
-    ];
-    const tlc = spawn('java', args, { cwd: folder });
+    const { args, tempFolder, env } = tlcCommand(jar, folder, config, workers);
+    mkdirSync(tempFolder, { recursive: true });
+    const tlc = spawn('java', args, { cwd: folder, env });
     let output = '';
     tlc.stdout.on('data', (chunk) => { output += chunk; });
     tlc.stderr.on('data', (chunk) => { output += chunk; });
