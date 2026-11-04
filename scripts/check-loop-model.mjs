@@ -296,7 +296,7 @@ function readOptions(args) {
   const options = { invariants: [] };
   for (let index = 0; index < args.length; index += 1) {
     if (args[index] === '--loop') options.loop = path.resolve(args[++index]);
-    else if (args[index] === '--invariant') options.invariants.push(args[++index]);
+    else if (args[index] === '--invariant') { if (!options.invariants.includes(args[index + 1])) options.invariants.push(args[index + 1]); index += 1; }
     else throw new Error(`unknown argument ${args[index]}; use --loop <loop.mjs> and --invariant <name>`);
   }
   return options;
