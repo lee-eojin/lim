@@ -15,16 +15,23 @@ json.load(open(sys.argv[1], encoding="utf-8"), parse_constant=refuse)' "$json_fi
   fi
 done < <(find "$root" \( -name .git -o -name node_modules \) -prune -o -name '*.json' -print)
 
-word_list="${LIM_DENYLIST:-}"
+word_list="$(printf '%s\n' "${LIM_DENYLIST:-}" | sed '/^[[:space:]]*$/d')"
 if [ -z "$word_list" ] && [ -n "${LIM_DENYLIST_FILE:-}" ] && [ -f "$LIM_DENYLIST_FILE" ]; then
-  word_list="$(cat "$LIM_DENYLIST_FILE")"
+  word_list="$(sed '/^[[:space:]]*$/d' "$LIM_DENYLIST_FILE")"
 fi
 
 if [ -z "$word_list" ]; then
-  echo "word list check skipped: set LIM_DENYLIST or LIM_DENYLIST_FILE"
+  if [ "${CI:-}" != true ]; then
+    echo "word list check skipped: set LIM_DENYLIST or LIM_DENYLIST_FILE"
+  elif [ "${LIM_FORK_PR:-}" = true ]; then
+    echo "::warning::word list check skipped: pull requests from forks do not receive the LIM_DENYLIST secret"
+  else
+    echo "word list missing in CI: set the LIM_DENYLIST secret"
+    status=1
+  fi
 else
   hits="$(grep -rniF --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.tools \
-    -f <(printf '%s\n' "$word_list" | sed '/^[[:space:]]*$/d') "$root" | cut -d: -f1,2 || true)"
+    -f <(printf '%s\n' "$word_list") "$root" | cut -d: -f1,2 || true)"
   if [ -n "$hits" ]; then
     echo "blocked words found at:"
     echo "${hits//"$root"\//}"
