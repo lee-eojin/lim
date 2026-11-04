@@ -111,4 +111,4 @@ Three `failing-check` sessions on review-loop 0.11.10 (commit `7442758`), which 
 ### Harness limits
 
 - Claude Code runs read-only shell commands such as `git diff` and `cat` even under `dontAsk` with an allow list that does not name them, so sessions could read the diff with Bash. A chained command such as `L=...; node $L checks; node $L status` was denied.
-- Steps that need a person to answer AskUserQuestion (B05, B31) are out of scope; the review scenarios ask for unattended runs so that no question is needed.
+- Steps that need a person to answer AskUserQuestion (B05) are out of scope; the review scenarios ask for unattended runs so that no question is needed.

@@ -4,7 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
-- Fixed: Review reports are shown in code blocks before questions and in the closing message, and findings kept as is are not asked about again before committing. (#248)
+- Fixed: A new hook shows you each review report right below the command that returned it, so you see it before any question even when Claude does not repeat it. A finding you keep as is is no longer offered again in the closing message. (#248)
 
 ## 0.11.11 (2026-10-31)
 
