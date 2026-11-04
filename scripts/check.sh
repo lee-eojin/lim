@@ -21,7 +21,14 @@ if [ -z "$word_list" ] && [ -n "${LIM_DENYLIST_FILE:-}" ] && [ -f "$LIM_DENYLIST
 fi
 
 if [ -z "$word_list" ]; then
-  echo "word list check skipped: set LIM_DENYLIST or LIM_DENYLIST_FILE"
+  if [ "${CI:-}" != true ]; then
+    echo "word list check skipped: set LIM_DENYLIST or LIM_DENYLIST_FILE"
+  elif [ "${LIM_FORK_PR:-}" = true ]; then
+    echo "::warning::word list check skipped: pull requests from forks do not receive the LIM_DENYLIST secret"
+  else
+    echo "word list missing in CI: set the LIM_DENYLIST secret"
+    status=1
+  fi
 else
   hits="$(grep -rniF --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.tools \
     -f <(printf '%s\n' "$word_list" | sed '/^[[:space:]]*$/d') "$root" | cut -d: -f1,2 || true)"
