@@ -44,6 +44,7 @@ test('check.sh skips the word check outside CI when no word list is set', needsB
 for (const [name, env] of [
   ['a push to main or a pull request from this repository', { CI: 'true', LIM_FORK_PR: 'false' }],
   ['a run that does not say whether it is a fork', { CI: 'true' }],
+  ['a run whose list holds only blank lines', { CI: 'true', LIM_FORK_PR: 'false', LIM_DENYLIST: '  \n\t\n' }],
 ]) {
   test(`check.sh fails in CI without a word list on ${name}`, needsBash, () => {
     const run = runCheck(validJson, env);
