@@ -2618,6 +2618,31 @@ describe('commit gate', () => {
 describe('commit gate hook script', () => {
   const hook = fileURLToPath(new URL('../../plugins/review-loop/hooks/commit-gate.mjs', import.meta.url));
 
+  test('commit gate hook wiring', () => {
+    const pluginRoot = path.resolve(path.dirname(hook), '..');
+    const config = JSON.parse(readFileSync(path.join(pluginRoot, 'hooks/hooks.json'), 'utf8'));
+    const [entry] = config.hooks.PreToolUse;
+    assert.equal(entry.matcher, 'Bash');
+    const [commandHook] = entry.hooks;
+    assert.equal(commandHook.type, 'command');
+    assert.equal(commandHook.command, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/commit-gate.mjs"');
+    const target = commandHook.command.slice('node "'.length, -1).replace('${CLAUDE_PLUGIN_ROOT}', pluginRoot);
+    assert.ok(existsSync(target));
+  });
+
+  test('hook fails open on internal gate errors', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    loop(root, ['gate', '--on']);
+    writeFiles(root, { '.git/lim/review-loop/state.json': JSON.stringify({ resolved: {} }) });
+    const payload = { tool_name: 'Bash', tool_input: { command: 'git commit -m x' }, cwd: root };
+    // Prove gateDecision throws on this state, so the silent exit below comes from the hook's catch.
+    assert.throws(() => gateDecision({ cwd: payload.cwd, command: payload.tool_input.command }), TypeError);
+    const result = spawnSync(process.execPath, [hook], { input: JSON.stringify(payload), encoding: 'utf8' });
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '');
+  });
+
   test('hook prints a permission decision', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);
