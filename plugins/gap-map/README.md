@@ -55,13 +55,24 @@ A blinded benchmark in [`evals/gap-map/`](../../evals/gap-map/) copies two small
 
 The harness runs the map again itself, matches each obligation to a promise by its `source` line, and scores the promise correct, overclaimed (proven when it must not be, or not marked as required), missed (no obligation points at it), stricter (left open only because it asked for case kinds no test covers, after at least one case kind had a fixture), or incomplete (anything else left open where the tests could close it). A changed or added file outside `gap-map.json` and `gap-map/` is tampering. Without a model, an honest reference map scores every promise correct and an overclaiming one none; a map that asks for an extra uncovered case scores stricter, and one that lost its only fixture scores incomplete. Stricter cannot tell a case Claude invented from one a test it failed to find would have covered; the run records list every open reason so a reader can check.
 
-Results from 2026-11-01, claude-opus-5-5, Claude Code 2.1.316, three runs over both tools:
+Results with claude-opus-5-5 and Claude Code 2.1.316, three runs over both tools on each date:
 
-| Promises | Correct | Stricter | Overclaimed | Missed | Incomplete | Tampered runs | Cost per tool run | Time per tool run |
-|---|---|---|---|---|---|---|---|---|
-| 36 | 32 | 4 | 0 | 0 | 0 | 0 of 6 | $0.42 to $0.48 | 72 to 106 s |
+| Date | Skill | Promises | Correct | Stricter | Overclaimed | Missed | Incomplete | Tampered runs | Cost per tool run | Time per tool run |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-11-01 | before anchors | 36 | 32 | 4 | 0 | 0 | 0 | 0 of 6 | $0.42 to $0.48 | 72 to 106 s |
+| 2026-11-03 | this version | 36 | 33 | 3 | 0 | 0 | 0 | 0 of 6 | $0.83 to $1.03 | 164 to 420 s |
 
-No run proved a failing or untested promise, missed a promise, or changed a test. Every stricter promise was checked against its recorded reasons: three times the changelog's "a number greater than n" asked for a boundary case (a field equal to n), a malformed case (a field that is not a number), or a negative case, which no test covers; once the guide line that holds two promises was one obligation that also asked for a positive case, and no test binds a name and then prints it. An earlier run kept for inspection also raised a design question the benchmark did not plant: every test writes `query:` before the query, which the README never mentions. The expected results were not changed after any run.
+This version's numbers come from the three `2026-11-03-claude-opus-5-5-rebaseline-*.json` files in [`evals/gap-map/results/`](../../evals/gap-map/results/). No run on either date proved a failing or untested promise, missed a promise, or changed a test. Every stricter promise was checked against its recorded reasons. In all three runs of this version, the changelog's "a number greater than n" stayed open for a boundary case (a field equal to n) and a case with a field that is not a number, which no test covers: the one test of that promise holds only the values 4 and 12. Two runs made the second case a negative case on its own obligation, and one made it a malformed case on the same obligation. The three 2026-11-01 runs gave this promise the same verdict for the same kinds of case.
+
+The fourth stricter verdict on 2026-11-01 was the guide line that holds two promises, written as one obligation that also asked for a positive case; no test binds a name and then prints it. All three runs of this version wrote that line as two obligations, as two of the 2026-11-01 runs did. The refusal closes, which scores correct, and the binding stays open for the same missing test. The gap is still reported, so 33 against 32 reflects how the line was split, not a better map.
+
+Verdicts did not vary between the three runs of this version. A run of both tools cost $1.73 to $1.86. Five of the six tool runs took 164 to 189 s. One calculator run took 420 s for 42 turns and $1.03, against 184 and 189 s for 34 and 37 turns and $0.90 and $0.95, so more work does not account for all of that time. The records do not say what does.
+
+A tool run costs about twice what it did on 2026-11-01 (median $0.90 against $0.45) and takes twice as long (median 186 s against 93 s). It takes more turns (25 to 42 against 18 to 26), and each turn costs more (median $0.028 against $0.021). The records hold one token total per run, so they do not show which kind of token grew. The cases, the prompt, and the scoring did not change. The skill gained the `anchors` instruction and the runs moved from macOS to Linux, so these runs cannot say which of the two raised the cost.
+
+Trial maps in scratch folders do not explain the rise alone: 5 of 6 tool runs wrote one, against 2 of 6 on 2026-11-01, but the JSON filter run that wrote only `gap-map.json` still cost $0.83. Those folders sit outside the temporary project, so the tamper check does not see them and the scorer does not read them. One calculator run found a folder an earlier run left in `/tmp` and reported that it did not use it.
+
+An earlier run kept for inspection also raised a design question the benchmark did not plant: every test writes `query:` before the query, which the README never mentions. The expected results were not changed after any run.
 
 ## Files
 
