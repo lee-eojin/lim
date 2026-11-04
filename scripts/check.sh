@@ -23,7 +23,7 @@ fi
 if [ -z "$word_list" ]; then
   echo "word list check skipped: set LIM_DENYLIST or LIM_DENYLIST_FILE"
 else
-  hits="$(grep -rniF --exclude-dir=.git --exclude-dir=node_modules \
+  hits="$(grep -rniF --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.tools \
     -f <(printf '%s\n' "$word_list" | sed '/^[[:space:]]*$/d') "$root" | cut -d: -f1,2 || true)"
   if [ -n "$hits" ]; then
     echo "blocked words found at:"
