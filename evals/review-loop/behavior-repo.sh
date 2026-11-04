@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Creates a small repository whose uncommitted change has only P3 to P5 problems, for the manual
-# B05 runs in evals/review-loop/manual-behaviors.md. Prints the folder.
+# B05 and B31 run in evals/review-loop/manual-behaviors.md. Prints the folder.
 set -euo pipefail
 
 folder="$(mktemp -d "${TMPDIR:-/tmp}/receipts-XXXXXX")"

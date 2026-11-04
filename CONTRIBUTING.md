@@ -49,7 +49,7 @@ There are two sets of seeded bugs and clean changes. `evals/review-loop/detectio
 
 Compare the two results files with `--compare <before> <after>`, which calls no model, and put its output in the pull request. It names each file's cases folder and reviewer file with its sha256, and compares only the cases both ran. With Opus, a worse `reviewer.md` showed up in P3 to P5 findings, not in missed bugs: cutting `reviewer.md` to its output format kept 30 of 30 bugs found on the harder set and raised P3 to P5 findings from 1.15 to 1.73 per run. Two runs of the same `reviewer.md` on 10 cases (one case's fixture changed between them) gave 1.17 and 1.13, so treat a change of a few percent as noise. The cut-down reviewer also drew 1 false P1 or P2 in 18 clean runs, but the full `reviewer.md` drew the same one on the same case in 1 of 12, so a single false alarm is not a signal on its own.
 
-For a change to `SKILL.md`, also do the manual B05 run in [`evals/review-loop/manual-behaviors.md`](evals/review-loop/manual-behaviors.md) and report the result.
+For a change to `SKILL.md`, also do the manual B05 and B31 run in [`evals/review-loop/manual-behaviors.md`](evals/review-loop/manual-behaviors.md) and report the result.
 
 ## Commit messages
 
