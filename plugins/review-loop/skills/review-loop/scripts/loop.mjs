@@ -2466,6 +2466,16 @@ function unreadVerdict(command, folders) {
 
 // An allow skips Claude Code's own permission prompt, so only a command readPlainCommand reads in full can get one.
 // A deny needs a commit found where the shell runs git. Anything else that names git and commit or push is asked about.
+export function reportNotice({ command, stdout }) {
+  if (!/\bloop\.mjs\b/.test(String(command ?? ''))) return null;
+  try {
+    const { report } = JSON.parse(String(stdout ?? ''));
+    return typeof report === 'string' && report.trim() ? `review-loop report\n${report}` : null;
+  } catch {
+    return null;
+  }
+}
+
 export function gateDecision({ cwd, command, projectDir }) {
   const text = String(command ?? '');
   const sessionFolders = [...new Set([cwd, projectDir].filter(Boolean))];

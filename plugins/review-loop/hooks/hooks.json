@@ -1,5 +1,5 @@
 {
-  "description": "review-loop commit gate. It acts only in repositories where you turned it on with the review-loop skill. It reads Bash commands for git commit and git push, asks or blocks based on the last review, and does nothing for other commands.",
+  "description": "review-loop hooks. The commit gate acts only in repositories where you turned it on with the review-loop skill: it reads Bash commands for git commit and git push, asks or blocks based on the last review, and does nothing for other commands. The report hook shows you the report that a loop.mjs command returns, right below that command, and does nothing for other commands.",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,6 +8,18 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/commit-gate.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-report.mjs\"",
             "timeout": 10
           }
         ]

@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: A new hook shows you each review report right below the command that returned it, so you see it before any question even when Claude does not repeat it. A finding you keep as is is no longer offered again in the closing message. (#248)
+
 ## 0.11.11 (2026-10-31)
 
 - Fixed: A resolved P1 or P2 without a regression test or a no-test reason now holds the loop in `proof` when `start --unattended` or `unattended --on` defers the last open finding, and the commit gate blocks the commit after any stop until each one has proof, which `loop rule` can still record after the loop stopped. (#210, #211)

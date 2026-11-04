@@ -29,7 +29,7 @@ B27,do,The script runs when it is called through a symlinked path,test: runs whe
 B28,tell,The script output puts the round report first,test: record puts the report first,yes
 B29,do,Calling the skill again continues an unfinished loop from the round and step it stopped at,test: start resumes a review in progress,yes
 B30,ask,Pending decisions survive a new session and are asked again,test: start resumes pending decisions after a stop,yes
-B31,tell,Claude shows the round report before any other tool call or question,eval: manual run in evals/review-loop/manual-behaviors.md,no
+B31,tell,The user sees each report a loop command returns right below that command,test: the report hook shows the user the report a loop command returns exactly as printed,yes
 B32,do,An unreadable state file does not block start or start --fresh,test: start treats an unreadable state file as no review,yes
 B33,ask,A finding saved by an older version without a route is asked about when it needs a design choice,test: resume asks about findings saved without a route,yes
 B34,do,Resuming while waiting for review reports unfinished checks and a stale diff,test: start resumes while waiting for review and flags a stale diff,yes
@@ -277,3 +277,4 @@ B275,silence,A deferred finding a fix also resolved needs proof in an unattended
 B276,silence,A project with no test check and a finding from a failing check stop clean without proof,test: a project with no test check and a finding from a failing check stop clean without proof,yes
 B277,stop,A round with no open findings and an unproven resolved P1 or P2 waits for proof before it stops as waiting,test: decideNext holds for proof before stopping as waiting,yes
 B278,do,"When findings wait for you, the last proof stops the loop as waiting and its report lists what waits","test: a resolved deferred finding needs proof while another still waits, and the last proof stops the loop as waiting",yes
+B279,silence,The report hook prints nothing unless a loop command returns a report,test: the report hook stays silent unless a loop command returns a report,yes

@@ -20,14 +20,14 @@ Run every command as `node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs <command>` from 
 - Stopping with open findings is a normal outcome. Say so plainly.
 - When you say a finding is fixed, say how you know: a check that now passes is measured, your reading of the new code is inferred. Never say "should work now" without one.
 - When the user pushes back on a finding, do not agree by default. Check the claim again first, for example by reading the quoted line or rerunning the check, then say what you checked and what it showed.
-- Whenever a command returns `report`, your next message starts with it, exactly as printed, in a code block. Show it before any other tool call or question. An unattended run is the one exception for round reports; see Unattended.
+- Whenever a command returns `report`, a hook shows it to the user right below that command, exactly as printed. Do not paste it again. Say only what it leaves out, such as what you do next.
 - Reply in the user's language.
 
 ## 1. Start
 
 Run `loop start`. If `status` is `nothing-to-review`, tell the user and stop.
 
-If `status` is `in-progress`, a loop from an earlier session is unfinished. Show `report` if there is one, say which round it is in and what it is waiting for, and ask once whether to continue or start over. To start over, run `loop start --fresh`. To continue:
+If `status` is `in-progress`, a loop from an earlier session is unfinished. Say which round it is in and what it is waiting for, and ask once whether to continue or start over. To start over, run `loop start --fresh`. To continue:
 - `awaiting: review`: if `treeMatchesReview` is false, the diff is out of date, so start over. Otherwise, if `checksFinished` is false, run `loop checks`. Then go to section 2 (Review) with `diffPath`, `openPath`, `reviewPath`, `reviewerModel`, and `featureMapPath`.
 - `awaiting: fix`: go to section 4 (Continue or stop) with `fix` and `ask`.
 - `awaiting: proof`: go to section 4 (Continue or stop) with `needsProof`.
@@ -51,14 +51,12 @@ Write the reviewer's JSON to `reviewPath` with the Write tool, exactly as return
 
 If the script says the JSON is invalid, the file stays. Ask the reviewer once to fix only the format, read the file and write the new JSON over it, and record again. If it fails again, stop and report what happened.
 
-Show `report` first, as the Rules say.
-
 Then reproduce, before fixing anything: for each id in `reproducible` (open findings, deferred findings, and cards, P1 or P2, with a `check`), run the verify skill's `run --id <check>` as that skill says, then `loop reproduce --id <id>`. If the verify skill is not installed, mark reproduce `skip: verify is not installed` and say so. `fail` marks the finding reproduced, the strongest evidence it can have. `pass` marks it not reproduced and changes nothing else, because the check may not cover the scenario. `not-verified` records nothing; say why.
 
 ## 4. Continue or stop
 
 When `reason` is `proof`, nothing is left to fix, but each finding in `needsProof` was resolved without a regression test or a no-test reason, for example a `deferred` finding another fix also resolved. For each, do the regression test sub-step of step 4 below; `loop rule` checks the test on the code from before the fix that resolved it. The `loop rule` that records the last one runs the checks on the fixed code:
-- `decision: stop`: show the new `report` and go to section 5 (Decide). Do not run `loop next`.
+- `decision: stop`: go to section 5 (Decide). Do not run `loop next`.
 - `reason: proof` with `failedOnFixedCode`: a new test also fails on the fixed code, so its finding is not fixed and is back in `needsProof`. Never change code to make it pass; delete the test, record it with `--no-test "fails on the fixed code: <what failed>"`, and tell the user.
 - `reason: fix`: a check fails on the fixed code for a reason other than the new tests. Run `loop next`; the next round reviews the change and turns the failing check into a finding.
 
@@ -72,7 +70,7 @@ Otherwise, when `decision` is `continue`:
    - `caught`: read `withDrafts[].tail` and confirm the failure is the test's own assertion. `missed`: revise the test once and run `loop rule` again. `unproven`: keep the test; the report shows it. If its `reason` says only lint or typecheck failed and the test did not, treat it like `missed`.
    - If the scenario cannot be tested cheaply (it needs a network, a browser, real time, or a large setup), or the test is still `missed`, delete the test and run `loop rule --id <id> --no-test "<reason>"`.
 5. For each finding with `reproduced`, run the same verify check again (`run --id <check>`) after the fix and its test, as the last change to the files before `loop next`. `loop next` reads that run: a reproduced finding whose check did not pass on the fixed code stays open even if the reviewer resolves it. A pass by a check that changed after it failed (verify marks it `changedAfterFail`, and the rerun shows "changed after it failed, then passed") does not count, because that is not the check that failed. Restore the check and run it again. If the change was needed, prove the changed check the same way: run it on the code before the fix, where it must fail, then on the fixed code; verify clears the mark once the changed check has failed. If neither is possible, tell the user why the check changed; keeping the finding is then their call.
-6. Run `loop next`. If `status` is `stopped`, show `report` and go to section 5 (Decide). Otherwise go back to section 2 (Review). If `next` refuses because nothing changed and nothing should (the user kept every `ask` finding as is and you recorded each keep with `loop decide`, or a check fails only because of the environment), run `loop next --unchanged "<why>"`.
+6. Run `loop next`. If `status` is `stopped`, go to section 5 (Decide). Otherwise go back to section 2 (Review). If `next` refuses because nothing changed and nothing should (the user kept every `ask` finding as is and you recorded each keep with `loop decide`, or a check fails only because of the environment), run `loop next --unchanged "<why>"`.
 
 When `decision` is `stop`, go to section 5 (Decide).
 
@@ -90,6 +88,8 @@ Mark the option you recommend and give one reason and the cost of undoing it in 
 Items with `repeat` are a kind of finding (`repeat.category`) that earlier reviews in this repository raised `repeat.seenBefore` times. Say so in the question, for example "speculative-guard, seen 3 times before". Recommend "Make it a rule" for them under the same condition, and name in its description the strongest layer that fits: a type or architecture change that makes the mistake impossible to write, then a lint rule, then a test. Never offer a line in CLAUDE.md or another rules file as the rule. For a P1 or P2 with `repeat` that you fixed this run (`review.resolvedRepeats` in `loop status`), tell the user in one line that this kind keeps coming back and name the strongest layer that fits; the rule flow runs when a finding of that kind reaches a card.
 
 Record every answer with `loop decide --id <id> --choice keep|once|rule`. If the result has `ruleSkipped`, the choice was recorded as `once`: tell the user why in one line and do not draft a rule.
+
+A finding recorded as `keep` is settled for this review unless the user reopens it. List it as kept, and never offer to fix it again, in a question or in prose. For example, after F-1 was kept, do not end with "or delete the F-1 comment before committing".
 
 Apply the "fix this time" and "make it a rule" fixes. Prove each P1 or P2 fixed this time only with a regression test, as in the regression test sub-step of section 4.
 
@@ -116,7 +116,7 @@ Run `loop status`.
 - If `review.rules` is not empty, list each rule's drafts and `proof`, and name the rules in the commit message. The drafts go into the same commit as the change. With the gate on, files that `loop rule` checked count as known while their content is unchanged, so the gate asks instead of blocking. If you edit a draft after `loop rule`, run `loop rule` again; otherwise the gate blocks it like any file the review did not cover.
 - If `delegation.scope` is `repo` and nothing above needs the user, commit and say so in one line.
 - If `gate.enabled` is true and commits are not delegated, do not ask with AskUserQuestion. Run the commit; the gate shows the user one confirmation prompt.
-- Otherwise ask once with AskUserQuestion: "Commit now", "Commit, and stop asking in this repo", or "Not now". For the second option, run `loop delegate --scope repo` before committing.
+- Otherwise ask once with AskUserQuestion: "Commit now", "Commit, and stop asking in this repo", or "Not now". For the second option, run `loop delegate --scope repo` before committing. Commit options and closing suggestions must not offer to fix a finding already recorded as `keep`.
 
 The review covered everything `git add -A` includes, so stage with `git add -A` before committing. If the user wants to commit only part of it, say that the review covered the whole set and ask how to proceed.
 
@@ -141,7 +141,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs note --phase <step> --decision "<what 
 - section 6 (Commit): do not ask about the commit gate; leave it unconfigured. Commit only if `delegation.scope` is `repo` and `review.pendingDecisions` is empty; otherwise leave the change uncommitted. Never push.
 - Anything else this skill would ask about, such as a fix that needs a weakened test: take the choice that changes the least and is easy to undo.
 
-Nobody reads round reports as they come, so you need not show each one; `loop summary` lists every round. End with `loop summary` and show its `report` as the Rules say. When the user later asks what happened, run `loop summary` again; `--since <ISO time>` changes where it starts.
+Nobody reads round reports as they come; `loop summary` lists every round. End with `loop summary`. When the user later asks what happened, run `loop summary` again; `--since <ISO time>` changes where it starts.
 
 ## Pull request description
 

@@ -1,6 +1,6 @@
 # Manual run for B05 and B31
 
-B05 (P3 to P5 are asked once at the end with keep / once / rule) and B31 (Claude shows the round report before any other tool call or question) depend on AskUserQuestion and on the order of Claude's messages, so a person checks them in an interactive session.
+B05 (P3 to P5 are asked once at the end with keep / once / rule) depends on AskUserQuestion and on what Claude says after it, so it is checked in an interactive session. B31 (each report is shown right below the command that returned it) comes from a hook; `tests/review-loop/show-report.test.mjs` checks what the hook prints, and this run checks that Claude Code shows it.
 
 ## Why not `claude plugin eval` or `claude -p`
 
@@ -29,8 +29,8 @@ Try again when either changes.
 
 | Row | Passes when |
 |---|---|
-| B31 | The message right after the `loop.mjs record` result starts with the report (`Review round 1 of 3`) in a code block, and no tool call or question comes between the two. |
-| B05 | The P3 to P5 findings are asked about in one AskUserQuestion call after the report, each with the options Keep as is, Fix this time only, and Make it a rule. They are not asked about again later. |
+| B31 | The report (`Review round 1 of 3`) appears on screen right below the `loop.mjs record` command, as `PostToolUse:Bash says: review-loop report`, before the first question. |
+| B05 | The P3 to P5 findings are asked about in one AskUserQuestion call, each with the options Keep as is, Fix this time only, and Make it a rule. They are not asked about again later, in a question or in the closing message. |
 
 If the reviewer returns a P1 or P2, the loop fixes it first and the run does not test these rows; run it again.
 
