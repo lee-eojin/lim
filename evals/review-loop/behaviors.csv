@@ -116,8 +116,8 @@ B114,evidence,A P1 or P2 with basis guessed is treated as unverified like a miss
 B115,tell,A failing check is a measured finding and the report says its fix is measured because the check no longer fails,test: a failing check is a measured finding and its fix is reported as measured,yes
 B116,tell,The report says a finding the re-review resolved is fixed by inference from the re-review,test: a finding the re-review resolved is reported as an inferred fix,yes
 B117,evidence,Record with an unknown basis changes nothing and still waits for a valid review,test: record rejects an unknown basis and keeps waiting for the review,yes
-B118,evidence,The reviewer labels every finding measured or inferred or guessed and gives the search and its result for a measured one,eval: planned for claude plugin eval,no
-B119,tell,When Claude says a finding is fixed it says how it knows (a passing check or a reading of the new code) and never says it should work now without a basis,eval: planned for claude plugin eval,no
+B118,evidence,"A reviewer finding labeled other than measured or inferred or guessed, or measured without measuredBy, is refused and the round keeps waiting for the review","test: record refuses a finding labeled other than measured, inferred, or guessed, or measured without measuredBy, and keeps waiting for the review",yes
+B119,tell,Every fixed finding in the report says how it is known: measured by a check that now passes or inferred from the re-review,"test: every fixed finding in the report says how it is known, measured by a check that now passes or inferred from the re-review",yes
 B120,evidence,When the user pushes back on a finding Claude checks the claim again before agreeing and says what it checked,eval: planned for claude plugin eval,no
 B121,evidence,A failing check whose check did not run in the next round stays open as not verified instead of being reported as a measured fix,test: a failing check whose script was removed is not reported as a measured fix,yes
 B122,tell,A new finding whose category earlier reviews in the repository raised three times or more is marked as a repeat with that count and the report counts repeats,test: a finding whose kind earlier reviews raised three times is marked as a repeat with the count,yes
@@ -153,7 +153,7 @@ B151,stop,loop reviewer rejects a model other than inherit or opus or sonnet or 
 B152,tell,loop start and loop next return reviewerModel for the round they hand out and loop status returns the repository setting,test: start and next and status return the reviewer model,yes
 B153,tell,The round report's first line names the reviewer model or says session model for inherit,test: report header names the reviewer model or the session model,yes
 B154,evidence,The ledger's record event stores the reviewer model in force when the round started even if the setting changed before record,test: the record event stores the reviewer model the round started with,yes
-B155,do,Claude starts review-loop:reviewer with the Agent tool's model set to reviewerModel when it is not inherit and leaves model out with inherit,eval: planned for claude plugin eval,no
+B155,do,"loop start hands Claude the saved reviewer model to set on the Agent tool, or inherit when none or an unknown one is saved","test: the reviewer model start hands Claude is the saved one, or inherit when none or an unknown one is saved",yes
 B156,ask,A one-time review skip survives a commit prompt the user declines so the next commit attempt is asked again,test: a declined commit prompt keeps the one-time skip,yes
 B157,stop,A one-time review skip is used up once a commit lands and does not come back after a reset moves HEAD back,test: a one-time skip is used up once a commit lands,yes
 B158,do,A one-time review skip survives a chained command that fails before git commit runs,test: a chained command that fails before the commit keeps the one-time skip,yes

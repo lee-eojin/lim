@@ -3813,3 +3813,63 @@ describe('verify evidence', () => {
     assert.deepEqual(order, ['F-3', 'F-2', 'F-1']);
   });
 });
+
+describe('contracts the script holds for Claude', () => {
+  const brokenRepository = (files = {}) => {
+    const root = createRepository({ 'src/cart.js': correctCart, ...files });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    return root;
+  };
+
+  test('record refuses a finding labeled other than measured, inferred, or guessed, or measured without measuredBy, and keeps waiting for the review', () => {
+    const root = brokenRepository();
+    loop(root, ['start']);
+    assert.throws(() => loop(root, ['record'], { findings: [{ ...doubledPrice, basis: 'certain' }] }), /use measured, inferred, or guessed/);
+    assert.throws(() => loop(root, ['record'], { findings: [{ ...doubledPrice, basis: 'measured' }] }), /is measured but has no measuredBy/);
+    assert.throws(() => loop(root, ['record'], { findings: [{ ...doubledPrice, basis: 'measured', measuredBy: '   ' }] }), /is measured but has no measuredBy/);
+    assert.equal(loop(root, ['status']).review.awaiting, 'review');
+    const accepted = loop(root, ['record'], { findings: [{ ...doubledPrice, basis: 'measured', measuredBy: 'node --test: total([{price: 10}]) is 20' }] });
+    assert.deepEqual(accepted.fix.map((item) => [item.id, item.basis]), [['F-1', 'measured']]);
+  });
+
+  test('every fixed finding in the report says how it is known, measured by a check that now passes or inferred from the re-review', () => {
+    const failing = JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } });
+    const passing = JSON.stringify({ scripts: { test: 'node -e "process.exit(0)"' } });
+    const root = brokenRepository({ 'package.json': failing });
+    loop(root, ['start']);
+    const first = loop(root, ['record'], { findings: [doubledPrice] });
+    assert.deepEqual(first.fix.map((item) => item.id).sort(), ['F-1', 'F-2']);
+    writeFiles(root, { 'package.json': passing, 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    const second = loop(root, ['record'], { findings: [], resolved: ['F-2'] });
+    const fixedLines = second.report.split('\n').filter((line) => /^- F-\d/.test(line) && /\(fixed/.test(line));
+    assert.equal(fixedLines.length, 2);
+    for (const line of fixedLines) assert.match(line, /\(fixed, (?:measured|inferred): \S/);
+    assert.ok(fixedLines.some((line) => /\(fixed, measured: npm run test no longer fails\)/.test(line)));
+    assert.ok(fixedLines.some((line) => /\(fixed, inferred: the re-review read the fix\)/.test(line)));
+  });
+
+  test('an unattended run asks nothing: a finding that needs a call waits, and one with only a choice of fixes is fixed the least-change way', () => {
+    const root = brokenRepository();
+    const designChoice = { ...doubledPrice, title: 'Pick a rounding rule', quote: 'items.reduce', behaviorChange: true };
+    const smallestFix = { ...doubledPrice, title: 'Drop the doubling', quote: 'item.price * 2', multipleFixes: true };
+    assert.equal(loop(root, ['start', '--unattended']).unattended, true);
+    const recorded = loop(root, ['record'], { findings: [designChoice, smallestFix] });
+    assert.deepEqual(recorded.ask, []);
+    assert.deepEqual(recorded.deferred.map((item) => [item.title, item.deferredReason]), [['Pick a rounding rule', 'behaviorChange']]);
+    const chosen = recorded.fix.find((item) => item.title === 'Drop the doubling');
+    assert.match(chosen.note, /use the fix that changes the least, and record the choice with loop note/);
+    assert.match(recorded.report, /Waiting for you \(not fixed in an unattended run\):\n- F-\d \[P2\] src\/cart\.js:1 Pick a rounding rule/);
+  });
+
+  test('the reviewer model start hands Claude is the saved one, or inherit when none or an unknown one is saved', () => {
+    const root = brokenRepository();
+    assert.equal(loop(root, ['start']).reviewerModel, 'inherit');
+    loop(root, ['reviewer', '--model', 'sonnet']);
+    assert.equal(loop(root, ['start', '--fresh']).reviewerModel, 'sonnet');
+    const saved = readdirSync(path.join(root, '.git'), { recursive: true }).find((file) => path.basename(String(file)) === 'reviewer.json');
+    writeFileSync(path.join(root, '.git', String(saved)), JSON.stringify({ model: 'gpt-5' }));
+    assert.equal(loop(root, ['start', '--fresh']).reviewerModel, 'inherit');
+    assert.equal(loop(root, ['status']).reviewerModel, 'inherit');
+  });
+});
