@@ -82,7 +82,7 @@ MakeAttended(l) ==
 
 \* assignIds, classify, and the unattended split in recordReview.
 NewFinding(shape, unattended, kept) ==
-  CASE kept /\ shape # "checkFix" -> [Fresh EXCEPT !.where = "kept", !.kind = "reviewer", !.decision = "keep"]
+  CASE kept -> [Fresh EXCEPT !.where = "kept", !.kind = IF shape = "checkFix" THEN "check" ELSE "reviewer", !.decision = "keep"]
     [] shape = "reviewerFix" -> [Fresh EXCEPT !.where = "open", !.kind = "reviewer", !.route = "fix"]
     [] shape = "checkFix" -> [Fresh EXCEPT !.where = "open", !.kind = "check", !.route = "fix"]
     [] shape = "reviewerAsk" ->
@@ -106,7 +106,8 @@ AfterRecord(l, res, new, shape, regr, kept) ==
           [] s \in stuck -> [f[s] EXCEPT !.attempts = @ + 1]
           [] s \in retried -> [f[s] EXCEPT !.attempts = @ + 1, !.route = "ask",
                                            !.where = IF l.unattended THEN "deferred" ELSE "open"]
-          [] s \in new -> NewFinding(shape[s], l.unattended, <<s, "reviewer">> \in kept)
+          [] s \in new -> NewFinding(shape[s], l.unattended,
+                                  <<s, IF shape[s] = "checkFix" THEN "check" ELSE "reviewer">> \in kept)
           [] OTHER -> f[s]]
       l1 == [l EXCEPT !.findings = findings]
       open == Cardinality(InState(l1, "open"))
@@ -251,7 +252,7 @@ DecideNextStopHasProof == loop.stoppedBy = "decideNext" /\ loop.stopReason \in {
 StopIfProvenStopHasProof == loop.stoppedBy = "stopIfProven" => ~loop.stopUnproven
 StopWaitingStopHasProof == loop.stoppedBy = "stopWaiting" => ~loop.stopUnproven
 GateNeedsProof == GateAllows(loop) => Unproven(loop) = {}
-LedgerKept == {s \in Slots : <<s, "reviewer">> \in ledger}
+LedgerKept == {s \in Slots : \E kd \in {"reviewer", "check"} : <<s, kd>> \in ledger}
 KeptNeverReoffered == \A s \in loop.everKept \cup LedgerKept : s \notin Pending(loop)
 
 \* A modeling check, not a property: decideNext gets round = Len(counts) from the table.

@@ -1343,9 +1343,22 @@ function recordReview(repository, input) {
       reported.push(finding);
     }
   }
+  const trackedPrints = new Set([...state.open, ...previouslyDeferred, ...previouslyKept, ...keptInLoop, ...kept].map((item) => item.fingerprint));
+  const newChecks = [];
+  for (const finding of failingChecks) {
+    const print = fingerprint(finding);
+    if (trackedPrints.has(print)) continue;
+    if (keptBefore.has(print)) {
+      const { file, line, title, folder } = finding;
+      kept.push({
+        severity: severityOf(finding), file, line, title, fingerprint: print, fromChecks: true,
+        ...(folder ? { folder } : {}),
+      });
+    } else {
+      newChecks.push(finding);
+    }
+  }
   const allKept = [...previouslyKept, ...keptInLoop, ...kept];
-  const trackedPrints = new Set([...state.open, ...previouslyDeferred, ...allKept].map((item) => item.fingerprint));
-  const newChecks = failingChecks.filter((finding) => !trackedPrints.has(fingerprint(finding)));
   const confirmSetting = readConfirm(repository);
   const inRound = [...newChecks, ...reported.filter((finding) => filesInRound.has(finding.file))];
   const classified = classify(inRound, sourcesFor, confirmSetting.severities);

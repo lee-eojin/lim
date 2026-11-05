@@ -96,7 +96,7 @@ B94,silence,A finding whose fingerprint matches a keep decision in the repositor
 B95,tell,The report says in one line how many findings the user kept before were raised again,test: the report counts findings kept before that were raised again,yes
 B96,tell,A kept P1 or P2 raised again is listed in the report with its severity and is not fixed,test: a kept P1 or P2 raised again is listed with its severity and not fixed,yes
 B97,ask,A kept finding becomes a card again once its quoted line changes,test: a kept finding is asked about again once its quoted line changes,yes
-B98,stop,A failing check stays a P1 finding even after the user kept it,test: a failing check is still a P1 finding after the user kept it,yes
+B98,stop,A failing check kept in an earlier run is not offered again,test: a failing check kept in an earlier run is not offered again,yes
 B99,ask,A kept finding raised again at a higher severity than the one kept becomes a card again,test: a kept finding raised again at a higher severity is a card again,yes
 B100,ask,A kept finding becomes a card again when its quoted text appears more than once in the current file,test: a kept finding is a card again when its quoted line appears twice in the file,yes
 B101,silence,A kept finding whose quoted line the diff removed is still treated as kept in the next review,test: a kept finding whose quoted line the diff removed stays kept,yes
