@@ -65,6 +65,6 @@ Any other result is new. When a known finding is fixed, its invariant passes. Up
 - `plugins/review-loop/skills/review-loop/scripts/loop.mjs`: `decideNext` (generated table), `recordReview`, `next`, `stopIfProven`, `needsProof`, `hasRegressionProof`, `isBeingFixed`, `rule`, `recordNoTest`, `decide`, `start`, `isInProgress`, `pendingDecisionIds`, `decidableFindings`, `setUnattended`, `makeUnattended`, `makeAttended`, `stopWaiting`, `unattendedFixable`, `defer`, `reviewVerdict`, `UNFINISHED`.
 - `scripts/loop-model/ReviewLoop.tla`, `scripts/loop-model/ReviewLoop.cfg`, `scripts/check-loop-model.mjs`, `tests/scripts/check-loop-model.test.mjs`.
 
-Sync commit: `ff6611b`. The model was last confirmed against `loop.mjs` at this commit.
+Sync commit: `f779ad9`. The model was last confirmed against `loop.mjs` at this commit.
 
-To see what changed in covered code since then, run `git diff ff6611b -- plugins/review-loop/skills/review-loop/scripts/loop.mjs | grep '^@@'`. Git names the enclosing function in each hunk header. Move the sync commit forward only after you have read every changed covered function against its action and the check gives the expected result. Use `git rev-parse --short refs/remotes/origin/main` for the new value.
+To see what changed in covered code since then, run `git diff f779ad9 -- plugins/review-loop/skills/review-loop/scripts/loop.mjs | grep '^@@'`. Git names the enclosing function in each hunk header. Move the sync commit forward only after you have read every changed covered function against its action and the check gives the expected result. Use `git rev-parse --short refs/remotes/origin/main` for the new value. `node scripts/check-loop-model-sync.mjs` fails when a function in the coverage record changed after the sync commit.
