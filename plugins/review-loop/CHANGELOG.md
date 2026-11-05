@@ -2,7 +2,7 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
-## Unreleased
+## 0.11.12 (2026-11-05)
 
 - Fixed: A new hook shows you each review report right below the command that returned it, so you see it before any question even when Claude does not repeat it. A finding you keep as is is no longer offered again in the closing message. (#248)
 
