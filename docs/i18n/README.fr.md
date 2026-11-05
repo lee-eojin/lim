@@ -10,13 +10,13 @@
 [![ledger](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=ledger--*&sort=semver&label=ledger)](../../plugins/ledger/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-Ce document est une traduction du [README en anglais](../../README.md) dans sa version du 2026-10-27. Si les deux documents sont différents, le README en anglais est la référence correcte.
+> Ce document est une traduction du [README en anglais](../../README.md) dans sa version du 2026-11-06. Si les deux documents sont différents, le README en anglais est la référence correcte.
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | Français | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
 Les agents de code écrivent vite. Ils sont bien moins bons pour remarquer ce qu'ils ont raté. L'agent qui a écrit une modification en est le plus faible réviseur, parce qu'il la relit à travers son propre raisonnement et se donne raison. Résultat : le travail part en commit sans revue, ou avec une revue faite par le contexte même qui l'a écrit.
 
-**LIM est ma réponse : de petits plugins qui font chacun un seul travail, avec les chiffres pour le prouver.** review-loop est au centre, et verify et clear-explain travaillent à ses côtés.
+**LIM est ma réponse : de petits plugins qui font chacun un seul travail, avec les chiffres pour le prouver.** review-loop est au centre, et verify, clear-explain, gap-map et ledger travaillent à ses côtés.
 
 ![Une exécution de review-loop : le réviseur signale un prix doublé en P2, la correction suit, la deuxième revue s'arrête sans constat, puis vient le tableau récapitulatif](../../docs/demo/review-loop.gif)
 
@@ -24,11 +24,11 @@ Les agents de code écrivent vite. Ils sont bien moins bons pour remarquer ce qu
 
 **Avec review-loop, "prêt pour le commit" veut dire revu.** Vos propres tests, types et lint s'exécutent d'abord, dans les projets Node.js, Python, Go, Rust, Java (Gradle ou Maven), .NET, Ruby et Makefile, y compris jusqu'à 4 projets de sous-dossier touchés par une modification, à chaque tour. Ensuite, un réviseur avec un contexte neuf, qui ne voit jamais le raisonnement de Claude, classe les constats de P1 à P5 et doit apporter une preuve pour les plus graves. Claude corrige P1 et P2, un nouveau réviseur vérifie les corrections, et un script, et non le modèle, décide quand s'arrêter. Vous décidez du reste une seule fois, à la fin.
 
-**La preuve en exécutant la fonctionnalité.** Avec [verify](../../plugins/verify), un constat est reproduit quand une vérification qui exécute la fonctionnalité échoue sur le code revu, et sa correction ne compte que lorsque la même vérification réussit de nouveau.
+**La preuve par l'exécution de la fonctionnalité.** Avec [verify](../../plugins/verify), un constat est reproduit quand une vérification qui exécute la fonctionnalité échoue sur le code revu, et sa correction ne compte que lorsque la même vérification réussit de nouveau.
 
 **Les remarques que vous répétez deviennent des règles.** Quand vous marquez un constat "en faire une règle", Claude rédige une règle de lint ou un test, et review-loop l'exécute sur le code d'avant la correction pour prouver qu'il détecte l'erreur. La correction d'un bug reçoit un test de régression de la même façon.
 
-**Petit par choix.** review-loop ajoute environ 275 tokens à une session. Son hook ne fait rien tant que vous ne l'activez pas dans un dépôt. Rien n'est installé sans vous dire ce que c'est et comment le supprimer.
+**Petit par choix.** review-loop ajoute environ 275 tokens à une session. Son commit gate ne fait rien tant que vous ne l'activez pas dans un dépôt, et son hook de rapports n'agit que sur les commandes propres à review-loop. Rien n'est installé sans vous dire ce que c'est et comment le supprimer.
 
 Forkez-le, modifiez-le, faites-en le vôtre. Les issues et les pull requests sont les bienvenues.
 
@@ -39,7 +39,7 @@ Forkez-le, modifiez-le, faites-en le vôtre. Les issues et les pull requests son
 | [review-loop](../../plugins/review-loop) | 0.11.12 | Fait la revue de vos modifications avant le commit, corrige les constats P1 et P2, refait la revue et vous laisse le reste. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Explique les concepts, le code et les erreurs avec la réponse d'abord, un seul sens par mot et les termes techniques sous leur nom officiel en anglais. |
 | [verify](../../plugins/verify) | 0.6.1 | Prouve que vos fonctionnalités marchent en les exécutant, et enregistre les commandes et la sortie comme preuves. |
-| [gap-map](../../plugins/gap-map) | 0.3.0 | Cartographie l'implémentation d'un langage face à ses propres promesses, et ne ferme un manque que quand de vrais tests passent. |
+| [gap-map](../../plugins/gap-map) | 0.3.0 | Cartographie l'implémentation d'un langage face à ses propres promesses, et ne marque une lacune comme comblée que lorsque de vrais tests passent. |
 | [ledger](../../plugins/ledger) | 0.2.0 | Sépare les observations, les inférences et les inconnues d'une enquête, et ne marque une question comme résolue que si ses preuves tiennent encore. |
 
 ## Installation
@@ -51,7 +51,7 @@ Vous avez besoin de Claude Code, de git et de Node.js 18 ou d'une version ultér
 /plugin install review-loop@lim
 ```
 
-Si Claude Code le demande, redémarrez-le. L'ajout du marketplace enregistre uniquement le catalogue. Chaque plugin s'installe séparément, vous obtenez donc uniquement ce que vous choisissez.
+Si Claude Code le demande, redémarrez-le. L'ajout du marketplace enregistre uniquement le catalogue. Chaque plugin s'installe séparément, vous obtenez donc uniquement ce que vous choisissez. Pour en ajouter un autre, utilisez son nom dans le tableau ci-dessus, comme `/plugin install verify@lim`.
 
 ## Premiers pas
 
@@ -66,7 +66,7 @@ Deux étapes :
 
 C'est tout. review-loop exécute vos vérifications, fait la revue de la modification, corrige ce qui doit l'être et vous interroge sur le reste. À la fin, il demande une fois s'il doit activer le commit gate dans ce dépôt, puis s'il doit faire le commit.
 
-Vous débutez ? Le [guide](../../docs/guide/README.md), en anglais, présente une première revue, les décisions, le commit gate, le coût et les pièges courants, avec une sortie réelle.
+Vous débutez ? Le [guide](../../docs/guide/README.md), en anglais, présente une première revue, les décisions, le commit gate, le coût, les pièges courants, les vérifications dans d'autres langages et la reproduction d'un constat avec verify, avec une sortie réelle.
 
 ## Utilisation
 
@@ -86,7 +86,7 @@ Claude peut aussi démarrer review-loop de lui-même quand vous lui demandez une
 
 ### À quoi ressemble un tour
 
-Chaque tour se termine par un rapport. Claude l'affiche avant toute autre chose :
+Chaque tour se termine par un rapport. Un hook vous l'affiche juste sous la commande qui l'a renvoyé :
 
 ```
 Review round 2 of 3 (reviewer: session model)
@@ -124,6 +124,8 @@ delegate commits:       /review-loop:review-loop stop asking before commits in t
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
+what a run did:         /review-loop:review-loop what did the unattended review do?
+PR description:         /review-loop:review-loop write a pull request description of this review.
 ```
 
 </details>
@@ -137,7 +139,7 @@ Avant votre commit, review-loop exécute une boucle courte et s'arrête de lui-m
 3. **Correction.** Claude indique ce qu'il va corriger, puis corrige P1 et P2. Si une correction exige un choix de conception (plus d'une façon de corriger, un changement de comportement visible, la suppression d'une fonctionnalité, la modification de tests), vous choisissez d'abord. Si votre projet a un script de test, Claude écrit un test de régression à partir du scénario d'échec de chaque P1 ou P2 qu'il corrige, et review-loop montre que le test échoue sur le code d'avant la correction.
 4. **Revue des corrections.** Un nouveau réviseur vérifie uniquement les corrections et les constats encore ouverts. 3 tours au maximum.
 5. **Arrêt.** Un script, et non le modèle, décide quand s'arrêter : il ne reste ni P1 ni P2, la limite de tours est atteinte, un constat survit à deux corrections, un constat résolu réapparaît, P1 + P2 cesse de diminuer, ou une correction affaiblit les tests ou les vérifications.
-6. **Décision.** Vous décidez une seule fois pour le reste : tous les P3 à P5, plus chaque P1 ou P2 encore ouvert, qui n'a pas pu être vérifié ou qui porte sur un fichier hors du diff revu. Pour chacun, vous choisissez : garder tel quel, corriger cette fois uniquement ou en faire une règle. Un constat gardé tel quel n'est plus redemandé dans une revue suivante tant que la ligne citée ne change pas, et le rapport le compte à la place. Quand des revues précédentes de ce dépôt ont relevé l'un des quatre types que cherche le réviseur (comme une garde spéculative) 3 fois ou plus, Claude le dit et recommande d'en faire une règle au niveau le plus fort qui convient : un changement de types ou d'architecture, puis une règle de lint, puis un test.
+6. **Décision.** Vous décidez une seule fois pour le reste : tous les P3 à P5, plus chaque P1 ou P2 encore ouvert, qui n'a pas pu être vérifié ou qui porte sur un fichier hors du diff revu. Pour chacun, vous choisissez : garder tel quel, corriger cette fois uniquement ou en faire une règle. Claude ne vous interroge plus sur un constat gardé tel quel dans une revue suivante tant que la ligne citée ne change pas, et le rapport le compte à la place. Quand des revues précédentes de ce dépôt ont relevé l'un des quatre types que cherche le réviseur (comme une garde spéculative) 3 fois ou plus, Claude le dit et recommande d'en faire une règle au niveau le plus fort qui convient : un changement de types ou d'architecture, puis une règle de lint, puis un test.
 7. **Commit.** Claude demande avant le commit, sauf si vous avez choisi "ne plus demander dans ce dépôt". Il ne fait jamais de push. Si vous activez le commit gate, un hook en fait une règle : les commits de Claude sont bloqués tant qu'une revue n'est pas validée.
 
 Quand Claude dit qu'un point est corrigé, il dit comment il le sait : une vérification qui passe désormais relève de measured, et sa lecture du nouveau code relève de inferred. Quand vous contestez un constat, Claude revérifie l'affirmation avant de vous donner raison, et vous dit ce qu'il a vérifié.
@@ -162,12 +164,12 @@ Une garde est justifiée là où un état légitime entre dans le code : une sai
 
 ### Gravité
 
-D'après la règle Pn publique de Banksalad.
+D'après la [règle Pn publique de Banksalad](https://blog.banksalad.com/tech/banksalad-code-review-culture/).
 
 | Niveau | Signification | Comportement de la boucle |
 |---|---|---|
 | P1 | Correction obligatoire : une vérification qui échoue, une perte de données, une faille de sécurité, un crash, ou la fonctionnalité demandée ne fonctionne pas | Corrigé si le constat a une preuve |
-| P2 | Correction nécessaire : un bug qu'une entrée précise reproduit, une exigence manquante, une règle du projet non respectée | Corrigé si le constat a une preuve |
+| P2 | Correction recommandée : un bug qu'une entrée précise reproduit, une exigence manquante, une règle du projet non respectée | Corrigé si le constat a une preuve |
 | P3 | Correction utile : la maintenabilité, un nom trompeur, un test manquant sur un chemin secondaire | Vous décidez |
 | P4 | Optionnel : une préférence de structure sur laquelle les avis divergent | Vous décidez |
 | P5 | Mineur : une faute de frappe ou la mise en forme | Vous décidez |
@@ -188,7 +190,7 @@ review-loop prouve ensuite le brouillon. Il écrit le code d'avant la correction
 
 Une règle a besoin d'une vérification qui l'exécute. Sans script `typecheck`, `lint` ou `test`, le choix est enregistré comme "corriger cette fois uniquement" et Claude vous explique pourquoi. Un brouillon prouvé entre dans le même commit que la correction, et le message de commit le mentionne.
 
-Chaque P1 ou P2 que Claude corrige reçoit un test de régression de la même façon, sans le demander, quand votre projet a un script de test. Pour un test de régression, seule la vérification de test compte comme preuve : si seul le lint échoue avec lui, le test n'a pas détecté le bug. Une correction sans test en donne la raison dans le rapport.
+Chaque P1 ou P2 que Claude corrige reçoit un test de régression de la même façon, sans vous demander, quand votre projet a un script de test. Pour un test de régression, seule la vérification de test compte comme preuve : si seul le lint échoue avec lui, le test n'a pas détecté le bug. Une correction sans test en donne la raison dans le rapport.
 
 ### Commit gate
 
@@ -207,7 +209,7 @@ Le commit gate est un hook désactivé tant que vous ne l'activez pas dans un d�
 | Un commit avec `--no-verify` | Demande, même avec la délégation, et bloque toujours un commit sans revue validée |
 | Un commit dans un dossier que le gate ne peut pas lire, comme `cd "$(...)"` ou un chemin qui n'existe pas | Vous demande, même avec la délégation, si le gate est activé dans le dépôt où vous avez lancé Claude Code |
 
-Pour faire un commit une seule fois sans revue, demandez à Claude de sauter la revue cette fois. Le réglage du gate et la délégation des commits s'appliquent à tout le dépôt, y compris ses worktrees liés. Chaque worktree garde sa propre revue.
+Pour faire un commit une seule fois sans revue, demandez à Claude de sauter la revue cette fois. Le réglage du gate et la délégation des commits s'appliquent à tout le dépôt, y compris ses worktrees liés. Chaque worktree garde sa propre revue. Le [review-loop README](../../plugins/review-loop/README.md#commit-gate) énumère chaque cas.
 
 </details>
 
@@ -226,7 +228,7 @@ Les cinq premiers réglages s'appliquent à un seul dépôt. Pour en changer un,
 
 ## Mesures
 
-[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liste <!--total-->279 comportements sur six axes : `do`, `tell`, `ask`, `silence`, `stop` et `evidence`. Les tests unitaires de la CI couvrent <!--tested-->273 de ces comportements, y compris des exécutions sur de vrais dépôts git temporaires et le hook de commit gate. Les <!--rest-->6 autres exigent une exécution du modèle : demander une seule fois pour P3 à P5, garder chaque étape dans la liste de tâches avec une raison pour chaque étape sautée, écrire un test de régression pour chaque P1 ou P2 corrigé, revérifier un constat que vous contestez, recommander une règle pour un type de constat qui revient sans cesse et signaler le code ajouté sans cause connue. Le dernier a une fixture dans [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), et le premier a une exécution manuelle dans [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
+[`evals/review-loop/behaviors.csv`](../../evals/review-loop/behaviors.csv) liste <!--total-->279 comportements sur six axes : do, tell, ask, silence, stop et evidence. Les tests unitaires de la CI couvrent <!--tested-->273 de ces comportements, y compris des exécutions sur de vrais dépôts git temporaires et le hook de commit gate. Les <!--rest-->6 autres exigent une exécution du modèle : demander une seule fois pour P3 à P5, garder chaque étape dans la liste de tâches avec une raison pour chaque étape sautée, écrire un test de régression pour chaque P1 ou P2 corrigé, revérifier un constat que vous contestez, recommander une règle pour un type de constat qui revient sans cesse et signaler le code ajouté sans cause connue. Le dernier a une fixture dans [`evals/review-loop/fixtures/reviewer-rubric/`](../../evals/review-loop/fixtures/reviewer-rubric/), et le premier a une exécution manuelle dans [`evals/review-loop/manual-behaviors.md`](../../evals/review-loop/manual-behaviors.md).
 
 Un benchmark de détection donne au réviseur des modifications dans des dépôts temporaires dont les noms n'indiquent pas qu'il s'agit d'un test. [`evals/review-loop/detection/`](../../evals/review-loop/detection/) contient 12 modifications contenant chacune un bug introduit volontairement et 6 modifications propres. [`evals/review-loop/detection-hard/`](../../evals/review-loop/detection-hard/) contient 10 bugs plus difficiles, par exemple un bug visible seulement dans un fichier que le diff ne touche pas, un autre visible seulement en suivant quatre fichiers, un autre au milieu d'un diff de 183 lignes, une race condition entre deux recherches, un buffer vidé avant qu'une écriture asynchrone ne le lise et un verrou qui n'est pas libéré sur un chemin d'erreur, ainsi que 6 modifications propres qui ont l'air suspectes. Résultats avec 3 exécutions par cas, du 2026-10-25 pour le jeu standard et du 2026-10-26 pour le jeu difficile :
 
@@ -236,9 +238,15 @@ Un benchmark de détection donne au réviseur des modifications dans des dépôt
 | claude-sonnet-5-5 | non exécuté | non exécuté | 29 sur 30 | 0 sur 18 | 1,14 $ |
 | claude-haiku-5-5 | non exécuté | non exécuté | 30 sur 30 | 3 sur 18 | 0,09 $, selon Claude Code |
 
-Par défaut, le réviseur tourne avec le modèle de votre session. Opus a trouvé tous les bugs introduits dans les deux jeux, donc le benchmark ne peut pas encore montrer pour lui une baisse des bugs trouvés. Pour savoir s'il permet au moins de voir un `reviewer.md` moins bon, Opus a aussi exécuté le jeu difficile avec un `reviewer.md` réduit à son format de sortie : il a encore trouvé 30 sur 30, a donné 1 faux P2 sur 18 exécutions propres et a soulevé 83 constats de P3 à P5 là où le réviseur complet en soulevait 55. Pour Opus, trouver ces bugs dépend davantage du modèle que des instructions, et un `reviewer.md` moins bon se manifeste par des fausses alertes et du bruit. Le seul échec de Sonnet n'a renvoyé aucun constat pour le buffer vidé avant une écriture asynchrone. Les 3 fausses alertes de Haiku portaient toutes sur un même cas propre, qui a aussi donné 1 faux P2 sur 9 exécutions d'Opus avec le réviseur complet sur deux jours. Un constat compte quand il nomme le bug introduit sur une ligne modifiée ou, pour un bug visible seulement dans un autre fichier, sur une ligne marquée de ce fichier. Après les premières exécutions, des mots-clés ont été ajoutés dans quatre cas où un réviseur nommait le bug introduit avec des mots que la notation n'acceptait pas, et chaque exécution enregistrée a été notée de nouveau avec eux. Relancez-le avec `node evals/review-loop/run-detection.mjs --runs 3`, et ajoutez `--cases evals/review-loop/detection-hard` pour le jeu difficile.
+Par défaut, le réviseur tourne avec le modèle de votre session. Opus a trouvé tous les bugs introduits dans les deux jeux, donc le benchmark ne peut pas encore montrer pour lui une baisse des bugs trouvés. Pour savoir s'il permet au moins de voir un `reviewer.md` moins bon, Opus a aussi exécuté le jeu difficile avec un `reviewer.md` réduit à son format de sortie : il a encore trouvé 30 sur 30, a donné 1 faux P2 sur 18 exécutions propres et a soulevé 83 constats de P3 à P5 là où le réviseur complet en soulevait 55. Pour Opus, trouver ces bugs dépend davantage du modèle que des instructions, et un `reviewer.md` moins bon se manifeste par des fausses alertes et du bruit. 
 
-Le tableau ci-dessus fonde le modèle par défaut du réviseur. Sur le jeu difficile, Opus a trouvé 30 sur 30 sans faux P1 ou P2, Sonnet a trouvé 29 sur 30 sans aucun pour environ 37 % du coût d'Opus, et Haiku a trouvé 30 sur 30 avec 3 faux P1 ou P2 sur 18 exécutions propres. Le modèle par défaut reste donc celui de la session, et Sonnet est le choix le moins cher si vous voulez que le réviseur tourne sur un autre modèle que celui qui a écrit la modification.
+Le seul échec de Sonnet n'a renvoyé aucun constat pour le buffer vidé avant une écriture asynchrone. Les 3 fausses alertes de Haiku portaient toutes sur un même cas propre, qui a aussi donné 1 faux P2 sur 9 exécutions d'Opus avec le réviseur complet sur deux jours. 
+
+Un constat compte quand il nomme le bug introduit sur une ligne modifiée ou, pour un bug visible seulement dans un autre fichier, sur une ligne marquée de ce fichier. Après les premières exécutions, des mots-clés ont été ajoutés dans quatre cas où un réviseur nommait le bug introduit avec des mots que la notation n'acceptait pas, et chaque exécution enregistrée a été notée de nouveau avec eux. Relancez-le avec `node evals/review-loop/run-detection.mjs --runs 3`, et ajoutez `--cases evals/review-loop/detection-hard` pour le jeu difficile.
+
+Le tableau ci-dessus fonde le modèle par défaut du réviseur. Sur le jeu difficile, Opus a trouvé 30 sur 30 sans faux P1 ou P2, Sonnet a trouvé 29 sur 30 sans aucun pour environ 37 % du coût d'Opus, et Haiku a trouvé 30 sur 30 avec 3 faux P1 ou P2 sur 18 exécutions propres. Le modèle par défaut reste donc celui de la session, et Sonnet est un choix moins cher si vous voulez que le réviseur tourne sur un autre modèle que celui qui a écrit la modification.
+
+Une nouvelle exécution des deux jeux le 2026-11-05 avec Opus, le même `reviewer.md` et Claude Code 2.1.318 a encore trouvé tous les bugs introduits (36 sur 36, 30 sur 30), mais a signalé un P2 sur une modification propre de chaque jeu, dans les 3 exécutions de ce cas : 3 sur 18 exécutions propres par jeu, contre 0 sur 18 dans le tableau. Le [review-loop README](../../plugins/review-loop/README.md#measured-behavior) donne les détails, et [#285](https://github.com/lee-eojin/lim/issues/285) suit si ces constats sont réels.
 
 [`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/) contient 6 bugs introduits en Python, Rust et Go ainsi que 2 modifications propres. Avec 3 exécutions par cas, Opus et Sonnet ont trouvé 18 sur 18 et Haiku 16 sur 18, sans aucun faux P1 ou P2 sur 6 exécutions propres pour aucun d'eux ; le [review-loop README](../../plugins/review-loop/README.md#measured-behavior) donne les détails.
 
@@ -249,14 +257,14 @@ Le tableau ci-dessus fonde le modèle par défaut du réviseur. Sur le jeu diffi
 
 | Partie | Toujours actif, à chaque session | À chaque exécution |
 |---|---|---|
-| skill review-loop | environ 210 tokens | environ 6000 tokens |
+| skill review-loop | environ 210 tokens | environ 7400 tokens |
 | agent réviseur | environ 60 tokens | environ 1800 tokens, plus le diff et le code qu'il lit |
 
 Le coût de la skill est payé une fois par exécution. Celui du réviseur est payé une fois par tour, et une boucle compte au maximum 3 tours. Le modèle du réviseur change ce coût ; le tableau du benchmark ci-dessus le montre pour chaque modèle. Vos vérifications s'exécutent sur votre machine et ne coûtent aucun token.
 
 </details>
 
-review-loop fait la revue des pull requests de LIM lui-même. [#8](https://github.com/lee-eojin/lim/pull/8) montre deux boucles sur sa première version, dont un arrêt causé par un faux positif dans sa propre vérification d'affaiblissement des tests, corrigé ensuite. Les pull requests récentes, comme [#46](https://github.com/lee-eojin/lim/pull/46), montrent le rapport de review-loop et la décision prise pour chaque constat.
+review-loop a passé en revue une grande partie des pull requests de LIM lui-même. [#8](https://github.com/lee-eojin/lim/pull/8) montre deux boucles sur sa première version, dont un arrêt causé par un faux positif dans sa propre vérification d'affaiblissement des tests, corrigé ensuite. Des pull requests comme [#46](https://github.com/lee-eojin/lim/pull/46) et [#192](https://github.com/lee-eojin/lim/pull/192) montrent le rapport de review-loop et la décision pour chaque constat. Les récentes, comme [#305](https://github.com/lee-eojin/lim/pull/305), portent à la place un rapport de preuves : les commandes exécutées, leur sortie et ce qui n'a pas été mesuré.
 
 ## Pourquoi ce fonctionnement
 
@@ -305,8 +313,10 @@ review-loop ne fait aucun appel réseau par lui-même. Claude et le réviseur li
 
 - Les vérifications sont détectées à partir des scripts de `package.json`, puis des cibles d'un Makefile, puis de Go, Rust, des outils Python configurés (pytest, ruff, mypy), de Gradle, de Maven, de .NET et des outils Ruby que le projet utilise (rspec, rake test, rubocop), à la racine du dépôt et dans les projets des sous-dossiers qu'une modification touche, jusqu'à 4 par tour.
 - Chaque vérification dispose de 5 minutes au maximum, et l'ensemble des vérifications de 9 minutes au maximum.
+- Le script qui arrête une correction pour affaiblissement des tests ou des contrôles ne lit que les fichiers JavaScript et TypeScript, les changements sous `__snapshots__/` et ceux sous `.github/workflows/`. Dans d'autres langages, un test sauté comme `@pytest.mark.skip` ou `t.Skip()`, ou une règle de lint désactivée, n'arrête pas la boucle.
 - Sans le commit gate, demander avant un commit est une instruction pour Claude, et non une garantie.
-- Le commit gate vérifie uniquement les commandes que Claude exécute avec son outil Bash. Les commits que vous tapez dans votre propre terminal ne sont pas vérifiés. Un commit passé par un alias git comme `git ci` est vérifié comme `git commit`, un alias shell (`!...`) qui fait un commit déclenche une question, car le gate ne peut pas voir à l'intérieur, et un alias défini en ligne avec `git -c alias.ci=commit` n'est pas reconnu.
+- Les rapports vous parviennent via un hook. Avec les hooks désactivés (`disableAllHooks`), vous ne voyez un rapport que dans la sortie repliée de la commande qui l'a renvoyé.
+- Le commit gate vérifie uniquement les commandes que Claude exécute avec son outil Bash. Les commits que vous tapez dans votre propre terminal ne sont pas vérifiés. Un commit passé par un alias git comme `git ci` est vérifié comme `git commit`, un alias shell (`!...`) qui fait un commit déclenche une question, car le gate ne peut pas voir à l'intérieur, et un alias défini en ligne avec `git -c alias.ci=commit` n'est pas lu comme un alias, donc le gate demande à son sujet.
 - Si vous lancez Claude Code dans un dossier qui n'est pas un dépôt, le gate ne peut pas vérifier un commit dont il ne peut pas identifier le dépôt, par exemple après `cd "$(...)"`.
 - review-loop fait la revue de tout ce que `git add -A` inclurait, et non d'un ensemble de modifications en stage que vous choisissez à la main.
 - Une règle ou un test de régression est vérifié dans une copie temporaire qui contient vos fichiers suivis par git et des liens vers le `node_modules` de la racine et des projets qui contiennent le constat et les brouillons. Les autres fichiers ignorés, comme `.env`, n'y sont pas, donc une vérification qui en a besoin le signale comme non prouvé ou comme détecté pour une mauvaise raison. Claude lit l'échec pour savoir de quel cas il s'agit.
@@ -320,7 +330,7 @@ Pas toujours. Claude démarre une skill uniquement quand il décide que la descr
 Jamais. review-loop demande avant chaque commit, sauf si vous choisissez "ne plus demander dans ce dépôt". Pour désactiver de nouveau cette option, demandez à Claude de désactiver la délégation des commits de review-loop.
 
 **Est-ce qu'il entre en conflit avec mes autres plugins ?**
-review-loop ajoute une skill, un agent et un hook. Le hook lit les commandes Bash, agit uniquement sur `git commit` et `git push`, et ne fait rien si vous n'avez pas activé le commit gate dans ce dépôt. Ses noms commencent par `review-loop:`, donc ils ne peuvent pas entrer en collision avec les noms d'autres plugins. Si vous formulez la demande en langage courant, Claude peut choisir une autre skill de revue. La commande démarre toujours review-loop.
+review-loop ajoute une skill, un agent et deux hooks. Le hook du commit gate lit les commandes Bash, agit uniquement sur `git commit` et `git push`, et ne fait rien si vous n'avez pas activé le commit gate dans ce dépôt. Le hook de rapports n'agit que sur les commandes qui exécutent le script de review-loop, et vous montre le rapport qu'elles renvoient. Ses noms commencent par `review-loop:`, donc ils ne peuvent pas entrer en collision avec les noms d'autres plugins. Si vous formulez la demande en langage courant, Claude peut choisir une autre skill de revue. La commande démarre toujours review-loop.
 
 **Que se passe-t-il si une session se termine au milieu d'une boucle ?**
 Exécutez de nouveau la commande. review-loop propose de reprendre au tour et à l'étape où la boucle s'est arrêtée, ou de recommencer depuis le début.
@@ -346,7 +356,7 @@ review-loop fonctionne avec les vérifications que vous avez déjà. Plus vos sc
 ## Comment LIM est construit
 
 - **Les issues d'abord.** Chaque changement commence par une issue et arrive par une pull request qu'un maintainer fusionne avec un squash merge.
-- **Revu par lui-même.** Chaque pull request exécute review-loop sur son propre diff, et la description montre le rapport et une décision pour chaque constat.
+- **Revu par lui-même.** review-loop a passé en revue une grande partie des pull requests de LIM lui-même, et leurs descriptions montrent le rapport et une décision pour chaque constat. Les récentes portent à la place un rapport de preuves.
 - **Des versions par plugin.** Chaque plugin suit Semantic Versioning, tient son propre `CHANGELOG.md` et reçoit des tags au format `<plugin>--v<version>`. Les versions minor et major reçoivent une GitHub Release.
 - **Petit par choix.** Un plugin a une seule skill d'entrée, un `SKILL.md` de moins de 250 lignes et uniquement des hooks opt-in.
 

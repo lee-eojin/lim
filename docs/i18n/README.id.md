@@ -10,15 +10,15 @@
 [![ledger](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=ledger--*&sort=semver&label=ledger)](../../plugins/ledger/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-Ini adalah terjemahan dari [README bahasa Inggris](../../README.md) per 2026-10-27. Jika keduanya berbeda, README bahasa Inggris yang benar.
+> Ini adalah terjemahan dari [README bahasa Inggris](../../README.md) per 2026-11-06. Jika keduanya berbeda, README bahasa Inggris yang benar.
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | Bahasa Indonesia
 
 Coding agent menulis kode dengan cepat. Namun, mereka jauh lebih buruk dalam menyadari kesalahan mereka sendiri. Agent yang menulis sebuah perubahan adalah reviewer terlemah untuk perubahan itu, karena agent tersebut membacanya melalui penalarannya sendiri dan setuju dengan dirinya sendiri. Akibatnya, pekerjaan di-commit tanpa review, atau dengan review dari konteks yang sama yang menulisnya.
 
-**LIM adalah jawaban saya: plugin kecil yang masing-masing mengerjakan satu tugas, disertai angka yang mendukungnya.** review-loop adalah pusatnya, dan verify serta clear-explain bekerja di sampingnya.
+**LIM adalah jawaban saya: plugin kecil yang masing-masing mengerjakan satu tugas, disertai angka yang mendukungnya.** review-loop adalah pusatnya, dan verify, clear-explain, gap-map, serta ledger bekerja di sampingnya.
 
-![Satu putaran review-loop: reviewer menandai harga yang berlipat dua sebagai P2, perbaikannya masuk, review kedua berhenti tanpa temuan, lalu muncul tabel ringkasan](../../docs/demo/review-loop.gif)
+![Satu eksekusi review-loop: reviewer menandai harga yang berlipat dua sebagai P2, perbaikannya masuk, review kedua berhenti tanpa temuan, lalu muncul tabel ringkasan](../../docs/demo/review-loop.gif)
 
 <sub>Loop, pemeriksaan, dan laporan review-nya nyata. Temuan dan perubahan kode ditulis lebih dulu, dan baris setelah start, next, dan rule meringkas JSON-nya. Buat ulang dengan `vhs docs/demo/review-loop.tape`.</sub>
 
@@ -28,7 +28,7 @@ Coding agent menulis kode dengan cepat. Namun, mereka jauh lebih buruk dalam men
 
 **Komentar yang terus kamu ulangi menjadi aturan.** Saat kamu menandai sebuah temuan dengan "jadikan aturan", Claude menyusun draf aturan lint atau test, dan review-loop menjalankannya pada kode dari sebelum perbaikan untuk membuktikan bahwa draf itu menangkap kesalahannya. Perbaikan bug mendapat regression test dengan cara yang sama.
 
-**Sengaja dibuat kecil.** review-loop menambahkan sekitar 275 token ke satu sesi. Hook-nya tidak melakukan apa pun sampai kamu menyalakannya di sebuah repository. Tidak ada yang dipasang tanpa memberitahumu apa itu dan cara menghapusnya.
+**Sengaja dibuat kecil.** review-loop menambahkan sekitar 275 token ke satu sesi. Commit gate-nya tidak melakukan apa pun sampai kamu menyalakannya di sebuah repository, dan hook laporan hanya bertindak pada perintah milik review-loop sendiri. Tidak ada yang dipasang tanpa memberitahumu apa itu dan cara menghapusnya.
 
 Silakan fork, ubah, dan jadikan milikmu. Issue dan pull request dipersilakan.
 
@@ -39,7 +39,7 @@ Silakan fork, ubah, dan jadikan milikmu. Issue dan pull request dipersilakan.
 | [review-loop](../../plugins/review-loop) | 0.11.12 | Me-review perubahanmu sebelum kamu commit, memperbaiki temuan P1 dan P2, me-review ulang, dan menyerahkan sisanya kepadamu. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Menjelaskan konsep, kode, dan error dengan jawaban di awal, satu makna untuk setiap kata, dan istilah teknis dengan nama resmi berbahasa Inggris. |
 | [verify](../../plugins/verify) | 0.6.1 | Membuktikan fitur-fiturmu berjalan dengan menjalankannya, lalu menyimpan perintah dan output-nya sebagai bukti. |
-| [gap-map](../../plugins/gap-map) | 0.3.0 | Memetakan implementasi sebuah bahasa terhadap janjinya sendiri, dan hanya menutup celah saat tes nyata lolos. |
+| [gap-map](../../plugins/gap-map) | 0.3.0 | Memetakan implementasi sebuah bahasa terhadap janjinya sendiri, dan hanya menandai celah sebagai tertutup saat test nyata lolos. |
 | [ledger](../../plugins/ledger) | 0.2.0 | Memisahkan pengamatan, inferensi, dan hal yang belum diketahui dalam penyelidikan, dan hanya menandai pertanyaan terjawab saat buktinya masih berlaku. |
 
 ## Pemasangan
@@ -51,7 +51,7 @@ Kamu membutuhkan Claude Code, git, dan Node.js 18 atau lebih baru.
 /plugin install review-loop@lim
 ```
 
-Jika Claude Code memintanya, mulai ulang Claude Code. Menambahkan marketplace hanya mendaftarkan katalog. Setiap plugin dipasang secara terpisah, jadi kamu hanya mendapat yang kamu pilih.
+Jika Claude Code memintanya, mulai ulang Claude Code. Menambahkan marketplace hanya mendaftarkan katalog. Setiap plugin dipasang secara terpisah, jadi kamu hanya mendapat yang kamu pilih. Untuk menambah yang lain, gunakan namanya dari tabel di atas, misalnya `/plugin install verify@lim`.
 
 ## Memulai
 
@@ -66,7 +66,7 @@ Dua langkah:
 
 Hanya itu. review-loop menjalankan pemeriksaanmu, me-review perubahan, memperbaiki yang harus diperbaiki, dan menanyakan sisanya kepadamu. Di akhir, review-loop bertanya satu kali apakah commit gate perlu dinyalakan untuk repository ini, lalu apakah perubahan perlu di-commit.
 
-Baru mulai? [Panduan](../../docs/guide/README.md) (dalam bahasa Inggris) membahas review pertama, cara memutuskan, commit gate, biaya, dan jebakan umum, dengan output asli.
+Baru mulai? [Panduan](../../docs/guide/README.md) (dalam bahasa Inggris) membahas review pertama, cara memutuskan, commit gate, biaya, jebakan umum, pemeriksaan di bahasa lain, dan mereproduksi temuan dengan verify, dengan output asli.
 
 ## Penggunaan
 
@@ -86,7 +86,7 @@ Claude juga dapat memulai review-loop sendiri saat kamu memintanya me-review ata
 
 ### Seperti apa satu putaran
 
-Setiap putaran berakhir dengan laporan. Claude menampilkannya sebelum hal lain:
+Setiap putaran berakhir dengan laporan. Sebuah hook menampilkannya tepat di bawah perintah yang mengembalikannya:
 
 ```
 Review round 2 of 3 (reviewer: session model)
@@ -124,6 +124,8 @@ delegate commits:       /review-loop:review-loop stop asking before commits in t
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
+what a run did:         /review-loop:review-loop what did the unattended review do?
+PR description:         /review-loop:review-loop write a pull request description of this review.
 ```
 
 </details>
@@ -162,7 +164,7 @@ Guard sudah tepat di tempat state yang sah masuk ke kode: input pengguna, pembac
 
 ### Tingkat keparahan
 
-Tingkat ini berdasarkan aturan Pn publik dari Banksalad.
+Tingkat ini berdasarkan [aturan Pn publik dari Banksalad](https://blog.banksalad.com/tech/banksalad-code-review-culture/).
 
 | Tingkat | Arti | Perilaku loop |
 |---|---|---|
@@ -176,7 +178,7 @@ P1 atau P2 tentang file yang tidak ada di diff yang di-review pada putaran itu t
 
 ### Aturan dan regression test
 
-Komentar yang harus terus diulang oleh reviewer adalah tanda ada aturan yang belum dibuat. review-loop menghitungnya: setiap review mencatat jenis setiap temuan di sebuah file yang dipakai bersama oleh semua worktree di repository itu, dan temuan dari salah satu empat jenis di atas yang jenisnya sudah diangkat 3 kali atau lebih oleh review sebelumnya ditandai sebagai pengulangan. Label luas seperti correctness tetap dicatat, tetapi tidak pernah dihitung sebagai pengulangan. Saat kamu memilih "jadikan aturan" untuk sebuah temuan, Claude lebih dulu mencari aturan yang sudah ada di konfigurasi lint atau test milikmu yang seharusnya menangkapnya. Lalu Claude memilih bentuk pertama yang berhasil: menyalakan aturan lint yang sudah ada, menulis aturan kustom untuk linter yang sudah kamu pakai, atau menulis test. Draf itu tidak pernah ditaruh di file yang menjadi pokok temuan.
+Komentar yang harus terus diulang oleh reviewer adalah tanda ada aturan yang belum dibuat. review-loop menghitungnya: setiap review mencatat jenis setiap temuan di sebuah file yang dipakai bersama oleh semua worktree di repository itu, dan temuan yang termasuk salah satu dari empat jenis di atas yang jenisnya sudah diangkat 3 kali atau lebih oleh review sebelumnya ditandai sebagai pengulangan. Label luas seperti correctness tetap dicatat, tetapi tidak pernah dihitung sebagai pengulangan. Saat kamu memilih "jadikan aturan" untuk sebuah temuan, Claude lebih dulu mencari aturan yang sudah ada di konfigurasi lint atau test milikmu yang seharusnya menangkapnya. Lalu Claude memilih bentuk pertama yang berhasil: menyalakan aturan lint yang sudah ada, menulis aturan kustom untuk linter yang sudah kamu pakai, atau menulis test. Draf itu tidak pernah ditaruh di file yang menjadi pokok temuan.
 
 Setelah itu, review-loop membuktikan draf tersebut. review-loop menulis kode dari sebelum perbaikan ke folder sementara dan menjalankan pemeriksaanmu di sana, dengan dan tanpa draf:
 
@@ -207,7 +209,7 @@ Commit gate adalah sebuah hook yang mati sampai kamu menyalakannya di sebuah rep
 | Commit dengan `--no-verify` | Bertanya, bahkan dengan delegasi, dan tetap memblokir commit tanpa review yang lolos |
 | Commit di folder yang tidak bisa dibaca gate, seperti `cd "$(...)"` atau path yang tidak ada | Bertanya kepadamu, bahkan dengan delegasi, jika gate aktif di repository tempat kamu memulai Claude Code |
 
-Untuk commit satu kali tanpa review, minta Claude untuk melewati review kali ini. Pengaturan gate dan delegasi commit berlaku untuk seluruh repository, termasuk worktree yang tertaut. Setiap worktree punya review sendiri.
+Untuk commit satu kali tanpa review, minta Claude untuk melewati review kali ini. Pengaturan gate dan delegasi commit berlaku untuk seluruh repository, termasuk worktree yang tertaut. Setiap worktree punya review sendiri. [review-loop README](../../plugins/review-loop/README.md#commit-gate) mencantumkan setiap kasus.
 
 </details>
 
@@ -236,9 +238,15 @@ Sebuah benchmark deteksi memberi reviewer perubahan di repository sementara yang
 | claude-sonnet-5-5 | tidak dijalankan | tidak dijalankan | 29 dari 30 | 0 dari 18 | $1,14 |
 | claude-haiku-5-5 | tidak dijalankan | tidak dijalankan | 30 dari 30 | 3 dari 18 | $0,09, menurut laporan Claude Code |
 
-Secara default, reviewer berjalan dengan model sesimu. Opus menemukan setiap bug yang ditanam di kedua set, jadi benchmark ini belum bisa menunjukkan penurunan jumlah bug yang ditemukan untuknya. Untuk melihat apakah benchmark ini bisa menunjukkan `reviewer.md` yang lebih buruk sama sekali, Opus juga menjalankan set yang lebih sulit dengan `reviewer.md` yang dipangkas hingga tinggal format output-nya: Opus tetap menemukan 30 dari 30, menghasilkan 1 P2 palsu dari 18 eksekusi bersih, dan memunculkan 83 temuan P3 sampai P5, sementara reviewer lengkap memunculkan 55. Bagi Opus, menemukan bug-bug ini lebih bergantung pada model daripada pada instruksi, dan `reviewer.md` yang lebih buruk terlihat sebagai alarm palsu dan noise. Satu-satunya kegagalan Sonnet tidak mengembalikan temuan apa pun untuk buffer yang dikosongkan sebelum penulisan async. 3 alarm palsu Haiku semuanya terjadi pada satu kasus bersih yang sama, yang juga menghasilkan 1 P2 palsu dari 9 eksekusi Opus dengan reviewer lengkap selama dua hari. Sebuah temuan dihitung jika menyebut bug yang ditanam pada baris yang diubah, atau, untuk bug yang hanya terlihat di file lain, pada baris yang ditandai di file itu. Setelah eksekusi pertama, kata kunci ditambahkan di empat kasus ketika reviewer menyebut bug yang ditanam dengan kata-kata yang tidak diterima oleh penilaian, dan setiap eksekusi yang tersimpan dinilai ulang dengan kata kunci itu. Jalankan lagi dengan `node evals/review-loop/run-detection.mjs --runs 3`, dan tambahkan `--cases evals/review-loop/detection-hard` untuk set yang lebih sulit.
+Secara default, reviewer berjalan dengan model sesimu. Opus menemukan setiap bug yang ditanam di kedua set, jadi benchmark ini belum bisa menunjukkan penurunan jumlah bug yang ditemukan untuknya. Untuk melihat apakah benchmark ini memang bisa menunjukkan `reviewer.md` yang lebih buruk, Opus juga menjalankan set yang lebih sulit dengan `reviewer.md` yang dipangkas hingga tinggal format output-nya: Opus tetap menemukan 30 dari 30, menghasilkan 1 P2 palsu dari 18 eksekusi bersih, dan memunculkan 83 temuan P3 sampai P5, sementara reviewer lengkap memunculkan 55. Bagi Opus, menemukan bug-bug ini lebih bergantung pada model daripada pada instruksi, dan `reviewer.md` yang lebih buruk terlihat sebagai alarm palsu dan noise. 
+
+Satu-satunya kegagalan Sonnet tidak mengembalikan temuan apa pun untuk buffer yang dikosongkan sebelum penulisan async. 3 alarm palsu Haiku semuanya terjadi pada satu kasus bersih yang sama, yang juga menghasilkan 1 P2 palsu dari 9 eksekusi Opus dengan reviewer lengkap selama dua hari. 
+
+Sebuah temuan dihitung jika menyebut bug yang ditanam pada baris yang diubah, atau, untuk bug yang hanya terlihat di file lain, pada baris yang ditandai di file itu. Setelah eksekusi pertama, kata kunci ditambahkan di empat kasus ketika reviewer menyebut bug yang ditanam dengan kata-kata yang tidak diterima oleh penilaian, dan setiap eksekusi yang tersimpan dinilai ulang dengan kata kunci itu. Jalankan lagi dengan `node evals/review-loop/run-detection.mjs --runs 3`, dan tambahkan `--cases evals/review-loop/detection-hard` untuk set yang lebih sulit.
 
 Tabel di atas menjadi dasar model default reviewer. Pada set lebih sulit, Opus menemukan 30 dari 30 tanpa P1 atau P2 palsu, Sonnet menemukan 29 dari 30 tanpa satu pun dengan biaya sekitar 37% dari Opus, dan Haiku menemukan 30 dari 30 dengan 3 P1 atau P2 palsu dari 18 eksekusi bersih. Jadi default tetap model sesi, dan Sonnet adalah pilihan yang lebih murah saat kamu ingin reviewer berjalan pada model yang berbeda dari model yang menulis perubahan.
+
+Satu ulang kedua set pada 2026-11-05 dengan Opus, `reviewer.md` yang sama, dan Claude Code 2.1.318 tetap menemukan setiap bug yang ditanam (36 dari 36, 30 dari 30), tetapi menandai P2 pada satu perubahan bersih di tiap set, pada ketiga jalannya kasus itu: 3 dari 18 jalan bersih per set, dibanding 0 dari 18 di tabel. [review-loop README](../../plugins/review-loop/README.md#measured-behavior) punya detailnya, dan [#285](https://github.com/lee-eojin/lim/issues/285) melacak apakah temuan itu nyata.
 
 [`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/) berisi 6 bug yang ditanam dalam Python, Rust, dan Go serta 2 perubahan bersih. Dengan 3 eksekusi per kasus, Opus dan Sonnet menemukan 18 dari 18 dan Haiku 16 dari 18, tanpa P1 atau P2 palsu dalam 6 eksekusi bersih untuk ketiganya; [review-loop README](../../plugins/review-loop/README.md#measured-behavior) memuat detailnya.
 
@@ -249,14 +257,14 @@ Tabel di atas menjadi dasar model default reviewer. Pada set lebih sulit, Opus m
 
 | Bagian | Selalu aktif, setiap sesi | Setiap kali berjalan |
 |---|---|---|
-| skill review-loop | sekitar 210 token | sekitar 6.000 token |
+| skill review-loop | sekitar 210 token | sekitar 7.400 token |
 | reviewer agent | sekitar 60 token | sekitar 1.800 token, ditambah diff dan kode yang dibacanya |
 
 Biaya skill dibayar satu kali per eksekusi. Biaya reviewer dibayar satu kali per putaran, dan satu loop berjalan maksimal 3 putaran. Model reviewer mengubah biaya itu; tabel benchmark di atas menunjukkannya untuk tiap model. Pemeriksaanmu berjalan di mesinmu sendiri dan tidak memakan token.
 
 </details>
 
-review-loop me-review pull request milik LIM sendiri. [#8](https://github.com/lee-eojin/lim/pull/8) menunjukkan dua loop pada versi pertamanya, termasuk satu loop yang berhenti karena false positive pada pemeriksaan test yang dilemahkan milik review-loop sendiri. Kesalahan ini kemudian diperbaiki. Pull request terbaru, seperti [#46](https://github.com/lee-eojin/lim/pull/46), menunjukkan laporan review-loop dan keputusan untuk setiap temuan.
+review-loop telah me-review banyak pull request milik LIM sendiri. [#8](https://github.com/lee-eojin/lim/pull/8) menunjukkan dua loop pada versi pertamanya, termasuk satu loop yang berhenti karena false positive pada pemeriksaan test yang dilemahkan milik review-loop sendiri. Kesalahan ini kemudian diperbaiki. Pull request seperti [#46](https://github.com/lee-eojin/lim/pull/46) dan [#192](https://github.com/lee-eojin/lim/pull/192) menunjukkan laporan review-loop dan keputusan untuk setiap temuan. Yang terbaru, seperti [#305](https://github.com/lee-eojin/lim/pull/305), membawa laporan bukti sebagai gantinya: perintah yang dijalankan, keluarannya, dan apa yang tidak diukur.
 
 ## Mengapa cara kerjanya seperti ini
 
@@ -277,7 +285,7 @@ Model yang ditanya "apakah ini sudah selesai?" cenderung menjawab ya. Script rev
 <details>
 <summary>Mengapa P1 dan P2 membutuhkan bukti?</summary>
 
-Klaim yang terdengar yakin dan klaim yang terbukti terlihat sama di laporan. P1 atau P2 harus mengutip baris yang tepat, memberikan input yang menghasilkan hasil yang salah, dan menyebutkan mengapa belum ada yang mencegahnya. Tanpa ketiganya, atau jika reviewer memberinya label guessed, temuan itu ditampilkan sebagai belum terverifikasi dan Claude tidak mengubah kode karenanya.
+Klaim yang terdengar yakin dan klaim yang terbukti terlihat sama di laporan. P1 atau P2 harus mengutip baris yang tepat, memberikan input yang menghasilkan hasil yang salah, dan menyebutkan mengapa belum ada yang mencegahnya. Jika salah satu dari ketiganya tidak ada, atau jika reviewer memberinya label guessed, temuan itu ditampilkan sebagai belum terverifikasi dan Claude tidak mengubah kode karenanya.
 
 </details>
 
@@ -305,8 +313,10 @@ review-loop tidak melakukan panggilan jaringan sendiri. Claude dan reviewer memb
 
 - review-loop mendeteksi pemeriksaan dari script di `package.json`, lalu target Makefile, lalu Go, Rust, tool Python yang dikonfigurasi (pytest, ruff, mypy), Gradle, Maven, .NET, dan tool Ruby yang dipakai proyek (rspec, rake test, rubocop), di root repository dan di proyek subfolder yang disentuh perubahan, paling banyak 4 per putaran.
 - Setiap pemeriksaan mendapat waktu maksimal 5 menit, dan semua pemeriksaan bersama-sama maksimal 9 menit.
+- Skrip yang menghentikan perbaikan karena melemahkan test atau pemeriksaan hanya membaca berkas JavaScript dan TypeScript, perubahan di `__snapshots__/`, dan perubahan di `.github/workflows/`. Di bahasa lain, test yang dilewati seperti `@pytest.mark.skip` atau `t.Skip()`, atau aturan lint yang dimatikan, tidak menghentikan loop.
 - Tanpa commit gate, bertanya sebelum commit adalah instruksi untuk Claude, bukan jaminan.
-- Commit gate hanya memeriksa perintah yang dijalankan Claude melalui tool Bash miliknya. Commit yang kamu ketik di terminalmu sendiri tidak diperiksa. Commit melalui alias git seperti `git ci` diperiksa seperti `git commit`, alias shell (`!...`) yang melakukan commit akan ditanyakan karena gate tidak bisa melihat isinya, dan alias yang diatur langsung dengan `git -c alias.ci=commit` tidak dikenali.
+- Laporan sampai kepadamu lewat sebuah hook. Jika semua hook dimatikan (`disableAllHooks`), kamu hanya melihat laporan di dalam keluaran yang dilipat dari perintah yang mengembalikannya.
+- Commit gate hanya memeriksa perintah yang dijalankan Claude melalui tool Bash miliknya. Commit yang kamu ketik di terminalmu sendiri tidak diperiksa. Commit melalui alias git seperti `git ci` diperiksa seperti `git commit`, alias shell (`!...`) yang melakukan commit akan ditanyakan karena gate tidak bisa melihat isinya, dan alias yang diatur langsung dengan `git -c alias.ci=commit` tidak dibaca sebagai alias, jadi gate menanyakan tentangnya.
 - Jika kamu memulai Claude Code di folder yang bukan repository, gate tidak bisa memeriksa commit yang repository-nya tidak bisa ia kenali, misalnya setelah `cd "$(...)"`.
 - review-loop me-review semua yang akan dimasukkan oleh `git add -A`, bukan kumpulan perubahan staged yang kamu pilih sendiri.
 - Aturan dan regression test diperiksa di salinan sementara yang berisi file tracked milikmu dan tautan ke `node_modules` di root dan di proyek yang berisi temuan dan draf. File ignored lainnya, seperti `.env`, tidak ada di sana. Karena itu, pemeriksaan yang membutuhkannya melaporkan hasil belum terbukti, atau tertangkap karena alasan yang salah. Claude membaca kegagalannya untuk mengetahui yang mana.
@@ -320,7 +330,7 @@ Tidak selalu. Claude memulai sebuah skill hanya jika Claude memutuskan bahwa des
 Tidak pernah. review-loop bertanya sebelum setiap commit, kecuali kamu memilih "berhenti bertanya di repo ini". Kamu dapat mematikan pilihan itu lagi dengan meminta Claude mematikan delegasi commit milik review-loop.
 
 **Apakah review-loop akan bentrok dengan plugin saya yang lain?**
-review-loop menambahkan satu skill, satu agent, dan satu hook. Hook ini membaca perintah Bash, hanya bertindak pada `git commit` dan `git push`, dan tidak melakukan apa pun kecuali kamu sudah menyalakan commit gate di repository itu. Nama-namanya diawali dengan `review-loop:`, jadi tidak dapat bentrok dengan nama dari plugin lain. Jika kamu bertanya dengan kalimat biasa, Claude dapat memilih review skill lain. Perintah selalu memulai review-loop.
+review-loop menambahkan satu skill, satu agent, dan dua hook. Hook commit gate membaca perintah Bash, hanya bertindak pada `git commit` dan `git push`, dan tidak melakukan apa pun kecuali kamu sudah menyalakan commit gate di repository itu. Hook laporan hanya bertindak pada perintah yang menjalankan skrip review-loop, dan menampilkan laporan yang mereka kembalikan. Nama-namanya diawali dengan `review-loop:`, jadi tidak dapat bentrok dengan nama dari plugin lain. Jika kamu bertanya dengan kalimat biasa, Claude dapat memilih review skill lain. Perintah selalu memulai review-loop.
 
 **Apa yang terjadi jika sesi berakhir di tengah loop?**
 Jalankan perintah lagi. review-loop menawarkan untuk melanjutkan dari putaran dan langkah tempat ia berhenti, atau memulai dari awal.
@@ -346,7 +356,7 @@ review-loop bekerja dengan pemeriksaan yang sudah kamu punya. Semakin baik scrip
 ## Cara LIM dibangun
 
 - **Issue lebih dulu.** Setiap perubahan dimulai dari sebuah issue dan masuk melalui pull request yang di-squash-merge oleh seorang maintainer.
-- **Di-review oleh dirinya sendiri.** Setiap pull request menjalankan review-loop pada diff-nya sendiri, dan deskripsinya menunjukkan laporan serta keputusan untuk setiap temuan.
+- **Di-review oleh dirinya sendiri.** review-loop telah me-review banyak pull request milik LIM sendiri, dan deskripsinya menunjukkan laporan serta keputusan untuk setiap temuan. Yang terbaru membawa laporan bukti sebagai gantinya.
 - **Versi per plugin.** Setiap plugin mengikuti Semantic Versioning, memiliki `CHANGELOG.md` sendiri, dan diberi tag `<plugin>--v<version>`. Rilis minor dan major mendapat GitHub Release.
 - **Sengaja dibuat kecil.** Sebuah plugin memiliki satu entry skill, satu `SKILL.md` di bawah 250 baris, dan hanya hook yang bersifat opt-in.
 

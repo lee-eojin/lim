@@ -14,7 +14,7 @@ English | [한국어](docs/i18n/README.ko.md) | [日本語](docs/i18n/README.ja.
 
 Coding agents write code fast. They are much worse at noticing what they got wrong. The agent that wrote a change is its weakest reviewer, because it reads the change through its own reasoning and agrees with itself. So work gets committed with no review, or with a review from the same context that wrote it.
 
-**LIM is my answer: small plugins that each do one job, with the numbers to back them.** review-loop is the center, and verify and clear-explain work next to it.
+**LIM is my answer: small plugins that each do one job, with the numbers to back them.** review-loop is the center, and verify, clear-explain, gap-map, and ledger work next to it.
 
 ![A review-loop run: the reviewer flags a doubled price as P2, the fix lands, the second review stops clean, and the summary table follows](docs/demo/review-loop.gif)
 
@@ -26,7 +26,7 @@ Coding agents write code fast. They are much worse at noticing what they got wro
 
 **Comments you keep repeating become rules.** When you mark a finding "make it a rule", Claude drafts a lint rule or a test, and review-loop runs it against the code from before the fix to prove that it catches the mistake. A bug fix gets a regression test the same way.
 
-**Small on purpose.** review-loop adds about 275 tokens to a session. Its hook does nothing until you turn it on in a repository. Nothing is installed without telling you what it is and how to remove it.
+**Small on purpose.** review-loop adds about 275 tokens to a session. Its commit gate does nothing until you turn it on in a repository, and its report hook acts only on review-loop's own commands. Nothing is installed without telling you what it is and how to remove it.
 
 Fork it, change it, make it yours. Issues and pull requests are welcome.
 
@@ -49,7 +49,7 @@ You need Claude Code, git, and Node.js 18 or later.
 /plugin install review-loop@lim
 ```
 
-Restart Claude Code if it asks. Adding the marketplace only registers the catalog. Each plugin is installed on its own, so you get only what you pick.
+Restart Claude Code if it asks. Adding the marketplace only registers the catalog. Each plugin is installed on its own, so you get only what you pick. To add another one, use its name from the table above, as in `/plugin install verify@lim`.
 
 ## Get started
 
@@ -64,7 +64,7 @@ Two steps:
 
 That is all. review-loop runs your checks, reviews the change, fixes what must be fixed, and asks you about the rest. At the end it asks once whether to turn on the commit gate for this repository, and then whether to commit.
 
-New here? The [guide](docs/guide/README.md) walks through a first review, deciding, the commit gate, cost, and pitfalls, with real output.
+New here? The [guide](docs/guide/README.md) walks through a first review, deciding, the commit gate, cost, pitfalls, checks in other languages, and reproducing a finding with verify, with real output.
 
 ## Usage
 
@@ -84,7 +84,7 @@ Claude can also start review-loop on its own when you ask it to review or commit
 
 ### What a round looks like
 
-Every round ends with a report. Claude shows it before anything else:
+Every round ends with a report. A hook shows it to you right below the command that returned it:
 
 ```
 Review round 2 of 3 (reviewer: session model)
@@ -122,6 +122,8 @@ delegate commits:       /review-loop:review-loop stop asking before commits in t
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
+what a run did:         /review-loop:review-loop what did the unattended review do?
+PR description:         /review-loop:review-loop write a pull request description of this review.
 ```
 
 </details>
@@ -160,7 +162,7 @@ A guard is correct where a legitimate state enters the code: user input, a netwo
 
 ### Severity
 
-Based on Banksalad's public Pn rule.
+Based on [Banksalad's public Pn rule](https://blog.banksalad.com/tech/banksalad-code-review-culture/).
 
 | Level | Meaning | Loop behavior |
 |---|---|---|
@@ -205,7 +207,7 @@ The commit gate is a hook that is off until you turn it on in a repository. At t
 | A commit with `--no-verify` | Asks, even with delegation, and still blocks a commit without a passing review |
 | A commit in a folder the gate cannot read, such as `cd "$(...)"` or a path that does not exist | Asks you, even with delegation, if the gate is on in the repository where you started Claude Code |
 
-To commit once without a review, ask Claude to skip the review this time. The gate setting and commit delegation apply to the whole repository, including its linked worktrees. Each worktree keeps its own review.
+To commit once without a review, ask Claude to skip the review this time. The gate setting and commit delegation apply to the whole repository, including its linked worktrees. Each worktree keeps its own review. The [review-loop README](plugins/review-loop/README.md#commit-gate) lists every case.
 
 </details>
 
@@ -234,9 +236,15 @@ A detection benchmark gives the reviewer changes in temporary repositories whose
 | claude-sonnet-5-5 | not run | not run | 29 of 30 | 0 of 18 | $1.14 |
 | claude-haiku-5-5 | not run | not run | 30 of 30 | 3 of 18 | $0.09, as reported by Claude Code |
 
-By default the reviewer runs on your session's model. Opus found every seeded bug in both sets, so the benchmark cannot yet show a drop in bugs found for it. To see whether it shows a worse `reviewer.md` at all, Opus also ran the harder set with a `reviewer.md` cut down to its output format: it still found 30 of 30, drew 1 false P2 in 18 clean runs, and raised 83 P3 to P5 findings where the full reviewer raised 55. For Opus, finding these bugs depends on the model more than on the instructions, and a worse `reviewer.md` shows up as false alarms and noise. Sonnet's one miss returned no finding for the buffer emptied before an async write. Haiku's 3 false alarms were all on one clean case, which also drew 1 false P2 in 9 Opus runs of the full reviewer over two days. A finding counts when it names the seeded bug at a changed line, or, for a bug you only see in another file, at a marked line in that file. After the first runs, keywords were added in four cases where a reviewer named the seeded bug in words the scoring did not accept, and every saved run was scored again with them. Run it again with `node evals/review-loop/run-detection.mjs --runs 3`, and add `--cases evals/review-loop/detection-hard` for the harder set.
+By default the reviewer runs on your session's model. Opus found every seeded bug in both sets, so the benchmark cannot yet show a drop in bugs found for it. To see whether it shows a worse `reviewer.md` at all, Opus also ran the harder set with a `reviewer.md` cut down to its output format: it still found 30 of 30, drew 1 false P2 in 18 clean runs, and raised 83 P3 to P5 findings where the full reviewer raised 55. For Opus, finding these bugs depends on the model more than on the instructions, and a worse `reviewer.md` shows up as false alarms and noise.
+
+Sonnet's one miss returned no finding for the buffer emptied before an async write. Haiku's 3 false alarms were all on one clean case, which also drew 1 false P2 in 9 Opus runs of the full reviewer over two days.
+
+A finding counts when it names the seeded bug at a changed line, or, for a bug you only see in another file, at a marked line in that file. After the first runs, keywords were added in four cases where a reviewer named the seeded bug in words the scoring did not accept, and every saved run was scored again with them. Run it again with `node evals/review-loop/run-detection.mjs --runs 3`, and add `--cases evals/review-loop/detection-hard` for the harder set.
 
 The table above is the basis for the reviewer's default model. On the harder set, Opus found 30 of 30 with no false P1 or P2, Sonnet found 29 of 30 with none at about 37% of Opus's cost, and Haiku found 30 of 30 with 3 false P1 or P2 in 18 clean runs. So the default stays the session's model, and Sonnet is the cheaper choice when you want the reviewer on a different model than the one that wrote the change.
+
+A rerun of both sets on 2026-11-05 with Opus, the same `reviewer.md`, and Claude Code 2.1.318 still found every seeded bug (36 of 36, 30 of 30), but flagged a P2 on one clean change in each set, in all 3 of its runs: 3 of 18 clean runs per set, against 0 of 18 in the table. The [review-loop README](plugins/review-loop/README.md#measured-behavior) has the details, and [#285](https://github.com/lee-eojin/lim/issues/285) tracks whether those findings are real.
 
 [`evals/review-loop/detection-languages/`](evals/review-loop/detection-languages/) has 6 seeded bugs in Python, Rust, and Go and 2 clean changes. With 3 runs per case, Opus and Sonnet found 18 of 18 and Haiku 16 of 18, with no false P1 or P2 in 6 clean runs for any of them; the [review-loop README](plugins/review-loop/README.md#measured-behavior) has the details.
 
@@ -247,14 +255,14 @@ The table above is the basis for the reviewer's default model. On the harder set
 
 | Part | Always on, every session | Each time it runs |
 |---|---|---|
-| review-loop skill | about 210 tokens | about 6,000 tokens |
+| review-loop skill | about 210 tokens | about 7,400 tokens |
 | reviewer agent | about 60 tokens | about 1,800 tokens, plus the diff and the code it reads |
 
 The skill's cost is paid once per run. The reviewer's cost is paid once per round, and a loop runs at most 3 rounds. The reviewer model changes that cost; the benchmark table above shows it for each model. Your checks run on your machine and cost no tokens.
 
 </details>
 
-review-loop reviews LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed. Recent pull requests, such as [#46](https://github.com/lee-eojin/lim/pull/46), show the review-loop report and the decision for each finding.
+review-loop has reviewed many of LIM's own pull requests. [#8](https://github.com/lee-eojin/lim/pull/8) shows two loops on its first version, including a stop caused by a false positive in its own test-weakening check, which was then fixed. Pull requests such as [#46](https://github.com/lee-eojin/lim/pull/46) and [#192](https://github.com/lee-eojin/lim/pull/192) show the review-loop report and the decision for each finding. Recent ones, such as [#305](https://github.com/lee-eojin/lim/pull/305), carry an evidence report instead: the commands run, their output, and what was not measured.
 
 ## Why it works this way
 
@@ -303,8 +311,10 @@ review-loop makes no network calls of its own. Claude and the reviewer read the 
 
 - Checks are detected from `package.json` scripts, then Makefile targets, then Go, Rust, configured Python tools (pytest, ruff, mypy), Gradle, Maven, .NET, and Ruby tools the project uses (rspec, rake test, rubocop), at the repository root and in the subfolder projects a change touches, up to 4 per round.
 - Each check gets up to 5 minutes, and all checks together up to 9 minutes.
+- The script that stops a fix for weakening tests or checks reads only JavaScript and TypeScript files, changes under `__snapshots__/`, and changes under `.github/workflows/`. In other languages, a skipped test such as `@pytest.mark.skip` or `t.Skip()`, or a lint rule turned off, does not stop the loop.
 - Without the commit gate, asking before a commit is an instruction to Claude, not a guarantee.
-- The commit gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked. A commit through a git alias such as `git ci` is checked like `git commit`, a shell alias (`!...`) that commits is asked about because the gate cannot see inside it, and an alias set inline with `git -c alias.ci=commit` is not recognized.
+- Reports reach you through a hook. With hooks turned off (`disableAllHooks`), you see a report only inside the collapsed output of the command that returned it.
+- The commit gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked. A commit through a git alias such as `git ci` is checked like `git commit`, a shell alias (`!...`) that commits is asked about because the gate cannot see inside it, and an alias set inline with `git -c alias.ci=commit` is not read as an alias, so the gate asks about it.
 - If you start Claude Code in a folder that is not a repository, the gate cannot check a commit whose repository it cannot tell, for example after `cd "$(...)"`.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
 - A rule or a regression test is checked in a temporary copy that has your tracked files and links to the `node_modules` of the root and of the projects that hold the finding and the drafts. Other ignored files, such as `.env`, are not there, so a check that needs them reports it as unproven or caught for the wrong reason. Claude reads the failure to tell which.
@@ -318,7 +328,7 @@ Not always. Claude starts a skill only when it decides that the skill's descript
 Never. It asks before every commit unless you choose "stop asking in this repo". You can turn that off again by asking Claude to turn off review-loop's commit delegation.
 
 **Will it conflict with my other plugins?**
-review-loop adds one skill, one agent, and one hook. The hook reads Bash commands, acts only on `git commit` and `git push`, and does nothing unless you turned the commit gate on in that repository. Its names start with `review-loop:`, so they cannot collide with names from other plugins. If you ask in plain words, Claude can pick a different review skill instead. The command always starts review-loop.
+review-loop adds one skill, one agent, and two hooks. The commit gate hook reads Bash commands, acts only on `git commit` and `git push`, and does nothing unless you turned the commit gate on in that repository. The report hook acts only on commands that run review-loop's script, and shows you the report they return. Its names start with `review-loop:`, so they cannot collide with names from other plugins. If you ask in plain words, Claude can pick a different review skill instead. The command always starts review-loop.
 
 **What happens if a session ends in the middle of a loop?**
 Run the command again. It offers to continue from the round and step where it stopped, or to start over.
@@ -344,7 +354,7 @@ review-loop works with the checks you already have. The better your `typecheck`,
 ## How LIM is built
 
 - **Issues first.** Every change starts from an issue and lands through a pull request that a maintainer squash-merges.
-- **Reviewed by itself.** Every pull request runs review-loop on its own diff, and the description shows the report and a decision for each finding.
+- **Reviewed by itself.** review-loop has reviewed many of LIM's own pull requests, and their descriptions show the report and a decision for each finding. Recent ones carry an evidence report instead.
 - **Versions per plugin.** Each plugin follows Semantic Versioning, keeps its own `CHANGELOG.md`, and is tagged `<plugin>--v<version>`. Minor and major releases get a GitHub Release.
 - **Small on purpose.** A plugin has one entry skill, a `SKILL.md` under 250 lines, and opt-in hooks only.
 

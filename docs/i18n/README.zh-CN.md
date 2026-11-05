@@ -10,15 +10,15 @@
 [![ledger](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=ledger--*&sort=semver&label=ledger)](../../plugins/ledger/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-本文是截至 2026-10-27 的 [英文 README](../../README.md) 的翻译。如果两者内容不一致，以英文 README 为准。
+> 本文是截至 2026-11-06 的 [英文 README](../../README.md) 的翻译。如果两者内容不一致，以英文 README 为准。
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | 简体中文 | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
-编程 agent 写代码很快，但发现自己哪里写错了却要差得多。写出改动的 agent 是这次改动最弱的审查者，因为它透过自己的推理来读这次改动，总会认同自己。结果，代码要么未经审查就被提交，要么只经过写出它的同一个上下文的审查。
+编程 agent 写代码很快，但发现自己哪里写错了却要差得多。写出改动的 agent 是这次改动最弱的审查者，因为它透过自己的推理来读这次改动，并认同自己。结果，代码要么未经审查就被提交，要么只经过写出它的同一个上下文的审查。
 
-**LIM 是我给出的答案：每个小插件只做一件事，并附上支撑它的数字。** review-loop 是核心，verify 和 clear-explain 在它旁边配合工作。
+**LIM 是我给出的答案：每个小插件只做一件事，并附上支撑它的数字。** review-loop 是核心，verify、clear-explain、gap-map 和 ledger 在它旁边配合工作。
 
-![review-loop 运行示例：审查者把翻倍的价格标记为 P2，修复随后提交，第二轮审查没有发现项后停止，最后显示汇总表](../../docs/demo/review-loop.gif)
+![review-loop 运行示例：审查者把翻倍的价格标记为 P2，修复随后完成，第二轮审查没有发现项，循环停止，最后显示汇总表](../../docs/demo/review-loop.gif)
 
 <sub>循环、检查和审查报告都是真实的。发现项和代码修改是预先写好的，start、next、rule 之后的行是对其 JSON 的摘要。用 `vhs docs/demo/review-loop.tape` 重新生成。</sub>
 
@@ -28,7 +28,7 @@
 
 **反复提出的意见会变成规则。** 当你把某个发现项标记为“设为规则”时，Claude 会起草一条 lint 规则或一个测试，review-loop 会在修复之前的代码上运行它，证明它能捕获这个错误。bug 修复也会以同样的方式得到一个回归测试。
 
-**有意保持小巧。** review-loop 为一个会话增加约 275 个 token。在你为某个仓库开启它之前，它的 hook 不做任何事。安装任何东西之前，都会先告诉你它是什么、如何移除。
+**有意保持小巧。** review-loop 为一个会话增加约 275 个 token。在你为某个仓库开启它之前，它的提交门禁不做任何事；它的报告 hook 只对 review-loop 自己的命令起作用。安装任何东西之前，都会先告诉你它是什么、如何移除。
 
 Fork 它、修改它，把它变成你自己的。欢迎提交 issue 和 pull request。
 
@@ -51,7 +51,7 @@ Fork 它、修改它，把它变成你自己的。欢迎提交 issue 和 pull re
 /plugin install review-loop@lim
 ```
 
-如果 Claude Code 要求重启，请重启它。添加 marketplace 只会注册插件清单。每个插件单独安装，所以你只会得到你选择的插件。
+如果 Claude Code 要求重启，请重启它。添加 marketplace 只会注册插件清单。每个插件单独安装，所以你只会得到你选择的插件。要再装一个，用上面表格里的名字，例如 `/plugin install verify@lim`。
 
 ## 开始使用
 
@@ -66,7 +66,7 @@ Fork 它、修改它，把它变成你自己的。欢迎提交 issue 和 pull re
 
 就这么简单。review-loop 会运行你的检查、审查改动、修复必须修复的问题，并就其余问题询问你。最后，它会询问一次是否为此仓库开启提交门禁，然后询问是否提交。
 
-第一次使用？[指南](../../docs/guide/README.md)（英文）用真实输出介绍第一次审查、如何决定、提交门禁、成本和常见陷阱。
+第一次使用？[指南](../../docs/guide/README.md)（英文）用真实输出介绍第一次审查、如何决定、提交门禁、成本、常见陷阱、其他语言中的检查，以及用 verify 复现发现项。
 
 ## 用法
 
@@ -86,7 +86,7 @@ Fork 它、修改它，把它变成你自己的。欢迎提交 issue 和 pull re
 
 ### 一轮是什么样子
 
-每一轮都以一份报告结束。Claude 会先展示报告，再做其他任何事：
+每一轮都以一份报告结束。一个 hook 会在返回该报告的命令正下方展示它：
 
 ```
 Review round 2 of 3 (reviewer: session model)
@@ -124,6 +124,8 @@ delegate commits:       /review-loop:review-loop stop asking before commits in t
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
+what a run did:         /review-loop:review-loop what did the unattended review do?
+PR description:         /review-loop:review-loop write a pull request description of this review.
 ```
 
 </details>
@@ -133,7 +135,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 在你提交之前，review-loop 运行一个短循环，并自动停止。
 
 1. **检查。** review-loop 运行你的项目声明的 `typecheck`、`lint` 和 `test` 检查：`package.json` 中的脚本、Makefile 中的目标，或 Go（`go.mod`）、Rust（`Cargo.toml`）的默认命令、你配置的 Python 工具、Gradle、Maven、.NET 以及你使用的 Ruby 工具。如果某个检查失败，或者 `package.json` 不是有效的 JSON，review-loop 会将其记为一个 P1 发现项。如果某个检查的运行时间超过时间限制，或者它的程序没有安装，review-loop 会将其报告为“未验证”，而不是“失败”。
-2. **全新审查。** 一个独立的审查者 agent 会收到 diff 和一行说明你想要实现什么的摘要，但不会收到 Claude 对这次改动的推理。审查者可以读取周围的代码来了解上下文。审查者把发现项标记为 P1 到 P5。P1 和 P2 需要证据：确切的代码行、一个失败场景，以及为什么现有代码没有阻止该问题。每个发现项都会标明 measured（实测）、inferred（推断）或 guessed（猜测）。没有证据的 P1 或 P2，以及被标为 guessed 的 P1 或 P2，不会被修复，而是以“未验证”的状态展示给你。
+2. **全新审查。** 一个独立的审查者 agent 会收到 diff 和一行说明你想要实现什么的摘要，但不会收到 Claude 对这次改动的推理。审查者可以读取周围的代码来了解上下文。审查者把发现项标记为 P1 到 P5。P1 和 P2 需要证据：确切的代码行、一个失败场景，以及为什么现有代码没有阻止该问题。每个发现项都会标明 measured（测量）、inferred（推断）或 guessed（猜测）。没有证据的 P1 或 P2，以及被标为 guessed 的 P1 或 P2，不会被修复，而是以“未验证”的状态展示给你。
 3. **修复。** Claude 先说明它要修复什么，然后修复 P1 和 P2。如果某个修复需要设计决策（修复方式不止一种、用户可见的行为变化、删除功能、修改测试），由你先做选择。如果你的项目有 test 脚本，Claude 会根据它修复的每个 P1 和 P2 的失败场景编写回归测试，review-loop 会证明该测试在修复之前的代码上失败。
 4. **再次审查。** 一个新的审查者只检查本轮的修复和仍未解决的发现项。最多 3 轮。
 5. **停止。** 由脚本而不是模型决定何时停止。停止条件：没有剩余的 P1 或 P2、达到轮数上限、某个发现项经过两次修复后仍然存在、某个已解决的发现项再次出现、P1 + P2 的数量不再减少，或者某个修复削弱了测试或检查。
@@ -162,7 +164,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 ### 严重级别
 
-本规则基于 Banksalad 公开的 Pn 规则。
+本规则基于 [Banksalad 公开的 Pn 规则](https://blog.banksalad.com/tech/banksalad-code-review-culture/)。
 
 | 级别 | 含义 | 循环中的处理 |
 |---|---|---|
@@ -207,7 +209,7 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 | 带有 `--no-verify` 的提交 | 即使你已委托提交，也询问你。没有通过审查的提交仍会被阻止 |
 | 在门禁无法识别的文件夹中提交（例如 `cd "$(...)"` 或不存在的路径） | 如果启动 Claude Code 的仓库开启了门禁，即使你已委托提交，也询问你 |
 
-如果要不经审查提交一次，请让 Claude 这次跳过审查。门禁设置和提交委托适用于整个仓库，包括它链接的 worktree。每个 worktree 有各自的审查。
+如果要不经审查提交一次，请让 Claude 这次跳过审查。门禁设置和提交委托适用于整个仓库，包括它链接的 worktree。每个 worktree 有各自的审查。[review-loop README](../../plugins/review-loop/README.md#commit-gate) 列出了每一种情况。
 
 </details>
 
@@ -236,11 +238,17 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 | claude-sonnet-5-5 | 未运行 | 未运行 | 30 个中 29 个 | 18 个中 0 个 | $1.14 |
 | claude-haiku-5-5 | 未运行 | 未运行 | 30 个中 30 个 | 18 个中 3 个 | $0.09（Claude Code 报告的数值） |
 
-默认情况下，审查者使用你会话中的模型运行。Opus 在两组用例中找出了所有植入的 bug，所以这个基准测试目前还无法显示它找出的 bug 有所减少。为了看看这个基准测试到底能不能显示出更差的 `reviewer.md`，Opus 还用一个删减到只剩输出格式的 `reviewer.md` 运行了困难组：它仍然找出了 30 个中 30 个，在 18 次干净运行中误报了 1 个 P2，并提出了 83 个 P3 到 P5 的发现项，而完整的审查者提出的是 55 个。对 Opus 来说，能否找出这些 bug 更多取决于模型而不是指令，更差的 `reviewer.md` 会表现为误报和噪声。Sonnet 漏掉的那一个，对在异步写入之前被清空的缓冲区没有给出任何发现项。Haiku 的 3 个误报都出现在同一个干净用例上，这个用例在两天内用完整审查者进行的 9 次 Opus 运行中也误报了 1 个 P2。发现项在改动过的行上指出植入的 bug 时才算数；对于只有在另一个文件中才能发现的 bug，则要在那个文件中标记的行上指出。第一批运行之后，有四个用例的审查者用评分不接受的措辞指出了植入的 bug，于是为这四个用例补充了关键词，并用它们重新给所有已保存的运行评分。可以用 `node evals/review-loop/run-detection.mjs --runs 3` 再次运行，加上 `--cases evals/review-loop/detection-hard` 可运行困难组。
+默认情况下，审查者使用你会话中的模型运行。Opus 在两组用例中找出了所有植入的 bug，所以这个基准测试目前还无法显示它找出的 bug 有所减少。为了看看这个基准测试到底能不能显示出更差的 `reviewer.md`，Opus 还用一个删减到只剩输出格式的 `reviewer.md` 运行了困难组：它仍然找出了 30 个中的 30 个，在 18 次干净运行中误报了 1 个 P2，并提出了 83 个 P3 到 P5 的发现项，而完整的审查者提出的是 55 个。对 Opus 来说，能否找出这些 bug 更多取决于模型而不是指令，更差的 `reviewer.md` 会表现为误报和噪声。
 
-上表就是审查者默认模型的依据。在困难组中，Opus 找出了 30 个中 30 个，没有误报的 P1 或 P2；Sonnet 找出了 30 个中 29 个，也没有误报，费用约为 Opus 的 37%；Haiku 找出了 30 个中 30 个，在 18 次干净运行中误报了 3 个 P1 或 P2。因此默认仍然是会话的模型，而当你希望审查者使用与编写改动的模型不同的模型时，Sonnet 是更便宜的选择。
+Sonnet 漏掉的那一个，对在异步写入之前被清空的缓冲区没有给出任何发现项。Haiku 的 3 个误报都出现在同一个干净用例上，这个用例在两天内用完整审查者进行的 9 次 Opus 运行中也误报了 1 个 P2。
 
-[`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/)包含用 Python、Rust 和 Go 植入的 6 个 bug，以及 2 个干净的改动。每个用例运行 3 次，Opus 和 Sonnet 找出了 18 个中 18 个，Haiku 找出了 18 个中 16 个，三者在 6 次干净运行中都没有误报的 P1 或 P2；详情见 [review-loop README](../../plugins/review-loop/README.md#measured-behavior)。
+发现项在改动过的行上指出植入的 bug 时才算数；对于只有在另一个文件中才能发现的 bug，则要在那个文件中标记的行上指出。第一批运行之后，有四个用例的审查者用评分不接受的措辞指出了植入的 bug，于是为这四个用例补充了关键词，并用它们重新给所有已保存的运行评分。可以用 `node evals/review-loop/run-detection.mjs --runs 3` 再次运行，加上 `--cases evals/review-loop/detection-hard` 可运行困难组。
+
+上表就是审查者默认模型的依据。在困难组中，Opus 找出了 30 个中的 30 个，没有误报的 P1 或 P2；Sonnet 找出了 30 个中的 29 个，也没有误报，费用约为 Opus 的 37%；Haiku 找出了 30 个中的 30 个，在 18 次干净运行中误报了 3 个 P1 或 P2。因此默认仍然是会话的模型，而当你希望审查者使用与编写改动的模型不同的模型时，Sonnet 是更便宜的选择。
+
+在 2026-11-05 用 Opus、同一份 `reviewer.md` 和 Claude Code 2.1.318 重跑两组后，仍然找出了全部植入的 bug（36 个中的 36 个、30 个中的 30 个），但每组都有一个干净的改动被标为 P2，且在该用例的 3 次运行中全部出现：每组 18 次干净运行中有 3 次，而表中是 0/18。详情见 [review-loop README](../../plugins/review-loop/README.md#measured-behavior)，[#285](https://github.com/lee-eojin/lim/issues/285) 跟踪这些发现项是否属实。
+
+[`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/)包含用 Python、Rust 和 Go 植入的 6 个 bug，以及 2 个干净的改动。每个用例运行 3 次，Opus 和 Sonnet 找出了 18 个中的 18 个，Haiku 找出了 18 个中的 16 个，三者在 6 次干净运行中都没有误报的 P1 或 P2；详情见 [review-loop README](../../plugins/review-loop/README.md#measured-behavior)。
 
 <details>
 <summary>成本</summary>
@@ -249,14 +257,14 @@ reviewer model:         /review-loop:review-loop run the reviewer on sonnet in t
 
 | 部分 | 始终加载（每个会话） | 每次运行 |
 |---|---|---|
-| review-loop skill | 约 210 个 token | 约 6,000 个 token |
+| review-loop skill | 约 210 个 token | 约 7,400 个 token |
 | 审查者 agent | 约 60 个 token | 约 1,800 个 token，另加 diff 和它读取的代码 |
 
 skill 的成本在每次运行时支付一次。审查者的成本在每轮支付一次，一个循环最多运行 3 轮。审查者模型会改变这项成本，上方的基准测试表列出了每个模型的费用。你的检查在你自己的机器上运行，不消耗 token。
 
 </details>
 
-review-loop 审查 LIM 自己的 pull request。[#8](https://github.com/lee-eojin/lim/pull/8) 展示了 review-loop 第一个版本上运行的两次循环。其中一次停止是由 review-loop 自己的测试削弱检查中的误报引起的，这个误报随后已被修复。最近的 pull request（例如 [#46](https://github.com/lee-eojin/lim/pull/46)）展示了 review-loop 的报告以及对每个发现项的决定。
+review-loop 已经审查过 LIM 自己的许多 pull request。[#8](https://github.com/lee-eojin/lim/pull/8) 展示了 review-loop 第一个版本上运行的两次循环。其中一次停止是由 review-loop 自己的测试削弱检查中的误报引起的，这个误报随后已被修复。像 [#46](https://github.com/lee-eojin/lim/pull/46) 和 [#192](https://github.com/lee-eojin/lim/pull/192) 这样的 pull request 展示了 review-loop 的报告以及对每个发现项的决定。最近的，例如 [#305](https://github.com/lee-eojin/lim/pull/305)，改为附上证据报告：运行过的命令、它们的输出，以及未测量的部分。
 
 ## 为什么这样设计
 
@@ -305,8 +313,10 @@ review-loop 本身不发起任何网络请求。Claude 和审查者读取 diff�
 
 - review-loop 按顺序从 `package.json` 的 scripts、Makefile 的目标、Go、Rust、已配置的 Python 工具（pytest、ruff、mypy）、Gradle、Maven、.NET 和项目使用的 Ruby 工具（rspec、rake test、rubocop）中识别检查，范围是仓库根目录和改动涉及的子文件夹项目（每轮最多 4 个）。
 - 每个检查最多运行 5 分钟，所有检查合计最多运行 9 分钟。
+- 用来在削弱测试或检查时停止修复的脚本只读取 JavaScript 和 TypeScript 文件、`__snapshots__/` 下的改动，以及 `.github/workflows/` 下的改动。在其他语言中，像 `@pytest.mark.skip` 或 `t.Skip()` 这样跳过测试，或关闭一条 lint 规则，都不会让循环停止。
 - 如果没有开启提交门禁，提交前询问只是给 Claude 的指令，而不是保证。
-- 提交门禁只检查 Claude 通过它的 Bash 工具运行的命令。你在自己的终端中输入的提交不会被检查。通过 `git ci` 这样的 git 别名进行的提交会像 `git commit` 一样被检查。会提交的 shell 别名（`!...`）会先询问你，因为门禁看不到它的内部。用 `git -c alias.ci=commit` 在命令中临时设置的别名不会被识别。
+- 报告通过 hook 送达。如果关闭所有 hook（`disableAllHooks`），你只能在返回该报告的命令的折叠输出里看到它。
+- 提交门禁只检查 Claude 通过它的 Bash 工具运行的命令。你在自己的终端中输入的提交不会被检查。通过 `git ci` 这样的 git 别名进行的提交会像 `git commit` 一样被检查。会提交的 shell 别名（`!...`）会先询问你，因为门禁看不到它的内部。用 `git -c alias.ci=commit` 在命令中临时设置的别名不会被当作别名读取，因此门禁会询问你。
 - 如果你在不是仓库的文件夹中启动 Claude Code，门禁无法检查它识别不出仓库的提交，例如 `cd "$(...)"` 之后的提交。
 - review-loop 审查 `git add -A` 会包含的所有内容，而不是你手动挑选的一组已暂存改动。
 - 规则和回归测试在一个临时副本中检查。该副本包含你已跟踪的文件，以及指向根目录和发现项与草稿所在项目的 `node_modules` 的链接。其他被忽略的文件（例如 `.env`）不在其中，因此依赖这些文件的检查会把规则或测试报告为未证实，或者因错误的原因被捕获。Claude 会读取失败信息来判断是哪一种。
@@ -320,7 +330,7 @@ review-loop 本身不发起任何网络请求。Claude 和审查者读取 diff�
 不会。如果你没有选择“在此仓库中不再询问”，review-loop 会在每次提交前询问你。如果要撤销这个选择，请让 Claude 关闭 review-loop 的提交委托。
 
 **它会与我的其他插件冲突吗？**
-review-loop 添加一个 skill、一个 agent 和一个 hook。这个 hook 读取 Bash 命令，只对 `git commit` 和 `git push` 起作用。如果你没有在该仓库中开启提交门禁，这个 hook 不做任何事。它的名称都以 `review-loop:` 开头，因此不会与其他插件的名称冲突。如果你用普通的自然语言提出请求，Claude 可以改为选择另一个审查 skill。该命令总是会启动 review-loop。
+review-loop 添加一个 skill、一个 agent 和两个 hook。提交门禁 hook 读取 Bash 命令，只对 `git commit` 和 `git push` 起作用；如果你没有在该仓库中开启提交门禁，它不做任何事。报告 hook 只对运行 review-loop 脚本的命令起作用，并展示它们返回的报告。它的名称都以 `review-loop:` 开头，因此不会与其他插件的名称冲突。如果你用普通的自然语言提出请求，Claude 可以改为选择另一个审查 skill。该命令总是会启动 review-loop。
 
 **如果会话在循环中途结束，会发生什么？**
 再次运行该命令。命令会提供两个选项：从停止时的轮次和步骤继续，或者重新开始。
@@ -346,7 +356,7 @@ review-loop 使用你已有的检查。你的 `typecheck`、`lint` 和 `test` �
 ## LIM 的构建方式
 
 - **先有 issue。** 每个改动都从一个 issue 开始，并通过 pull request 合入。维护者使用 squash merge 合并该 pull request。
-- **用自己审查自己。** 每个 pull request 都会对自己的 diff 运行 review-loop，描述中会展示报告和对每个发现项的决定。
+- **用自己审查自己。** review-loop 已经审查过 LIM 自己的许多 pull request，它们的描述会展示报告和对每个发现项的决定。最近的则改为附上证据报告。
 - **每个插件独立版本。** 每个插件遵循语义化版本（Semantic Versioning），维护自己的 `CHANGELOG.md`，并使用 `<plugin>--v<version>` 格式的标签。minor 和 major 版本会发布 GitHub Release。
 - **有意保持小巧。** 一个插件只有一个入口 skill，`SKILL.md` 少于 250 行，并且只包含需要主动开启的 hook。
 
