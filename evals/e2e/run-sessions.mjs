@@ -376,6 +376,21 @@ export const SCENARIOS = [
     ],
   },
   {
+    name: 'keep-finding',
+    base: 'slug',
+    change: 'slug-debug-log',
+    prompt: 'Review my uncommitted changes before I commit. I left the console.log debug line in src/slug.js on purpose: if the review raises it, record it as keep and do not offer to fix it. Do not commit.',
+    timeoutSeconds: 1800,
+    budgetUsd: 4,
+    expectations: [
+      { id: 'skill', text: 'starts the review-loop skill', check: (s) => found(s.steps, /^Skill review-loop/, 'review-loop Skill call') },
+      hookOwnsLoopReports,
+      { id: 'kept-recorded', text: 'records the console.log finding with loop decide --choice keep', check: (s) => found(s.steps, /^loop decide\b.*--choice keep\b/, 'loop decide --choice keep') },
+      keptSettled,
+      noCommit,
+    ],
+  },
+  {
     name: 'verify-tool',
     base: 'cents',
     change: 'cents-symbol',
