@@ -40,6 +40,25 @@ After you add or change rows in an `evals/*/behaviors.csv`, run `node scripts/sy
 
 `npm test` runs `node --test`, and `npm run lint` runs `node scripts/check-i18n.mjs`. review-loop finds these scripts in the root `package.json`, so it runs them when it reviews a change here. `scripts/check.sh` is left out of `npm run lint` because it needs bash and python3, which Windows may not have.
 
+### Tests that run on only some systems
+
+A few tests check behavior that exists only on Windows or only on a file system that ignores letter case. On Linux, `node --test` reports them as skipped, with the reason after `# SKIP`. A skipped test is not a pass, so these tests are proven by a run on a system that has the behavior.
+
+| Test | File | Runs on | Why it skips on Linux |
+| --- | --- | --- | --- |
+| a git.exe in the repository does not run in place of the installed one | `tests/review-loop/loop.test.mjs` | Windows | Only Windows looks for a bare program name in the working folder before `PATH`. |
+| a node.exe or git.exe in the repository does not run in place of the installed one | `tests/verify/verify.test.mjs` | Windows | The same Windows lookup. |
+| a path into node_modules in other letter case is refused as the file it resolves to, not a link | `tests/verify/verify.test.mjs` | A file system that ignores letter case, such as NTFS on Windows or APFS on macOS by default | The test runs only when `NODE_MODULES` finds the repository's `node_modules`. On Linux, ext4 tells letter case apart, so the test skips. |
+
+How they are proven:
+
+- The `windows` CI job runs `node --test` on `windows-latest` for every pull request. It runs all three tests above, because NTFS ignores letter case. Open the job log and find each test name in an `ok` line with no `# SKIP`.
+- To check the letter-case test on macOS, run `node --test tests/verify/verify.test.mjs` on an APFS volume that ignores letter case, which is the default. The test must show `ok` with no `# SKIP`. No CI job runs on macOS.
+
+When you add a test that skips on some systems, give the skip a reason, add the test to this table, and say in the pull request which run showed it pass.
+
+The other skips work the other way. They run on Linux and skip on Windows or as root: tests that need bash and python3, symbolic links, or a file with mode 000 that the user cannot read. The `check` CI job on Linux runs them.
+
 ### Changing review-loop's SKILL.md or reviewer.md
 
 These files are instructions to a model, so unit tests cannot tell whether a change made reviews better or worse. Before and after the change, run the detection benchmark and put both sets of numbers in the pull request:
