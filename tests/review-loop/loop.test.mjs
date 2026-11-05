@@ -2812,6 +2812,7 @@ describe('kept findings', () => {
     assert.deepEqual([result.decision, result.reason, result.fix], ['stop', 'clean', []]);
     assert.match(result.report, /1 finding you kept before was raised again, including:\n- \[P1\] npm run test test fails/);
     assert.deepEqual(loop(root, ['status']).review.pendingDecisions, []);
+    assert.equal(stateFile(root).kept[0].fromChecks, true);
   });
 });
 

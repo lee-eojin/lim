@@ -1349,8 +1349,11 @@ function recordReview(repository, input) {
     const print = fingerprint(finding);
     if (trackedPrints.has(print)) continue;
     if (keptBefore.has(print)) {
-      const { file, line, title } = finding;
-      kept.push({ severity: severityOf(finding), file, line, title, fingerprint: print });
+      const { file, line, title, folder } = finding;
+      kept.push({
+        severity: severityOf(finding), file, line, title, fingerprint: print, fromChecks: true,
+        ...(folder ? { folder } : {}),
+      });
     } else {
       newChecks.push(finding);
     }
