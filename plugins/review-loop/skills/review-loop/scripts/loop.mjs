@@ -14,7 +14,6 @@ const DEFAULT_MAX_ROUNDS = 3;
 const MAX_ROUNDS_LIMIT = 5;
 const REPEAT_AFTER = 3;
 const MOST_REPEATED_LIMIT = 5;
-// Only categories that name one kind of mistake repeat; a broad label such as correctness would add up unrelated findings.
 export const NAMED_KINDS = new Set(['speculative-guard', 'history-comment', 'shortcut-marker', 'second-way']);
 const CHECK_TIMEOUT_MS = Number(process.env.LIM_CHECK_TIMEOUT_MS) || 5 * 60 * 1000;
 const CHECKS_BUDGET_MS = 9 * 60 * 1000;
@@ -277,7 +276,6 @@ export function renderReport(view) {
     if (items.length) lines.push('', title, ...reproducedFirst(items).flatMap(describe));
   };
   const outOfScope = cards.filter((card) => card.outOfScope && card.round === round);
-  // Findings kept during this run keep their id; ones kept in an earlier review were matched by fingerprint and have none.
   const keptInLoop = kept.filter((item) => item.id);
   const keptBefore = kept.filter((item) => !item.id);
   section('Resolved since last round:', resolved, (item) => [
@@ -467,7 +465,6 @@ function rustChecks(root) {
 const GRADLE_FILES = ['build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts'];
 const GRADLE_SETTINGS = ['settings.gradle', 'settings.gradle.kts'];
 const JVM_TOOLS = new Set(['gradle', 'mvn', './gradlew', './mvnw', './gradlew.bat', './mvnw.cmd', 'sh']);
-// Windows has no executable bit; Gradle and Maven projects ship these wrappers for it.
 const WINDOWS_WRAPPERS = { gradlew: 'gradlew.bat', mvnw: 'mvnw.cmd' };
 
 function ancestorsOf(folder, repositoryRoot) {
@@ -479,13 +476,11 @@ function ancestorsOf(folder, repositoryRoot) {
   return ancestors;
 }
 
-// A Gradle subproject has build files but no settings file of its own, under a folder that has one; that build runs its tests.
 function isGradleSubproject(folder, repositoryRoot) {
   if (GRADLE_SETTINGS.some((file) => existsSync(path.join(folder, file)))) return false;
   return ancestorsOf(folder, repositoryRoot).some((parent) => GRADLE_SETTINGS.some((file) => existsSync(path.join(parent, file))));
 }
 
-// A Maven module is listed in a parent pom's <module> entries outside comments and profiles; that parent's build runs its tests.
 function listedModules(pom) {
   const active = pom.replace(/<!--[\s\S]*?-->/g, '').replace(/<profiles>[\s\S]*?<\/profiles>/g, '');
   return [...active.matchAll(/<module>\s*([^<]+?)\s*<\/module>/g)].map(([, module]) => module);
@@ -529,8 +524,6 @@ function filesEndingWith(folder, extensions) {
   }
 }
 
-// A project without a solution of its own under a folder that has one is built and tested by that solution.
-// dotnet test needs a target when a folder holds more than one solution or project file.
 function dotnetChecks(folder, repositoryRoot = folder) {
   const solutions = filesEndingWith(folder, DOTNET_SOLUTION_EXTENSIONS);
   const projects = filesEndingWith(folder, DOTNET_PROJECT_EXTENSIONS);
@@ -551,7 +544,6 @@ function rubyChecks(folder, repositoryRoot = folder) {
   const tool = (...command) => (viaBundler ? ['bundle', 'exec', ...command] : command);
   const checks = [];
   if (has('.rubocop.yml')) checks.push({ name: 'lint', command: tool('rubocop') });
-  // A spec/ folder alone is common outside Ruby (OpenAPI specs, Jasmine), so it counts only next to a Gemfile or Rakefile.
   if (has('.rspec') || (hasFolder('spec') && (has('Gemfile') || has('Rakefile')))) checks.push({ name: 'test', command: tool('rspec') });
   else if (has('Rakefile') && hasFolder('test')) checks.push({ name: 'test', command: tool('rake', 'test') });
   return checks;
@@ -624,14 +616,12 @@ export function changedProjects(root, files) {
   return [...projects].sort();
 }
 
-// A check finding's file is a label such as "web: npm run test", so its project is the folder it ran in.
 const projectFileOf = (item) => (item.fromChecks ? `${item.folder || '.'}/.` : item.file);
 
 function checkedFolders(root, files) {
   return ['', ...changedProjects(root, files).slice(0, MAX_PROJECTS)];
 }
 
-// Projects of `files` come first, so a cap never drops them for projects that are only rechecked.
 function selectChecks(root, files, recheckedFiles = []) {
   const changed = changedProjects(root, files);
   const projects = [...changed, ...changedProjects(root, recheckedFiles).filter((project) => !changed.includes(project))];
@@ -666,11 +656,8 @@ function runCheck(root, check, timeout) {
   return folder ? { name, folder, ...result } : { name, ...result };
 }
 
-// cmd.exe reads these characters itself, so each is escaped with ^ to reach the program unchanged.
 const CMD_SPECIAL = /([()\][%!^"`<>&|;, *?])/g;
 
-// A Microsoft Store app execution alias (WindowsApps\python3.exe) is a reparse point that stat cannot open, so any
-// entry that is not a folder counts.
 const isFile = (target) => {
   try {
     return !lstatSync(target).isDirectory();
@@ -679,8 +666,6 @@ const isFile = (target) => {
   }
 };
 
-// Windows finds a program by the extensions in PATHEXT, not by an executable bit. A bare name is looked up on PATH
-// alone: Windows would try the working folder first, where a git.exe in the repository would run instead.
 function windowsProgram(program, cwd) {
   const extensions = (process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD').toLowerCase().split(';').filter(Boolean);
   const names = extensions.includes(path.extname(program).toLowerCase()) ? [program] : extensions.map((extension) => program + extension);
@@ -694,7 +679,6 @@ function windowsProgram(program, cwd) {
 
 const cmdArgument = (argument) => `"${argument.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, '$1$1')}"`.replace(CMD_SPECIAL, '^$1');
 
-// Node starts a .cmd or .bat file, such as npm.cmd, only through cmd.exe.
 function launchOf(command, cwd) {
   if (!WINDOWS) return { file: command[0], args: command.slice(1) };
   const program = windowsProgram(command[0], cwd);
@@ -816,7 +800,6 @@ function git(args, options = {}) {
 }
 
 function openRepository(cwd, { create = true } = {}) {
-  // git prints C:/ paths on Windows; resolving gives the form path.join and path.relative produce.
   const root = path.resolve(git(['rev-parse', '--show-toplevel'], { cwd }).trim());
   const gitDir = path.resolve(git(['rev-parse', '--absolute-git-dir'], { cwd }).trim());
   const stateDir = path.join(gitDir, 'lim', 'review-loop');
@@ -884,7 +867,6 @@ function commitLandedSince(root, skip) {
   const entries = headReflog(root);
   const newer = entries.length - skip.reflog.count;
   if (newer < 0 || (skip.reflog.count > 0 && entries[newer] !== skip.reflog.newest)) return true;
-  // With core.logAllRefUpdates off there is no reflog, and a moved HEAD is the only sign left.
   if (entries.length === 0) return headCommit(root) !== skip.head;
   return entries.slice(0, newer).some((entry) => entry.split('\t')[2]?.startsWith('commit'));
 }
@@ -913,7 +895,6 @@ function snapshotTree(repository) {
   return git(['write-tree'], { cwd: repository.root, env }).trim();
 }
 
-// Each call gets its own index file, since two gate calls can run at once.
 function stagedTree(repository) {
   const index = repository.file(`staged-${process.pid}-${randomUUID()}.index`);
   try {
@@ -938,7 +919,6 @@ function excludeReviewFolder(repository) {
 function reviewPathFor(repository, round) {
   excludeReviewFolder(repository);
   const file = path.join(repository.root, REVIEW_FOLDER, `round-${round}.json`);
-  // A file left by an earlier session would make Claude's Write tool refuse to overwrite it unread.
   rmSync(file, { force: true });
   return file;
 }
@@ -981,7 +961,6 @@ function featureMapFields(root) {
   return readFeatureMap(root) ? { featureMapPath: path.join(root, FEATURE_MAP) } : {};
 }
 
-// The same order verify keeps its runs in: two runs that start in the same millisecond get -2, -3, ...
 function verifyRunOrder(name) {
   const match = VERIFY_RUN_FILE.exec(name);
   return match ? [match[1], Number(match[2] ?? 1)] : [name, 0];
@@ -1105,7 +1084,6 @@ function isKept(root, keptBefore, finding, print) {
   if (SEVERITIES.indexOf(severityOf(finding)) < SEVERITIES.indexOf(keptSeverity)) return false;
   const quote = normalize(finding.quote);
   const content = currentContent(root, finding.file);
-  // With a second copy of the quoted text, the keep cannot tell which copy the user saw.
   return Boolean(quote) && content !== null && normalize(content).split(quote).length <= 2;
 }
 
@@ -1161,8 +1139,6 @@ function deferredReason(item, confirmSetting) {
   return 'it needs your call before fixing';
 }
 
-// Unattended, a finding whose only open question is which of several fixes to use gets the smallest one;
-// a choice the user would see (behavior, a removed feature, a changed test) still waits.
 function unattendedFixable(item, confirmSetting) {
   const flags = ASK_FLAGS.filter((flag) => item[flag] === true);
   return !(item.attempts > 0) && flags.length === 1 && flags[0] === 'multipleFixes' && !confirmSetting.severities.includes(item.severity);
@@ -1379,7 +1355,6 @@ function recordReview(repository, input) {
   const ask = state.unattended ? [] : needsYou;
   const deferred = state.unattended ? needsYou.filter((item) => !fixedUnattended.has(item.id)).map((item) => defer(item, confirmSetting)) : [];
   const allDeferred = [...previouslyDeferred.filter((item) => !resolved.includes(item)), ...deferred];
-  // A card raised again stays as it is unless it is now blocking, in scope, or more severe; then the new finding replaces it.
   const repeatsCard = (item) => {
     const card = undecidedCards.get(item.fingerprint);
     return Boolean(card) && SEVERITIES.indexOf(item.severity) >= SEVERITIES.indexOf(card.severity) && (!card.outOfScope || Boolean(item.outOfScope));
@@ -1392,7 +1367,6 @@ function recordReview(repository, input) {
   const regressions = [...fix, ...newAsk].filter((item) => resolvedPrints.has(item.fingerprint));
   const open = [...fix, ...unattendedFix, ...ask, ...stuck];
   const counts = [...state.counts, open.length];
-  // A regression test written after this review must fail on the code the fix started from.
   for (const item of resolved) item.beforeFixTree = state.beforeFixTree;
   const unproven = needsProof(repository.root, [...state.resolved, ...resolved]);
   const { decision, reason } = decideNext({
@@ -1653,7 +1627,6 @@ function checkRule(repository, beforeTree, drafts, files) {
   });
 }
 
-// True when every failing check passes on the same tree with the new drafts taken back out, so the drafts broke it.
 function failsOnlyWithDrafts(repository, tree, { reviewedTree, drafts, files, failing }) {
   return inTreeCopy(repository, tree, files, (folder) => {
     restoreDrafts(repository, reviewedTree, folder, drafts);
@@ -1669,12 +1642,10 @@ function failsOnlyWithDrafts(repository, tree, { reviewedTree, drafts, files, fa
 
 function isBeingFixed(state, item) {
   if (!BLOCKING.has(item.severity) || item.fromChecks) return false;
-  // A fix can also resolve a deferred finding, which then needs the same proof as the findings it was meant for.
   return (state.awaiting === 'fix' && [...state.open, ...(state.deferred ?? [])].includes(item))
     || item.decision === 'once' || (state.resolved.includes(item) && (state.awaiting === 'proof' || !hasRegressionProof(item)));
 }
 
-// A draft proves the fix only when the test check fails with it on the code before the fix and passes on the code after.
 function hasRegressionProof({ regression }) {
   if (!regression) return false;
   if (!regression.drafts) return true;
@@ -1706,7 +1677,6 @@ function stopIfProven(repository, state) {
     const failed = blamed ? state.resolved.filter((item) => (item.regression?.drafts ?? [])
       .some((draft) => newDrafts.includes(draft) && failing.some((check) => coversDraft(check, draft)))) : [];
     for (const item of failed) item.regression.failedOnFixedCode = failedOnFixedCode;
-    // A failure no new test explains comes from other changes, so the next round reviews them and turns it into a finding.
     if (!failed.length) state.awaiting = 'fix';
     saveState(repository, state);
     return {
@@ -1760,7 +1730,6 @@ function recordNoTest(repository, state, item, reason) {
   return { id: item.id, kind: 'regression', noTest: item.regression.reason };
 }
 
-// A finding resolved before the loop kept the code before the fix still has the code it was raised on.
 function raisedOnTree(repository, round) {
   const entry = eventsSinceStart(repository)
     .find((candidate) => (round === 1 ? candidate.event === 'start' : candidate.event === 'next' && candidate.round === round));
@@ -1989,8 +1958,6 @@ function heredocEnd(command, start, { delimiter, stripsTabs }) {
   return command.length;
 }
 
-// The shell reads (( or $(( as arithmetic only when the paren that closes it is followed by a second ); otherwise
-// the parens open subshells, as in $((git commit); true).
 function arithmeticEnd(command, start) {
   const open = command[start] === '$' ? start + 1 : start;
   if (!command.startsWith('((', open)) return -1;
@@ -2072,7 +2039,6 @@ function scanShell(command) {
     } else if (';&|\n()'.includes(char)) {
       if ('()'.includes(char)) grouped = true;
       endSegment();
-      // A heredoc body starts on the line after its << and is text for the command, not commands of its own.
       if (char === '\n' && pending.length) {
         index = pending.reduce((end, start) => heredocEnd(command, end + 1, start), index) - 1;
         pending = [];
@@ -2104,7 +2070,6 @@ function limitLocations(locations) {
   return unique.length > MAX_LOCATIONS ? [...unique.slice(0, MAX_LOCATIONS - 1), null] : unique;
 }
 
-// Git Bash, the shell Claude Code uses on Windows, names drive C: as /c.
 const fromShell = (target) => (WINDOWS ? target.replace(/^\/([A-Za-z])(?=\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`) : target);
 
 function resolveDirectory(base, target) {
@@ -2117,8 +2082,6 @@ function resolveDirectory(base, target) {
 
 const SHELL_KEYWORDS = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until', '!', '{', 'time', 'function']);
 const DIRECTORY_COMMANDS = new Set(['cd', 'pushd', 'popd']);
-// Programs that print or search text, so a git commit or push named in them is only text, unless an option below
-// makes them run a program. gh runs any name outside its own commands as an alias, which can be a shell command.
 const INERT_COMMANDS = new Set(['echo', 'printf', 'cat', 'grep', 'rg', 'man', 'gh']);
 const RUNS_PROGRAM = { man: /^(?:-[A-Za-z]*[PH]|--pager|--html)/, rg: /^--pre(?:=|$)/ };
 const GH_COMMANDS = new Set(['pr', 'issue', 'repo', 'release', 'api', 'run', 'workflow', 'search', 'browse', 'gist', 'label', 'status', 'project']);
@@ -2150,7 +2113,6 @@ function directoryTarget([name, ...operands]) {
   return operands[0];
 }
 
-// A git dir named .git belongs to the folder around it; the null keeps a commit pointed this way from being approved.
 function pointedLocations(targets, directories) {
   const folders = targets.flatMap((target) => directories.map((base) => {
     const folder = base === null ? null : resolveDirectory(base, target);
@@ -2181,8 +2143,6 @@ function readGitWords(words, gitIndex, locations) {
   return words[index] ? { subcommand: words[index], args: words.slice(index + 1), directories, globals } : null;
 }
 
-// Finds git where the shell runs a program: after shell keywords and variable assignments. A git word anywhere
-// else, as in `echo git commit` or `sudo git commit`, is left to the text check in gateDecision.
 function readCommand(command, cwd) {
   const invocations = [];
   let locations = [cwd];
@@ -2212,8 +2172,6 @@ export function gitInvocations(command, cwd = process.cwd()) {
   return readCommand(String(command ?? ''), cwd).invocations;
 }
 
-// The only commands review-loop may approve on its own: git and cd steps joined by &&, ;, or a newline, every word
-// plain or quoted text. A redirect, pipe, variable, glob, or substitution is outside it, so it can never be approved.
 const PLAIN_GAP = /[ \t]+|&&|;|\n/y;
 const PLAIN_TEXT = /[\w./:=@%+,^~-]+/y;
 const SINGLE_QUOTED = /'[^']*'/y;
@@ -2258,7 +2216,6 @@ function plainSteps(command) {
       if (!/^[ \t]/.test(gap)) steps.push([]);
       continue;
     }
-    // The shell expands ~ and, in zsh, = at the start of a word.
     if (word === null && '~='.includes(command[index])) return null;
     const quoted = command[index] === '"' ? readDoubleQuoted(command, index) : null;
     if (quoted) index = quoted.end;
@@ -2332,8 +2289,6 @@ function skipsHooks(args) {
   return false;
 }
 
-// A commit records the index as it is, unless -a or paths without --include take the content from the working files.
-// A word after a long option without = may be its value, so it is not read as a path and the index stays checked.
 function commitsIndex(args) {
   let all = false;
   let include = false;
@@ -2402,14 +2357,12 @@ function reviewVerdict(repository, gateSettings, stagedInCommand) {
   }
   const staged = stagedInCommand === 'all' ? state.reviewedTree : stagedTree(repository);
   if (staged !== state.reviewedTree) {
-    // The index after a partial git add is unknown here, since the gate runs before the command.
     if (stagedInCommand === 'some') {
       return verdict('ask', 'review-loop: a git add earlier in this command stages only some paths, so the commit may record only part of the reviewed change. Stage everything with git add -A, or confirm before Claude runs it.');
     }
     if (staged === null) {
       return verdict('deny', `review-loop: could not read the staged content, and git commit records it. If a merge or rebase left conflicts, resolve the conflicts and stage the result, then commit again, or run ${REVIEW_COMMAND} again.`);
     }
-    // With nothing staged, git commit records nothing, so only a staged tree with changes can differ from the review.
     if (staged !== state.baseTree) {
       const files = filesBetween(repository, state.reviewedTree, staged);
       const named = files.length ? ` (${files.join(', ')})` : '';
@@ -2422,7 +2375,6 @@ function reviewVerdict(repository, gateSettings, stagedInCommand) {
 
 const SAFE_GIT_SUBCOMMANDS = new Set(['add', 'commit', 'status', 'diff', 'log', 'show']);
 
-// git accepts any unambiguous prefix of a long option, so --out works like --output.
 function writesFile(arg) {
   const name = /^--([^=]+)/.exec(arg)?.[1];
   return Boolean(name) && name.length > 1 && 'output'.startsWith(name);
@@ -2432,7 +2384,6 @@ const approvable = ({ subcommand, globals, args }) => SAFE_GIT_SUBCOMMANDS.has(s
 const GIT_WORD = /(?<![\w.-])git(?![\w-])/;
 const GATED_WORD = /(?<![\w./-])(?:commit|push)(?![\w./-])/;
 const GIT_AND_FOLLOWING_WORDS = /(?<![\w.-])(["']?)git\1(?![\w-])((?:[ \t]+[^\s;&|()<>`]+)*)/g;
-// Git ignores an alias that shares a command's name, so these words never need an alias lookup.
 const GIT_COMMANDS = new Set([
   'add', 'am', 'apply', 'archive', 'bisect', 'blame', 'branch', 'cat-file', 'checkout', 'cherry-pick', 'clean', 'clone',
   'commit', 'config', 'describe', 'diff', 'fetch', 'for-each-ref', 'format-patch', 'gc', 'grep', 'help', 'init', 'log',
@@ -2447,7 +2398,6 @@ function inGatedRepository(folder) {
 }
 
 function aliasCandidates(command) {
-  // Quotes become spaces, so a word that closes a quoted command, as in sh -c "git ci", is still a word.
   const unquoted = command.replace(/["']/g, ' ');
   const names = [...unquoted.matchAll(GIT_AND_FOLLOWING_WORDS)].map(([, , following]) => {
     const words = following.trim().split(/\s+/);
@@ -2463,8 +2413,6 @@ function runsGatedAlias(name, folder) {
   return GATED_SUBCOMMANDS.includes(expanded.subcommand) || Boolean(expanded.shellAlias);
 }
 
-// Reads the raw text, not the parse, so a shell form the parser misreads still reaches the question. Only cd steps
-// and programs that print text, with plain or quoted words, are left alone.
 function unreadVerdict(command, folders) {
   if (!GIT_WORD.test(command)) return null;
   const namesGated = GATED_WORD.test(command);
@@ -2477,8 +2425,6 @@ function unreadVerdict(command, folders) {
   return verdict('ask', 'review-loop: this command names git and commit or push, or an alias for them, in a form the commit gate cannot read, so it cannot check it. Confirm before Claude runs it.');
 }
 
-// An allow skips Claude Code's own permission prompt, so only a command readPlainCommand reads in full can get one.
-// A deny needs a commit found where the shell runs git. Anything else that names git and commit or push is asked about.
 export function reportNotice({ command, stdout }) {
   if (!/\bloop\.mjs\b/.test(String(command ?? ''))) return null;
   try {
@@ -2571,7 +2517,6 @@ function resolveInvocation(invocation) {
   return expandAlias(invocation, (name) => aliasOf(directory, name));
 }
 
-// --force is left out: it stages ignored files, which the reviewed git add -A snapshot never contained.
 const ADD_ALL_LETTERS = new Set(['A', 'v']);
 const ADD_ALL_OPTIONS = new Set(['--all', '--verbose', '--ignore-errors', '--sparse']);
 
@@ -2583,7 +2528,6 @@ function isFolder(location, folder) {
   }
 }
 
-// What a git add stages: null for a dry run, 'all' when it matches git add -A at the repository root, otherwise 'some'.
 function addStaging(args, directory, root) {
   const paths = [];
   let all = false;
@@ -2647,7 +2591,6 @@ function gateVerdicts(invocations, sessionFolders) {
       checkedRepositories.add(repository.root);
       const gateSettings = readGate(repository);
       if (!gateSettings.enabled) continue;
-      // The skip stays until a commit lands, so a second commit in the same command must not reuse it.
       const skipOnce = invocation.subcommand === 'commit' && gateSettings.skipOnce && !ambiguous && !skipped.has(repository.root);
       if (skipOnce) skipped.add(repository.root);
       const result = invocation.subcommand === 'push'
@@ -2860,7 +2803,6 @@ function runFacts(state) {
 
 const escapeHtml = (text) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
-// GitHub shows a code span as typed, so an escaped character there would show up as the entity.
 function markdownCell(text) {
   const outsideCode = normalize(text).split(/(`[^`]*`)/).map((part, index) => (index % 2 ? part : escapeHtml(part))).join('');
   return outsideCode.replaceAll('|', '\\|');

@@ -37,7 +37,8 @@ test('the repository has no comments in scanned files', () => {
 test('scope includes clean files and leaves out listed ones', () => {
   const files = scopedFiles(root);
   for (const file of ['scripts/check-comments.mjs', render, gate]) assert.ok(files.includes(file), file);
-  assert.ok(!files.includes('plugins/review-loop/skills/review-loop/scripts/loop.mjs'));
+  assert.ok(files.includes('plugins/review-loop/skills/review-loop/scripts/loop.mjs'));
+  for (const file of listed) assert.ok(!files.includes(file), file);
 });
 
 test('every listed exclusion exists and still has a comment', () => {

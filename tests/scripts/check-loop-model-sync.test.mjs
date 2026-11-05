@@ -69,6 +69,41 @@ for (const [label, from, to, name] of [
   });
 }
 
+const commented = loop.replace('  return first + second', '  // why\n  return first + second');
+
+test('a whole-line comment added inside a covered function is not drift', (t) => {
+  const { cwd, commitLoop } = fixture(t);
+  commitLoop(commented);
+  const result = run(cwd);
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test('a whole-line comment deleted inside a covered function is not drift', (t) => {
+  const { cwd, commitLoop, write } = fixture(t);
+  write(skillPath, skill(commitLoop(commented)));
+  commitLoop(loop);
+  const result = run(cwd);
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test('a code edit that replaces a comment in a covered function fails', (t) => {
+  const { cwd, commitLoop, write } = fixture(t);
+  write(skillPath, skill(commitLoop(commented)));
+  commitLoop(loop.replace('  return first + second', '  const extra = 0;\n  return first + second'));
+  const result = run(cwd);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr, /decideNext/);
+});
+
+test('a code edit one line from a deleted comment in a covered function fails', (t) => {
+  const { cwd, commitLoop, write } = fixture(t);
+  write(skillPath, skill(commitLoop(commented)));
+  commitLoop(loop.replace('  return first + second', '  return second + first'));
+  const result = run(cwd);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr, /decideNext/);
+});
+
 test('deleting a covered function fails', (t) => {
   const { cwd, commitLoop } = fixture(t);
   commitLoop(loop.replace(/export function decideNext[\s\S]*?\n}\n\n/, ''));

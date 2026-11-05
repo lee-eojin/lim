@@ -10,7 +10,6 @@ export const EXCLUDED = [
   /^evals\/(?:.+\/)?repo\//,
   /(?:^|\/)fixtures\//,
   /(?:^|\/)node_modules\//,
-  'plugins/review-loop/skills/review-loop/scripts/loop.mjs',
   'plugins/verify/skills/verify/scripts/verify.mjs',
   'evals/clear-explain/run-explain.mjs',
   'evals/verify/run-benchmark.mjs',
