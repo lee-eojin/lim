@@ -38,4 +38,5 @@ Guidance for AI agents working in this repository. Humans are welcome to read it
 | Plugin scripts compare real paths with `realpathSync.native` | `tests/scripts/realpath-native.test.mjs` |
 | No blocked words, no invalid JSON | `scripts/check.sh` (blocked words only with `LIM_DENYLIST` or `LIM_DENYLIST_FILE`; in CI a missing list fails the check, except on pull requests from forks) |
 | Translations keep the English README's headings, numbers, and links | `node scripts/check-i18n.mjs` |
+| An evidence report has REVISION, REPRO, RUN, PROOF, LIMITS, and a known verdict | `node scripts/check-evidence-report.mjs <file>`, required by `.claude/skills/prove-it/SKILL.md` |
 | A pull request merges only after both CI jobs (`check`, `windows`) pass | The `main` ruleset's required status checks |
