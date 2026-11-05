@@ -1,0 +1,178 @@
+Error: Invariant KeptNeverReoffered is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ loop = [ findings |->
+      << [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "none",
+  stopReason |-> "none",
+  stoppedBy |-> "none",
+  stopUnproven |-> FALSE,
+  unattended |-> FALSE,
+  counts |-> <<>>,
+  everKept |-> {},
+  round |-> 0,
+  run |-> 1 ]
+/\ cmd = [name |-> "init"]
+/\ ledger = {}
+
+State 2: <StartFresh line 140, col 3 to line 144, col 21 of module ReviewLoop>
+/\ loop = [ findings |->
+      << [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "review",
+  stopReason |-> "none",
+  stoppedBy |-> "none",
+  stopUnproven |-> FALSE,
+  unattended |-> TRUE,
+  counts |-> <<>>,
+  everKept |-> {},
+  round |-> 1,
+  run |-> 1 ]
+/\ cmd = [unattended |-> TRUE, name |-> "start", resume |-> FALSE]
+/\ ledger = {}
+
+State 3: <Record line 170, col 3 to line 180, col 21 of module ReviewLoop>
+/\ loop = [ findings |->
+      << [ where |-> "deferred",
+           kind |-> "reviewer",
+           route |-> "ask",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "decisions",
+  stopReason |-> "waiting",
+  stoppedBy |-> "decideNext",
+  stopUnproven |-> FALSE,
+  unattended |-> TRUE,
+  counts |-> <<0>>,
+  everKept |-> {},
+  round |-> 1,
+  run |-> 1 ]
+/\ cmd = [ regression |-> FALSE,
+  new |-> {<<1, "reviewerAsk">>},
+  round |-> 1,
+  name |-> "record",
+  resolved |-> {} ]
+/\ ledger = {}
+
+State 4: <DecideCommand line 212, col 3 to line 220, col 65 of module ReviewLoop>
+/\ loop = [ findings |->
+      << [ where |-> "deferred",
+           kind |-> "reviewer",
+           route |-> "ask",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "keep",
+           regression |-> "none" ],
+         [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "decisions",
+  stopReason |-> "waiting",
+  stoppedBy |-> "decideNext",
+  stopUnproven |-> FALSE,
+  unattended |-> TRUE,
+  counts |-> <<0>>,
+  everKept |-> {1},
+  round |-> 1,
+  run |-> 1 ]
+/\ cmd = [name |-> "decide", slot |-> 1, choice |-> "keep"]
+/\ ledger = {<<1, "reviewer">>}
+
+State 5: <StartNewRun line 147, col 3 to line 155, col 21 of module ReviewLoop>
+/\ loop = [ findings |->
+      << [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "review",
+  stopReason |-> "none",
+  stoppedBy |-> "none",
+  stopUnproven |-> FALSE,
+  unattended |-> FALSE,
+  counts |-> <<>>,
+  everKept |-> {},
+  round |-> 1,
+  run |-> 2 ]
+/\ cmd = [unattended |-> FALSE, name |-> "start", resume |-> FALSE, newRun |-> TRUE]
+/\ ledger = {<<1, "reviewer">>}
+
+State 6: <Record line 170, col 3 to line 180, col 21 of module ReviewLoop>
+/\ loop = [ findings |->
+      << [ where |-> "open",
+           kind |-> "reviewer",
+           route |-> "fix",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ],
+         [ where |-> "unreported",
+           kind |-> "none",
+           route |-> "none",
+           fixable |-> FALSE,
+           attempts |-> 0,
+           decision |-> "none",
+           regression |-> "none" ] >>,
+  awaiting |-> "fix",
+  stopReason |-> "none",
+  stoppedBy |-> "none",
+  stopUnproven |-> FALSE,
+  unattended |-> FALSE,
+  counts |-> <<1>>,
+  everKept |-> {},
+  round |-> 1,
+  run |-> 2 ]
+/\ cmd = [ regression |-> FALSE,
+  new |-> {<<1, "reviewerFix">>},
+  round |-> 1,
+  name |-> "record",
+  resolved |-> {} ]
+/\ ledger = {<<1, "reviewer">>}
+

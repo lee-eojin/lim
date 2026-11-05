@@ -5,7 +5,7 @@
    scripts/check-loop-model.mjs generates from the exported decideNext before every run. *)
 EXTENDS Naturals, Sequences, FiniteSets, DecideNextTable
 
-CONSTANTS N, MaxRounds, RoundLimit
+CONSTANTS N, MaxRounds, RoundLimit, MaxRuns
 
 ASSUME N = TableSlots /\ MaxRounds = TableMaxRounds /\ RoundLimit = TableRoundLimit
 
@@ -25,7 +25,7 @@ Shapes == {"reviewerFix", "reviewerAsk", "reviewerAskMultipleFixes", "checkFix"}
 Fresh == [where |-> "unreported", kind |-> "none", route |-> "none", fixable |-> FALSE, attempts |-> 0,
           decision |-> "none", regression |-> "none"]
 
-VARIABLES loop, cmd
+VARIABLES loop, cmd, ledger
 
 InState(l, place) == {s \in Slots : l.findings[s].where = place}
 
@@ -81,8 +81,9 @@ MakeAttended(l) ==
               ELSE l.findings[s]]]
 
 \* assignIds, classify, and the unattended split in recordReview.
-NewFinding(shape, unattended) ==
-  CASE shape = "reviewerFix" -> [Fresh EXCEPT !.where = "open", !.kind = "reviewer", !.route = "fix"]
+NewFinding(shape, unattended, kept) ==
+  CASE kept /\ shape # "checkFix" -> [Fresh EXCEPT !.where = "kept", !.kind = "reviewer", !.decision = "keep"]
+    [] shape = "reviewerFix" -> [Fresh EXCEPT !.where = "open", !.kind = "reviewer", !.route = "fix"]
     [] shape = "checkFix" -> [Fresh EXCEPT !.where = "open", !.kind = "check", !.route = "fix"]
     [] shape = "reviewerAsk" ->
          [Fresh EXCEPT !.where = IF unattended THEN "deferred" ELSE "open", !.kind = "reviewer", !.route = "ask"]
@@ -92,7 +93,7 @@ NewFinding(shape, unattended) ==
 
 \* recordReview in loop.mjs: res is review.resolved (and the failing checks that now pass), new holds the
 \* findings the reviewer reports, and regr says one of them repeats an earlier resolved finding.
-AfterRecord(l, res, new, shape, regr) ==
+AfterRecord(l, res, new, shape, regr, kept) ==
   LET f == l.findings
       notResolved == InState(l, "open") \ res
       keptInLoop == {s \in notResolved : f[s].decision = "keep"}
@@ -105,7 +106,7 @@ AfterRecord(l, res, new, shape, regr) ==
           [] s \in stuck -> [f[s] EXCEPT !.attempts = @ + 1]
           [] s \in retried -> [f[s] EXCEPT !.attempts = @ + 1, !.route = "ask",
                                            !.where = IF l.unattended THEN "deferred" ELSE "open"]
-          [] s \in new -> NewFinding(shape[s], l.unattended)
+          [] s \in new -> NewFinding(shape[s], l.unattended, <<s, "reviewer">> \in kept)
           [] OTHER -> f[s]]
       l1 == [l EXCEPT !.findings = findings]
       open == Cardinality(InState(l1, "open"))
@@ -130,9 +131,10 @@ BeingFixed(l, s) ==
 
 Init ==
   /\ loop = [awaiting |-> "none", round |-> 0, counts |-> <<>>, unattended |-> FALSE, stopReason |-> "none",
-             stoppedBy |-> "none", stopUnproven |-> FALSE, everKept |-> {},
+             stoppedBy |-> "none", stopUnproven |-> FALSE, everKept |-> {}, run |-> 1,
              findings |-> [s \in Slots |-> Fresh]]
   /\ cmd = [name |-> "init"]
+  /\ ledger = {}
 
 \* start in loop.mjs with no saved state.
 StartFresh ==
@@ -140,6 +142,18 @@ StartFresh ==
   /\ \E unattended \in BOOLEAN :
        /\ loop' = [loop EXCEPT !.awaiting = "review", !.round = 1, !.unattended = unattended]
        /\ cmd' = [name |-> "start", unattended |-> unattended, resume |-> FALSE]
+  /\ UNCHANGED ledger
+
+StartNewRun ==
+  /\ loop.awaiting # "none"
+  /\ ~InProgress(loop)
+  /\ loop.run < MaxRuns
+  /\ \E unattended \in BOOLEAN :
+       /\ loop' = [loop EXCEPT !.awaiting = "review", !.round = 1, !.counts = <<>>, !.unattended = unattended,
+                               !.stopReason = "none", !.stoppedBy = "none", !.stopUnproven = FALSE,
+                               !.everKept = {}, !.run = @ + 1, !.findings = [s \in Slots |-> Fresh]]
+       /\ cmd' = [name |-> "start", unattended |-> unattended, resume |-> FALSE, newRun |-> TRUE]
+  /\ UNCHANGED ledger
 
 \* start in loop.mjs with a run in progress: stopIfProven, then makeUnattended or makeAttended.
 StartResume ==
@@ -150,6 +164,7 @@ StartResume ==
        IN /\ l2 # loop
           /\ loop' = l2
           /\ cmd' = [name |-> "start", unattended |-> unattended, resume |-> TRUE]
+  /\ UNCHANGED ledger
 
 \* record in loop.mjs (recordReview). Slots are reported in order, so new is the next k unreported slots.
 Record ==
@@ -157,37 +172,41 @@ Record ==
   /\ \E res \in SUBSET (InState(loop, "open") \cup InState(loop, "deferred")),
         k \in 0..Cardinality(InState(loop, "unreported")) :
        LET new == {s \in InState(loop, "unreported") : s <= N - Cardinality(InState(loop, "unreported")) + k}
-       IN \E shape \in [new -> Shapes],
+       IN \E shape \in {f \in [new -> Shapes] : \A s \in new, kd \in {"reviewer", "check"} :
+                              <<s, kd>> \in ledger => (f[s] = "checkFix") = (kd = "check")},
              regr \in IF InState(loop, "resolved") # {} /\ new # {} THEN BOOLEAN ELSE {FALSE} :
-            /\ loop' = AfterRecord(loop, res, new, shape, regr)
+            /\ loop' = AfterRecord(loop, res, new, shape, regr, ledger)
             /\ cmd' = [name |-> "record", round |-> loop.round, resolved |-> res,
                        new |-> {<<s, shape[s]>> : s \in new}, regression |-> regr]
+  /\ UNCHANGED ledger
 
 \* next in loop.mjs. From the proof state it runs stopIfProven first; if the final checks send the loop back
 \* to fix, the same command goes on into the fix round. With proof still missing it throws and saves nothing.
 NextCommand ==
-  \/ /\ loop.awaiting = "fix"
-     /\ \E l2 \in FixRound(loop) : loop' = l2 /\ cmd' = [name |-> "next"]
-  \/ /\ loop.awaiting = "proof"
-     /\ \E l1 \in StopIfProven(loop) \ {loop} :
-          \E l2 \in IF l1.awaiting = "fix" THEN FixRound(l1) ELSE {l1} : loop' = l2 /\ cmd' = [name |-> "next"]
+  /\ UNCHANGED ledger
+  /\ \/ /\ loop.awaiting = "fix"
+        /\ \E l2 \in FixRound(loop) : loop' = l2 /\ cmd' = [name |-> "next"]
+     \/ /\ loop.awaiting = "proof"
+        /\ \E l1 \in StopIfProven(loop) \ {loop} :
+             \E l2 \in IF l1.awaiting = "fix" THEN FixRound(l1) ELSE {l1} : loop' = l2 /\ cmd' = [name |-> "next"]
 
 \* rule in loop.mjs: a regression test draft or a no-test reason for one finding, then stopIfProven.
 \* outcome "test" is a draft that fails on the code before the fix (caught), "missed" is one that does not.
 \* A finding decided as a rule records a rule draft instead, which leaves its regression proof as it was.
 RuleCommand ==
-  \E s \in Slots :
-    /\ loop.findings[s].where \in {"open", "deferred", "kept", "resolved"}
-    /\ IF loop.findings[s].decision = "rule"
-       THEN \E l2 \in StopIfProven(loop) \ {loop} :
-              loop' = l2 /\ cmd' = [name |-> "rule", slot |-> s, outcome |-> "ruleDraft"]
-       ELSE /\ BeingFixed(loop, s)
-            /\ \E outcome \in {"noTest", "test", "missed"} :
-                 LET l1 == [loop EXCEPT !.findings[s].regression = IF outcome = "missed" THEN "none" ELSE outcome]
-                 IN \E l2 \in StopIfProven(l1) :
-                      /\ l2 # loop
-                      /\ loop' = l2
-                      /\ cmd' = [name |-> "rule", slot |-> s, outcome |-> outcome]
+  /\ UNCHANGED ledger
+  /\ \E s \in Slots :
+       /\ loop.findings[s].where \in {"open", "deferred", "kept", "resolved"}
+       /\ IF loop.findings[s].decision = "rule"
+          THEN \E l2 \in StopIfProven(loop) \ {loop} :
+                 loop' = l2 /\ cmd' = [name |-> "rule", slot |-> s, outcome |-> "ruleDraft"]
+          ELSE /\ BeingFixed(loop, s)
+               /\ \E outcome \in {"noTest", "test", "missed"} :
+                    LET l1 == [loop EXCEPT !.findings[s].regression = IF outcome = "missed" THEN "none" ELSE outcome]
+                    IN \E l2 \in StopIfProven(l1) :
+                         /\ l2 # loop
+                         /\ loop' = l2
+                         /\ cmd' = [name |-> "rule", slot |-> s, outcome |-> outcome]
 
 \* decide in loop.mjs. It does not look at awaiting, so it can run in any state.
 DecideCommand ==
@@ -198,6 +217,8 @@ DecideCommand ==
        /\ loop' = [loop EXCEPT !.findings[s].decision = choice,
                                !.everKept = IF choice = "keep" THEN @ \cup {s} ELSE @]
        /\ cmd' = [name |-> "decide", slot |-> s, choice |-> choice]
+       /\ ledger' = IF choice = "keep" THEN ledger \cup {<<s, loop.findings[s].kind>>}
+                     ELSE ledger \ {<<s, loop.findings[s].kind>>}
 
 \* unattended --on or --off in loop.mjs (setUnattended) with a saved state.
 UnattendedCommand ==
@@ -207,13 +228,14 @@ UnattendedCommand ==
        IN /\ l2 # loop
           /\ loop' = l2
           /\ cmd' = [name |-> "unattended", on |-> on]
+  /\ UNCHANGED ledger
 
-Next == StartFresh \/ StartResume \/ Record \/ NextCommand \/ RuleCommand \/ DecideCommand \/ UnattendedCommand
+Next == StartFresh \/ StartNewRun \/ StartResume \/ Record \/ NextCommand \/ RuleCommand \/ DecideCommand \/ UnattendedCommand
 
 \* TLC treats states that differ only in the last command as one state.
-View == loop
+View == <<loop, ledger>>
 
-WithinBounds == loop.round <= RoundLimit
+WithinBounds == loop.round <= RoundLimit /\ loop.run <= MaxRuns
 
 \* reviewVerdict in loop.mjs, when HEAD, the working tree, and the staged tree all match the review and no
 \* skip-once is pending: deny while a resolved finding lacks proof in any state, while the loop is
@@ -229,7 +251,8 @@ DecideNextStopHasProof == loop.stoppedBy = "decideNext" /\ loop.stopReason \in {
 StopIfProvenStopHasProof == loop.stoppedBy = "stopIfProven" => ~loop.stopUnproven
 StopWaitingStopHasProof == loop.stoppedBy = "stopWaiting" => ~loop.stopUnproven
 GateNeedsProof == GateAllows(loop) => Unproven(loop) = {}
-KeptNeverReoffered == \A s \in loop.everKept : s \notin Pending(loop)
+LedgerKept == {s \in Slots : <<s, "reviewer">> \in ledger}
+KeptNeverReoffered == \A s \in loop.everKept \cup LedgerKept : s \notin Pending(loop)
 
 \* A modeling check, not a property: decideNext gets round = Len(counts) from the table.
 RoundMatchesCounts == loop.awaiting = "review" => Len(loop.counts) + 1 = loop.round
