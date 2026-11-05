@@ -56,7 +56,7 @@ These rules come from REA's skill, which keeps every conclusion an observation, 
 
 ## Measured
 
-[`evals/ledger/behaviors.csv`](../../evals/ledger/behaviors.csv) lists <!--total-->37 behaviors. Unit tests in CI cover <!--tested-->33 of them, running the script against temporary folders. The other <!--rest-->4 need a model run or a real target: the three below, measured by the benchmark, and the Bend investigation above, run against Bend at commit b2fe9ce0.
+[`evals/ledger/behaviors.csv`](../../evals/ledger/behaviors.csv) lists <!--total-->37 behaviors. Unit tests in CI cover <!--tested-->36 of them, running the script against temporary folders. The other <!--rest-->1 needs a real target: the Bend investigation above, run against Bend at commit b2fe9ce0. The three benchmark behaviors are locked against the saved rebaseline results.
 
 A blinded benchmark in [`evals/ledger/`](../../evals/ledger/) copies two small projects to a temporary folder under their own package names, each with one commit and a `ledger.json` that already holds three questions, and runs `/ledger:ledger Pick up the investigation in ledger.json and close what is still open.` headlessly with only `Read,Grep,Glob,Write,Edit,Skill,Bash(node:*)` in don't-ask mode. Each question has a trap:
 
