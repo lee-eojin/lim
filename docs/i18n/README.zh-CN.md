@@ -315,7 +315,7 @@ review-loop 本身不发起任何网络请求。Claude 和审查者读取 diff�
 - 每个检查最多运行 5 分钟，所有检查合计最多运行 9 分钟。
 - 用来在削弱测试或检查时停止修复的脚本只读取 JavaScript 和 TypeScript 文件、`__snapshots__/` 下的改动，以及 `.github/workflows/` 下的改动。在其他语言中，像 `@pytest.mark.skip` 或 `t.Skip()` 这样跳过测试，或关闭一条 lint 规则，都不会让循环停止。
 - 如果没有开启提交门禁，提交前询问只是给 Claude 的指令，而不是保证。
-- 报告通过 hook 送达。如果关闭所有 hook（`disableAllHooks`），你只能在返回该报告的命令的折叠输出里看到它。提交门禁也是 hook，因此一并关闭：在审查通过之前，Claude 的提交不会被拦截。
+- 报告通过 hook 送达。如果关闭所有 hook（`disableAllHooks`），你只能在返回该报告的命令的折叠输出里看到它。提交门禁也是 hook，因此一并关闭：即便没有通过的审查，Claude 的提交也不会被拦截。
 - 提交门禁只检查 Claude 通过它的 Bash 工具运行的命令。你在自己的终端中输入的提交不会被检查。通过 `git ci` 这样的 git 别名进行的提交会像 `git commit` 一样被检查。会提交的 shell 别名（`!...`）会先询问你，因为门禁看不到它的内部。用 `git -c alias.ci=commit` 在命令中临时设置的别名不会被当作别名读取，因此门禁会询问你。
 - 如果你在不是仓库的文件夹中启动 Claude Code，门禁无法检查它识别不出仓库的提交，例如 `cd "$(...)"` 之后的提交。
 - review-loop 审查 `git add -A` 会包含的所有内容，而不是你手动挑选的一组已暂存改动。
