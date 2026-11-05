@@ -32,6 +32,8 @@ node scripts/check-i18n.mjs
 
 All four must pass. CI runs `node scripts/check-loop-model.mjs` (Linux), `node --test`, `scripts/check.sh`, and `node scripts/check-i18n.mjs` on every pull request. `node --test` also runs `scripts/check-skills.mjs`: a static structure check of every plugin entry skill and its manifest, not proof of Claude runtime loading. It checks the flat string-mapping frontmatter used by these skills and rejects unsupported YAML syntax.
 
+When you record a claim that something works, write it as an evidence report and run `node scripts/check-evidence-report.mjs <file>`; `.claude/skills/prove-it/SKILL.md` describes the fields. `node --test` covers this script's tests.
+
 `node --test` also runs `scripts/check-loop-model-sync.mjs` on this repository, except in a shallow clone such as the Windows CI job. It fails when a function the review-loop model covers changed after the sync commit in `.claude/skills/check-loop-model/SKILL.md`.
 
 After you add or change rows in an `evals/*/behaviors.csv`, run `node scripts/sync-counts.mjs`. It writes the behavior counts into `README.md`, its translations, and the plugin READMEs, and `--check` lists the files that are out of date without writing. It finds each count by the HTML comment right before it, `<!--total-->`, `<!--tested-->`, or `<!--rest-->`, which GitHub does not render; a new translation needs these markers, and the script and `--check` stop with an error until every file has all three. `node --test` fails while any of them is out of date. If the number of behaviors that need a model run changes, also update the list of them in each file by hand.
