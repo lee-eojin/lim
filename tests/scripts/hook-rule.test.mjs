@@ -21,10 +21,12 @@ const after = (command) => ({ ...before(command), tool_response: { stdout: repor
 const HOOKS = {
   'review-loop PreToolUse Bash command node "${CLAUDE_PLUGIN_ROOT}/hooks/commit-gate.mjs"': {
     fires: before('git commit -m x'),
+    decision: 'deny',
     turnOn: (cwd) => execFileSync(process.execPath, [loopScript, 'gate', '--on'], { cwd, stdio: 'ignore' }),
   },
   'review-loop PostToolUse Bash command node "${CLAUDE_PLUGIN_ROOT}/hooks/show-report.mjs"': {
     fires: after(record),
+    message: `review-loop report\n${JSON.parse(report).report}`,
     other: after('cat notes.json'),
   },
 };
@@ -32,7 +34,7 @@ const HOOKS = {
 function registeredHooks() {
   return pluginNames.filter((plugin) => existsSync(hooksFile(plugin))).flatMap((plugin) => (
     Object.entries(readJson(hooksFile(plugin)).hooks).flatMap(([event, groups]) => groups.flatMap(({ matcher, hooks }) => (
-      hooks.map(({ type, command }) => ({ id: `${plugin} ${event} ${matcher} ${type} ${command}`, plugin, command }))
+      hooks.map(({ type, command }) => ({ id: `${plugin} ${event} ${matcher} ${type} ${command}`, plugin, event, command }))
     )))
   ));
 }
@@ -73,7 +75,7 @@ test('an always-on hook outputs only a systemMessage, and nothing for other comm
     assert.equal(shown.stderr, '', hook.id);
     const output = JSON.parse(shown.stdout);
     assert.deepEqual(Object.keys(output), ['systemMessage'], hook.id);
-    assert.match(output.systemMessage, /\S/, hook.id);
+    assert.equal(output.systemMessage, HOOKS[hook.id].message, hook.id);
     const other = run(hook, HOOKS[hook.id].other);
     assert.equal(other.status, 0, other.stderr);
     assert.equal(other.stderr, '', hook.id);
@@ -89,6 +91,11 @@ test('an opt-in hook has no effect until the user turns it on', (t) => {
     assert.equal(off.status, 0, off.stderr);
     assert.equal(off.stdout, '', hook.id);
     turnOn(cwd);
-    assert.notEqual(run(hook, fires, cwd).stdout, '', hook.id);
+    const on = run(hook, fires, cwd);
+    assert.equal(on.status, 0, on.stderr);
+    assert.equal(on.stderr, '', hook.id);
+    const output = JSON.parse(on.stdout).hookSpecificOutput;
+    assert.equal(output.hookEventName, hook.event, hook.id);
+    assert.equal(output.permissionDecision, HOOKS[hook.id].decision, hook.id);
   }
 });
