@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import {
-  ALLOWED_TOOLS, SCENARIOS, buildSession, checkScenario, inOrder, parseEvents, parseOptions, reportShownAfter, scriptCall, sessionArgs, uncommittedPluginFiles,
+  ALLOWED_TOOLS, SCENARIOS, buildSession, checkScenario, inOrder, keptNotReoffered, parseEvents, parseOptions, reportNotPastedAfter, reportShownAfter, scriptCall, sessionArgs, uncommittedPluginFiles,
 } from '../../evals/e2e/run-sessions.mjs';
 
 const WORK = '/tmp/cents-abc';
@@ -42,7 +42,6 @@ const happySteps = [
   ['Read', { file_path: `${WORK}/src/format.js` }, 'tool-2'],
   ['Write', { file_path: `${WORK}/.lim-review/round-1.json`, content: '{}' }],
   loop('record --file .lim-review/round-1.json'),
-  '```\nRound 1 of 3\n```',
   verify('run --id two-decimal-places'),
   '```\nfail\n```',
   loop('reproduce --id F-1'),
@@ -53,9 +52,7 @@ const happySteps = [
   loop('next'),
   reviewer,
   loop('record --file .lim-review/round-2.json'),
-  '```\nRound 2 of 3\n```',
   loop('summary'),
-  '```\nSince ...\n```',
 ];
 
 const happyRepository = {
@@ -92,8 +89,9 @@ test('a session that follows review-loop and verify end to end passes every expe
 });
 
 test('a fix made before the verify reproduction fails the order expectation and names where it stopped', () => {
+  const firstVerify = happySteps.findIndex((step) => Array.isArray(step) && step[0] === 'Bash' && /verify\.mjs run --id two-decimal-places/.test(step[1].command));
   const fixFirst = happySteps.filter((step) => step !== fix);
-  fixFirst.splice(fixFirst.indexOf(happySteps[7]), 0, fix);
+  fixFirst.splice(firstVerify, 0, fix);
   const results = checkScenario(scenario('review-with-verify'), buildSession(stream(fixFirst), happyRepository));
   const order = outcome(results, 'reproduce-fix-rerun-order');
   assert.equal(order.pass, false);
@@ -107,7 +105,7 @@ test('subagent tool calls stay out of the main sequence', () => {
 });
 
 test('an unattended run that asks the user, commits, or ends without loop summary fails those expectations', () => {
-  const steps = [...happySteps.slice(0, -2), ['AskUserQuestion', { questions: [] }], ['Bash', { command: 'git commit -m wip' }]];
+  const steps = [...happySteps.slice(0, -1), ['AskUserQuestion', { questions: [] }], ['Bash', { command: 'git commit -m wip' }]];
   const results = checkScenario(scenario('review-with-verify'), buildSession(stream(steps, { denied: [steps.length - 1] }), happyRepository));
   assert.equal(outcome(results, 'no-question').pass, false);
   assert.equal(outcome(results, 'no-commit-or-push').pass, false);
@@ -214,13 +212,33 @@ test('deleting the existing test file fails tests-not-weakened', () => {
   assert.match(deleted.evidence, /deleted/);
 });
 
-test('ends-with-summary checks the report after the last loop summary, not the first', () => {
-  const steps = [loop('summary'), '```\nfirst report\n```', loop('next'), loop('summary'), 'All done.'];
+test('ends-with-summary only requires loop summary as the last loop command', () => {
+  const steps = [loop('summary'), loop('next'), loop('record --file x.json')];
   const result = outcome(checkScenario(scenario('failing-check'), buildSession(stream(steps))), 'ends-with-summary');
   assert.equal(result.pass, false);
-  assert.match(result.evidence, /All done/);
-  const lastShown = [loop('summary'), 'Not done yet.', loop('next'), loop('summary'), '```\nfinal report\n```'];
-  assert.equal(outcome(checkScenario(scenario('failing-check'), buildSession(stream(lastShown))), 'ends-with-summary').pass, true);
+  assert.match(result.evidence, /last loop command: loop record/);
+  const ended = [loop('record --file x.json'), loop('summary'), 'Waiting for you.'];
+  assert.equal(outcome(checkScenario(scenario('failing-check'), buildSession(stream(ended))), 'ends-with-summary').pass, true);
+});
+
+test('hook-owns-loop-reports fails when Claude pastes a loop report the hook already shows', () => {
+  const pasted = [...happySteps.slice(0, -1), '```\nRound 2 of 3\n```', loop('summary')];
+  assert.equal(outcome(checkScenario(scenario('review-with-verify'), buildSession(stream(pasted), happyRepository)), 'hook-owns-loop-reports').pass, false);
+  assert.equal(reportNotPastedAfter(buildSession(stream(happySteps), happyRepository), /^loop (record\b|summary$)/).pass, true);
+});
+
+test('a finding recorded as keep is not offered again in the closing message', () => {
+  const keptRepo = {
+    ...happyRepository,
+    ledger: [...happyRepository.ledger, { event: 'decision', id: 'F-2', choice: 'keep', title: 'Debug log left in' }],
+    reviewState: { ...happyRepository.reviewState, kept: [{ id: 'F-2', severity: 'P3', title: 'Debug log left in' }] },
+  };
+  const ok = buildSession(stream(happySteps, { result: 'Kept as is at your request:\n- F-2 [P3] Debug log left in\nNothing else to fix.' }), keptRepo);
+  assert.equal(keptNotReoffered(ok).pass, true);
+  assert.equal(outcome(checkScenario(scenario('review-with-verify'), ok), 'kept-not-reoffered').pass, true);
+  const bad = buildSession(stream(happySteps, { result: 'You could fix F-2 or delete the F-2 comment before committing.' }), keptRepo);
+  assert.equal(keptNotReoffered(bad).pass, false);
+  assert.match(keptNotReoffered(bad).evidence, /F-2/);
 });
 
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {

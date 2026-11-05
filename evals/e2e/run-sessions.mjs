@@ -132,7 +132,6 @@ function none(steps, pattern, what) {
   return { pass: !result.pass, evidence: result.evidence };
 }
 
-// The skills say "your next message starts with it": the first text after each matching command's result opens a code block.
 export function reportShownAfter(session, pattern, { lastOnly = false } = {}) {
   const runs = session.timeline.flatMap((item, index) => (item.kind === 'tool' && !item.parent && pattern.test(item.label) && !item.isError ? [index] : []));
   if (!runs.length) return { pass: false, evidence: `no successful step matches ${pattern}` };
@@ -168,12 +167,66 @@ const noCommit = {
 };
 const endsWithSummary = {
   id: 'ends-with-summary',
-  text: 'runs loop summary as the last loop command and shows its report first',
+  text: 'runs loop summary as the last loop command',
   check: (s) => {
     const last = s.steps.filter((step) => /^loop /.test(step.label)).at(-1);
     if (last?.label !== 'loop summary') return { pass: false, evidence: `last loop command: ${last ? short(last.label) : 'none'}` };
-    return reportShownAfter(s, /^loop summary$/, { lastOnly: true });
+    return { pass: true, evidence: last.label };
   },
+};
+
+export function reportNotPastedAfter(session, pattern) {
+  const runs = session.timeline.flatMap((item, index) => (item.kind === 'tool' && !item.parent && pattern.test(item.label) && !item.isError ? [index] : []));
+  if (!runs.length) return { pass: true, evidence: `no successful step matches ${pattern}` };
+  for (const index of runs) {
+    const rest = session.timeline.slice(index + 1);
+    const textAt = rest.findIndex((item) => item.kind === 'text' && item.text.trim());
+    const toolAt = rest.findIndex((item) => item.kind === 'tool' && !item.parent);
+    if (textAt === -1 || (toolAt !== -1 && toolAt < textAt)) continue;
+    const text = rest[textAt].text;
+    if (text.trimStart().startsWith('```')) {
+      return { pass: false, evidence: `pasted after ${short(session.timeline[index].label)}: "${short(text, 80)}"` };
+    }
+  }
+  return { pass: true, evidence: `no pasted report after ${runs.length} match(es)` };
+}
+
+const hookOwnsLoopReports = {
+  id: 'hook-owns-loop-reports',
+  text: 'does not paste a loop report the hook already shows',
+  check: (s) => reportNotPastedAfter(s, /^loop (record\b|summary$)/),
+};
+
+export function keptNotReoffered(session) {
+  const keptIds = [...new Set([
+    ...ledgerEvents(session, 'decision').filter((entry) => entry.choice === 'keep').map((entry) => entry.id).filter(Boolean),
+    ...(session.reviewState?.kept ?? []).map((item) => item.id).filter(Boolean),
+  ])];
+  if (!keptIds.length) return { pass: true, evidence: 'no kept findings' };
+  const askText = session.steps
+    .filter((step) => step.tool === 'AskUserQuestion')
+    .map((step) => JSON.stringify(step.input ?? {}))
+    .join('\n');
+  const prose = [
+    session.finalMessage ?? '',
+    ...session.timeline.filter((item) => item.kind === 'text').map((item) => item.text),
+    askText,
+  ].join('\n');
+  const reoffered = keptIds.filter((id) => {
+    const offer = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
+    const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
+    return offer.test(prose) && !listedKeep.test(prose);
+  });
+  return {
+    pass: reoffered.length === 0,
+    evidence: reoffered.length ? `re-offered: ${reoffered.join(', ')}` : `kept settled: ${keptIds.join(', ')}`,
+  };
+}
+
+const keptSettled = {
+  id: 'kept-not-reoffered',
+  text: 'does not offer to fix a finding recorded as keep',
+  check: keptNotReoffered,
 };
 
 function resolvedReproduced(session) {
@@ -254,6 +307,8 @@ export const SCENARIOS = [
         },
       },
       endsWithSummary,
+      hookOwnsLoopReports,
+      keptSettled,
       noQuestions,
       noCommit,
     ],
@@ -314,6 +369,8 @@ export const SCENARIOS = [
       },
       { id: 'second-review-clean', text: 'a second review is recorded and the loop stops clean', check: secondReviewClean },
       endsWithSummary,
+      hookOwnsLoopReports,
+      keptSettled,
       noQuestions,
       noCommit,
     ],
