@@ -182,7 +182,7 @@ function unprovenSlots(loop) {
 }
 
 function reofferedSlots(loop, ledger = []) {
-  const kept = new Set([...(loop.everKept ?? []), ...ledger.filter(([, kind]) => kind === 'reviewer').map(([slot]) => slot)]);
+  const kept = new Set([...(loop.everKept ?? []), ...ledger.map(([slot]) => slot)]);
   return findingsOf(loop).flatMap((finding, index) => (
     kept.has(index + 1) && ['open', 'deferred'].includes(finding.where) && finding.decision === 'none' ? [index + 1] : []));
 }

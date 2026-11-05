@@ -2803,13 +2803,15 @@ describe('kept findings', () => {
     assert.equal(loop(root, ['decide', '--id', 'F-1', '--choice', 'once']).choice, 'once');
   });
 
-  test('a failing check is still a P1 finding after the user kept it', () => {
+  test('a failing check kept in an earlier run is not offered again', () => {
     const manifest = JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } });
     const root = createRepository({ 'package.json': manifest, 'src/cart.js': correctCart });
     writeFiles(root, { 'src/cart.js': brokenCart });
     keepInFirstReview(root, [], ['--max-rounds', '1']);
     const result = loop(root, ['record'], { findings: [] });
-    assert.deepEqual([result.decision, result.fix[0].severity, result.fix[0].fromChecks], ['continue', 'P1', true]);
+    assert.deepEqual([result.decision, result.reason, result.fix], ['stop', 'clean', []]);
+    assert.match(result.report, /1 finding you kept before was raised again, including:\n- \[P1\] npm run test test fails/);
+    assert.deepEqual(loop(root, ['status']).review.pendingDecisions, []);
   });
 });
 
