@@ -112,7 +112,7 @@ AfterRecord(l, res, new, shape, regr) ==
       counts == Append(l.counts, open)
       next == DecideNext(counts, Cardinality(InState(l1, "deferred")), Cardinality(Unproven(l1)),
                          Cardinality(stuck), IF regr THEN 1 ELSE 0)
-      l2 == [l1 EXCEPT !.counts = counts]
+      l2 == [l1 EXCEPT !.counts = counts, !.everKept = @ \cup keptInLoop]
   IN IF next.decision = "stop" THEN Stopped(l2, next.reason, "decideNext")
      ELSE [l2 EXCEPT !.awaiting = IF next.reason = "proof" THEN "proof" ELSE "fix"]
 
@@ -130,7 +130,8 @@ BeingFixed(l, s) ==
 
 Init ==
   /\ loop = [awaiting |-> "none", round |-> 0, counts |-> <<>>, unattended |-> FALSE, stopReason |-> "none",
-             stoppedBy |-> "none", stopUnproven |-> FALSE, findings |-> [s \in Slots |-> Fresh]]
+             stoppedBy |-> "none", stopUnproven |-> FALSE, everKept |-> {},
+             findings |-> [s \in Slots |-> Fresh]]
   /\ cmd = [name |-> "init"]
 
 \* start in loop.mjs with no saved state.
@@ -194,7 +195,8 @@ DecideCommand ==
   /\ \E s \in Slots, choice \in {"keep", "once", "rule"} :
        /\ loop.findings[s].where \in {"open", "deferred"}
        /\ loop.findings[s].decision # choice
-       /\ loop' = [loop EXCEPT !.findings[s].decision = choice]
+       /\ loop' = [loop EXCEPT !.findings[s].decision = choice,
+                               !.everKept = IF choice = "keep" THEN @ \cup {s} ELSE @]
        /\ cmd' = [name |-> "decide", slot |-> s, choice |-> choice]
 
 \* unattended --on or --off in loop.mjs (setUnattended) with a saved state.
@@ -227,6 +229,7 @@ DecideNextStopHasProof == loop.stoppedBy = "decideNext" /\ loop.stopReason \in {
 StopIfProvenStopHasProof == loop.stoppedBy = "stopIfProven" => ~loop.stopUnproven
 StopWaitingStopHasProof == loop.stoppedBy = "stopWaiting" => ~loop.stopUnproven
 GateNeedsProof == GateAllows(loop) => Unproven(loop) = {}
+KeptNeverReoffered == \A s \in loop.everKept : s \notin Pending(loop)
 
 \* A modeling check, not a property: decideNext gets round = Len(counts) from the table.
 RoundMatchesCounts == loop.awaiting = "review" => Len(loop.counts) + 1 = loop.round
