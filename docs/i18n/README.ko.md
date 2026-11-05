@@ -10,13 +10,13 @@
 [![ledger](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=ledger--*&sort=semver&label=ledger)](../../plugins/ledger/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-> 이 문서는 2026-10-27 시점의 [영어 README](../../README.md)를 번역한 문서입니다. 두 문서의 내용이 다르면 영어 README가 맞습니다.
+> 이 문서는 2026-11-06 시점의 [영어 README](../../README.md)를 번역한 문서입니다. 두 문서의 내용이 다르면 영어 README가 맞습니다.
 
 [English](../../README.md) | 한국어 | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [Tiếng Việt](README.vi.md) | [Bahasa Indonesia](README.id.md)
 
-코딩 에이전트는 코드를 빨리 씁니다. 하지만 자기가 틀린 곳을 알아차리는 데는 훨씬 서툽니다. 변경을 작성한 에이전트는 그 변경의 가장 약한 리뷰어입니다. 자기 추론을 따라 변경을 읽고, 스스로에게 동의하기 때문입니다. 그래서 작업은 리뷰 없이 커밋되거나, 그 작업을 쓴 바로 그 맥락에서 나온 리뷰만 거쳐 커밋됩니다.
+코딩 에이전트는 코드를 빨리 씁니다. 하지만 자기가 틀린 곳을 알아차리는 데는 훨씬 서툽니다. 변경을 작성한 에이전트는 그 변경의 가장 약한 리뷰어입니다. 자기 추론을 따라 변경을 읽고, 스스로에게 동의하기 때문입니다. 그래서 작업은 리뷰 없이 커밋되거나, 그 작업을 한 바로 그 맥락에서 나온 리뷰만 거쳐 커밋됩니다.
 
-**제가 내놓은 답이 LIM입니다. 플러그인마다 한 가지 일만 하고, 그 근거를 숫자로 보여 줍니다.** 중심에는 review-loop가 있고, 그 옆에서 verify와 clear-explain이 함께 일합니다.
+**제가 내놓은 답이 LIM입니다. 작은 플러그인마다 한 가지 일만 하고, 그 근거를 숫자로 보여 줍니다.** 중심에는 review-loop가 있고, 그 옆에서 verify, clear-explain, gap-map, ledger가 함께 일합니다.
 
 ![review-loop 실행 예시. 리뷰어가 두 배가 된 가격을 P2로 지적하고, 수정이 들어가고, 두 번째 리뷰가 지적 사항 없이 멈춘 뒤 요약 표가 나옵니다](../../docs/demo/review-loop.gif)
 
@@ -28,7 +28,7 @@
 
 **되풀이하는 리뷰 코멘트는 규칙이 됩니다.** 지적 사항에 "규칙으로 만들기"(make it a rule)를 고르면, Claude가 lint 규칙이나 테스트 초안을 씁니다. review-loop는 그 초안을 수정 전 코드에 실행해서, 초안이 그 실수를 잡아낸다는 것을 증명합니다. 버그 수정에도 같은 방식으로 회귀 테스트가 붙습니다.
 
-**의도적으로 작게.** review-loop가 세션에 추가하는 양은 약 275 토큰입니다. hook은 사용자가 저장소에서 켜기 전까지 아무 일도 하지 않습니다. 무엇이든 설치하기 전에는 그것이 무엇이고 어떻게 제거하는지 먼저 알려 줍니다.
+**의도적으로 작게.** review-loop가 세션에 추가하는 양은 약 275 토큰입니다. 커밋 게이트는 사용자가 저장소에서 켜기 전까지 아무 일도 하지 않고, 보고서 hook은 review-loop 자신의 명령에만 반응합니다. 무엇이든 설치하기 전에는 그것이 무엇이고 어떻게 제거하는지 먼저 알려 줍니다.
 
 fork해서 바꾸고, 자기 것으로 만들어 써도 좋습니다. 이슈와 pull request를 환영합니다.
 
@@ -51,7 +51,7 @@ Claude Code, git, Node.js 18 이상이 필요합니다.
 /plugin install review-loop@lim
 ```
 
-Claude Code가 재시작을 요청하면 재시작합니다. marketplace를 추가하면 카탈로그만 등록됩니다. 각 플러그인은 따로 설치하므로, 사용자가 고른 플러그인만 설치됩니다.
+Claude Code가 재시작을 요청하면 재시작합니다. marketplace를 추가하면 카탈로그만 등록됩니다. 각 플러그인은 따로 설치하므로, 사용자가 고른 플러그인만 설치됩니다. 다른 플러그인을 추가하려면 위 표의 이름을 쓰면 됩니다. 예: `/plugin install verify@lim`.
 
 ## 시작하기
 
@@ -66,7 +66,7 @@ Claude Code가 재시작을 요청하면 재시작합니다. marketplace를 추�
 
 이게 전부입니다. review-loop는 검사를 실행하고, 변경을 리뷰하고, 반드시 고쳐야 할 것을 고친 뒤, 나머지는 사용자에게 묻습니다. 마지막에는 이 저장소에서 커밋 게이트를 켤지 한 번 묻고, 그다음 커밋할지 묻습니다.
 
-처음이라면 [가이드](../../docs/guide/README.md)(영어)를 보세요. 첫 리뷰, 결정하기, 커밋 게이트, 비용, 주의할 점을 실제 출력과 함께 보여 줍니다.
+처음이라면 [가이드](../../docs/guide/README.md)(영어)를 보세요. 첫 리뷰, 결정하기, 커밋 게이트, 비용, 주의할 점, 다른 언어의 검사, verify로 지적 사항 재현하기를 실제 출력과 함께 보여 줍니다.
 
 ## 사용법
 
@@ -86,7 +86,7 @@ Claude Code가 재시작을 요청하면 재시작합니다. marketplace를 추�
 
 ### 한 라운드의 모습
 
-모든 라운드는 보고서로 끝납니다. Claude는 다른 무엇보다 이 보고서를 먼저 보여 줍니다.
+모든 라운드는 보고서로 끝납니다. hook이 그 보고서를 돌려준 명령 바로 아래에 보여 줍니다.
 
 ```
 Review round 2 of 3 (reviewer: session model)
@@ -124,6 +124,8 @@ delegate commits:       /review-loop:review-loop stop asking before commits in t
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
+what a run did:         /review-loop:review-loop what did the unattended review do?
+PR description:         /review-loop:review-loop write a pull request description of this review.
 ```
 
 </details>
@@ -162,7 +164,7 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 
 ### 심각도
 
-뱅크샐러드가 공개한 Pn 규칙을 기반으로 합니다.
+[뱅크샐러드가 공개한 Pn 규칙](https://blog.banksalad.com/tech/banksalad-code-review-culture/)을 기반으로 합니다.
 
 | 등급 | 의미 | 루프 동작 |
 |---|---|---|
@@ -207,7 +209,7 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 | `--no-verify`를 쓴 커밋 | 커밋을 위임했더라도 물음. 리뷰를 통과하지 않은 커밋은 계속 차단 |
 | 게이트가 읽을 수 없는 폴더에서 하는 커밋(예: `cd "$(...)"`, 존재하지 않는 경로) | Claude Code를 시작한 저장소에서 게이트가 켜져 있으면, 커밋을 위임했더라도 물음 |
 
-리뷰 없이 한 번만 커밋하려면, 이번에는 리뷰를 건너뛰라고 Claude에게 요청합니다. 게이트 설정과 커밋 위임은 연결된 worktree를 포함해 저장소 전체에 적용됩니다. 리뷰는 worktree마다 따로 합니다.
+리뷰 없이 한 번만 커밋하려면, 이번에는 리뷰를 건너뛰라고 Claude에게 요청합니다. 게이트 설정과 커밋 위임은 연결된 worktree를 포함해 저장소 전체에 적용됩니다. 리뷰는 worktree마다 따로 합니다. 모든 경우는 [review-loop README](../../plugins/review-loop/README.md#commit-gate)에 있습니다.
 
 </details>
 
@@ -236,9 +238,15 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 | claude-sonnet-5-5 | 실행 안 함 | 실행 안 함 | 30개 중 29개 | 18개 중 0개 | $1.14 |
 | claude-haiku-5-5 | 실행 안 함 | 실행 안 함 | 30개 중 30개 | 18개 중 3개 | $0.09(Claude Code가 보고한 값) |
 
-리뷰어는 기본적으로 사용자 세션의 모델로 실행됩니다. Opus는 두 세트에서 심은 버그를 모두 찾았기 때문에, 이 벤치마크는 아직 Opus가 찾는 버그가 줄어드는 것을 보여 주지 못합니다. 이 벤치마크가 더 나쁜 `reviewer.md`를 조금이라도 드러내는지 보려고, 출력 형식만 남기고 줄인 `reviewer.md`로도 Opus에게 어려운 세트를 실행시켰습니다. 그래도 30개 중 30개를 찾았고, 깨끗한 실행 18회에서 잘못된 P2가 1개 나왔으며, 전체 리뷰어가 55개를 낸 자리에서 P3부터 P5까지의 지적 사항을 83개 냈습니다. Opus에게 이 버그들을 찾는 일은 지시문보다 모델에 더 달려 있고, 더 나쁜 `reviewer.md`는 오탐과 잡음으로 드러납니다. Sonnet이 놓친 하나는 비동기 쓰기 전에 비워지는 버퍼에 대해 지적 사항을 하나도 내지 않은 경우입니다. Haiku의 오탐 3개는 모두 같은 깨끗한 케이스 하나에서 나왔고, 이 케이스는 이틀에 걸쳐 전체 리뷰어로 Opus를 9회 실행했을 때도 잘못된 P2가 1개 나왔습니다. 지적 사항은 심은 버그를 바뀐 줄에서 짚을 때, 또는 다른 파일에서만 보이는 버그라면 그 파일의 표시된 줄에서 짚을 때 찾은 것으로 셉니다. 첫 실행 뒤에, 리뷰어가 심은 버그를 채점이 받아들이지 않는 표현으로 짚은 케이스 네 개에 키워드를 추가했고, 저장된 모든 실행을 그 키워드로 다시 채점했습니다. 다시 실행하려면 `node evals/review-loop/run-detection.mjs --runs 3`을 쓰고, 어려운 세트는 `--cases evals/review-loop/detection-hard`를 덧붙이세요.
+리뷰어는 기본적으로 사용자 세션의 모델로 실행됩니다. Opus는 두 세트에서 심은 버그를 모두 찾았기 때문에, 이 벤치마크는 아직 Opus가 찾는 버그가 줄어드는 것을 보여 주지 못합니다. 이 벤치마크가 더 나쁜 `reviewer.md`를 조금이라도 드러내는지 보려고, 출력 형식만 남기고 줄인 `reviewer.md`로도 Opus에게 어려운 세트를 실행시켰습니다. 그래도 30개 중 30개를 찾았고, 깨끗한 실행 18회에서 잘못된 P2가 1개 나왔으며, P3부터 P5까지의 지적 사항은 원래 리뷰어의 55개보다 많은 83개를 냈습니다. Opus에게 이 버그들을 찾는 일은 지시문보다 모델에 더 달려 있고, 더 나쁜 `reviewer.md`는 오탐과 잡음으로 드러납니다. 
+
+Sonnet이 놓친 하나는 비동기 쓰기 전에 비워지는 버퍼에 대해 지적 사항을 하나도 내지 않은 경우입니다. Haiku의 오탐 3개는 모두 같은 깨끗한 케이스 하나에서 나왔고, 이 케이스는 이틀에 걸쳐 원래 리뷰어로 Opus를 9회 실행했을 때도 잘못된 P2가 1개 나왔습니다. 
+
+지적 사항은 심은 버그를 바뀐 줄에서 짚을 때, 또는 다른 파일에서만 보이는 버그라면 그 파일의 표시된 줄에서 짚을 때 찾은 것으로 셉니다. 첫 실행 뒤에, 심은 버그를 리뷰어가 채점이 받아들이지 않는 표현으로 짚은 케이스 네 개에 키워드를 추가했고, 저장된 모든 실행을 그 키워드로 다시 채점했습니다. 다시 실행하려면 `node evals/review-loop/run-detection.mjs --runs 3`을 쓰고, 어려운 세트는 `--cases evals/review-loop/detection-hard`를 덧붙이세요.
 
 위 표가 리뷰어 기본 모델의 근거입니다. 어려운 세트에서 Opus는 30개 중 30개를 찾았고 잘못 낸 P1이나 P2가 없었습니다. Sonnet은 30개 중 29개를 찾았고 잘못 낸 P1이나 P2가 없었으며, 비용은 Opus의 약 37%였습니다. Haiku는 30개 중 30개를 찾았고 깨끗한 실행 18회 중 3회에서 P1이나 P2를 잘못 냈습니다. 그래서 기본값은 세션의 모델로 두고, 변경을 작성한 모델과 다른 모델로 리뷰하고 싶다면 Sonnet이 더 저렴한 선택입니다.
+
+2026-11-05에 Opus로, 같은 `reviewer.md`와 Claude Code 2.1.318로 두 세트를 다시 돌렸을 때도 심은 버그는 모두 찾았습니다(36개 중 36개, 30개 중 30개). 하지만 세트마다 깨끗한 변경 하나에서 P2를 냈고, 그 케이스는 3번 실행 모두에서 나왔습니다. 세트당 깨끗한 실행 18번 중 3번이며, 표의 0/18과 다릅니다. 자세한 내용은 [review-loop README](../../plugins/review-loop/README.md#measured-behavior)에 있고, [#285](https://github.com/lee-eojin/lim/issues/285)에서 그 지적 사항이 실제인지 추적합니다.
 
 [`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/)에는 Python, Rust, Go에 심은 버그 6개와 깨끗한 변경 2개가 있습니다. 케이스당 3회 실행했을 때 Opus와 Sonnet은 18개 중 18개, Haiku는 18개 중 16개를 찾았고, 어느 모델도 깨끗한 실행 6회에서 잘못 낸 P1이나 P2가 없었습니다. 자세한 내용은 [review-loop README](../../plugins/review-loop/README.md#measured-behavior)에 있습니다.
 
@@ -249,14 +257,14 @@ Claude가 무언가를 고쳤다고 말할 때는 어떻게 아는지도 함께 
 
 | 구성 요소 | 항상 켜짐, 모든 세션 | 실행할 때마다 |
 |---|---|---|
-| review-loop 스킬 | 약 210 토큰 | 약 6,000 토큰 |
+| review-loop 스킬 | 약 210 토큰 | 약 7,400 토큰 |
 | 리뷰어 에이전트 | 약 60 토큰 | 약 1,800 토큰, 여기에 diff와 리뷰어가 읽는 코드가 더해짐 |
 
 스킬 비용은 실행마다 한 번 듭니다. 리뷰어 비용은 라운드마다 한 번 들고, 루프는 최대 3라운드까지 진행합니다. 리뷰어 모델에 따라 이 비용이 달라지며, 모델별 비용은 위 벤치마크 표에 있습니다. 검사는 사용자의 컴퓨터에서 실행되므로 토큰이 들지 않습니다.
 
 </details>
 
-review-loop는 LIM 자체의 pull request를 리뷰합니다. [#8](https://github.com/lee-eojin/lim/pull/8)은 review-loop 첫 버전에서 실행한 루프 두 번을 보여 줍니다. 그중 한 번은 review-loop 자체의 테스트 약화 검사가 낸 오탐 때문에 멈췄고, 그 오탐은 이후에 수정되었습니다. [#46](https://github.com/lee-eojin/lim/pull/46) 같은 최근 pull request에서는 review-loop 보고서와 지적 사항별 결정을 볼 수 있습니다.
+review-loop는 LIM 자체의 pull request를 많이 리뷰해 왔습니다. [#8](https://github.com/lee-eojin/lim/pull/8)은 review-loop 첫 버전에서 실행한 루프 두 번을 보여 줍니다. 그중 한 번은 review-loop 자체의 테스트 약화 검사가 낸 오탐 때문에 멈췄고, 그 오탐은 이후에 수정되었습니다. [#46](https://github.com/lee-eojin/lim/pull/46)과 [#192](https://github.com/lee-eojin/lim/pull/192) 같은 pull request에서는 review-loop 보고서와 지적 사항별 결정을 볼 수 있습니다. [#305](https://github.com/lee-eojin/lim/pull/305) 같은 최근 것들은 대신 근거 보고서를 담습니다. 실행한 명령, 그 출력, 측정하지 않은 것이 들어 있습니다.
 
 ## 이렇게 동작하는 이유
 
@@ -305,8 +313,10 @@ review-loop는 자체적으로 네트워크 요청을 보내지 않습니다. Cl
 
 - 검사는 `package.json` 스크립트, Makefile 타깃, Go, Rust, 설정해 둔 Python 도구(pytest, ruff, mypy), Gradle, Maven, .NET, 프로젝트가 사용하는 Ruby 도구(rspec, rake test, rubocop) 순서로, 저장소 최상위 폴더와 변경이 닿은 하위 폴더 프로젝트(라운드마다 최대 4개)에서 감지합니다.
 - 검사 하나는 최대 5분, 모든 검사는 합쳐서 최대 9분까지 실행합니다.
+- 수정이 테스트나 검사를 약하게 만드는지 보고 멈추는 스크립트는 JavaScript와 TypeScript 파일, `__snapshots__/` 아래 변경, `.github/workflows/` 아래 변경만 읽습니다. 다른 언어에서 `@pytest.mark.skip`이나 `t.Skip()`처럼 테스트를 건너뛰거나 lint 규칙을 끄는 것은 루프를 멈추지 않습니다.
 - 커밋 게이트가 꺼져 있으면, 커밋 전에 묻는 동작은 Claude에게 주는 지시일 뿐입니다. 이 동작은 보장되지 않습니다.
-- 커밋 게이트는 Claude가 Bash 도구로 실행하는 명령만 검사합니다. 사용자가 자신의 터미널에서 직접 입력한 커밋은 검사하지 않습니다. `git ci` 같은 git alias를 거친 커밋은 `git commit`처럼 검사합니다. 커밋하는 shell alias(`!...`)는 게이트가 그 안을 볼 수 없어서 사용자에게 묻습니다. `git -c alias.ci=commit`처럼 명령 안에서 바로 정한 alias는 인식하지 않습니다.
+- 보고서는 hook을 통해 전달됩니다. hook을 모두 끄면(`disableAllHooks`) 보고서를 돌려준 명령의 접힌 출력 안에서만 볼 수 있습니다. 커밋 게이트도 hook이므로 함께 꺼집니다. 통과한 리뷰가 없어도 Claude의 커밋이 막히지 않습니다.
+- 커밋 게이트는 Claude가 Bash 도구로 실행하는 명령만 검사합니다. 사용자가 자신의 터미널에서 직접 입력한 커밋은 검사하지 않습니다. `git ci` 같은 git alias를 거친 커밋은 `git commit`처럼 검사합니다. 커밋하는 shell alias(`!...`)는 게이트가 그 안을 볼 수 없어서 사용자에게 묻습니다. `git -c alias.ci=commit`처럼 명령 안에서 바로 정한 alias는 alias로 읽지 않으므로, 게이트가 물어봅니다.
 - 저장소가 아닌 폴더에서 Claude Code를 시작하면, 게이트는 어느 저장소인지 알 수 없는 커밋을 검사하지 못합니다. 예: `cd "$(...)"` 뒤의 커밋.
 - 리뷰 범위는 `git add -A`가 포함할 모든 변경입니다. 사용자가 직접 골라서 stage한 변경만 리뷰하지는 않습니다.
 - 규칙과 회귀 테스트는 임시 복사본에서 확인합니다. 이 복사본에는 추적 중인(tracked) 파일과, 최상위 폴더 및 지적 사항과 초안이 들어 있는 프로젝트의 `node_modules`로 연결되는 링크가 들어 있습니다. `.env` 같은 그 밖의 무시된(ignored) 파일은 없습니다. 그래서 그런 파일이 필요한 검사는 규칙이나 테스트를 증명하지 못했다고 보고하거나, 잘못된 이유로 잡았다고 보고합니다. 어느 쪽인지는 Claude가 실패 내용을 읽고 판단합니다.
@@ -320,7 +330,7 @@ review-loop는 자체적으로 네트워크 요청을 보내지 않습니다. Cl
 절대 하지 않습니다. 사용자가 "이 저장소에서는 더 묻지 않기"를 선택하지 않았다면, 모든 커밋 전에 묻습니다. 이 설정을 다시 끄려면, Claude에게 review-loop의 커밋 위임을 끄라고 요청합니다.
 
 **다른 플러그인과 충돌하나요?**
-review-loop는 스킬 하나, 에이전트 하나, hook 하나를 추가합니다. 이 hook은 Bash 명령을 읽고, `git commit`과 `git push`에만 반응합니다. 사용자가 그 저장소에서 커밋 게이트를 켜지 않았다면, 이 hook은 아무 일도 하지 않습니다. 이름이 모두 `review-loop:`로 시작하므로, 다른 플러그인의 이름과 겹치지 않습니다. 사용자가 일반 문장으로 요청하면, Claude가 다른 리뷰 스킬을 고를 수 있습니다. 명령을 쓰면 항상 review-loop가 시작됩니다.
+review-loop는 스킬 하나, 에이전트 하나, hook 두 개를 추가합니다. 커밋 게이트 hook은 Bash 명령을 읽고, `git commit`과 `git push`에만 반응하며, 사용자가 그 저장소에서 커밋 게이트를 켜지 않았다면 아무 일도 하지 않습니다. 보고서 hook은 review-loop 스크립트를 실행하는 명령에만 반응하고, 그 명령이 돌려준 보고서를 보여 줍니다. 이름이 모두 `review-loop:`로 시작하므로, 다른 플러그인의 이름과 겹치지 않습니다. 사용자가 일반 문장으로 요청하면, Claude가 다른 리뷰 스킬을 고를 수 있습니다. 명령을 쓰면 항상 review-loop가 시작됩니다.
 
 **루프 도중에 세션이 끝나면 어떻게 되나요?**
 명령을 다시 실행합니다. 명령은 멈춘 라운드와 단계에서 이어서 진행할지, 처음부터 다시 시작할지 선택지를 제시합니다.
@@ -346,7 +356,7 @@ review-loop는 이미 있는 검사를 그대로 씁니다. `typecheck`, `lint`,
 ## LIM을 만드는 방식
 
 - **이슈 먼저.** 모든 변경은 이슈에서 시작합니다. 변경은 pull request로 들어가고, 메인테이너가 그 pull request를 squash merge합니다.
-- **스스로 리뷰.** 모든 pull request는 자기 diff에 review-loop를 실행합니다. pull request 설명에는 보고서와 지적 사항별 결정이 들어갑니다.
+- **스스로 리뷰.** review-loop는 LIM 자체의 pull request를 많이 리뷰해 왔고, 그 설명에는 보고서와 지적 사항별 결정이 들어갑니다. 최근 것들은 대신 근거 보고서를 담습니다.
 - **플러그인별 버전.** 각 플러그인은 Semantic Versioning을 따르고, 자체 `CHANGELOG.md`를 유지하며, `<plugin>--v<version>` 형식으로 태그를 붙입니다. minor 릴리스와 major 릴리스에는 GitHub Release를 만듭니다.
 - **의도적으로 작게.** 플러그인 하나는 진입 스킬 하나, 250줄 미만의 `SKILL.md`, opt-in hook만 가집니다.
 

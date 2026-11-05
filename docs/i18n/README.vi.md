@@ -10,25 +10,25 @@
 [![ledger](https://img.shields.io/github/v/tag/lee-eojin/lim?filter=ledger--*&sort=semver&label=ledger)](../../plugins/ledger/CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](../../LICENSE)
 
-Đây là bản dịch của [README tiếng Anh](../../README.md) tại ngày 2026-10-27. Nếu hai bản khác nhau, README tiếng Anh là bản đúng.
+> Đây là bản dịch của [README tiếng Anh](../../README.md) tại ngày 2026-11-06. Nếu hai bản khác nhau, README tiếng Anh là bản đúng.
 
 [English](../../README.md) | [한국어](README.ko.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | Tiếng Việt | [Bahasa Indonesia](README.id.md)
 
 Coding agent viết code rất nhanh. Nhưng chúng kém hơn nhiều trong việc nhận ra mình đã sai ở đâu. Agent đã viết một thay đổi là reviewer yếu nhất cho thay đổi đó, vì nó đọc thay đổi qua chính lập luận của mình và đồng ý với chính mình. Vì vậy, code được commit mà không có review, hoặc với một lần review từ chính ngữ cảnh đã viết ra nó.
 
-**LIM là câu trả lời của tôi: những plugin nhỏ, mỗi plugin làm một việc, kèm theo con số để chứng minh.** review-loop là trung tâm, còn verify và clear-explain làm việc bên cạnh nó.
+**LIM là câu trả lời của tôi: những plugin nhỏ, mỗi plugin làm một việc, kèm theo con số để chứng minh.** review-loop là trung tâm, còn verify, clear-explain, gap-map và ledger làm việc bên cạnh nó.
 
 ![Một lần chạy review-loop: reviewer đánh dấu giá bị nhân đôi là P2, bản sửa được áp dụng, lần review thứ hai dừng lại không còn phát hiện nào, rồi đến bảng tóm tắt](../../docs/demo/review-loop.gif)
 
-<sub>Vòng lặp, các bước kiểm tra và báo cáo review là thật. Các phát hiện và chỉnh sửa code được soạn sẵn, còn các dòng sau start, next và rule tóm tắt JSON của chúng. Tạo lại bằng `vhs docs/demo/review-loop.tape`.</sub>
+<sub>Vòng lặp, các check và báo cáo review là thật. Các phát hiện và chỉnh sửa code được soạn sẵn, còn các dòng sau start, next và rule tóm tắt JSON của chúng. Tạo lại bằng `vhs docs/demo/review-loop.tape`.</sub>
 
 **review-loop khiến "sẵn sàng để commit" có nghĩa là đã được review.** Test, kiểm tra kiểu và lint của bạn chạy trước, trong các dự án Node.js, Python, Go, Rust, Java (Gradle hoặc Maven), .NET, Ruby và Makefile, kể cả tối đa 4 dự án trong thư mục con mà thay đổi chạm tới mỗi vòng. Sau đó, một reviewer với ngữ cảnh mới, không bao giờ thấy lập luận của Claude, gắn nhãn các phát hiện từ P1 đến P5 và phải đưa ra bằng chứng cho những phát hiện nghiêm trọng. Claude sửa P1 và P2, một reviewer mới kiểm tra các bản sửa, và một script, không phải mô hình, quyết định khi nào dừng. Bạn quyết định phần còn lại một lần, ở cuối.
 
-**Chứng minh bằng cách chạy tính năng.** Với [verify](../../plugins/verify), một phát hiện được xem là tái hiện khi một bước kiểm tra chạy tính năng đó thất bại trên code được review, và bản sửa của nó chỉ được tính khi chính bước kiểm tra đó chạy đạt trở lại.
+**Chứng minh bằng cách chạy tính năng.** Với [verify](../../plugins/verify), một phát hiện được xem là tái hiện khi một check chạy tính năng đó thất bại trên code được review, và bản sửa của nó chỉ được tính khi chính check đó chạy đạt trở lại.
 
 **Những nhận xét bạn cứ phải lặp lại sẽ trở thành quy tắc.** Khi bạn đánh dấu một phát hiện là "biến nó thành một quy tắc", Claude soạn bản nháp một quy tắc lint hoặc một test, và review-loop chạy nó trên code từ trước bản sửa để chứng minh rằng nó bắt được lỗi đó. Một bản sửa bug cũng nhận được một regression test theo cùng cách.
 
-**Nhỏ có chủ đích.** review-loop thêm khoảng 275 token vào một session. Hook của nó không làm gì cho đến khi bạn bật nó trong một repository. Không có gì được cài đặt mà không cho bạn biết nó là gì và cách gỡ nó.
+**Nhỏ có chủ đích.** review-loop thêm khoảng 275 token vào một session. Commit gate của nó không làm gì cho đến khi bạn bật nó trong một repository, và hook báo cáo chỉ tác động lên các lệnh của chính review-loop. Không có gì được cài đặt mà không cho bạn biết nó là gì và cách gỡ nó.
 
 Hãy fork, chỉnh sửa và biến nó thành của bạn. Chúng tôi hoan nghênh issue và pull request.
 
@@ -39,7 +39,7 @@ Hãy fork, chỉnh sửa và biến nó thành của bạn. Chúng tôi hoan ngh
 | [review-loop](../../plugins/review-loop) | 0.11.12 | Review các thay đổi của bạn trước khi commit, sửa các phát hiện P1 và P2, review lại và giao phần còn lại cho bạn. |
 | [clear-explain](../../plugins/clear-explain) | 0.1.5 | Giải thích khái niệm, code và lỗi với câu trả lời đặt trước, mỗi từ một nghĩa, và thuật ngữ kỹ thuật giữ tên tiếng Anh chính thức. |
 | [verify](../../plugins/verify) | 0.6.1 | Chứng minh các tính năng hoạt động bằng cách chạy chúng, và lưu lệnh cùng output làm bằng chứng. |
-| [gap-map](../../plugins/gap-map) | 0.3.0 | Đối chiếu bản cài đặt của một ngôn ngữ với chính những gì nó hứa, và chỉ đóng một lỗ hổng khi test thật chạy qua. |
+| [gap-map](../../plugins/gap-map) | 0.3.0 | Đối chiếu bản cài đặt của một ngôn ngữ với chính những gì nó hứa, và chỉ đánh dấu một lỗ hổng là đã đóng khi test thật chạy qua. |
 | [ledger](../../plugins/ledger) | 0.2.0 | Tách riêng quan sát, suy luận và điều chưa biết trong một cuộc điều tra, và chỉ đánh dấu một câu hỏi đã trả lời khi bằng chứng vẫn còn đúng. |
 
 ## Cài đặt
@@ -51,7 +51,7 @@ Bạn cần Claude Code, git và Node.js 18 trở lên.
 /plugin install review-loop@lim
 ```
 
-Nếu Claude Code yêu cầu, hãy khởi động lại Claude Code. Việc thêm marketplace chỉ đăng ký danh mục. Mỗi plugin được cài riêng, vì vậy bạn chỉ nhận những gì bạn chọn.
+Nếu Claude Code yêu cầu, hãy khởi động lại Claude Code. Việc thêm marketplace chỉ đăng ký danh mục. Mỗi plugin được cài riêng, vì vậy bạn chỉ nhận những gì bạn chọn. Để thêm một plugin khác, dùng tên của nó trong bảng trên, ví dụ `/plugin install verify@lim`.
 
 ## Bắt đầu
 
@@ -66,7 +66,7 @@ Hai bước:
 
 Vậy là xong. review-loop chạy các check của bạn, review thay đổi, sửa những gì phải sửa và hỏi bạn về phần còn lại. Ở cuối, nó hỏi một lần xem có bật commit gate cho repository này không, rồi hỏi có commit không.
 
-Mới bắt đầu? [Hướng dẫn](../../docs/guide/README.md) (bằng tiếng Anh) đi qua lần review đầu tiên, cách quyết định, commit gate, chi phí và các lỗi thường gặp, với output thật.
+Mới bắt đầu? [Hướng dẫn](../../docs/guide/README.md) (bằng tiếng Anh) đi qua lần review đầu tiên, cách quyết định, commit gate, chi phí, các lỗi thường gặp, các check ở ngôn ngữ khác, và cách tái hiện một phát hiện với verify, với output thật.
 
 ## Cách dùng
 
@@ -86,7 +86,7 @@ Claude cũng có thể tự khởi động review-loop khi bạn yêu cầu nó 
 
 ### Một vòng trông như thế nào
 
-Mỗi vòng kết thúc bằng một báo cáo. Claude hiển thị báo cáo này trước mọi thứ khác:
+Mỗi vòng kết thúc bằng một báo cáo. Một hook hiển thị báo cáo ngay bên dưới lệnh đã trả về nó:
 
 ```
 Review round 2 of 3 (reviewer: session model)
@@ -124,6 +124,8 @@ delegate commits:       /review-loop:review-loop stop asking before commits in t
 take it back:           /review-loop:review-loop turn off commit delegation.
 run unattended:         /review-loop:review-loop run unattended. I will read the summary in the morning.
 reviewer model:         /review-loop:review-loop run the reviewer on sonnet in this repo.
+what a run did:         /review-loop:review-loop what did the unattended review do?
+PR description:         /review-loop:review-loop write a pull request description of this review.
 ```
 
 </details>
@@ -162,7 +164,7 @@ Một guard là đúng ở nơi một trạng thái hợp lệ đi vào code: d�
 
 ### Mức độ nghiêm trọng
 
-Các mức này dựa trên quy tắc Pn công khai của Banksalad.
+Các mức này dựa trên [quy tắc Pn công khai của Banksalad](https://blog.banksalad.com/tech/banksalad-code-review-culture/).
 
 | Mức | Ý nghĩa | Hành vi của vòng lặp |
 |---|---|---|
@@ -176,7 +178,7 @@ P1 hoặc P2 về một file không có trong diff mà vòng đó đã review s�
 
 ### Quy tắc và regression test
 
-Một nhận xét mà reviewer phải lặp lại là dấu hiệu của một quy tắc còn thiếu. review-loop luôn đếm: mỗi lần review ghi lại loại của từng phát hiện vào một file dùng chung cho mọi worktree của repository, và một phát hiện thuộc một trong bốn loại ở trên có loại đã được các lần review trước nêu từ 3 lần trở lên sẽ được đánh dấu là lặp lại. Các nhãn rộng như correctness vẫn được ghi lại nhưng không bao giờ được tính là lặp lại. Khi bạn chọn "biến nó thành một quy tắc" cho một phát hiện, Claude trước tiên tìm một quy tắc có sẵn trong cấu hình lint hoặc test của bạn mà lẽ ra đã phải bắt được nó. Sau đó, Claude chọn hình thức đầu tiên có tác dụng: bật một quy tắc lint có sẵn, viết một quy tắc tùy chỉnh cho linter bạn đang dùng, hoặc viết một test. Bản nháp không bao giờ được đặt vào file mà phát hiện nói đến.
+Một nhận xét mà reviewer phải lặp lại là dấu hiệu của một quy tắc còn thiếu. review-loop luôn đếm: mỗi lần review ghi lại loại của từng phát hiện vào một file dùng chung cho mọi worktree của repository, và một phát hiện thuộc một trong bốn loại ở trên, nếu loại đó đã được các lần review trước nêu từ 3 lần trở lên, sẽ được đánh dấu là lặp lại. Các nhãn rộng như correctness vẫn được ghi lại nhưng không bao giờ được tính là lặp lại. Khi bạn chọn "biến nó thành một quy tắc" cho một phát hiện, Claude trước tiên tìm một quy tắc có sẵn trong cấu hình lint hoặc test của bạn mà lẽ ra đã phải bắt được nó. Sau đó, Claude chọn hình thức đầu tiên có tác dụng: bật một quy tắc lint có sẵn, viết một quy tắc tùy chỉnh cho linter bạn đang dùng, hoặc viết một test. Bản nháp không bao giờ được đặt vào file mà phát hiện nói đến.
 
 Tiếp theo, review-loop chứng minh bản nháp đó. Nó ghi code từ trước bản sửa vào một thư mục tạm và chạy các check của bạn ở đó, có và không có bản nháp:
 
@@ -202,18 +204,18 @@ Commit gate là một hook luôn tắt cho đến khi bạn bật nó trong mộ
 | Chưa có review, hoặc có file thay đổi mà review chưa bao phủ | Chặn commit và yêu cầu Claude chạy review |
 | Một vòng lặp review đang chạy, hoặc vẫn còn quyết định đang chờ | Chặn commit |
 | Review đã đạt | Hỏi bạn trước khi commit, hoặc cho phép commit nếu bạn đã ủy quyền commit trong repository này |
-| Sau review, chỉ có các file đã review hoặc bản nháp quy tắc và regression test mà `loop rule` đã kiểm tra thay đổi | Hỏi bạn |
+| Sau review, chỉ có các file đã review, hoặc bản nháp quy tắc và regression test mà `loop rule` đã kiểm tra, bị thay đổi | Hỏi bạn |
 | `git push` hoặc force push | Luôn hỏi, kể cả khi đã ủy quyền |
 | Commit với `--no-verify` | Hỏi, kể cả khi đã ủy quyền, và vẫn chặn commit chưa có review đạt |
 | Commit trong thư mục mà gate không đọc được, ví dụ `cd "$(...)"` hoặc đường dẫn không tồn tại | Hỏi bạn, kể cả khi đã ủy quyền, nếu gate đang bật trong repository nơi bạn khởi động Claude Code |
 
-Để commit một lần mà không review, hãy yêu cầu Claude bỏ qua review lần này. Thiết lập gate và việc ủy quyền commit áp dụng cho toàn bộ repository, kể cả các worktree liên kết. Mỗi worktree có review riêng.
+Để commit một lần mà không review, hãy yêu cầu Claude bỏ qua review lần này. Thiết lập gate và việc ủy quyền commit áp dụng cho toàn bộ repository, kể cả các worktree liên kết. Mỗi worktree có review riêng. [review-loop README](../../plugins/review-loop/README.md#commit-gate) liệt kê từng trường hợp.
 
 </details>
 
 ### Thiết lập
 
-Năm thiết lập đầu tiên áp dụng cho một repository. Để thay đổi, hãy gõ yêu cầu sau `/review-loop:review-loop`, để Claude đã nạp sẵn các lệnh của skill. Giới hạn thời gian của check là một biến môi trường, nên nó áp dụng ở bất cứ nơi nào bạn đặt, và tổng 9 phút là cố định.
+Năm thiết lập đầu tiên áp dụng cho một repository. Để thay đổi, hãy gõ yêu cầu sau `/review-loop:review-loop`, để Claude nạp sẵn các lệnh của skill. Giới hạn thời gian của check là một biến môi trường, nên nó áp dụng ở bất cứ nơi nào bạn đặt, và tổng 9 phút là cố định.
 
 | Thiết lập | Mặc định | Cần gõ |
 |---|---|---|
@@ -236,9 +238,15 @@ Một benchmark phát hiện lỗi đưa cho reviewer các thay đổi trong cá
 | claude-sonnet-5-5 | chưa chạy | chưa chạy | 29 trên 30 | 0 trên 18 | 1,14 USD |
 | claude-haiku-5-5 | chưa chạy | chưa chạy | 30 trên 30 | 3 trên 18 | 0,09 USD, theo báo cáo của Claude Code |
 
-Mặc định, reviewer chạy bằng model mà session của bạn đang dùng. Opus tìm thấy mọi bug được cài sẵn trong cả hai bộ, nên benchmark chưa thể cho thấy số bug tìm được giảm đi đối với nó. Để xem benchmark có cho thấy được một `reviewer.md` kém hơn hay không, Opus cũng chạy bộ khó hơn với một `reviewer.md` được cắt gọn chỉ còn định dạng đầu ra: nó vẫn tìm được 30 trên 30, tạo ra 1 P2 sai trong 18 lần chạy sạch, và nêu 83 phát hiện từ P3 đến P5, trong khi reviewer đầy đủ nêu 55. Với Opus, việc tìm ra các bug này phụ thuộc vào model nhiều hơn vào hướng dẫn, và một `reviewer.md` kém hơn lộ ra dưới dạng cảnh báo sai và nhiễu. Lần bỏ sót duy nhất của Sonnet không trả về phát hiện nào cho buffer bị làm rỗng trước một thao tác ghi bất đồng bộ. Cả 3 cảnh báo sai của Haiku đều nằm trên cùng một trường hợp sạch, và trường hợp này cũng tạo ra 1 P2 sai trong 9 lần chạy Opus với reviewer đầy đủ qua hai ngày. Một phát hiện được tính khi nó nêu bug được cài sẵn tại một dòng đã thay đổi, hoặc, với bug chỉ thấy được trong một file khác, tại một dòng được đánh dấu trong file đó. Sau các lần chạy đầu tiên, từ khóa đã được thêm vào bốn trường hợp mà reviewer nêu bug được cài sẵn bằng cách diễn đạt mà cách chấm điểm không chấp nhận, và mọi lần chạy đã lưu đều được chấm lại với các từ khóa đó. Chạy lại bằng `node evals/review-loop/run-detection.mjs --runs 3`, và thêm `--cases evals/review-loop/detection-hard` cho bộ khó hơn.
+Mặc định, reviewer chạy bằng model mà session của bạn đang dùng. Opus tìm thấy mọi bug được cài sẵn trong cả hai bộ, nên benchmark chưa thể cho thấy số bug tìm được giảm đi đối với nó. Để xem benchmark có cho thấy được một `reviewer.md` kém hơn hay không, Opus cũng chạy bộ khó hơn với một `reviewer.md` được cắt gọn chỉ còn định dạng đầu ra: nó vẫn tìm được 30 trên 30, tạo ra 1 P2 sai trong 18 lần chạy sạch, và nêu 83 phát hiện từ P3 đến P5, trong khi reviewer đầy đủ nêu 55. Với Opus, việc tìm ra các bug này phụ thuộc vào model nhiều hơn vào hướng dẫn, và một `reviewer.md` kém hơn lộ ra dưới dạng cảnh báo sai và nhiễu. 
+
+Lần bỏ sót duy nhất của Sonnet không trả về phát hiện nào cho buffer bị làm rỗng trước một thao tác ghi bất đồng bộ. Cả 3 cảnh báo sai của Haiku đều nằm trên cùng một trường hợp sạch, và trường hợp này cũng tạo ra 1 P2 sai trong 9 lần chạy Opus với reviewer đầy đủ qua hai ngày. 
+
+Một phát hiện được tính khi nó nêu bug được cài sẵn tại một dòng đã thay đổi, hoặc, với bug chỉ thấy được trong một file khác, tại một dòng được đánh dấu trong file đó. Sau các lần chạy đầu tiên, từ khóa đã được thêm vào bốn trường hợp mà reviewer nêu bug được cài sẵn bằng cách diễn đạt mà cách chấm điểm không chấp nhận, và mọi lần chạy đã lưu đều được chấm lại với các từ khóa đó. Chạy lại bằng `node evals/review-loop/run-detection.mjs --runs 3`, và thêm `--cases evals/review-loop/detection-hard` cho bộ khó hơn.
 
 Bảng ở trên là cơ sở cho model mặc định của reviewer. Trên bộ khó hơn, Opus tìm được 30 trên 30 và không có P1 hoặc P2 sai, Sonnet tìm được 29 trên 30 và cũng không có P1 hoặc P2 sai, với chi phí khoảng 37% của Opus, còn Haiku tìm được 30 trên 30 với 3 P1 hoặc P2 sai trong 18 lần chạy sạch. Vì vậy mặc định vẫn là model của session, và Sonnet là lựa chọn rẻ hơn khi bạn muốn reviewer chạy trên một model khác với model đã viết thay đổi.
+
+Một lần chạy lại cả hai bộ vào 2026-11-05 với Opus, cùng `reviewer.md` và Claude Code 2.1.318 vẫn tìm thấy mọi bug được cài sẵn (36 trên 36, 30 trên 30), nhưng gắn P2 cho một thay đổi sạch ở mỗi bộ, trong cả 3 lần chạy của case đó: 3 trên 18 lần chạy sạch mỗi bộ, so với 0 trên 18 trong bảng. [review-loop README](../../plugins/review-loop/README.md#measured-behavior) có chi tiết, và [#285](https://github.com/lee-eojin/lim/issues/285) theo dõi các phát hiện đó có thật hay không.
 
 [`evals/review-loop/detection-languages/`](../../evals/review-loop/detection-languages/) có 6 bug được cài sẵn bằng Python, Rust và Go cùng 2 thay đổi sạch. Với 3 lần chạy mỗi trường hợp, Opus và Sonnet tìm được 18 trên 18 còn Haiku 16 trên 18, và không model nào có P1 hoặc P2 sai trong 6 lần chạy sạch; [review-loop README](../../plugins/review-loop/README.md#measured-behavior) có chi tiết.
 
@@ -249,14 +257,14 @@ Bảng ở trên là cơ sở cho model mặc định của reviewer. Trên bộ
 
 | Thành phần | Luôn bật, trong mọi session | Mỗi lần chạy |
 |---|---|---|
-| skill review-loop | khoảng 210 token | khoảng 6.000 token |
+| skill review-loop | khoảng 210 token | khoảng 7.400 token |
 | reviewer agent | khoảng 60 token | khoảng 1.800 token, cộng với diff và code mà nó đọc |
 
 Chi phí của skill được tính một lần cho mỗi lần chạy. Chi phí của reviewer được tính một lần cho mỗi vòng, và một vòng lặp chạy tối đa 3 vòng. Model của reviewer làm thay đổi chi phí đó; bảng benchmark ở trên cho thấy chi phí của từng model. Các check của bạn chạy trên máy của bạn và không tốn token.
 
 </details>
 
-review-loop review chính các pull request của LIM. [#8](https://github.com/lee-eojin/lim/pull/8) cho thấy hai vòng lặp trên phiên bản đầu tiên của nó, trong đó có một lần dừng vì một false positive trong check phát hiện test bị làm yếu của chính nó. Lỗi này sau đó đã được sửa. Các pull request gần đây, như [#46](https://github.com/lee-eojin/lim/pull/46), cho thấy báo cáo của review-loop và quyết định cho từng phát hiện.
+review-loop đã review nhiều pull request của chính LIM. [#8](https://github.com/lee-eojin/lim/pull/8) cho thấy hai vòng lặp trên phiên bản đầu tiên của nó, trong đó có một lần dừng vì một false positive trong check phát hiện test bị làm yếu của chính nó. Lỗi này sau đó đã được sửa. Các pull request như [#46](https://github.com/lee-eojin/lim/pull/46) và [#192](https://github.com/lee-eojin/lim/pull/192) cho thấy báo cáo của review-loop và quyết định cho từng phát hiện. Các pull request gần đây, như [#305](https://github.com/lee-eojin/lim/pull/305), mang theo báo cáo bằng chứng thay thế: các lệnh đã chạy, output của chúng, và những gì chưa được đo.
 
 ## Vì sao nó hoạt động theo cách này
 
@@ -303,10 +311,12 @@ review-loop không tự thực hiện lệnh gọi mạng nào. Claude và revie
 
 ## Giới hạn
 
-- Check được phát hiện từ các script trong `package.json`, sau đó từ target trong Makefile, rồi từ Go, Rust, các công cụ Python đã cấu hình (pytest, ruff, mypy), Gradle, Maven, .NET và các công cụ Ruby mà dự án dùng (rspec, rake test, rubocop), ở thư mục gốc của repository và trong các project ở thư mục con mà thay đổi chạm tới, tối đa 4 mỗi vòng.
+- Check được phát hiện từ các script trong `package.json`, sau đó từ target trong Makefile, rồi từ Go, Rust, các công cụ Python đã cấu hình (pytest, ruff, mypy), Gradle, Maven, .NET và các công cụ Ruby mà dự án dùng (rspec, rake test, rubocop), ở thư mục gốc của repository và trong các dự án ở thư mục con mà thay đổi chạm tới, tối đa 4 mỗi vòng.
 - Mỗi check có tối đa 5 phút, và tất cả check cộng lại có tối đa 9 phút.
+- Script dừng một bản sửa vì làm yếu test hoặc check chỉ đọc các tệp JavaScript và TypeScript, thay đổi dưới `__snapshots__/`, và thay đổi dưới `.github/workflows/`. Ở ngôn ngữ khác, một test bị bỏ qua như `@pytest.mark.skip` hoặc `t.Skip()`, hay một quy tắc lint bị tắt, không dừng vòng lặp.
 - Khi không có commit gate, việc hỏi trước khi commit là một chỉ dẫn cho Claude, không phải một sự đảm bảo.
-- Commit gate chỉ kiểm tra các lệnh mà Claude chạy qua công cụ Bash của nó. Các commit bạn tự gõ trong terminal của mình không được kiểm tra. Một commit qua git alias như `git ci` được kiểm tra giống như `git commit`, một shell alias (`!...`) có commit sẽ được hỏi lại vì gate không thể nhìn vào bên trong nó, và alias đặt trực tiếp bằng `git -c alias.ci=commit` không được nhận diện.
+- Báo cáo đến với bạn qua một hook. Khi tắt hết hook (`disableAllHooks`), bạn chỉ thấy báo cáo trong phần output đã thu gọn của lệnh trả về nó. Commit gate cũng là một hook nên cũng bị tắt: các commit của Claude không bị chặn vì thiếu một lần review đạt.
+- Commit gate chỉ kiểm tra các lệnh mà Claude chạy qua công cụ Bash của nó. Các commit bạn tự gõ trong terminal của mình không được kiểm tra. Một commit qua git alias như `git ci` được kiểm tra giống như `git commit`, một shell alias (`!...`) có commit sẽ được hỏi lại vì gate không thể nhìn vào bên trong nó, và alias đặt trực tiếp bằng `git -c alias.ci=commit` không được đọc như một alias, nên gate sẽ hỏi về nó.
 - Nếu bạn khởi động Claude Code trong một thư mục không phải repository, gate không thể kiểm tra commit mà nó không xác định được repository, ví dụ sau `cd "$(...)"`.
 - Nó review mọi thứ mà `git add -A` sẽ bao gồm, không phải một tập thay đổi đã stage do bạn tự chọn.
 - Một quy tắc hoặc một regression test được kiểm tra trong một bản sao tạm có các file được track của bạn và các liên kết tới `node_modules` ở thư mục gốc và ở các dự án chứa phát hiện và bản nháp. Các file bị ignore khác, như `.env`, không có ở đó. Vì vậy, một check cần các file đó sẽ báo kết quả là chưa được chứng minh, hoặc là bắt được nhưng vì sai lý do. Claude đọc lỗi để biết đó là trường hợp nào.
@@ -320,7 +330,7 @@ Không phải lúc nào cũng vậy. Claude chỉ khởi động một skill khi
 Không bao giờ. review-loop hỏi trước mỗi commit, trừ khi bạn chọn "không hỏi nữa trong repo này". Bạn có thể tắt lựa chọn đó bằng cách yêu cầu Claude tắt việc ủy quyền commit của review-loop.
 
 **Nó có xung đột với các plugin khác của tôi không?**
-review-loop thêm một skill, một agent và một hook. Hook này đọc các lệnh Bash, chỉ xử lý `git commit` và `git push`, và không làm gì trừ khi bạn đã bật commit gate trong repository đó. Tên của nó bắt đầu bằng `review-loop:`, nên không thể trùng với tên từ các plugin khác. Nếu bạn hỏi bằng lời thông thường, Claude có thể chọn một review skill khác. Lệnh luôn khởi động review-loop.
+review-loop thêm một skill, một agent và hai hook. Hook commit gate đọc các lệnh Bash, chỉ xử lý `git commit` và `git push`, và không làm gì trừ khi bạn đã bật commit gate trong repository đó. Hook báo cáo chỉ tác động lên các lệnh chạy script của review-loop, và hiển thị báo cáo mà chúng trả về. Tên của nó bắt đầu bằng `review-loop:`, nên không thể trùng với tên từ các plugin khác. Nếu bạn hỏi bằng lời thông thường, Claude có thể chọn một review skill khác. Lệnh luôn khởi động review-loop.
 
 **Điều gì xảy ra nếu một session kết thúc giữa vòng lặp?**
 Chạy lại lệnh. review-loop đề xuất tiếp tục từ vòng và bước nơi nó đã dừng, hoặc bắt đầu lại từ đầu.
@@ -346,7 +356,7 @@ review-loop làm việc với các check bạn đã có. Script `typecheck`, `li
 ## Cách LIM được xây dựng
 
 - **Issue trước.** Mọi thay đổi bắt đầu từ một issue và đi vào dự án qua một pull request mà một maintainer squash-merge.
-- **Tự review chính mình.** Mỗi pull request chạy review-loop trên diff của chính nó, và phần mô tả cho thấy báo cáo cùng quyết định cho từng phát hiện.
+- **Tự review chính mình.** review-loop đã review nhiều pull request của chính LIM, và phần mô tả của chúng cho thấy báo cáo cùng quyết định cho từng phát hiện. Các pull request gần đây mang theo báo cáo bằng chứng thay thế.
 - **Phiên bản theo từng plugin.** Mỗi plugin tuân theo Semantic Versioning, có `CHANGELOG.md` riêng và được gắn tag `<plugin>--v<version>`. Các bản phát hành minor và major có GitHub Release.
 - **Nhỏ có chủ đích.** Một plugin có một entry skill, một `SKILL.md` dưới 250 dòng và chỉ có hook dạng opt-in.
 
