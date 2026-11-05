@@ -41,6 +41,10 @@ different model, which sees the two answers in random order, to pick the clearer
                           with "explain": true or false, instead of the questions and
                           --trigger-prompts (evals/clear-explain/triggers-held-out.json)
   --max-turns <n>         turns per trigger run (default: 6)
+  --calibrate <file>      take every answer stored in a results file, make a deliberately worse
+                          copy with a preamble, the answer moved to the end, sentences joined, and
+                          vague words, and judge each pair in both orders to show whether the
+                          judge and the script prefer the original; no new answers
 `;
 
 // Each runner lists the flags each of its modes reads. A flag the chosen mode would ignore, or a
@@ -59,6 +63,7 @@ export function parseRunnerArgs(args, { options, modes, modeOf, counts, allowPos
 
 const MODES = {
   '--rescore': ['rescore', 'out'],
+  '--calibrate': ['calibrate', 'judge-model', 'concurrency', 'out', 'timeout'],
   '--rejudge': ['rejudge', 'judge-model', 'concurrency', 'out', 'timeout'],
   '--held-out': ['held-out', 'triggers', 'model', 'concurrency', 'label', 'out', 'timeout', 'max-turns'],
   '--triggers': ['triggers', 'questions', 'question', 'trigger-prompts', 'model', 'concurrency', 'label', 'out', 'timeout', 'max-turns'],
@@ -78,6 +83,7 @@ export function parseOptions(args) {
       timeout: { type: 'string', default: '300' },
       rescore: { type: 'string' },
       rejudge: { type: 'string' },
+      calibrate: { type: 'string' },
       triggers: { type: 'boolean', default: false },
       'trigger-prompts': { type: 'string', default: path.join(here, 'triggers.json') },
       'max-turns': { type: 'string', default: '6' },
@@ -85,7 +91,7 @@ export function parseOptions(args) {
       help: { type: 'boolean', short: 'h', default: false },
     },
     modes: MODES,
-    modeOf: (values) => ['--rescore', '--rejudge', '--held-out', '--triggers'].find((mode) => values[mode.slice(2)]) ?? 'a judged run',
+    modeOf: (values) => ['--rescore', '--rejudge', '--calibrate', '--held-out', '--triggers'].find((mode) => values[mode.slice(2)]) ?? 'a judged run',
     counts: ['concurrency', 'timeout', 'max-turns'],
   });
 }
@@ -118,6 +124,37 @@ export function scoreAnswer(text) {
     mustFix: summary.fix,
     opensWithAnswer: opensWithAnswer(text),
   };
+}
+
+const PREAMBLES = {
+  en: 'Great question! Let me explain how this works, since there are various things to consider.',
+  ko: '좋은 질문입니다. 설명해 드릴게요. 일반적으로 여러 가지를 고려해야 합니다.',
+};
+const HEDGES = { en: ['Basically, ', 'It seems like ', 'Of course, '], ko: ['기본적으로 ', '일반적으로 ', '사실상 '] };
+const GLUE = { en: ', and ', ko: ' 그리고 ' };
+
+const isFence = (line) => /^\s*(?:```|~~~)/.test(line);
+
+export function degrade(text, lang) {
+  const language = lang === 'ko' ? 'ko' : 'en';
+  const blocks = [];
+  let inFence = false;
+  let firstProse = -1;
+  for (const paragraph of text.trim().split(/\n{2,}/)) {
+    const fenceLines = paragraph.split('\n').filter(isFence).length;
+    const prose = !inFence && fenceLines === 0 && !BLOCK_START.test(paragraph.trim());
+    if (fenceLines % 2 === 1) inFence = !inFence;
+    if (!prose) {
+      blocks.push(paragraph);
+      continue;
+    }
+    const sentences = paragraph.replace(/\s*\n\s*/g, ' ').split(/(?<=[.!?])\s+/).map((sentence) => sentence.replace(/[.!?]$/, ''));
+    const hedge = HEDGES[language][blocks.length % HEDGES[language].length];
+    if (firstProse === -1) firstProse = blocks.length;
+    blocks.push(`${hedge}${sentences.join(GLUE[language])}.`);
+  }
+  const moved = firstProse === -1 ? blocks : [...blocks.slice(0, firstProse), ...blocks.slice(firstProse + 1), blocks[firstProse]];
+  return [PREAMBLES[language], ...moved].join('\n\n');
 }
 
 export function redact(text) {
@@ -474,6 +511,68 @@ export async function rejudge(results, options, judgeRun = judge) {
   };
 }
 
+export async function calibrate(results, options, judgeRun = judge) {
+  requireAnswers(results, '--calibrate');
+  const started = Date.now();
+  const pairs = results.items.flatMap((item) => ARMS.filter((arm) => item.answers[arm]?.answer !== undefined).map((arm) => {
+    const good = item.answers[arm].answer;
+    const bad = degrade(good, item.lang);
+    return { id: item.id, lang: item.lang, question: item.question, source: arm, answers: { good: { answer: good, score: scoreAnswer(good) }, bad: { answer: bad, score: scoreAnswer(bad) } } };
+  }));
+  await pool(pairs.flatMap((pair) => [['good', 'bad'], ['bad', 'good']].map((order) => async () => {
+    const verdict = await judgeRun(pair, pair.answers, options, order);
+    pair[order[0] === 'good' ? 'judgeGoodFirst' : 'judgeBadFirst'] = verdict;
+    options.log?.(`${pair.id} ${pair.source} ${order.join(' then ')}: ${verdict.error ? `error (${verdict.error})` : verdict.winner}`);
+  })), options.concurrency ?? 4);
+  return {
+    date: new Date().toISOString(),
+    source: { date: results.date, model: results.model, skill: results.skill },
+    judgeModel: options.judgeModel,
+    claudeVersion: options.claudeVersion,
+    elapsedSeconds: Math.round((Date.now() - started) / 1000),
+    summary: summarizeCalibration(pairs),
+    pairs,
+  };
+}
+
+export function summarizeCalibration(pairs) {
+  const judged = pairs.filter((pair) => pair.judgeGoodFirst?.winner && pair.judgeBadFirst?.winner);
+  const runs = pairs.flatMap((pair) => [pair.judgeGoodFirst, pair.judgeBadFirst]).filter(Boolean);
+  const both = (winner) => judged.filter((pair) => pair.judgeGoodFirst.winner === winner && pair.judgeBadFirst.winner === winner).length;
+  const score = (pair, side) => pair.answers[side].score;
+  return {
+    pairs: pairs.length,
+    script: {
+      fewerIssuesPer1000: pairs.filter((pair) => score(pair, 'good').issuesPer1000 < score(pair, 'bad').issuesPer1000).length,
+      goodOpensWithAnswer: pairs.filter((pair) => score(pair, 'good').opensWithAnswer).length,
+      badOpensWithAnswer: pairs.filter((pair) => score(pair, 'bad').opensWithAnswer).length,
+      goodIssuesPer1000: mean(pairs.map((pair) => score(pair, 'good').issuesPer1000)),
+      badIssuesPer1000: mean(pairs.map((pair) => score(pair, 'bad').issuesPer1000)),
+    },
+    judge: {
+      judged: judged.length,
+      goodBothOrders: both('good'),
+      badBothOrders: both('bad'),
+      split: judged.length - both('good') - both('bad'),
+      badAnswerFirst: runs.filter((run) => run.answerFirst?.bad === true).length,
+      goodAnswerFirst: runs.filter((run) => run.answerFirst?.good === true).length,
+      verdicts: runs.filter((run) => run.winner).length,
+    },
+    errors: runs.filter((run) => run.error).length + pairs.length * 2 - runs.length,
+    costUsd: Number(sum(runs.map((run) => run.costUsd)).toFixed(4)),
+  };
+}
+
+function calibrationReport(results, out) {
+  const { summary } = results;
+  process.stdout.write(`${summary.pairs} pairs of a stored answer and its worse copy\n`);
+  process.stdout.write(`script: fewer issues per 1000 characters for the original in ${summary.script.fewerIssuesPer1000} of ${summary.pairs} ` +
+    `(${summary.script.goodIssuesPer1000} against ${summary.script.badIssuesPer1000}); opens with the answer ${summary.script.goodOpensWithAnswer} against ${summary.script.badOpensWithAnswer}\n`);
+  process.stdout.write(`judge: original in both orders ${summary.judge.goodBothOrders}, worse copy in both orders ${summary.judge.badBothOrders}, ` +
+    `changed with the order ${summary.judge.split}, of ${summary.judge.judged}; answer first ${summary.judge.goodAnswerFirst} against ${summary.judge.badAnswerFirst} of ${summary.judge.verdicts} verdicts\n`);
+  process.stdout.write(`cost: $${summary.costUsd}; errors: ${summary.errors}\nresults: ${out}\n`);
+}
+
 function rejudgeReport(results, out) {
   const rows = [['question', 'first order', 'first pick', 'second order', 'second pick']];
   const shown = (order) => (order ? order.join(' then ') : '-');
@@ -560,6 +659,21 @@ async function main() {
     const out = values.out ? path.resolve(values.out) : source;
     writeFileSync(out, serialize(results));
     rejudgeReport(results, out);
+    return;
+  }
+  if (values.calibrate) {
+    const source = path.resolve(values.calibrate);
+    const results = await calibrate(JSON.parse(readFileSync(source, 'utf8')), {
+      judgeModel: values['judge-model'],
+      timeout: Number(values.timeout),
+      concurrency: Number(values.concurrency),
+      claudeVersion: execFileSync('claude', ['--version'], { encoding: 'utf8' }).trim(),
+      log: (line) => process.stderr.write(`${line}\n`),
+    });
+    const out = values.out ? path.resolve(values.out) : defaultOut(values['judge-model'], 'calibration');
+    mkdirSync(path.dirname(out), { recursive: true });
+    writeFileSync(out, serialize(results));
+    calibrationReport(results, out);
     return;
   }
   const options = { model: values.model, judgeModel: values['judge-model'], timeout: Number(values.timeout) };

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
-  answerArgs, compareJudgePasses, heldOutRequests, judgePrompt, opensWithAnswer, parseJudgeOutput, parseOptions, parseStream, redact, rejudge, rescore, selectQuestions,
+  answerArgs, calibrate, compareJudgePasses, degrade, scoreAnswer, heldOutRequests, judgePrompt, opensWithAnswer, parseJudgeOutput, parseOptions, parseStream, redact, rejudge, rescore, selectQuestions,
   serialize, skillVersion, summarize, summarizeTriggers, swapOrder, triggerArgs, triggerRequests, unblind,
 } from '../../evals/clear-explain/run-explain.mjs';
 
@@ -254,4 +254,43 @@ test('an unknown question id is refused instead of being dropped', () => {
   assert.deepEqual(selectQuestions(questions, ['en-cors']).map((question) => question.id), ['en-cors']);
   assert.equal(selectQuestions(questions, undefined).length, questions.length);
   assert.throws(() => selectQuestions(questions, ['en-cors', 'en-typo']), /unknown question: en-typo/);
+});
+
+test('the worse copy of every stored answer opens with a preamble and scores more issues while its code stays', () => {
+  const stored = savedResults('2026-10-27-opus-after.json');
+  for (const entry of stored.items) {
+    for (const arm of ['with', 'without']) {
+      const good = entry.answers[arm].answer;
+      const bad = degrade(good, entry.lang);
+      assert.equal(opensWithAnswer(bad), false, `${entry.id} ${arm}`);
+      assert.ok(scoreAnswer(bad).issuesPer1000 > scoreAnswer(good).issuesPer1000, `${entry.id} ${arm}`);
+      for (const block of good.match(/```[\s\S]*?```/g) ?? []) assert.ok(bad.includes(block), `${entry.id} ${arm} keeps its code`);
+    }
+  }
+});
+
+test('the worse copy moves the opening paragraph to the end and joins its sentences', () => {
+  const bad = degrade('A closure keeps its outer variables. It is a function.\n\n```js\nconst a = 1;\n```', 'en');
+  assert.equal(bad, 'Great question! Let me explain how this works, since there are various things to consider.\n\n```js\nconst a = 1;\n```\n\nBasically, A closure keeps its outer variables, and It is a function.');
+});
+
+test('calibration judges each stored answer against its worse copy in both orders and counts the pairs the judge got right', async () => {
+  const stored = { items: [
+    { id: 'one', lang: 'en', question: 'q1', answers: { with: { answer: 'A closure keeps its variables. It is a function.' }, without: { answer: 'A closure is a function. It keeps variables.' } } },
+    { id: 'two', lang: 'ko', question: 'q2', answers: { with: { answer: 'closure는 함수다. 변수를 기억한다.' }, without: { error: 'timeout' } } },
+  ] };
+  const calls = [];
+  const judgeRun = async (pair, answers, options, order) => {
+    calls.push(`${pair.id} ${pair.source} ${order.join(' ')}`);
+    const winner = pair.source === 'without' ? order[1] : 'good';
+    return { order, winner, answerFirst: { good: true, bad: false }, costUsd: 0.01 };
+  };
+  const results = await calibrate(stored, { judgeModel: 'sonnet', concurrency: 1 }, judgeRun);
+  assert.deepEqual(calls, ['one with good bad', 'one with bad good', 'one without good bad', 'one without bad good', 'two with good bad', 'two with bad good']);
+  assert.equal(results.pairs.length, 3);
+  assert.deepEqual(results.summary.judge, { judged: 3, goodBothOrders: 2, badBothOrders: 0, split: 1, badAnswerFirst: 0, goodAnswerFirst: 6, verdicts: 6 });
+  assert.equal(results.summary.script.fewerIssuesPer1000, 3);
+  assert.equal(results.summary.script.badOpensWithAnswer, 0);
+  assert.equal(results.summary.errors, 0);
+  assert.equal(results.summary.costUsd, 0.06);
 });
