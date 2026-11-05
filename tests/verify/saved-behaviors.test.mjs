@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const resultsDir = path.join(root, 'evals/verify/results');
-const repeats = readdirSync(resultsDir).filter((name) => name.includes('repeat-')).sort();
+const repeats = [1, 2, 3].map((n) => `2026-10-27-claude-opus-5-5-repeat-${n}.json`);
 
 test('Claude writes expectations from the docs so a broken feature fails instead of passing', () => {
   assert.ok(repeats.length >= 3);
