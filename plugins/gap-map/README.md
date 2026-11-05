@@ -46,7 +46,7 @@ A contradiction between two sources makes it `contradicted`, even when every fix
 
 ## Measured
 
-[`evals/gap-map/behaviors.csv`](../../evals/gap-map/behaviors.csv) lists <!--total-->47 behaviors. Unit tests in CI cover <!--tested-->42 of them, running the script against temporary projects with `node` verifiers. The other <!--rest-->5 need a model run or a real target: the four the benchmark below measures, and the run against Bend itself, recorded in [references/bend.md](skills/gap-map/references/bend.md): 39 real Bend tests passed on the interpreter, C, and JS lanes, and the interpreter verifier failed two expected-failure tests once stderr was left out.
+[`evals/gap-map/behaviors.csv`](../../evals/gap-map/behaviors.csv) lists <!--total-->47 behaviors. Unit tests in CI cover <!--tested-->46 of them, running the script against temporary projects with `node` verifiers. The other <!--rest-->1 needs a real target: the run against Bend itself, recorded in [references/bend.md](skills/gap-map/references/bend.md): 39 real Bend tests passed on the interpreter, C, and JS lanes, and the interpreter verifier failed two expected-failure tests once stderr was left out. The four benchmark behaviors are locked against the saved rebaseline results.
 
 A blinded benchmark in [`evals/gap-map/`](../../evals/gap-map/) copies two small tools to a temporary folder with one commit, each with its docs, `#|` tests, and a `gap-map.json` holding stages and a verifier but no obligations, and runs `/gap-map:gap-map Map this project against what its documentation promises: add an obligation for every promise to gap-map.json and run it.` headlessly with only `Read,Grep,Glob,Write,Edit,Skill,Bash(node:*)` in don't-ask mode. The promises carry traps:
 

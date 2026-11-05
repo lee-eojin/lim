@@ -247,3 +247,18 @@ test('the session count must be a whole number above 0 and an unknown scenario i
   assert.deepEqual(parseOptions(['--scenario', 'verify-tool', '-j', '2']).values.scenario, ['verify-tool']);
   assert.equal(parseOptions(['--help']).mode, 'help');
 });
+
+test('In an unattended run Claude never uses AskUserQuestion and takes the safe default at each question and records it with loop note and commits only when commits are delegated and nothing is pending and ends with loop summary', () => {
+  const withNote = [
+    ...happySteps.slice(0, happySteps.indexOf(fix) + 1),
+    loop('note --phase fix --decision "padded cents" --why "unattended: smallest fix" --evidence "verify failed"'),
+    ...happySteps.slice(happySteps.indexOf(fix) + 1),
+  ];
+  const results = checkScenario(scenario('review-with-verify'), buildSession(stream(withNote), happyRepository));
+  assert.equal(outcome(results, 'no-question').pass, true);
+  assert.equal(outcome(results, 'no-commit-or-push').pass, true);
+  assert.equal(outcome(results, 'ends-with-summary').pass, true);
+  assert.ok(withNote.some((step) => Array.isArray(step) && /loop\.mjs note /.test(step[1]?.command ?? '')));
+  const asked = [...happySteps.slice(0, -1), ['AskUserQuestion', { questions: [] }], loop('summary')];
+  assert.equal(outcome(checkScenario(scenario('review-with-verify'), buildSession(stream(asked), happyRepository)), 'no-question').pass, false);
+});

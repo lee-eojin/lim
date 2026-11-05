@@ -35,11 +35,11 @@ V34,tell,A check edited after it failed is marked in the report and the evidence
 V35,silence,A check that passes after the code is fixed is not marked as changed,test: a check that passes after the code is fixed is not marked as changed,yes
 V36,tell,A check removed from the map after it failed is reported once,test: a check removed after it failed is reported once,yes
 V37,silence,Rewording a feature sentence does not count as changing the check,test: the definition hash ignores the feature sentence and follows the command and expectation,yes
-V38,evidence,Claude writes expectations from the docs so a broken feature fails instead of passing,eval: evals/verify/run-benchmark.mjs broken cases,no
-V39,silence,Claude does not report working features as failing,eval: evals/verify/run-benchmark.mjs working cases,no
-V40,tell,Claude shows the script's report first and says where each failing expectation comes from,eval: final messages in evals/verify/results/,no
-V41,stop,Claude does not edit a failing check or remove it to make the run pass,eval: changedAfterFail and removedAfterFail in evals/verify/results/,no
-V42,silence,Claude does not change the project's code unless asked,eval: sourceChanged in evals/verify/results/,no
+V38,evidence,Claude writes expectations from the docs so a broken feature fails instead of passing,test: Claude writes expectations from the docs so a broken feature fails instead of passing,no
+V39,silence,Claude does not report working features as failing,test: Claude does not report working features as failing,no
+V40,tell,Claude shows the script's report first and says where each failing expectation comes from,test: Claude shows the script's report first and says where each failing expectation comes from,no
+V41,stop,Claude does not edit a failing check or remove it to make the run pass,test: Claude does not edit a failing check or remove it to make the run pass,no
+V42,silence,Claude does not change the project's code unless asked,test: Claude does not change the project's code unless asked,no
 V43,ask,Claude asks before changing a check it believes is wrong and before installing anything,eval: not measured yet,no
 V52,evidence,A file expectation without a content rule is refused,test: a file expectation without a content rule is refused,yes
 V53,stop,A background process that a check started is killed at the time limit,test: a background process the check started is killed at the time limit,yes
