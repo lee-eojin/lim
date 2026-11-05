@@ -15,7 +15,7 @@ description: Model-check review-loop's stop decision and commit gate with TLA+ a
 node scripts/check-loop-model.mjs
 ```
 
-It needs Java 11 or later. It downloads `.tools/tla2tools.jar` (TLA+ tools v1.7.4, sha256 checked, ignored by git) when missing. Then it builds `DecideNextTable.tla` from the exported `decideNext` in `loop.mjs`, so an edit to `decideNext` reaches the check with no model change. It runs TLC once per invariant in `scripts/loop-model/ReviewLoop.cfg` in a temp folder and prints `PASS`, `FAIL` with a numbered list of loop commands, or `ERROR`. Exit 0 is all pass, 1 is a violation, 2 is a tool or modeling error. A full run takes about 60 s.
+It needs Java 11 or later. It downloads `.tools/tla2tools.jar` (TLA+ tools v1.7.4, sha256 checked, ignored by git) when missing. Then it builds `DecideNextTable.tla` from the exported `decideNext` in `loop.mjs`, so an edit to `decideNext` reaches the check with no model change. It runs TLC once per invariant in `scripts/loop-model/ReviewLoop.cfg` in a temp folder and prints `PASS`, `FAIL` with a numbered list of loop commands, or `ERROR`. Exit 0 is all pass, 1 is a violation, 2 is a tool or modeling error. A full run takes about 130 s.
 
 - `--invariant <name>` runs one invariant.
 - `--loop <file>` takes `decideNext` from another copy of `loop.mjs`, for example `git show <commit>:plugins/review-loop/skills/review-loop/scripts/loop.mjs > /tmp/loop.mjs`.
@@ -24,13 +24,15 @@ It needs Java 11 or later. It downloads `.tools/tla2tools.jar` (TLA+ tools v1.7.
 
 | Invariant | Stop path it checks | Result |
 | --- | --- | --- |
-| `DecideNextStopHasProof` | `recordReview` stops clean or waiting through `decideNext` | PASS, 1527245 distinct states |
-| `StopIfProvenStopHasProof` | `stopIfProven` stops after the final checks | PASS, 1527245 distinct states |
-| `StopWaitingStopHasProof` | `makeUnattended` finishes the fix round through `finishFixing` and `decideNext` | PASS, 1527245 distinct states |
-| `GateNeedsProof` | `reviewVerdict` after any stop | PASS, 1527245 distinct states |
-| `KeptNeverReoffered` | keep settlement through `decide` and the `keptInLoop` move in `recordReview` | PASS, 1527245 distinct states |
+| `DecideNextStopHasProof` | `recordReview` stops clean or waiting through `decideNext` | PASS, 3101628 distinct states |
+| `StopIfProvenStopHasProof` | `stopIfProven` stops after the final checks | PASS, 3101628 distinct states |
+| `StopWaitingStopHasProof` | `makeUnattended` finishes the fix round through `finishFixing` and `decideNext` | PASS, 3101628 distinct states |
+| `GateNeedsProof` | `reviewVerdict` after any stop | PASS, 3101628 distinct states |
+| `KeptNeverReoffered` | keep settlement through `decide`, the `keptInLoop` move in `recordReview`, and the ledger `isKept` check in a later run | PASS, 3101628 distinct states |
 
 `KeptNeverReoffered` (#249): once `decide` records `keep` on a finding, that finding is never pending again (open or deferred with no decision). `loop.everKept` is the sticky set. Sending `keptInLoop` through the retry path with its decision cleared makes it fail in 5 steps while the four proof invariants still pass.
+
+Cross-run keeps (#267): `ledger` models `ledger.jsonl` as the set of `<<slot, kind>>` pairs whose last `decision` event is `keep` (`keptSeverities`: the last choice wins). It outlives `StartNewRun`, which models `start` when the saved state is not in progress. A slot is one fingerprint, so a slot keeps its kind across runs. In a later run `NewFinding` moves a reviewer finding in the ledger to `kept`, as `isKept` does. `KeptNeverReoffered` also covers every reviewer slot in the ledger. Dropping that ledger check (Mutant B) makes it fail in 5 steps: start, record F-1, keep F-1, start a new run, record F-1 again. The four proof invariants still pass on that mutant (3496584 distinct states).
 
 Two findings this check reported were fixed by #213 (issues #210 and #211), and the model's `MakeUnattended`, `BeingFixed`, and `GateAllows` actions were updated to match. Finding 1: an unattended resume that deferred the last open finding stopped as waiting with F-1 unproven; `tests/scripts/check-loop-model.trace.txt` is its 5-step counterexample from before the fix. Finding 2: after a stop with findings still open (`integrity`, `max-rounds`, `stalled`, `stuck`, `regression`), the gate asked "Commit now?" once every finding was decided, with F-1 unproven. Reverting either action's fix in the model makes its invariant fail again, which is how the check shows it can still fail on these paths.
 
@@ -52,7 +54,7 @@ Any other result is new. When a known finding is fixed, its invariant passes. Up
 
 ## Bounds and assumptions
 
-- 2 findings, `MaxRounds = 3`, rounds up to 4. These are the constants in `ReviewLoop.cfg`. With 3 findings TLC passed 27 million distinct states in 150 s without finishing.
+- 2 findings, `MaxRounds = 3`, rounds up to 4, up to 2 runs (`MaxRuns = 2`). These are the constants in `ReviewLoop.cfg`. The second run doubled the distinct states from 1527245 to 3101628. With 3 findings TLC passed 27 million distinct states in 150 s without finishing.
 - Every finding's file has a test check, as `needsProof` requires.
 - At gate time HEAD, the working tree, and the staged tree match the review, and no skip-once is pending. The gate's "allow" and "ask" both count as letting the commit through.
 - The model leaves out cards (P3 to P5, and P1 or P2 without evidence), because they never block a stop.
@@ -61,13 +63,13 @@ Any other result is new. When a known finding is fixed, its invariant passes. Up
 
 ## Not covered
 
-`confirm`, `checks`, `reproduce`, `note`, `status`, `summary`, `gate`, `delegate`, and `reviewer` commands. `start --fresh` and a new run after a finished one, so the ledger path (`isKept`, `keptSeverities`) that keeps a finding settled across runs is not checked; its quote-duplication and severity-escalation branches are out too. Cards, so the closing-message offer from #248 is not checked. Re-deciding a kept finding as `once` or `rule`. The report hook and `reportNotice`. The gate's command parser and its HEAD, tree, and staging checks. Report text. Liveness: the model does not check that the loop can always finish.
+`confirm`, `checks`, `reproduce`, `note`, `status`, `summary`, `gate`, `delegate`, and `reviewer` commands. `start --fresh`. In the ledger path, `isKept` always matches: a re-report with higher severity, or a quote that now appears twice, is not modeled. A failing check decided `keep` is not covered: `isKept` only filters reviewer findings, and with check slots in the invariant TLC shows a kept failing check offered again in the next run. Cards, so the closing-message offer from #248 is not checked. Re-deciding a kept finding as `once` or `rule`. The report hook and `reportNotice`. The gate's command parser and its HEAD, tree, and staging checks. Report text. Liveness: the model does not check that the loop can always finish.
 
 ## Coverage record
 
-- `plugins/review-loop/skills/review-loop/scripts/loop.mjs`: `decideNext` (generated table), `recordReview`, `next`, `stopIfProven`, `needsProof`, `hasRegressionProof`, `isBeingFixed`, `rule`, `recordNoTest`, `decide`, `start`, `isInProgress`, `pendingDecisionIds`, `decidableFindings`, `setUnattended`, `makeUnattended`, `makeAttended`, `stopWaiting`, `unattendedFixable`, `defer`, `reviewVerdict`, `UNFINISHED`.
+- `plugins/review-loop/skills/review-loop/scripts/loop.mjs`: `decideNext` (generated table), `recordReview`, `next`, `stopIfProven`, `needsProof`, `hasRegressionProof`, `isBeingFixed`, `rule`, `recordNoTest`, `decide`, `start`, `isKept`, `keptSeverities`, `isInProgress`, `pendingDecisionIds`, `decidableFindings`, `setUnattended`, `makeUnattended`, `makeAttended`, `stopWaiting`, `unattendedFixable`, `defer`, `reviewVerdict`, `UNFINISHED`.
 - `scripts/loop-model/ReviewLoop.tla`, `scripts/loop-model/ReviewLoop.cfg`, `scripts/check-loop-model.mjs`, `tests/scripts/check-loop-model.test.mjs`.
 
-Sync commit: `add1bab`. The model was last confirmed against `loop.mjs` at this commit.
+Sync commit: `f63ba6c`. The model was last confirmed against `loop.mjs` at this commit.
 
-To see what changed in covered code since then, run `git diff add1bab -- plugins/review-loop/skills/review-loop/scripts/loop.mjs | grep '^@@'`. Git names the enclosing function in each hunk header. Move the sync commit forward only after you have read every changed covered function against its action and the check gives the expected result. Use `git rev-parse --short refs/remotes/origin/main` for the new value. `node scripts/check-loop-model-sync.mjs` fails when a function in the coverage record changed after the sync commit.
+To see what changed in covered code since then, run `git diff f63ba6c -- plugins/review-loop/skills/review-loop/scripts/loop.mjs | grep '^@@'`. Git names the enclosing function in each hunk header. Move the sync commit forward only after you have read every changed covered function against its action and the check gives the expected result. Use `git rev-parse --short refs/remotes/origin/main` for the new value. `node scripts/check-loop-model-sync.mjs` fails when a function in the coverage record changed after the sync commit.

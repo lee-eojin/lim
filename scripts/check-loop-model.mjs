@@ -181,8 +181,8 @@ function unprovenSlots(loop) {
     finding.where === 'resolved' && finding.kind === 'reviewer' && finding.regression === 'none' ? [index + 1] : []));
 }
 
-function reofferedSlots(loop) {
-  const kept = new Set(loop.everKept ?? []);
+function reofferedSlots(loop, ledger = []) {
+  const kept = new Set([...(loop.everKept ?? []), ...ledger.filter(([, kind]) => kind === 'reviewer').map(([slot]) => slot)]);
   return findingsOf(loop).flatMap((finding, index) => (
     kept.has(index + 1) && ['open', 'deferred'].includes(finding.where) && finding.decision === 'none' ? [index + 1] : []));
 }
@@ -196,7 +196,7 @@ function where(loop) {
 
 // Turns a TLC trace into the loop commands that produce it, with ids assigned the way assignIds does.
 export function describeTrace(trace, invariant) {
-  const ids = new Map();
+  let ids = new Map();
   let nextId = 1;
   const id = (slot) => ids.get(slot) ?? `slot ${slot}`;
   const named = (slots) => slots.map(id).join(', ');
@@ -207,9 +207,14 @@ export function describeTrace(trace, invariant) {
     let text;
     if (cmd.name === 'start') {
       const flag = cmd.unattended ? 'start --unattended' : 'start';
-      text = cmd.resume ? `${flag} (resumes the run)` : flag;
+      if (cmd.newRun) {
+        ids = new Map();
+        nextId = 1;
+      }
+      text = cmd.resume ? `${flag} (resumes the run)` : cmd.newRun ? `${flag} (a new run; the ledger keeps earlier decisions)` : flag;
     } else if (cmd.name === 'record') {
-      const reported = [...cmd.new].sort(([slotA, shapeA], [slotB, shapeB]) => (
+      const ledgerKept = [...cmd.new].filter(([slot]) => findingsOf(loop)[slot - 1]?.where === 'kept').map(([slot]) => slot);
+      const reported = [...cmd.new].filter(([slot]) => !ledgerKept.includes(slot)).sort(([slotA, shapeA], [slotB, shapeB]) => (
         Math.sign(SHAPE_ORDER.indexOf(shapeA) > 1) - Math.sign(SHAPE_ORDER.indexOf(shapeB) > 1)
         || SHAPE_ORDER.indexOf(shapeA) - SHAPE_ORDER.indexOf(shapeB) || slotA - slotB));
       const fixFirst = reported.filter(([, shape]) => SHAPE_ORDER.indexOf(shape) <= 1);
@@ -219,6 +224,7 @@ export function describeTrace(trace, invariant) {
       const parts = [];
       if (resolved) parts.push(`resolved ${resolved}`);
       if (reported.length) parts.push(`new ${[...fixFirst, ...asks].map(([slot, shape]) => `${id(slot)} (${SHAPES[shape]})`).join(', ')}`);
+      if (ledgerKept.length) parts.push(`${ledgerKept.map((slot) => `slot ${slot}`).join(', ')} again, which isKept matches to a keep in the ledger`);
       if (cmd.regression) parts.push('one new finding repeats a resolved one');
       text = `record round ${cmd.round} with ${parts.join('; ') || 'no findings and nothing resolved'}`;
     } else if (cmd.name === 'next') {
@@ -250,7 +256,7 @@ export function describeTrace(trace, invariant) {
   });
   const last = trace.at(-1).loop;
   const unproven = named(unprovenSlots(last));
-  const reoffered = named(reofferedSlots(last));
+  const reoffered = named(reofferedSlots(last, trace.at(-1).ledger ?? []));
   return [...steps, `Broken: ${BROKEN[invariant]?.(last.stopReason, unproven, reoffered) ?? invariant}`];
 }
 

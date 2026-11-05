@@ -71,6 +71,18 @@ function beforeFix200() {
   }
 }
 
+test('a cross-run counterexample restarts the ids and names the finding the ledger kept', () => {
+  const trace = parseTrace(readFileSync(path.join(root, 'tests', 'scripts', 'check-loop-model.cross-run-trace.txt'), 'utf8'));
+  assert.deepEqual(describeTrace(trace, 'KeptNeverReoffered'), [
+    '1. start --unattended. Now round 1 waits for a review.',
+    '2. record round 1 with new F-1 (a P1 or P2 that needs your call). Now the loop is stopped (waiting).',
+    '3. decide --id F-1 --choice keep. Now the loop is stopped (waiting).',
+    '4. start (a new run; the ledger keeps earlier decisions). Now round 1 waits for a review.',
+    '5. record round 1 with new F-1 (a P1 or P2 to fix). Now the loop waits for a fix.',
+    'Broken: a finding kept as F-1 was offered again (open or deferred with no decision).',
+  ]);
+});
+
 const javaMissing = spawnSync('java', ['-version']).status !== 0;
 const skipModelRun = (javaMissing && 'needs java') || (!existsSync(TLA_TOOLS.path) && 'needs .tools/tla2tools.jar, which node scripts/check-loop-model.mjs downloads')
   || (!beforeFix200() && 'needs commit c73ff1c~1 in the git history');
