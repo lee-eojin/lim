@@ -1,0 +1,4092 @@
+{
+  "date": "2026-11-05T06:52:33.771Z",
+  "model": "claude-opus-5-5",
+  "claudeVersion": "2.1.318 (Claude Code)",
+  "skill": {
+    "path": "plugins/verify/skills/verify/SKILL.md",
+    "sha256": "db7d7b85b6e608cfea059d1c7c58fe09266fd3538f56eac0a2661964af1655ca"
+  },
+  "prompt": "/verify:verify Check that this project's features work.",
+  "label": null,
+  "runsPerCase": 1,
+  "elapsedSeconds": 261,
+  "summary": {
+    "runs": 9,
+    "errors": 0,
+    "errorCases": [],
+    "brokenCases": 6,
+    "caught": 6,
+    "missed": 0,
+    "workingCases": 3,
+    "casesWithFalseFailure": 4,
+    "falseFailureChecks": 5,
+    "checks": 166,
+    "notVerifiedChecks": 0,
+    "changedAfterFail": 0,
+    "removedAfterFail": 0,
+    "casesWithSourceChanges": 0,
+    "totalTokens": 1640249,
+    "averageTokens": 182250,
+    "totalCostUsd": 3.7969,
+    "totalWallSeconds": 646,
+    "averageWallSeconds": 72
+  },
+  "runs": [
+    {
+      "case": "slugkit-broken",
+      "project": "slugkit",
+      "broken": true,
+      "wallMs": 55411,
+      "bashCommands": [
+        {
+          "command": "node /workspace/lim-wt/bench/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 1\n{\n  \"status\": \"failed\",\n  \"counts\": {\n    \"pass\": 17,\n    \"fail\": 3,\n    \"notVerified\": 0\n  },\n  \"report\": \"verify: 17 passed, 3 failed, 0 not verified (20 checks, 0.6 s)\\n\\nFAIL cli-accents-readme-example: Turns accented letters into plain letters (README example)\\n  $ node bin/slug.js "
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/tmp/slugkit-JlV5fx/verify-checks/slugify.mjs",
+        "/tmp/slugkit-JlV5fx/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 25145,
+        "cacheRead": 133591,
+        "output": 6501,
+        "total": 165247
+      },
+      "costUsd": 0.3579382,
+      "apiMs": 53977,
+      "turns": 10,
+      "finalMessage": "```\nverify: 17 passed, 3 failed, 0 not verified (20 checks, 0.6 s)\n\nFAIL cli-accents-readme-example: Turns accented letters into plain letters (README example)\n  $ node bin/slug.js 'Crème brûlée à la carte'\n  - stdout does not equal \"creme-brulee-a-la-carte\"\n  stdout: cre-me-bru-le-e-a-la-carte\n\nFAIL cli-accents-uppercase: Lowercases and plains an uppercase accented letter\n  $ node bin/slug.js 'ÉCOLE Normale'\n  - stdout does not equal \"ecole-normale\"\n  stdout: e-cole-normale\n\nFAIL lib-accents: slugify turns accented letters into plain letters\n  $ node verify-checks/slugify.mjs 'Café Noël'\n  - stdout does not equal \"\\\"cafe-noel\\\"\"\n  stdout: \"cafe-noe-l\"\n\nPassed: cli-basic-title, cli-lowercase, cli-keeps-digits, cli-collapses-runs, cli-trims-hyphens, cli-max-readme-example, cli-max-word-boundary, cli-max-long-single-word, cli-max-longer-than-slug, cli-no-text, cli-max-without-text, cli-max-not-a-number, cli-max-zero, cli-max-negative, cli-max-fraction, lib-many-spaces, lib-max-length\n\nRan on uncommitted changes to 1 file besides the feature map.\n\nEvidence: /tmp/slugkit-JlV5fx/.git/lim/verify/runs/2026-11-05T06-48-57-073Z.json\n```\n\nAccent handling is broken in both the command line and the library; the other 17 checks passed.\n\n**Failed: accented letters become plain letters.** The expectation comes from the README, Command line section: \"Accented letters become plain letters (é becomes e)\". The first check below is the README's own example.\n\n| Feature | Input | Expected | Actual |\n|---|---|---|---|\n| Turns accented letters into plain letters (CLI) | `Crème brûlée à la carte` | `creme-brulee-a-la-carte` | `cre-me-bru-le-e-a-la-carte` |\n| Lowercases and plains an uppercase accented letter (CLI) | `ÉCOLE Normale` | `ecole-normale` | `e-cole-normale` |\n| `slugify` turns accented letters into plain letters (library) | `Café Noël` | `cafe-noel` | `cafe-noe-l` |\n\nThe likely cause is in `src/slugify.js:3`. `normalize('NFKD')` splits `é` into `e` plus a combining accent, but the accent is never removed. The next step then turns it into a hyphen. Removing the accents right after normalizing (for example `.replace(/\\p{M}+/gu, '')`) should fix it, but I haven't tried that.\n\n**Passed:**\n- **Slugs:** a title with punctuation becomes a slug, letters are lowercased and digits are kept. Runs of other characters become one hyphen, and hyphens at the start and end are removed.\n- **`--max`:** it keeps whole words up to the limit and cuts at a word boundary. A single long word is cut at `n`, and a slug that already fits is unchanged.\n- **Usage errors:** with no text, or with `--max` but no text, it prints the usage line to stderr and exits with code 1.\n- **`--max` errors:** it rejects `abc`, `0`, `-3` and `2.5` with the documented message and exit code 1.\n- **Library:** both README examples work (`many-spaces`, and `hello` with `maxLength: 12`).\n\n**Not covered:**\n- The library checks import `src/slugify.js` directly, so `import { slugify } from 'slugkit'` as written in the README wasn't tested, because that needs an installed package.\n- Letters outside the Latin alphabet (such as `日本語`) aren't checked, because the README doesn't clearly say what should happen to them.\n\nThe checks are in `verify.features.json` and `verify-checks/slugify.mjs`, both new and uncommitted. The checks created no other files.\n\nDo you want me to fix `src/slugify.js` and rerun the three failed checks?",
+      "result": "caught",
+      "catching": [
+        "cli-accents-readme-example",
+        "cli-accents-uppercase",
+        "lib-accents"
+      ],
+      "falseFailures": [],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 20,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/slugify.mjs"
+      ],
+      "fixtureFiles": [
+        "verify-checks/slugify.mjs"
+      ],
+      "checks": [
+        {
+          "id": "cli-basic-title",
+          "feature": "Turns a title with punctuation into a slug (README example)",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "Hello, World!"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "hello-world"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-accents-readme-example",
+          "feature": "Turns accented letters into plain letters (README example)",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "Crème brûlée à la carte"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "creme-brulee-a-la-carte"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"creme-brulee-a-la-carte\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-accents-uppercase",
+          "feature": "Lowercases and plains an uppercase accented letter",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "ÉCOLE Normale"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "ecole-normale"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"ecole-normale\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-lowercase",
+          "feature": "Lowercases letters",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "LOUD Title"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "loud-title"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-keeps-digits",
+          "feature": "Keeps digits in the slug",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "Route 66 Diner"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "route-66-diner"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-collapses-runs",
+          "feature": "Turns every run of non-letter, non-digit characters into one hyphen",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "one  ---  two___three"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "one-two-three"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-trims-hyphens",
+          "feature": "Removes hyphens at the start and end of the slug",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "...Trim me!!!"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "trim-me"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-max-readme-example",
+          "feature": "--max keeps whole words up to the limit (README example)",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "--max",
+            "11",
+            "hello world again"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "hello-world"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-max-word-boundary",
+          "feature": "--max cuts at a word boundary instead of mid-word",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "--max",
+            "8",
+            "hello world again"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "hello"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-max-long-single-word",
+          "feature": "--max cuts a single word longer than n at n",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "--max",
+            "5",
+            "extraordinary"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "extra"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-max-longer-than-slug",
+          "feature": "--max leaves a slug that already fits unchanged",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "--max",
+            "50",
+            "Short Title"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "short-title"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-no-text",
+          "feature": "Without text, prints the usage line to stderr and exits with code 1",
+          "run": [
+            "node",
+            "bin/slug.js"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "equals": "Usage: slug [--max <n>] <text>"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-max-without-text",
+          "feature": "With --max but no text, prints the usage line to stderr and exits with code 1",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "--max",
+            "5"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "equals": "Usage: slug [--max <n>] <text>"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-max-not-a-number",
+          "feature": "Rejects a --max value that is not a number",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "--max",
+            "abc",
+            "hello world"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "equals": "--max must be a positive whole number"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-max-zero",
+          "feature": "Rejects --max 0",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "--max",
+            "0",
+            "hello world"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "equals": "--max must be a positive whole number"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-max-negative",
+          "feature": "Rejects a negative --max",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "--max",
+            "-3",
+            "hello world"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "equals": "--max must be a positive whole number"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "cli-max-fraction",
+          "feature": "Rejects a fractional --max",
+          "run": [
+            "node",
+            "bin/slug.js",
+            "--max",
+            "2.5",
+            "hello world"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "equals": "--max must be a positive whole number"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "lib-many-spaces",
+          "feature": "slugify collapses and trims spaces (README example)",
+          "run": [
+            "node",
+            "verify-checks/slugify.mjs",
+            "  Many   spaces  "
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"many-spaces\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "lib-max-length",
+          "feature": "slugify with maxLength cuts at a word boundary (README example)",
+          "run": [
+            "node",
+            "verify-checks/slugify.mjs",
+            "Hello wonderful world",
+            "12"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"hello\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "lib-accents",
+          "feature": "slugify turns accented letters into plain letters",
+          "run": [
+            "node",
+            "verify-checks/slugify.mjs",
+            "Café Noël"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"cafe-noel\""
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"\\\"cafe-noel\\\"\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    },
+    {
+      "case": "tally-broken",
+      "project": "tally",
+      "broken": true,
+      "wallMs": 47601,
+      "bashCommands": [
+        {
+          "command": "node /workspace/lim-wt/bench/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 1\n{\n  \"status\": \"failed\",\n  \"counts\": {\n    \"pass\": 10,\n    \"fail\": 2,\n    \"notVerified\": 0\n  },\n  \"report\": \"verify: 10 passed, 2 failed, 0 not verified (12 checks, 0.4 s)\\n\\nFAIL text-summary: Prints count, sum, and mean of a column as text (README example, amount column)\\n  $ node bin/t"
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/tmp/tally-nxXoJ4/verify-checks/blank-lines.csv",
+        "/tmp/tally-nxXoJ4/verify-checks/skipped-cells.csv",
+        "/tmp/tally-nxXoJ4/verify-checks/rounding.csv",
+        "/tmp/tally-nxXoJ4/verify-checks/no-numbers.csv",
+        "/tmp/tally-nxXoJ4/verify-checks/numeric-header.csv",
+        "/tmp/tally-nxXoJ4/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 24924,
+        "cacheRead": 134691,
+        "output": 5658,
+        "total": 165283
+      },
+      "costUsd": 0.3395302,
+      "apiMs": 46229,
+      "turns": 16,
+      "finalMessage": "```\nverify: 10 passed, 2 failed, 0 not verified (12 checks, 0.4 s)\n\nFAIL text-summary: Prints count, sum, and mean of a column as text (README example, amount column)\n  $ node bin/tally.js examples/sales.csv --column amount\n  - stdout does not equal \"count: 3\\nsum: 60\\nmean: 20\"\n  stdout: count: 3\n    sum: 60\n    mean: 15\n\nFAIL skipped-cells: Skips empty and non-numeric cells, so they do not count toward count, sum, or mean\n  $ node bin/tally.js verify-checks/skipped-cells.csv --column qty\n  - stdout does not equal \"count: 2\\nsum: 18\\nmean: 9\"\n  stdout: count: 2\n    sum: 18\n    mean: 4.5\n\nPassed: json-summary, header-not-data, blank-lines-ignored, two-decimal-rounding, no-numbers-text, no-numbers-json, unknown-column, unreadable-file, missing-column-option, missing-file-argument\n\nRan on uncommitted changes to 5 files besides the feature map.\n\nEvidence: /tmp/tally-nxXoJ4/.git/lim/verify/runs/2026-11-05T06-48-52-303Z.json\n```\n\n10 of the 12 checks passed. The two failures share one bug: `mean` is wrong whenever a column has skipped cells.\n\n**Failed**\n- **Text summary:** for the `amount` column of `examples/sales.csv`, the README's Usage example promises `mean: 20`, but the output was `mean: 15`.\n- **Skipping empty and non-numeric cells:** the README says these cells \"do not count toward `count`, `sum`, or `mean`\". With values 6, empty, `n/a` and 12, the mean should be 9, but the output was `mean: 4.5`.\n\n**Likely cause:** `src/stats.js:13` computes `sum / cells.length`, which divides by every row, including skipped ones. It should divide by `values.length`. `count` and `sum` were correct in both failures. I haven't changed any project code.\n\n**Passed**\n- Prints the summary as JSON with `--format json` (README example, `units` column)\n- Treats the first line as the header, even when it is a number\n- Ignores blank lines\n- Rounds `sum` and `mean` to two decimals\n- Shows `mean` as `-` in text and `null` in JSON when a column has no numeric cells\n- Reports an unknown column and exits with code 2\n- Reports an unreadable file and exits with code 2\n- Prints the usage line and exits with code 1 when `--column` or the file is missing\n\nThe JSON example passes only because its `units` column has no skipped cells, so it doesn't exercise this bug.\n\nI added `verify.features.json` and five starting CSVs in `verify-checks/`, all uncommitted. The checks don't write any other files.\n\nDo you want me to fix line 13 and rerun the two failed checks?",
+      "result": "caught",
+      "catching": [
+        "text-summary",
+        "skipped-cells"
+      ],
+      "falseFailures": [],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 12,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/blank-lines.csv",
+        "verify-checks/no-numbers.csv",
+        "verify-checks/numeric-header.csv",
+        "verify-checks/rounding.csv",
+        "verify-checks/skipped-cells.csv"
+      ],
+      "fixtureFiles": [
+        "verify-checks/blank-lines.csv",
+        "verify-checks/no-numbers.csv",
+        "verify-checks/numeric-header.csv",
+        "verify-checks/rounding.csv",
+        "verify-checks/skipped-cells.csv"
+      ],
+      "checks": [
+        {
+          "id": "text-summary",
+          "feature": "Prints count, sum, and mean of a column as text (README example, amount column)",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv",
+            "--column",
+            "amount"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 3\nsum: 60\nmean: 20"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"count: 3\\nsum: 60\\nmean: 20\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "json-summary",
+          "feature": "Prints the summary as JSON with --format json (README example, units column)",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv",
+            "--column",
+            "units",
+            "--format",
+            "json"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "{\"count\":4,\"sum\":10,\"mean\":2.5}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "header-not-data",
+          "feature": "Treats the first line as the header, not as data, even when it is a number",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/numeric-header.csv",
+            "--column",
+            "2024"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 2\nsum: 12\nmean: 6"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "blank-lines-ignored",
+          "feature": "Ignores blank lines",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/blank-lines.csv",
+            "--column",
+            "qty"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 2\nsum: 12\nmean: 6"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "skipped-cells",
+          "feature": "Skips empty and non-numeric cells, so they do not count toward count, sum, or mean",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/skipped-cells.csv",
+            "--column",
+            "qty"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 2\nsum: 18\nmean: 9"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"count: 2\\nsum: 18\\nmean: 9\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "two-decimal-rounding",
+          "feature": "Rounds sum and mean to two decimals",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/rounding.csv",
+            "--column",
+            "weight"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 3\nsum: 6.68\nmean: 2.23"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-numbers-text",
+          "feature": "Shows mean as - in text when a column has no numeric cells",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/no-numbers.csv",
+            "--column",
+            "note"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 0\nsum: 0\nmean: -"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-numbers-json",
+          "feature": "Shows mean as null in JSON when a column has no numeric cells",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/no-numbers.csv",
+            "--column",
+            "note",
+            "--format",
+            "json"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "{\"count\":0,\"sum\":0,\"mean\":null}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unknown-column",
+          "feature": "Reports a column the header does not have and exits with code 2",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv",
+            "--column",
+            "price"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Unknown column: price"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unreadable-file",
+          "feature": "Reports a file that cannot be read and exits with code 2",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/does-not-exist.csv",
+            "--column",
+            "amount"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Cannot read verify-checks/does-not-exist.csv"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "missing-column-option",
+          "feature": "Prints the usage line and exits with code 1 when --column is missing",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: tally <file\\.csv> --column <name>"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "missing-file-argument",
+          "feature": "Prints the usage line and exits with code 1 when the file is missing",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "--column",
+            "amount"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: tally <file\\.csv> --column <name>"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    },
+    {
+      "case": "jot-broken",
+      "project": "jot",
+      "broken": true,
+      "wallMs": 85741,
+      "bashCommands": [
+        {
+          "command": "node /workspace/lim-wt/bench/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 1\n{\n  \"status\": \"failed\",\n  \"counts\": {\n    \"pass\": 15,\n    \"fail\": 2,\n    \"notVerified\": 0\n  },\n  \"report\": \"verify: 15 passed, 2 failed, 0 not verified (17 checks, 0.6 s)\\n\\nFAIL done-marks-last-item: done <number> marks the last item done and leaves the others open\\n  $ node bin/jot.js "
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/tmp/jot-cl2v9e/verify-checks/add-append.json",
+        "/tmp/jot-cl2v9e/verify-checks/list-mixed.json",
+        "/tmp/jot-cl2v9e/verify-checks/list-empty.json",
+        "/tmp/jot-cl2v9e/verify-checks/done-message.json",
+        "/tmp/jot-cl2v9e/verify-checks/done-last.json",
+        "/tmp/jot-cl2v9e/verify-checks/done-first.json",
+        "/tmp/jot-cl2v9e/verify-checks/done-unknown.json",
+        "/tmp/jot-cl2v9e/verify-checks/default-folder/.gitkeep",
+        "/tmp/jot-cl2v9e/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 29490,
+        "cacheRead": 138039,
+        "output": 9903,
+        "total": 177442
+      },
+      "costUsd": 0.46162780000000003,
+      "apiMs": 84154,
+      "turns": 18,
+      "finalMessage": "```\nverify: 15 passed, 2 failed, 0 not verified (17 checks, 0.6 s)\n\nFAIL done-marks-last-item: done <number> marks the last item done and leaves the others open\n  $ node bin/jot.js --file verify-checks/done-last.json done 2\n  - verify-checks/done-last.json was not written by this run\n  stdout: Done #2: walk the dog\n\nFAIL done-marks-first-item: done <number> marks the first item done and leaves the others open\n  $ node bin/jot.js --file verify-checks/done-first.json done 1\n  - verify-checks/done-first.json does not match \"\\\"text\\\":\\\\s*\\\"buy milk\\\",\\\\s+\\\"done\\\":\\\\s*true[\\\\s\\\\S]*\\\"text\\\":\\\\s*\\\"walk the dog\\\",\\\\s+\\\"done\\\":\\\\s*false\"\n  stdout: Done #1: buy milk\n\nPassed: add-first-item, add-appends-open-item, default-file-in-current-folder, list-shows-marks-and-numbers, file-option-after-command, list-empty-file, list-missing-file, done-prints-confirmation, done-unknown-number, done-zero, done-unknown-keeps-file, usage-no-command, usage-unknown-command, usage-add-without-text, usage-done-without-number\n\nRan on uncommitted changes to 8 files besides the feature map.\n\nEvidence: /tmp/jot-cl2v9e/.git/lim/verify/runs/2026-11-05T06-49-24-853Z.json\n```\n\n**`jot done` is broken: it prints a success message but marks the wrong item, or none at all.** The other 15 checks passed, and none came back not verified.\n\n**Failed**\n- **\"done marks the last item done and leaves the others open\":** `done 2` on a two-item list should mark item 2, as the README's Usage example and its `done <number>` line promise. It printed `Done #2: walk the dog`, but the file wasn't changed.\n- **\"done marks the first item done and leaves the others open\":** `done 1` should mark `buy milk`. It printed `Done #1: buy milk`, but the file now shows `buy milk` still open and `walk the dog` done.\n\n**Likely cause:** `src/todos.js:8` compares `position === number`, but `position` starts at 0 and `number` starts at 1, so it hits the item after the one requested. The comparison should use `index`, which is already computed on line 7. I haven't changed any code.\n\n**Passed**\n- **`add`:** creates the file, appends an open item and prints its number.\n- **Saving:** uses `todo.json` in the current folder by default, and `--file` works before or after the command.\n- **`list`:** shows numbers with `[x]` and `[ ]`, and prints `No todos.` for an empty list or a missing file.\n- **`done` confirmation:** the printed message is correct, though the save behind it isn't.\n- **`done` errors:** `done 5` and `done 0` print `No todo #<number>` to stderr and exit 1.\n- **Usage errors:** no command, an unknown command, `add` without text and `done` without a number all print the usage line to stderr and exit 1.\n\n**Limits of these checks**\n- **File unchanged after a failed `done`:** `done-unknown-keeps-file` runs `list` after the two failed `done` commands, so it only means something in a full run. It would also miss a change that doesn't affect what `list` shows.\n- **Usage line:** the README doesn't give its text, so the checks only match the start, `Usage: jot `.\n- **Not checked:** `done abc`, because the README doesn't say whether that should print `No todo #…` or the usage line. From the code, it would print `No todo #NaN`.\n\n**Files:** I added `verify.features.json` and `verify-checks/`. The run created `verify-checks/add-new.json` and `verify-checks/default-folder/todo.json`, and changed `add-append.json` and `done-first.json`. These need resetting before a rerun, or the affected checks will come back not verified or fail for the wrong reason.\n\nDo you want me to fix line 8? I'd then reset the starting files and rerun the two failed checks.",
+      "result": "caught",
+      "catching": [
+        "done-marks-last-item",
+        "done-marks-first-item"
+      ],
+      "falseFailures": [],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 17,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/add-append.json",
+        "verify-checks/add-new.json",
+        "verify-checks/default-folder/.gitkeep",
+        "verify-checks/default-folder/todo.json",
+        "verify-checks/done-first.json",
+        "verify-checks/done-last.json",
+        "verify-checks/done-message.json",
+        "verify-checks/done-unknown.json",
+        "verify-checks/list-empty.json",
+        "verify-checks/list-mixed.json"
+      ],
+      "fixtureFiles": [
+        "verify-checks/add-append.json",
+        "verify-checks/default-folder/.gitkeep",
+        "verify-checks/done-first.json",
+        "verify-checks/done-last.json",
+        "verify-checks/done-message.json",
+        "verify-checks/done-unknown.json",
+        "verify-checks/list-empty.json",
+        "verify-checks/list-mixed.json"
+      ],
+      "checks": [
+        {
+          "id": "add-first-item",
+          "feature": "add creates the list file given by --file and prints the new item's number",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/add-new.json",
+            "add",
+            "buy",
+            "milk"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "Added #1: buy milk"
+            },
+            "files": [
+              {
+                "path": "verify-checks/add-new.json",
+                "matches": "\"text\":\\s*\"buy milk\",\\s+\"done\":\\s*false"
+              }
+            ]
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "add-appends-open-item",
+          "feature": "add appends an open item after the existing ones and prints the next number",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/add-append.json",
+            "add",
+            "walk",
+            "the",
+            "dog"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "Added #2: walk the dog"
+            },
+            "files": [
+              {
+                "path": "verify-checks/add-append.json",
+                "matches": "\"text\":\\s*\"buy milk\",\\s+\"done\":\\s*false[\\s\\S]*\"text\":\\s*\"walk the dog\",\\s+\"done\":\\s*false"
+              }
+            ]
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "default-file-in-current-folder",
+          "feature": "Without --file the list is saved to todo.json in the current folder",
+          "cwd": "verify-checks/default-folder",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "add",
+            "buy",
+            "milk"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "Added #1: buy milk"
+            },
+            "files": [
+              {
+                "path": "verify-checks/default-folder/todo.json",
+                "matches": "\"text\":\\s*\"buy milk\""
+              }
+            ]
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "list-shows-marks-and-numbers",
+          "feature": "list prints every item with its number, [x] for done and [ ] for open",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/list-mixed.json",
+            "list"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[ ] 1. buy milk\n[x] 2. walk the dog"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "file-option-after-command",
+          "feature": "--file also works when it comes after the command",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "list",
+            "--file",
+            "verify-checks/list-mixed.json"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[ ] 1. buy milk\n[x] 2. walk the dog"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "list-empty-file",
+          "feature": "list prints No todos. for an empty list",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/list-empty.json",
+            "list"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "No todos."
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "list-missing-file",
+          "feature": "list prints No todos. when the list file does not exist yet",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/never-created.json",
+            "list"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "No todos."
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "done-prints-confirmation",
+          "feature": "done prints the number and text of the completed item",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/done-message.json",
+            "done",
+            "2"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "Done #2: walk the dog"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "done-marks-last-item",
+          "feature": "done <number> marks the last item done and leaves the others open",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/done-last.json",
+            "done",
+            "2"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "files": [
+              {
+                "path": "verify-checks/done-last.json",
+                "matches": "\"text\":\\s*\"buy milk\",\\s+\"done\":\\s*false[\\s\\S]*\"text\":\\s*\"walk the dog\",\\s+\"done\":\\s*true"
+              }
+            ]
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "verify-checks/done-last.json was not written by this run"
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "done-marks-first-item",
+          "feature": "done <number> marks the first item done and leaves the others open",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/done-first.json",
+            "done",
+            "1"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "files": [
+              {
+                "path": "verify-checks/done-first.json",
+                "matches": "\"text\":\\s*\"buy milk\",\\s+\"done\":\\s*true[\\s\\S]*\"text\":\\s*\"walk the dog\",\\s+\"done\":\\s*false"
+              }
+            ]
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "verify-checks/done-first.json does not match \"\\\"text\\\":\\\\s*\\\"buy milk\\\",\\\\s+\\\"done\\\":\\\\s*true[\\\\s\\\\S]*\\\"text\\\":\\\\s*\\\"walk the dog\\\",\\\\s+\\\"done\\\":\\\\s*false\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "done-unknown-number",
+          "feature": "done with a number past the end prints No todo #<number> to stderr and exits with code 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/done-unknown.json",
+            "done",
+            "5"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "equals": "No todo #5"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "done-zero",
+          "feature": "done 0 has no item, so it prints No todo #0 to stderr and exits with code 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/done-unknown.json",
+            "done",
+            "0"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "equals": "No todo #0"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "done-unknown-keeps-file",
+          "feature": "After the failed done commands above, the list file still holds both open items",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/done-unknown.json",
+            "list"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[ ] 1. buy milk\n[ ] 2. walk the dog"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-no-command",
+          "feature": "Running with no command prints the usage line to stderr and exits with code 1",
+          "run": [
+            "node",
+            "bin/jot.js"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: jot "
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-unknown-command",
+          "feature": "An unknown command prints the usage line to stderr and exits with code 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/list-mixed.json",
+            "remove",
+            "1"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: jot "
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-add-without-text",
+          "feature": "add without text prints the usage line to stderr and exits with code 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/list-mixed.json",
+            "add"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: jot "
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-done-without-number",
+          "feature": "done without a number prints the usage line to stderr and exits with code 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/list-mixed.json",
+            "done"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: jot "
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    },
+    {
+      "case": "durations-broken",
+      "project": "durations",
+      "broken": true,
+      "wallMs": 51727,
+      "bashCommands": [
+        {
+          "command": "node /workspace/lim-wt/bench/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 1\n{\n  \"status\": \"failed\",\n  \"counts\": {\n    \"pass\": 15,\n    \"fail\": 3,\n    \"notVerified\": 0\n  },\n  \"report\": \"verify: 15 passed, 3 failed, 0 not verified (18 checks, 0.5 s)\\n\\nFAIL parse-with-spaces: parseDuration accepts spaces between parts, as in 1m 30s 500ms\\n  $ node verify-checks/par"
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/tmp/durations-I8ArUp/verify-checks/parse.mjs",
+        "/tmp/durations-I8ArUp/verify-checks/format.mjs",
+        "/tmp/durations-I8ArUp/verify-checks/package-import.mjs",
+        "/tmp/durations-I8ArUp/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 24846,
+        "cacheRead": 132827,
+        "output": 6365,
+        "total": 164048
+      },
+      "costUsd": 0.35267339999999997,
+      "apiMs": 50429,
+      "turns": 11,
+      "finalMessage": "```\nverify: 15 passed, 3 failed, 0 not verified (18 checks, 0.5 s)\n\nFAIL parse-with-spaces: parseDuration accepts spaces between parts, as in 1m 30s 500ms\n  $ node verify-checks/parse.mjs '1m 30s 500ms'\n  - exit code 1, expected 0\n  - stdout does not equal \"90500\"\n  stderr:     at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n        at async node:internal/modules/esm/loader:647:26\n        at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n    \n    Node.js v24.22.1\n\nFAIL parse-milliseconds-unit: parseDuration understands the ms unit on its own\n  $ node verify-checks/parse.mjs 250ms\n  - exit code 1, expected 0\n  - stdout does not equal \"250\"\n  stderr:     at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n        at async node:internal/modules/esm/loader:647:26\n        at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n    \n    Node.js v24.22.1\n\nFAIL parse-all-units-no-spaces: parseDuration combines all five units without spaces\n  $ node verify-checks/parse.mjs 1d2h3m4s5ms\n  - exit code 1, expected 0\n  - stdout does not equal \"93784005\"\n  stderr:     at ModuleJob.run (node:internal/modules/esm/module_job:561:25)\n        at async node:internal/modules/esm/loader:647:26\n        at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n    \n    Node.js v24.22.1\n\nPassed: package-import, parse-hours-minutes, parse-days, parse-any-order, parse-rejects-word, parse-rejects-unknown-unit, parse-rejects-missing-unit, parse-rejects-empty, format-hours-minutes, format-largest-first, format-milliseconds, format-skips-zero-units, format-zero, format-rejects-negative, format-rejects-fraction\n\nRan on uncommitted changes to 3 files besides the feature map.\n\nEvidence: /tmp/durations-I8ArUp/.git/lim/verify/runs/2026-11-05T06-49-38-499Z.json\n```\n\n**15 of 18 checks passed. The 3 failures are all `parseDuration` inputs that use the `ms` unit.**\n\n**Failed**\n| Feature | Input | Expected | Actual | Source |\n|---|---|---|---|---|\n| Accepts spaces between parts | `1m 30s 500ms` | `90500` | exit code 1, no result | README, code example |\n| Understands the `ms` unit on its own | `250ms` | `250` | exit code 1, no result | README, `parseDuration(text)` section: units are `d`, `h`, `m`, `s`, and `ms` |\n| Combines all five units without spaces | `1d2h3m4s5ms` | `93784005` | exit code 1, no result | Same README section: \"in any combination, with or without spaces\" |\n\n**Likely cause (from reading the code, not confirmed by a check):** in `src/index.js:9`, the pattern `(d|h|m|s|ms)` tries `m` before `ms`. `500ms` therefore matches as `500m` and leaves a stray `s`, so the length check on line 19 throws `Invalid duration`. The report's stderr excerpt cuts off the error message, so it doesn't show this directly. Putting `ms` before `m` in the pattern should fix it.\n\n**Passed**\n- **Import:** both functions can be imported by the package name `durations`.\n- **`parseDuration` values:**\n  - `1h30m` gives 5400000.\n  - `2d` gives 172800000.\n  - Units work in any order (`30s1h`).\n- **`parseDuration` errors:** it throws `Invalid duration` for a word, an unknown unit, a number with no unit, and empty text.\n- **`formatDuration` values:**\n  - 5400000 gives `1h 30m`.\n  - It lists the largest units first and leaves out zero units.\n  - It shows leftover milliseconds.\n  - 0 gives `0s`.\n- **`formatDuration` errors:** it throws for a negative number and for a fraction.\n\nNothing was left not verified.\n\nI added `verify.features.json` and three helpers in `verify-checks/` (`parse.mjs`, `format.mjs`, `package-import.mjs`). They're uncommitted, and the checks don't create any other files. I didn't change the project's code.\n\nEvidence: `/tmp/durations-I8ArUp/.git/lim/verify/runs/2026-11-05T06-49-38-499Z.json`\n\nDo you want me to fix the pattern and rerun these three checks?",
+      "result": "caught",
+      "catching": [
+        "parse-with-spaces",
+        "parse-milliseconds-unit",
+        "parse-all-units-no-spaces"
+      ],
+      "falseFailures": [],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 18,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/format.mjs",
+        "verify-checks/package-import.mjs",
+        "verify-checks/parse.mjs"
+      ],
+      "fixtureFiles": [
+        "verify-checks/format.mjs",
+        "verify-checks/package-import.mjs",
+        "verify-checks/parse.mjs"
+      ],
+      "checks": [
+        {
+          "id": "package-import",
+          "feature": "Both functions can be imported by the package name 'durations'",
+          "run": [
+            "node",
+            "verify-checks/package-import.mjs",
+            "45s"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[45000,\"45s\"]"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "parse-hours-minutes",
+          "feature": "parseDuration turns 1h30m into 5400000 milliseconds",
+          "run": [
+            "node",
+            "verify-checks/parse.mjs",
+            "1h30m"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "5400000"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "parse-days",
+          "feature": "parseDuration turns 2d into 172800000 milliseconds",
+          "run": [
+            "node",
+            "verify-checks/parse.mjs",
+            "2d"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "172800000"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "parse-with-spaces",
+          "feature": "parseDuration accepts spaces between parts, as in 1m 30s 500ms",
+          "run": [
+            "node",
+            "verify-checks/parse.mjs",
+            "1m 30s 500ms"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "90500"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "exit code 1, expected 0",
+            "stdout does not equal \"90500\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "parse-milliseconds-unit",
+          "feature": "parseDuration understands the ms unit on its own",
+          "run": [
+            "node",
+            "verify-checks/parse.mjs",
+            "250ms"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "250"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "exit code 1, expected 0",
+            "stdout does not equal \"250\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "parse-all-units-no-spaces",
+          "feature": "parseDuration combines all five units without spaces",
+          "run": [
+            "node",
+            "verify-checks/parse.mjs",
+            "1d2h3m4s5ms"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "93784005"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "exit code 1, expected 0",
+            "stdout does not equal \"93784005\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "parse-any-order",
+          "feature": "parseDuration accepts units in any combination, smallest first included",
+          "run": [
+            "node",
+            "verify-checks/parse.mjs",
+            "30s1h"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "3630000"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "parse-rejects-word",
+          "feature": "parseDuration throws Invalid duration for a word",
+          "run": [
+            "node",
+            "verify-checks/parse.mjs",
+            "soon"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "Invalid duration: \"soon\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "parse-rejects-unknown-unit",
+          "feature": "parseDuration throws Invalid duration for an unknown unit",
+          "run": [
+            "node",
+            "verify-checks/parse.mjs",
+            "5w"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "Invalid duration: \"5w\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "parse-rejects-missing-unit",
+          "feature": "parseDuration throws Invalid duration when a number has no unit",
+          "run": [
+            "node",
+            "verify-checks/parse.mjs",
+            "1h30"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "Invalid duration: \"1h30\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "parse-rejects-empty",
+          "feature": "parseDuration throws Invalid duration for empty text",
+          "run": [
+            "node",
+            "verify-checks/parse.mjs",
+            ""
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "Invalid duration: \"\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "format-hours-minutes",
+          "feature": "formatDuration turns 5400000 into 1h 30m",
+          "run": [
+            "node",
+            "verify-checks/format.mjs",
+            "5400000"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"1h 30m\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "format-largest-first",
+          "feature": "formatDuration lists the largest units first",
+          "run": [
+            "node",
+            "verify-checks/format.mjs",
+            "90061000"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"1d 1h 1m 1s\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "format-milliseconds",
+          "feature": "formatDuration shows leftover milliseconds",
+          "run": [
+            "node",
+            "verify-checks/format.mjs",
+            "1500"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"1s 500ms\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "format-skips-zero-units",
+          "feature": "formatDuration leaves out units that are zero",
+          "run": [
+            "node",
+            "verify-checks/format.mjs",
+            "86400001"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"1d 1ms\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "format-zero",
+          "feature": "formatDuration turns 0 into 0s",
+          "run": [
+            "node",
+            "verify-checks/format.mjs",
+            "0"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"0s\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "format-rejects-negative",
+          "feature": "formatDuration throws for a negative number",
+          "run": [
+            "node",
+            "verify-checks/format.mjs",
+            "-5"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "Error: formatDuration needs a whole number of milliseconds, 0 or more"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "format-rejects-fraction",
+          "feature": "formatDuration throws for a fraction",
+          "run": [
+            "node",
+            "verify-checks/format.mjs",
+            "1.5"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "Error: formatDuration needs a whole number of milliseconds, 0 or more"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    },
+    {
+      "case": "tally-working",
+      "project": "tally",
+      "broken": false,
+      "wallMs": 69371,
+      "bashCommands": [
+        {
+          "command": "node /workspace/lim-wt/bench/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": false,
+          "permission": "accept"
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/tmp/tally-kxWQfX/verify-checks/blanks.csv",
+        "/tmp/tally-kxWQfX/verify-checks/numeric-header.csv",
+        "/tmp/tally-kxWQfX/verify-checks/gaps.csv",
+        "/tmp/tally-kxWQfX/verify-checks/rounding.csv",
+        "/tmp/tally-kxWQfX/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 27182,
+        "cacheRead": 136922,
+        "output": 7933,
+        "total": 172047
+      },
+      "costUsd": 0.4035404,
+      "apiMs": 67994,
+      "turns": 15,
+      "finalMessage": "```\nverify: 17 passed, 0 failed, 0 not verified (17 checks, 0.5 s)\n\nPassed: text-output, json-output, explicit-text-format, header-not-data, blank-lines-ignored, skips-non-numeric-cells, rounds-text, rounds-json, no-numeric-cells-text, no-numeric-cells-json, unknown-column, missing-file, unreadable-directory, no-arguments, missing-column-option, missing-column-value, missing-file-argument\n\nRan on uncommitted changes to 4 files besides the feature map.\n\nEvidence: /tmp/tally-kxWQfX/.git/lim/verify/runs/2026-11-05T06-50-10-697Z.json\n```\n\nAll 17 checks passed, so every behavior the README documents works; none failed and none went unverified.\n\n**Passed:**\n- **Output:** text is the default, and `--format json` and `--format text` both work. Both README examples produce exactly the documented output.\n- **Parsing:**\n  - The first line is treated as the header, even when it looks numeric.\n  - Blank lines are ignored, including ones before the header.\n  - Empty and non-numeric cells such as `n/a` and `12abc` are skipped, while a cell holding `0` is still counted.\n- **Numbers:** `sum` and `mean` are rounded to two decimals in both formats. With no numeric cells, `mean` is `-` in text and `null` in JSON.\n- **Exit code 2:** an unknown column prints `Unknown column: <name>`. A missing file, or a directory passed as the file, prints `Cannot read <file>`.\n- **Exit code 1:** the usage line is printed with no arguments, without `--column`, with `--column` but no value, and without a file.\n\n**Limits of these checks:**\n- **Usage line:** the README doesn't give its text, so I took the expected wording from `bin/tally.js`. That check would catch a missing usage line, but it doesn't show the wording is what you intended.\n- **Not tested, because the README doesn't promise a result:**\n  - an unrecognized `--format` value\n  - quoted CSV cells\n  - CRLF line endings\n  - exact half-way rounding, such as `1.005`\n  - number-like strings such as `0x10`\n\n**Files added (not committed):** `verify.features.json` and four starting CSVs in `verify-checks/`: `blanks.csv`, `gaps.csv`, `numeric-header.csv` and `rounding.csv`. The checks don't write any files, so you can rerun them as they are.",
+      "result": "clean",
+      "catching": [],
+      "falseFailures": [],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 17,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/blanks.csv",
+        "verify-checks/gaps.csv",
+        "verify-checks/numeric-header.csv",
+        "verify-checks/rounding.csv"
+      ],
+      "fixtureFiles": [
+        "verify-checks/blanks.csv",
+        "verify-checks/gaps.csv",
+        "verify-checks/numeric-header.csv",
+        "verify-checks/rounding.csv"
+      ],
+      "checks": [
+        {
+          "id": "text-output",
+          "feature": "Prints count, sum, and mean of a column as text by default",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv",
+            "--column",
+            "amount"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 3\nsum: 60\nmean: 20"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "json-output",
+          "feature": "Prints the stats as JSON with --format json",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv",
+            "--column",
+            "units",
+            "--format",
+            "json"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "{\"count\":4,\"sum\":10,\"mean\":2.5}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "explicit-text-format",
+          "feature": "Prints text with --format text",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv",
+            "--column",
+            "units",
+            "--format",
+            "text"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 4\nsum: 10\nmean: 2.5"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "header-not-data",
+          "feature": "Treats the first line as the header, not as data, even when it looks numeric",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/numeric-header.csv",
+            "--column",
+            "2024"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 2\nsum: 3\nmean: 1.5"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "blank-lines-ignored",
+          "feature": "Ignores blank lines, including ones before the header",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/blanks.csv",
+            "--column",
+            "qty"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 2\nsum: 12\nmean: 6"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "skips-non-numeric-cells",
+          "feature": "Skips empty and non-numeric cells, and still counts a cell holding 0",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/gaps.csv",
+            "--column",
+            "price"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 3\nsum: 12\nmean: 4"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "rounds-text",
+          "feature": "Rounds sum and mean to two decimals in text output",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/rounding.csv",
+            "--column",
+            "reading"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 3\nsum: 6.69\nmean: 2.23"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "rounds-json",
+          "feature": "Rounds sum and mean to two decimals in JSON output",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/rounding.csv",
+            "--column",
+            "reading",
+            "--format",
+            "json"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "{\"count\":3,\"sum\":6.69,\"mean\":2.23}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-numeric-cells-text",
+          "feature": "Shows mean as - in text when a column has no numeric cells",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv",
+            "--column",
+            "region"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "count: 0\nsum: 0\nmean: -"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-numeric-cells-json",
+          "feature": "Shows mean as null in JSON when a column has no numeric cells",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv",
+            "--column",
+            "region",
+            "--format",
+            "json"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "{\"count\":0,\"sum\":0,\"mean\":null}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unknown-column",
+          "feature": "Rejects a column the header does not have with exit code 2",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv",
+            "--column",
+            "price"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Unknown column: price"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "missing-file",
+          "feature": "Reports a file that does not exist with exit code 2",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "verify-checks/does-not-exist.csv",
+            "--column",
+            "amount"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Cannot read verify-checks/does-not-exist.csv"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unreadable-directory",
+          "feature": "Reports a path that cannot be read as a file with exit code 2",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples",
+            "--column",
+            "amount"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Cannot read examples"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-arguments",
+          "feature": "Prints the usage line and exits 1 when given no arguments",
+          "run": [
+            "node",
+            "bin/tally.js"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: tally <file\\.csv> --column <name>"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "missing-column-option",
+          "feature": "Prints the usage line and exits 1 when --column is missing",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: tally <file\\.csv> --column <name>"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "missing-column-value",
+          "feature": "Prints the usage line and exits 1 when --column has no value",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "examples/sales.csv",
+            "--column"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: tally <file\\.csv> --column <name>"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "missing-file-argument",
+          "feature": "Prints the usage line and exits 1 when the file is missing",
+          "run": [
+            "node",
+            "bin/tally.js",
+            "--column",
+            "amount"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: tally <file\\.csv> --column <name>"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    },
+    {
+      "case": "jot-working",
+      "project": "jot",
+      "broken": false,
+      "wallMs": 77918,
+      "bashCommands": [
+        {
+          "command": "node /workspace/lim-wt/bench/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 1\n{\n  \"status\": \"failed\",\n  \"counts\": {\n    \"pass\": 15,\n    \"fail\": 2,\n    \"notVerified\": 0\n  },\n  \"report\": \"verify: 15 passed, 2 failed, 0 not verified (17 checks, 0.5 s)\\n\\nFAIL usage-done-not-a-number: done with something that is not a number prints the usage line to stderr and exits 1"
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/tmp/jot-o7crKk/verify-checks/two-items.json",
+        "/tmp/jot-o7crKk/verify-checks/default-folder/.gitkeep",
+        "/tmp/jot-o7crKk/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 27632,
+        "cacheRead": 136699,
+        "output": 8761,
+        "total": 173102
+      },
+      "costUsd": 0.42365579999999997,
+      "apiMs": 76671,
+      "turns": 12,
+      "finalMessage": "```\nverify: 15 passed, 2 failed, 0 not verified (17 checks, 0.5 s)\n\nFAIL usage-done-not-a-number: done with something that is not a number prints the usage line to stderr and exits 1\n  $ node bin/jot.js --file verify-checks/two-items.json done abc\n  - stderr does not match \"^Usage: jot \"\n  stderr: No todo #NaN\n\nFAIL usage-file-without-path: --file without a path prints the usage line to stderr and exits 1\n  $ node bin/jot.js list --file\n  - exit code 0, expected 1\n  - stderr does not match \"^Usage: jot \"\n  stdout: No todos.\n  stderr: (node:747154) [DEP0187] DeprecationWarning: Passing invalid argument types to fs.existsSync is deprecated\n    (Use `node --trace-deprecation ...` to show where the warning was created)\n\nPassed: add-first-item, add-second-item, done-marks-item, list-shows-state, list-empty, default-file-add, default-file-list, file-option-overrides-default, done-unknown-number, done-zero, done-unknown-leaves-file, usage-unknown-command, usage-no-command, usage-add-without-text, usage-done-without-number\n\nRan on uncommitted changes to 2 files besides the feature map.\n\nEvidence: /tmp/jot-o7crKk/.git/lim/verify/runs/2026-11-05T06-50-47-191Z.json\n```\n\n15 of the 17 checks passed and 2 failed; none came back not verified.\n\n**Passed**\n- **`add`:** it creates the file, appends to an existing list, and prints the item's number.\n- **`done <number>`:** it marks the item done and prints it.\n- **`list`:** it shows `[x]` and `[ ]` with item numbers, and an empty list prints `No todos.`\n- **File choice:** the list is saved to and read from `todo.json` in the current folder by default, and `--file <path>` uses another file.\n- **`done` with a number that has no item:** `5` and `0` print `No todo #<number>` to stderr and exit 1. A follow-up `list` showed the items unchanged, but that doesn't prove the file is byte-for-byte identical.\n- **Usage line:** it goes to stderr with exit 1 for an unknown command, no command, `add` without text, and `done` without a number.\n\n**Failed**\n\nBoth expectations come from the README's last bullet: \"Anything else prints the usage line to stderr and exits with code 1.\"\n1. **`done abc`:** I expected the usage line, but it printed `No todo #NaN`. The exit code was 1, as expected. The README's `No todo` message only covers \"a number with no item\", and `abc` isn't a number, so I counted it under \"anything else\".\n2. **`list --file` with no path:** I expected the usage line and exit 1. Instead it printed `No todos.`, exited 0, and showed a Node deprecation warning. The path ends up `undefined`, and the code carries on with it.\n\nBoth failures depend on how that bullet is read, because the README doesn't mention either input by name. If you think either behavior is fine, tell me and I'll change that check. Otherwise I can fix the code if you'd like; I haven't changed it.\n\n**Files added (nothing committed)**\n- **Map and starting files:** `verify.features.json`, `verify-checks/two-items.json` and `verify-checks/default-folder/.gitkeep`.\n- **Created by the checks:** `verify-checks/readme-flow.json` and `verify-checks/default-folder/todo.json`. Delete both before a full rerun, because `add-first-item` and `default-file-add` expect to create them.",
+      "result": "false-failure",
+      "catching": [],
+      "falseFailures": [
+        "usage-done-not-a-number",
+        "usage-file-without-path"
+      ],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 17,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/default-folder/.gitkeep",
+        "verify-checks/default-folder/todo.json",
+        "verify-checks/readme-flow.json",
+        "verify-checks/two-items.json"
+      ],
+      "fixtureFiles": [
+        "verify-checks/default-folder/.gitkeep",
+        "verify-checks/two-items.json"
+      ],
+      "checks": [
+        {
+          "id": "add-first-item",
+          "feature": "add creates the list file and prints the new item's number",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/readme-flow.json",
+            "add",
+            "buy",
+            "milk"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "Added #1: buy milk"
+            },
+            "files": [
+              {
+                "path": "verify-checks/readme-flow.json",
+                "matches": "\"text\":\\s*\"buy milk\""
+              }
+            ]
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "add-second-item",
+          "feature": "add appends to an existing list and gives the next number",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/readme-flow.json",
+            "add",
+            "walk",
+            "the",
+            "dog"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "Added #2: walk the dog"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "done-marks-item",
+          "feature": "done <number> marks that item done and prints it",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/readme-flow.json",
+            "done",
+            "2"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "Done #2: walk the dog"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "list-shows-state",
+          "feature": "list prints every item with its number, [x] for done and [ ] for open",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/readme-flow.json",
+            "list"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[ ] 1. buy milk\n[x] 2. walk the dog"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "list-empty",
+          "feature": "An empty list prints No todos.",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/no-such-file.json",
+            "list"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "No todos."
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "default-file-add",
+          "feature": "Without --file the list is saved to todo.json in the current folder",
+          "cwd": "verify-checks/default-folder",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "add",
+            "water",
+            "the",
+            "plants"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "Added #1: water the plants"
+            },
+            "files": [
+              {
+                "path": "verify-checks/default-folder/todo.json",
+                "matches": "\"text\":\\s*\"water the plants\""
+              }
+            ]
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "default-file-list",
+          "feature": "Without --file the list is read from todo.json in the current folder",
+          "cwd": "verify-checks/default-folder",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "list"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[ ] 1. water the plants"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "file-option-overrides-default",
+          "feature": "--file <path> uses another file instead of todo.json",
+          "cwd": "verify-checks/default-folder",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "other.json",
+            "list"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "No todos."
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "done-unknown-number",
+          "feature": "done with a number that has no item prints No todo #<number> to stderr and exits 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/two-items.json",
+            "done",
+            "5"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "equals": "No todo #5"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "done-zero",
+          "feature": "done 0 has no item, so it prints No todo #0 to stderr and exits 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/two-items.json",
+            "done",
+            "0"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "equals": "No todo #0"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "done-unknown-leaves-file",
+          "feature": "done with a number that has no item does not change the file",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/two-items.json",
+            "list"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[ ] 1. feed the cat\n[x] 2. call the bank"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-unknown-command",
+          "feature": "An unknown command prints the usage line to stderr and exits 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/no-such-file.json",
+            "archive"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: jot "
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-no-command",
+          "feature": "No command at all prints the usage line to stderr and exits 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/no-such-file.json"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: jot "
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-add-without-text",
+          "feature": "add without text prints the usage line to stderr and exits 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/no-such-file.json",
+            "add"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: jot "
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-done-without-number",
+          "feature": "done without a number prints the usage line to stderr and exits 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/no-such-file.json",
+            "done"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: jot "
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "usage-done-not-a-number",
+          "feature": "done with something that is not a number prints the usage line to stderr and exits 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "--file",
+            "verify-checks/two-items.json",
+            "done",
+            "abc"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: jot "
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stderr does not match \"^Usage: jot \""
+          ],
+          "intactStatus": "fail",
+          "intactReasons": [
+            "stderr does not match \"^Usage: jot \""
+          ]
+        },
+        {
+          "id": "usage-file-without-path",
+          "feature": "--file without a path prints the usage line to stderr and exits 1",
+          "run": [
+            "node",
+            "bin/jot.js",
+            "list",
+            "--file"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "matches": "^Usage: jot "
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "exit code 0, expected 1",
+            "stderr does not match \"^Usage: jot \""
+          ],
+          "intactStatus": "fail",
+          "intactReasons": [
+            "exit code 0, expected 1",
+            "stderr does not match \"^Usage: jot \""
+          ]
+        }
+      ]
+    },
+    {
+      "case": "logsift-broken",
+      "project": "logsift",
+      "broken": true,
+      "wallMs": 94188,
+      "bashCommands": [
+        {
+          "command": "node /workspace/lim-wt/bench/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 1\n{\n  \"status\": \"failed\",\n  \"counts\": {\n    \"pass\": 12,\n    \"fail\": 7,\n    \"notVerified\": 0\n  },\n  \"report\": \"verify: 12 passed, 7 failed, 0 not verified (19 checks, 0.3 s)\\n\\nFAIL min-lowercase-level: --min wrn keeps lines at that level or higher, ignoring the case of the level name\\n  $ "
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/tmp/logsift-TW5UVV/verify-checks/logsift_main.py",
+        "/tmp/logsift-TW5UVV/verify-checks/mixed-case.log",
+        "/tmp/logsift-TW5UVV/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 12,
+        "cacheCreation": 31435,
+        "cacheRead": 182111,
+        "output": 11394,
+        "total": 224952
+      },
+      "costUsd": 0.5158302,
+      "apiMs": 92848,
+      "turns": 15,
+      "finalMessage": "```\nverify: 12 passed, 7 failed, 0 not verified (19 checks, 0.3 s)\n\nFAIL min-lowercase-level: --min wrn keeps lines at that level or higher, ignoring the case of the level name\n  $ python3 logsift.py --min wrn examples/oven.log\n  - stdout does not equal \"2026-03-02 05:12:40 WRN flour bin low at 8%\\n2026-03-02 05:31:15 ERR proofing drawer door ajar\\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\"\n  stdout: 2026-03-02 05:31:15 ERR proofing drawer door ajar\n\nFAIL min-uppercase-level: --min WRN gives the same lines as --min wrn\n  $ python3 logsift.py --min WRN examples/oven.log\n  - stdout does not equal \"2026-03-02 05:12:40 WRN flour bin low at 8%\\n2026-03-02 05:31:15 ERR proofing drawer door ajar\\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\"\n  stdout: 2026-03-02 05:31:15 ERR proofing drawer door ajar\n\nFAIL min-highest-level: --min ERR keeps the ERR lines\n  $ python3 logsift.py --min ERR examples/oven.log\n  - exit code 1, expected 0\n  - stdout does not equal \"2026-03-02 05:31:15 ERR proofing drawer door ajar\"\n\nFAIL min-lowest-level: --min DBG keeps every log line\n  $ python3 logsift.py --min DBG examples/oven.log\n  - stdout does not equal \"2026-03-02 05:00:01 INF oven 2 preheated to 220\\n2026-03-02 05:00:04 DBG fan speed 3\\n2026-03-02 05:12:40 WRN flour bin low at 8%\\n2026-03-02 05:13:02 INF batch 14 in\\n2026-03-02 05:31:15 ERR proofing drawer door ajar\\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\\n2026-03-02 05:41:20 DBG fan speed 2\"\n  stdout: 2026-03-02 05:00:01 INF oven 2 preheated to 220\n    2026-03-02 05:12:40 WRN flour bin low at 8%\n    2026-03-02 05:13:02 INF batch 14 in\n    2026-03-02 05:31:15 ERR proofing drawer door ajar\n    2026-03-02 05:40:00 WRN humidity 38% in drawer 1\n\nFAIL grep-lowercase-text: --grep door matches a message written in capitals, keeps its spacing, and skips lines without a level\n  $ python3 logsift.py --grep door verify-checks/mixed-case.log\n  - stdout does not equal \"2026-03-02 06:00:00 INF Oven DOOR  opened   \\n2026-03-02 06:00:05 DBG door sensor ok\"\n  stdout: 2026-03-02 06:00:00 INF Oven DOOR  opened\n    2026-03-02 06:00:05 DBG door sensor ok\n\nFAIL min-and-grep-together: --min and --grep together keep only lines that pass both\n  $ python3 logsift.py --min wrn --grep drawer examples/oven.log\n  - stdout does not equal \"2026-03-02 05:31:15 ERR proofing drawer door ajar\\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\"\n  stdout: 2026-03-02 05:31:15 ERR proofing drawer door ajar\n\nFAIL levels-after-min: --levels counts after --min\n  $ python3 logsift.py --levels --min wrn examples/oven.log\n  - stdout does not equal \"WRN 2\\nERR 1\"\n  stdout: ERR 1\n\nPassed: print-all-log-lines, run-as-program, grep-uppercase-text, grep-message-only, levels-count, levels-after-grep, no-lines-left, no-lines-left-levels, unknown-level, missing-file, no-file-usage, unknown-option-usage\n\nRan on uncommitted changes to 2 files besides the feature map.\n\nEvidence: /tmp/logsift-TW5UVV/.git/lim/verify/runs/2026-11-05T06-50-57-743Z.json\n```\n\n**`--min` is broken: 6 of the 7 failures come from it dropping lines at the level you ask for.** The seventh failure is a mistake in my own check, not a project bug. All 19 checks ran, so nothing is left unverified.\n\n**Passed (12)**\n- Printing every log line without options, leaving out lines with no level\n- Running directly as `./logsift.py`\n- `--grep FAN` ignoring case, and `--grep` searching only the message, not the date or time\n- `--levels` counts, lowest level first\n- `--levels` counting after `--grep`, showing only levels that have lines\n- Exit code 1 with nothing printed when no line is left, with and without `--levels`\n- The documented errors, each with exit code 2: unknown level, missing file, no file, and unknown option\n\n**Failed because of `--min` (6)**\n\nThe README says `--min <level>` \"keeps lines at that level or higher\", and its first example shows `--min wrn` returning both WRN lines and the ERR line.\n\n| Check | Expected | Actual |\n|---|---|---|\n| `--min wrn` and `--mi",
+      "result": "caught",
+      "catching": [
+        "min-lowercase-level",
+        "min-uppercase-level",
+        "min-highest-level",
+        "min-lowest-level",
+        "min-and-grep-together",
+        "levels-after-min"
+      ],
+      "falseFailures": [
+        "grep-lowercase-text"
+      ],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 19,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/logsift_main.py",
+        "verify-checks/mixed-case.log"
+      ],
+      "fixtureFiles": [
+        "verify-checks/logsift_main.py",
+        "verify-checks/mixed-case.log"
+      ],
+      "checks": [
+        {
+          "id": "print-all-log-lines",
+          "feature": "Without options, prints every log line as it is in the file and leaves out lines without a level",
+          "run": [
+            "python3",
+            "logsift.py",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:01 INF oven 2 preheated to 220\n2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:13:02 INF batch 14 in\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\n2026-03-02 05:41:20 DBG fan speed 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "run-as-program",
+          "feature": "Runs directly as ./logsift.py",
+          "run": [
+            "./logsift.py",
+            "--grep",
+            "FAN",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:41:20 DBG fan speed 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-lowercase-level",
+          "feature": "--min wrn keeps lines at that level or higher, ignoring the case of the level name",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "wrn",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"2026-03-02 05:12:40 WRN flour bin low at 8%\\n2026-03-02 05:31:15 ERR proofing drawer door ajar\\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-uppercase-level",
+          "feature": "--min WRN gives the same lines as --min wrn",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "WRN",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"2026-03-02 05:12:40 WRN flour bin low at 8%\\n2026-03-02 05:31:15 ERR proofing drawer door ajar\\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-highest-level",
+          "feature": "--min ERR keeps the ERR lines",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "ERR",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:31:15 ERR proofing drawer door ajar"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "exit code 1, expected 0",
+            "stdout does not equal \"2026-03-02 05:31:15 ERR proofing drawer door ajar\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-lowest-level",
+          "feature": "--min DBG keeps every log line",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "DBG",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:01 INF oven 2 preheated to 220\n2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:13:02 INF batch 14 in\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\n2026-03-02 05:41:20 DBG fan speed 2"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"2026-03-02 05:00:01 INF oven 2 preheated to 220\\n2026-03-02 05:00:04 DBG fan speed 3\\n2026-03-02 05:12:40 WRN flour bin low at 8%\\n2026-03-02 05:13:02 INF batch 14 in\\n2026-03-02 05:31:15 ERR proofing drawer door ajar\\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\\n2026-03-02 05:41:20 DBG fan speed 2\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "grep-uppercase-text",
+          "feature": "--grep FAN keeps lines whose message contains the text, ignoring case",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--grep",
+            "FAN",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:41:20 DBG fan speed 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "grep-lowercase-text",
+          "feature": "--grep door matches a message written in capitals, keeps its spacing, and skips lines without a level",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--grep",
+            "door",
+            "verify-checks/mixed-case.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 06:00:00 INF Oven DOOR  opened   \n2026-03-02 06:00:05 DBG door sensor ok"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"2026-03-02 06:00:00 INF Oven DOOR  opened   \\n2026-03-02 06:00:05 DBG door sensor ok\""
+          ],
+          "intactStatus": "fail",
+          "intactReasons": [
+            "stdout does not equal \"2026-03-02 06:00:00 INF Oven DOOR  opened   \\n2026-03-02 06:00:05 DBG door sensor ok\""
+          ]
+        },
+        {
+          "id": "grep-message-only",
+          "feature": "--grep looks in the message, not in the date or time",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--grep",
+            "2",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:01 INF oven 2 preheated to 220\n2026-03-02 05:41:20 DBG fan speed 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-and-grep-together",
+          "feature": "--min and --grep together keep only lines that pass both",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "wrn",
+            "--grep",
+            "drawer",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"2026-03-02 05:31:15 ERR proofing drawer door ajar\\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-count",
+          "feature": "--levels prints how many lines each level has, lowest level first",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "DBG 2\nINF 2\nWRN 2\nERR 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-after-min",
+          "feature": "--levels counts after --min",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels",
+            "--min",
+            "wrn",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "WRN 2\nERR 1"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"WRN 2\\nERR 1\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-after-grep",
+          "feature": "--levels counts after --grep and prints only levels that have lines",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels",
+            "--grep",
+            "fan",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "DBG 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-lines-left",
+          "feature": "When no line is left, nothing is printed and the exit code is 1",
+          "run": [
+            "python3",
+            "verify-checks/logsift_main.py",
+            "--grep",
+            "nosuchtext",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stdout": {
+              "equals": "{\"stdout\": \"\", \"stderr\": \"\"}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-lines-left-levels",
+          "feature": "With --levels, when no line is left, nothing is printed and the exit code is 1",
+          "run": [
+            "python3",
+            "verify-checks/logsift_main.py",
+            "--levels",
+            "--grep",
+            "nosuchtext",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stdout": {
+              "equals": "{\"stdout\": \"\", \"stderr\": \"\"}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unknown-level",
+          "feature": "An unknown level prints the documented message to stderr and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "FATAL",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Unknown level: FATAL (use DBG, INF, WRN, or ERR)"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "missing-file",
+          "feature": "A file that does not exist prints the documented message to stderr and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "verify-checks/absent.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "No such file: verify-checks/absent.log"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-file-usage",
+          "feature": "No file prints the usage line to stderr and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Usage: logsift [--min LEVEL] [--grep TEXT] [--levels] FILE"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unknown-option-usage",
+          "feature": "An unknown option prints the usage line to stderr and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--bogus",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Usage: logsift [--min LEVEL] [--grep TEXT] [--levels] FILE"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    },
+    {
+      "case": "centshare-broken",
+      "project": "centshare",
+      "broken": true,
+      "wallMs": 69070,
+      "bashCommands": [
+        {
+          "command": "node /workspace/lim-wt/bench/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 1\n{\n  \"status\": \"failed\",\n  \"counts\": {\n    \"pass\": 21,\n    \"fail\": 6,\n    \"notVerified\": 0\n  },\n  \"report\": \"verify: 21 passed, 6 failed, 0 not verified (27 checks, 0.7 s)\\n\\nFAIL to-cents-rejects-surrounding-space: to_cents rejects an amount with surrounding spaces, since anything other "
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/tmp/centshare-4mC7a3/verify-checks/to_cents.py",
+        "/tmp/centshare-4mC7a3/verify-checks/from_cents.py",
+        "/tmp/centshare-4mC7a3/verify-checks/allocate.py",
+        "/tmp/centshare-4mC7a3/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 10,
+        "cacheCreation": 28345,
+        "cacheRead": 135420,
+        "output": 8622,
+        "total": 172397
+      },
+      "costUsd": 0.4263239999999999,
+      "apiMs": 67623,
+      "turns": 12,
+      "finalMessage": "```\nverify: 21 passed, 6 failed, 0 not verified (27 checks, 0.7 s)\n\nFAIL to-cents-rejects-surrounding-space: to_cents rejects an amount with surrounding spaces, since anything other than the documented form raises\n  $ python3 verify-checks/to_cents.py ' 12.34 '\n  - exit code 0, expected 1\n  - stderr does not include \"ValueError: Not an amount: ' 12.34 '\"\n  stdout: 1234\n\nFAIL allocate-uneven-one-leftover: allocate gives one leftover cent to the first part\n  $ python3 verify-checks/allocate.py 10.00 3\n  - stdout does not equal \"[\\\"3.34\\\", \\\"3.33\\\", \\\"3.33\\\"]\"\n  stdout: [\"3.33\", \"3.33\", \"3.34\"]\n\nFAIL allocate-uneven-small: allocate splits a few cents with the leftover on the first part\n  $ python3 verify-checks/allocate.py 0.05 4\n  - stdout does not equal \"[\\\"0.02\\\", \\\"0.01\\\", \\\"0.01\\\", \\\"0.01\\\"]\"\n  stdout: [\"0.01\", \"0.01\", \"0.01\", \"0.02\"]\n\nFAIL allocate-several-leftovers: allocate gives several leftover cents to the first parts, one each\n  $ python3 verify-checks/allocate.py 1.00 6\n  - stdout does not equal \"[\\\"0.17\\\", \\\"0.17\\\", \\\"0.17\\\", \\\"0.17\\\", \\\"0.16\\\", \\\"0.16\\\"]\"\n  stdout: [\"0.16\", \"0.16\", \"0.17\", \"0.17\", \"0.17\", \"0.17\"]\n\nFAIL allocate-fewer-cents-than-parts: allocate gives zero to the last parts when there are fewer cents than parts\n  $ python3 verify-checks/allocate.py 0.02 5\n  - stdout does not equal \"[\\\"0.01\\\", \\\"0.01\\\", \\\"0.00\\\", \\\"0.00\\\", \\\"0.00\\\"]\"\n  stdout: [\"0.00\", \"0.00\", \"0.00\", \"0.01\", \"0.01\"]\n\nFAIL allocate-reads-commas: allocate reads an amount with commas and writes parts with commas\n  $ python3 verify-checks/allocate.py 10,000.00 3\n  - stdout does not equal \"[\\\"3,333.34\\\", \\\"3,333.33\\\", \\\"3,333.33\\\"]\"\n  stdout: [\"3,333.33\", \"3,333.33\", \"3,333.34\"]\n\nPassed: to-cents-decimal, to-cents-commas-one-decimal, to-cents-negative, to-cents-whole-number, to-cents-several-groups, to-cents-rejects-three-decimals, to-cents-rejects-text, to-cents-rejects-bad-grouping, to-cents-rejects-plus-sign, from-cents-commas, from-cents-small-negative, from-cents-several-groups, from-cents-zero, allocate-even, allocate-single-part, allocate-rejects-zero-parts, allocate-rejects-negative-parts, allocate-rejects-float-parts, allocate-rejects-string-parts, allocate-rejects-negative-amount, allocate-rejects-bad-amount\n\nRan on uncommitted changes to 3 files besides the feature map.\n\nEvidence: /tmp/centshare-4mC7a3/.git/lim/verify/runs/2026-11-05T06-51-11-408Z.json\n```\n\n21 of the 27 checks passed and 6 failed: `allocate` splits uneven amounts in the wrong order, and `to_cents` accepts surrounding spaces. All 27 checks ran, so none are unverified.\n\n**Passed**\n- **`to_cents`:** it reads decimals, commas, negatives and whole numbers. It rejects three decimals, non-numeric text, bad comma grouping and a leading `+`.\n- **`from_cents`:** all four checks passed, covering commas, small negatives, several comma groups and zero.\n- **`allocate`:** it handles even splits and a single part. It rejects zero, negative, float and string `parts`, and also negative or unreadable amounts.\n\n**Failed**\n- **Leftover cents go to the wrong end of `allocate` (5 checks):** the README says \"the leftover cents go to the first parts, one each\", but they go to the last parts.\n    - `allocate(\"10.00\", 3)` should give `['3.34', '3.33', '3.33']` (README example) and gives `['3.33', '3.33', '3.34']`.\n    - `allocate(\"0.05\", 4)` should give `['0.02', '0.01', '0.01', '0.01']` (README example) and gives `['0.01', '0.01', '0.01', '0.02']`.\n    - The other three failures have the same cause: `1.00` into 6 parts, `0.02` into 5 parts, and `10,000.00` into 3 parts. In the last one the comma handling looks right and only the order is wrong, but that check still counts as failed.\n    - The likely cause is `index >= parts - extra` in `centshare/amounts.py:28`, which picks the last `extra` positions. `index < extra` would pick the first ones.\n- **`to_cents` accepts surrounding spaces (1 check):** `to_cents(\" 12.34 \")` returns `1234` instead of raising an error, because the code calls `",
+      "result": "caught",
+      "catching": [
+        "allocate-uneven-one-leftover",
+        "allocate-uneven-small",
+        "allocate-several-leftovers",
+        "allocate-fewer-cents-than-parts",
+        "allocate-reads-commas"
+      ],
+      "falseFailures": [
+        "to-cents-rejects-surrounding-space"
+      ],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 27,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/allocate.py",
+        "verify-checks/from_cents.py",
+        "verify-checks/to_cents.py"
+      ],
+      "fixtureFiles": [
+        "verify-checks/allocate.py",
+        "verify-checks/from_cents.py",
+        "verify-checks/to_cents.py"
+      ],
+      "checks": [
+        {
+          "id": "to-cents-decimal",
+          "feature": "to_cents reads a plain decimal amount as whole cents",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "12.34"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "1234"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-commas-one-decimal",
+          "feature": "to_cents reads an amount with a comma and one decimal",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "1,234.5"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "123450"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-negative",
+          "feature": "to_cents reads a negative amount below one unit",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "-0.75"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "-75"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-whole-number",
+          "feature": "to_cents reads an amount with no decimals",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "7"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "700"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-several-groups",
+          "feature": "to_cents reads a negative amount with several comma groups",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "-1,234,567.89"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "-123456789"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-rejects-three-decimals",
+          "feature": "to_cents rejects an amount with more than two decimals",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "12.345"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: Not an amount: '12.345'"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-rejects-text",
+          "feature": "to_cents rejects text that is not a number",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "abc"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: Not an amount: 'abc'"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-rejects-bad-grouping",
+          "feature": "to_cents rejects commas that are not between groups of three digits",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "1,23.45"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: Not an amount: '1,23.45'"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-rejects-plus-sign",
+          "feature": "to_cents rejects a leading plus sign, since only a leading - is allowed",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            "+5.00"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: Not an amount: '+5.00'"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "to-cents-rejects-surrounding-space",
+          "feature": "to_cents rejects an amount with surrounding spaces, since anything other than the documented form raises",
+          "run": [
+            "python3",
+            "verify-checks/to_cents.py",
+            " 12.34 "
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: Not an amount: ' 12.34 '"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "exit code 0, expected 1",
+            "stderr does not include \"ValueError: Not an amount: ' 12.34 '\""
+          ],
+          "intactStatus": "fail",
+          "intactReasons": [
+            "exit code 0, expected 1",
+            "stderr does not include \"ValueError: Not an amount: ' 12.34 '\""
+          ]
+        },
+        {
+          "id": "from-cents-commas",
+          "feature": "from_cents writes two decimals and a comma between groups of three digits",
+          "run": [
+            "python3",
+            "verify-checks/from_cents.py",
+            "123450"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"1,234.50\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "from-cents-small-negative",
+          "feature": "from_cents writes a negative amount below one unit with its sign and a leading zero",
+          "run": [
+            "python3",
+            "verify-checks/from_cents.py",
+            "-5"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"-0.05\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "from-cents-several-groups",
+          "feature": "from_cents writes commas between several groups of digits",
+          "run": [
+            "python3",
+            "verify-checks/from_cents.py",
+            "123456789"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"1,234,567.89\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "from-cents-zero",
+          "feature": "from_cents writes zero with two decimals",
+          "run": [
+            "python3",
+            "verify-checks/from_cents.py",
+            "0"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "\"0.00\""
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-uneven-one-leftover",
+          "feature": "allocate gives one leftover cent to the first part",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "10.00",
+            "3"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"3.34\", \"3.33\", \"3.33\"]"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"[\\\"3.34\\\", \\\"3.33\\\", \\\"3.33\\\"]\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-uneven-small",
+          "feature": "allocate splits a few cents with the leftover on the first part",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "0.05",
+            "4"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"0.02\", \"0.01\", \"0.01\", \"0.01\"]"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"[\\\"0.02\\\", \\\"0.01\\\", \\\"0.01\\\", \\\"0.01\\\"]\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-several-leftovers",
+          "feature": "allocate gives several leftover cents to the first parts, one each",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "1.00",
+            "6"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"0.17\", \"0.17\", \"0.17\", \"0.17\", \"0.16\", \"0.16\"]"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"[\\\"0.17\\\", \\\"0.17\\\", \\\"0.17\\\", \\\"0.17\\\", \\\"0.16\\\", \\\"0.16\\\"]\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-fewer-cents-than-parts",
+          "feature": "allocate gives zero to the last parts when there are fewer cents than parts",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "0.02",
+            "5"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"0.01\", \"0.01\", \"0.00\", \"0.00\", \"0.00\"]"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"[\\\"0.01\\\", \\\"0.01\\\", \\\"0.00\\\", \\\"0.00\\\", \\\"0.00\\\"]\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-even",
+          "feature": "allocate splits an amount that divides evenly into equal parts",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "9.00",
+            "3"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"3.00\", \"3.00\", \"3.00\"]"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-single-part",
+          "feature": "allocate with one part returns the whole amount",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "5.25",
+            "1"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"5.25\"]"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-reads-commas",
+          "feature": "allocate reads an amount with commas and writes parts with commas",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "10,000.00",
+            "3"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "[\"3,333.34\", \"3,333.33\", \"3,333.33\"]"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"[\\\"3,333.34\\\", \\\"3,333.33\\\", \\\"3,333.33\\\"]\""
+          ],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-rejects-zero-parts",
+          "feature": "allocate rejects zero parts",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "10.00",
+            "0"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: parts must be an int of 1 or more"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-rejects-negative-parts",
+          "feature": "allocate rejects a negative number of parts",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "10.00",
+            "-2"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: parts must be an int of 1 or more"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-rejects-float-parts",
+          "feature": "allocate rejects parts that is a float",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "10.00",
+            "2.5"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: parts must be an int of 1 or more"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-rejects-string-parts",
+          "feature": "allocate rejects parts that is a string",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "10.00",
+            "\"2\""
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: parts must be an int of 1 or more"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-rejects-negative-amount",
+          "feature": "allocate rejects a negative amount",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "-1.00",
+            "2"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: Cannot allocate a negative amount: '-1.00'"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "allocate-rejects-bad-amount",
+          "feature": "allocate rejects an amount that to_cents cannot read",
+          "run": [
+            "python3",
+            "verify-checks/allocate.py",
+            "12.345",
+            "2"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stderr": {
+              "includes": "ValueError: Not an amount: '12.345'"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    },
+    {
+      "case": "logsift-working",
+      "project": "logsift",
+      "broken": false,
+      "wallMs": 95148,
+      "bashCommands": [
+        {
+          "command": "node /workspace/lim-wt/bench/plugins/verify/skills/verify/scripts/verify.mjs run",
+          "denied": false,
+          "isError": true,
+          "permission": "accept",
+          "output": "Exit code 1\n{\n  \"status\": \"failed\",\n  \"counts\": {\n    \"pass\": 18,\n    \"fail\": 1,\n    \"notVerified\": 0\n  },\n  \"report\": \"verify: 18 passed, 1 failed, 0 not verified (19 checks, 0.4 s)\\n\\nFAIL lines-printed-as-in-file: Log lines are printed exactly as in the file, spacing included, and lines without a"
+        }
+      ],
+      "permissionDenials": [],
+      "filesWritten": [
+        "/tmp/logsift-ZQYUhR/verify-checks/run_cli.py",
+        "/tmp/logsift-ZQYUhR/verify-checks/mixed.log",
+        "/tmp/logsift-ZQYUhR/verify.features.json"
+      ],
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 12,
+        "cacheCreation": 32382,
+        "cacheRead": 182325,
+        "output": 11012,
+        "total": 225731
+      },
+      "costUsd": 0.515809,
+      "apiMs": 94004,
+      "turns": 15,
+      "finalMessage": "18 of 19 checks passed. The one failure looks like a mistake in my check rather than a bug in logsift, but I haven't changed it, because that needs your OK.\n\n**Failed: \"Log lines are printed exactly as in the file, spacing included, and lines without a level are left out\"**\n- **Expected:** the first line ending in two spaces, `...Fan Belt   replaced  `, based on the README's \"every log line is printed as it is in the file\".\n- **Actual:** the same line without those two spaces. The other two lines matched, and the lines without a level were left out.\n- **Likely cause:** `verify-checks/mixed.log` doesn't contain the trailing spaces. A search for `replaced` followed by two spaces at line end finds nothing, so they were lost when I wrote the file. logsift printed what's actually on disk.\n- **Still unproven:** whether trailing spaces are preserved. The multiple spaces inside the line did come through.\n\n**Passed:**\n- **`--min`:**\n  - Running `./logsift.py --min wrn` directly gives the README's output.\n  - `WRN` in upper case works the same as `wrn`.\n  - `--min inf` keeps INF and higher, and drops only DBG.\n- **`--grep`:**\n  - It ignores case, for both the README's `FAN` example and a mixed-case message.\n  - It searches only the message, so text in the level or the time doesn't match.\n- **`--levels`:**\n  - It prints the count per level, lowest level first.\n  - It counts after `--min` and after `--grep`, and leaves out levels with no lines.\n- **Combined filters:** `--min` and `--grep` together keep only lines that pass both.\n- **No options:** every log line is printed, and the indented detail line is left out.\n- **No line left:** nothing is printed and the exit code is 1, with and without `--levels`.\n- **Errors:** each of these prints the documented message to stderr and exits with code 2:\n  - an unknown level\n  - a missing file\n  - no file given\n  - an unknown option\n\n**How the checks ran:**\n- The four \"nothing printed\" checks (the two no-line-left checks and the two `--grep` message-only checks) go through `verify-checks/run_cli.py`, which calls `main()` directly. The map can't state an empty-output rule, so they don't start logsift as its own program.\n- The README doesn't document `logfilter.py` as a library, and it doesn't say what happens when `--min` or `--grep` has no value, so neither was checked.\n- The checks created `verify.features.json` and `verify-checks/` (`run_cli.py`, `mixed.log`). They are uncommitted.\n\nEvidence: `/tmp/logsift-ZQYUhR/.git/lim/verify/runs/2026-11-05T06-52-12-011Z.json`\n\n**Should I rewrite `mixed.log` with the trailing spaces and rerun that check?** The Write tool may strip them again, so I'd have to confirm they're on disk first. The script will mark the check as changed after it failed.",
+      "result": "false-failure",
+      "catching": [],
+      "falseFailures": [
+        "lines-printed-as-in-file"
+      ],
+      "notVerified": [],
+      "evidenceRuns": 1,
+      "checkCount": 19,
+      "unrun": [],
+      "changedAfterFail": [],
+      "removedAfterFail": [],
+      "sourceChanged": [],
+      "createdFiles": [
+        "verify-checks/mixed.log",
+        "verify-checks/run_cli.py"
+      ],
+      "fixtureFiles": [
+        "verify-checks/mixed.log",
+        "verify-checks/run_cli.py"
+      ],
+      "checks": [
+        {
+          "id": "run-as-program-min-example",
+          "feature": "Running ./logsift.py directly with --min wrn prints the WRN and ERR lines (README example)",
+          "run": [
+            "./logsift.py",
+            "--min",
+            "wrn",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-uppercase-name",
+          "feature": "--min accepts the level name in upper case the same as lower case",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "WRN",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-includes-named-level",
+          "feature": "--min inf keeps INF and higher and drops only DBG",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "inf",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:01 INF oven 2 preheated to 220\n2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:13:02 INF batch 14 in\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "grep-ignores-case-example",
+          "feature": "--grep FAN keeps lines whose message contains fan, ignoring case (README example)",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--grep",
+            "FAN",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:41:20 DBG fan speed 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "grep-mixed-case-message",
+          "feature": "--grep matches a message written in mixed case",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--grep",
+            "fAN",
+            "verify-checks/mixed.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 06:00:00 INF Fan Belt   replaced"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "grep-message-only-level",
+          "feature": "--grep looks only in the message, so a level name in the line's level field does not match",
+          "run": [
+            "python3",
+            "verify-checks/run_cli.py",
+            "--grep",
+            "WRN",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stdout": {
+              "equals": "{\"stdout\": \"\", \"stderr\": \"\"}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "grep-message-only-time",
+          "feature": "--grep looks only in the message, so text in the date or time does not match",
+          "run": [
+            "python3",
+            "verify-checks/run_cli.py",
+            "--grep",
+            "05:12",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stdout": {
+              "equals": "{\"stdout\": \"\", \"stderr\": \"\"}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-example",
+          "feature": "--levels prints a count per level, lowest level first (README example)",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "DBG 2\nINF 2\nWRN 2\nERR 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-after-min",
+          "feature": "--levels counts after --min and leaves out levels with no lines",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels",
+            "--min",
+            "wrn",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "WRN 2\nERR 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-after-grep",
+          "feature": "--levels counts after --grep",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels",
+            "--grep",
+            "drawer",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "WRN 1\nERR 1"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "min-and-grep-together",
+          "feature": "--min and --grep together keep only lines that pass both",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "err",
+            "--grep",
+            "drawer",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:31:15 ERR proofing drawer door ajar"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-options-all-log-lines",
+          "feature": "Without options every log line is printed and the indented detail line is left out",
+          "run": [
+            "python3",
+            "logsift.py",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 05:00:01 INF oven 2 preheated to 220\n2026-03-02 05:00:04 DBG fan speed 3\n2026-03-02 05:12:40 WRN flour bin low at 8%\n2026-03-02 05:13:02 INF batch 14 in\n2026-03-02 05:31:15 ERR proofing drawer door ajar\n2026-03-02 05:40:00 WRN humidity 38% in drawer 1\n2026-03-02 05:41:20 DBG fan speed 2"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "lines-printed-as-in-file",
+          "feature": "Log lines are printed exactly as in the file, spacing included, and lines without a level are left out",
+          "run": [
+            "python3",
+            "logsift.py",
+            "verify-checks/mixed.log"
+          ],
+          "expect": {
+            "exitCode": 0,
+            "stdout": {
+              "equals": "2026-03-02 06:00:00 INF Fan Belt   replaced  \n2026-03-02 06:00:05 ERR conveyor stopped\n2026-03-02 06:00:12 INF last line without newline"
+            }
+          },
+          "modelStatus": "fail",
+          "reasons": [
+            "stdout does not equal \"2026-03-02 06:00:00 INF Fan Belt   replaced  \\n2026-03-02 06:00:05 ERR conveyor stopped\\n2026-03-02 06:00:12 INF last line without newline\""
+          ],
+          "intactStatus": "fail",
+          "intactReasons": [
+            "stdout does not equal \"2026-03-02 06:00:00 INF Fan Belt   replaced  \\n2026-03-02 06:00:05 ERR conveyor stopped\\n2026-03-02 06:00:12 INF last line without newline\""
+          ]
+        },
+        {
+          "id": "no-match-silent-exit-1",
+          "feature": "When no line is left, nothing is printed and the exit code is 1",
+          "run": [
+            "python3",
+            "verify-checks/run_cli.py",
+            "--grep",
+            "nosuchtext",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stdout": {
+              "equals": "{\"stdout\": \"\", \"stderr\": \"\"}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "levels-no-match-silent-exit-1",
+          "feature": "--levels with no line left prints nothing and exits with code 1",
+          "run": [
+            "python3",
+            "verify-checks/run_cli.py",
+            "--levels",
+            "--min",
+            "err",
+            "--grep",
+            "fan",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 1,
+            "stdout": {
+              "equals": "{\"stdout\": \"\", \"stderr\": \"\"}"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unknown-level",
+          "feature": "An unknown level prints the documented message to stderr and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--min",
+            "Loud",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Unknown level: Loud (use DBG, INF, WRN, or ERR)"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "missing-file",
+          "feature": "A file that does not exist prints the documented message to stderr and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "verify-checks/nope.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "No such file: verify-checks/nope.log"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "no-file-usage",
+          "feature": "No file argument prints the usage line to stderr and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--levels"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Usage: logsift [--min LEVEL] [--grep TEXT] [--levels] FILE"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        },
+        {
+          "id": "unknown-option-usage",
+          "feature": "An unknown option prints the usage line to stderr and exits with code 2",
+          "run": [
+            "python3",
+            "logsift.py",
+            "--verbose",
+            "examples/oven.log"
+          ],
+          "expect": {
+            "exitCode": 2,
+            "stderr": {
+              "equals": "Usage: logsift [--min LEVEL] [--grep TEXT] [--levels] FILE"
+            }
+          },
+          "modelStatus": "pass",
+          "reasons": [],
+          "intactStatus": "pass",
+          "intactReasons": []
+        }
+      ]
+    }
+  ]
+}

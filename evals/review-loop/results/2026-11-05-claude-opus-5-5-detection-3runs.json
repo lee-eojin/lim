@@ -1,0 +1,3625 @@
+{
+  "date": "2026-11-05T06:51:47.098Z",
+  "model": "claude-opus-5-5",
+  "claudeVersion": "2.1.318 (Claude Code)",
+  "reviewer": {
+    "path": "plugins/review-loop/agents/reviewer.md",
+    "sha256": "b500478811574f56bc8e9d823281a07dd4a10e1a0d26eaf18a92cb2121afabf6"
+  },
+  "label": null,
+  "cases": "evals/review-loop/detection",
+  "runsPerCase": 3,
+  "concurrency": 4,
+  "elapsedSeconds": 244,
+  "summary": {
+    "runs": 54,
+    "errors": 0,
+    "bugRuns": 36,
+    "found": 36,
+    "lowSeverity": 0,
+    "missed": 0,
+    "cleanRuns": 18,
+    "cleanWithFalseHigh": 3,
+    "falseHighFindings": 3,
+    "otherHighOnBugRuns": 17,
+    "otherLowFindings": 21,
+    "totalTokens": 1294190,
+    "averageTokens": 23966,
+    "totalCostUsd": 3.5636,
+    "totalWallSeconds": 935,
+    "averageWallSeconds": 17
+  },
+  "runs": [
+    {
+      "case": "charge-retry",
+      "wallMs": 22025,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 7353,
+        "cacheRead": 17661,
+        "output": 2301,
+        "total": 27323
+      },
+      "costUsd": 0.10840820000000001,
+      "apiMs": 21304,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/payments.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Failed retry is swallowed, so an unpaid order is marked paid and shipped"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/payments.js",
+          "line": 7,
+          "category": "correctness",
+          "title": "Retry runs on every error and may double-charge if the first charge actually succeeded"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/payments.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Failed retry is swallowed, so an unpaid order is marked paid and shipped",
+            "quote": "console.warn(`retry failed for ${order.id}`, retryError);",
+            "scenario": "gateway.charge rejects on both attempts (for example, a declined card). The inner catch only logs, so execution reaches line 12 and chargeOrder returns status 'paid'. placeOrder in src/orders.js:5-6 then calls warehouse.ship, and the goods ship with no payment taken. Before this diff the rejection propagated and placeOrder never reached ship.",
+            "whyNotPrevented": "The inner catch neither rethrows nor sets a failed status, and the return on line 12 is unconditional. placeOrder relies only on charged.status, which is now always 'paid'. The repo has no tests, and package.json has no test script.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/payments.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Retry runs on every error and may double-charge if the first charge actually succeeded",
+            "quote": "await gateway.charge(order.id, order.total);",
+            "scenario": "The first charge succeeds at the gateway but the response times out, so gateway.charge rejects. The catch sends the same charge again, and the customer is billed twice unless the gateway deduplicates on order.id. Permanent failures such as a declined card are also retried, because the catch does not look at the error type.",
+            "whyNotPrevented": "The catch on line 4 does not distinguish error types, and no idempotency key is passed explicitly. The gateway implementation is not in this repo, so whether it deduplicates on order.id could not be confirmed. A case-insensitive search for 'idempot' found no matches in the repo.",
+            "basis": "guessed",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "charge-retry",
+      "wallMs": 20158,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 7328,
+        "cacheRead": 17630,
+        "output": 1973,
+        "total": 26939
+      },
+      "costUsd": 0.10164199999999998,
+      "apiMs": 19417,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/payments.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Order is marked paid and shipped when both charge attempts fail"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/payments.js",
+          "line": 7,
+          "category": "correctness",
+          "title": "Retry runs on every error, which risks a double charge and repeats permanent declines"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/payments.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Order is marked paid and shipped when both charge attempts fail",
+            "quote": "      console.warn(`retry failed for ${order.id}`, retryError);",
+            "scenario": "gateway.charge rejects on both attempts, for example a declined card. The inner catch logs a warning and swallows the error, so chargeOrder falls through to return { ...order, status: 'paid' }. placeOrder then sees status === 'paid' and calls warehouse.ship(charged.id), so the goods ship with no payment. Before this change the rejection propagated and placeOrder never reached ship.",
+            "whyNotPrevented": "Nothing after the catch records that the charge failed, and the return on line 12 is unconditional. placeOrder trusts the status field alone. The repo has no test files and package.json has no test script, so no test covers the double-failure path.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/payments.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Retry runs on every error, which risks a double charge and repeats permanent declines",
+            "quote": "      await gateway.charge(order.id, order.total);",
+            "scenario": "If the first charge times out after the gateway has captured the money, the retry may charge the card a second time, unless the gateway dedupes on order.id. A hard decline or validation error is also retried even though it cannot succeed. Severity is held at P3 because the gateway's behaviour could not be confirmed.",
+            "basis": "guessed",
+            "measuredBy": "Grep \"idempot\" (case-insensitive) across the repo: no match. The repo contains no gateway implementation, only calls to gateway.charge in src/payments.js.",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "charge-retry",
+      "wallMs": 23702,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 7376,
+        "cacheRead": 17684,
+        "output": 2473,
+        "total": 27541
+      },
+      "costUsd": 0.11203679999999999,
+      "apiMs": 23044,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/payments.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Order is marked paid and shipped when both charge attempts fail"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/payments.js",
+          "line": 7,
+          "category": "correctness",
+          "title": "Retry runs on every error, which risks a double charge on ambiguous failures"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/payments.js",
+            "line": 9,
+            "category": "correctness",
+            "title": "Order is marked paid and shipped when both charge attempts fail",
+            "quote": "console.warn(`retry failed for ${order.id}`, retryError);",
+            "scenario": "gateway.charge rejects on both attempts, for example on a declined card. The inner catch logs the error and swallows it, so execution reaches `return { ...order, status: 'paid' }`. placeOrder then sees status 'paid' and calls warehouse.ship(charged.id), so the goods ship with no payment taken. Before this change, the rejection propagated and shipping was skipped.",
+            "whyNotPrevented": "chargeOrder has no failure path after the catch, and the 'paid' status is set unconditionally. placeOrder trusts that status as its only gate before shipping. The repo has no test files and package.json has no test script, so nothing exercises a double failure.",
+            "basis": "measured",
+            "measuredBy": "Read src/payments.js:8-12 and src/orders.js:4-6: the retry catch does not rethrow, and the return is unconditional. Glob \"**/*\": no test files.",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/payments.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Retry runs on every error, which risks a double charge on ambiguous failures",
+            "quote": "await gateway.charge(order.id, order.total);",
+            "scenario": "The first charge succeeds at the gateway, but the response is lost to a timeout or network reset, so the call rejects. The catch retries unconditionally with the same arguments, and the customer is charged twice unless the gateway deduplicates on order.id. Definite declines are also retried, which adds a pointless second attempt on the card.",
+            "whyNotPrevented": "The catch does not inspect the error to separate retryable failures from declines or ambiguous outcomes, and no idempotency key is passed. The gateway implementation is not in this repo, so nothing here shows that repeat charges are deduplicated.",
+            "basis": "guessed",
+            "measuredBy": "Grep -i \"idempot\" across the repo: no match. No gateway implementation exists in the repo, so its dedup behavior on order.id is unconfirmed.",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "checkout-offers",
+      "wallMs": 17932,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 7644,
+        "cacheRead": 11679,
+        "output": 1889,
+        "total": 21218
+      },
+      "costUsd": 0.10129180000000002,
+      "apiMs": 17279,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/coupons.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "activeCoupons returns expired coupons and drops the valid ones"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/coupons.js",
+          "line": 12,
+          "category": "second-way",
+          "title": "Coupon expiry rule is written a second time instead of shared"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/coupons.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "activeCoupons returns expired coupons and drops the valid ones",
+            "quote": "  return [...coupons.values()].filter((coupon) => coupon.expiresAt < now);",
+            "scenario": "With coupon A expiring yesterday and coupon B expiring tomorrow, checkoutView(cart).offers is ['A'] instead of ['B']. The shopper is offered a code that applyCoupon rejects with coupon: null, and never sees the code that works. The fix is expiresAt > now, the exact inverse of the expiresAt <= Date.now() rejection in applyCoupon, so a coupon at the boundary is treated the same in both places.",
+            "whyNotPrevented": "The repository has no test files and no test script in package.json, and the plain JS has no types that could catch an inverted comparison. Nothing else filters the list before checkoutView maps it to codes.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/coupons.js",
+            "line": 12,
+            "category": "second-way",
+            "title": "Coupon expiry rule is written a second time instead of shared",
+            "quote": "  return [...coupons.values()].filter((coupon) => coupon.expiresAt < now);",
+            "scenario": "The existing expiry check is at src/checkout.js:5 (coupon.expiresAt <= Date.now()). activeCoupons restates the rule separately, and the two copies already disagree. A single shared predicate such as isActive(coupon, now), used by both, would keep the offers list and applyCoupon in step.",
+            "basis": "measured",
+            "measuredBy": "Grep \"expiresAt\" outside .git: only src/checkout.js:5 and src/coupons.js:12",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "checkout-offers",
+      "wallMs": 12659,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3294,
+        "cacheRead": 22843,
+        "output": 1168,
+        "total": 27313
+      },
+      "costUsd": 0.054312599999999996,
+      "apiMs": 12011,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/coupons.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "activeCoupons filter is inverted and returns only expired coupons"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/coupons.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "activeCoupons filter is inverted and returns only expired coupons",
+            "quote": "  return [...coupons.values()].filter((coupon) => coupon.expiresAt < now);",
+            "scenario": "With coupon A expiring tomorrow and coupon B that expired yesterday, checkoutView(cart).offers is ['B']. The shopper sees only the coupon applyCoupon rejects and never sees A, the usable one. The filter should keep coupons with expiresAt > now, the complement of the rejection check at src/checkout.js:5 (coupon.expiresAt <= Date.now()).",
+            "whyNotPrevented": "The repo has no tests (only package.json and the two source files, with no test script), and the code has no types. Nothing compares activeCoupons with the expiry rule in applyCoupon, which is written separately.",
+            "basis": "measured",
+            "measuredBy": "Grep \"expiresAt\" in repo: only src/coupons.js:12 (expiresAt < now keeps) and src/checkout.js:5 (expiresAt <= Date.now() rejects), so the two conditions select the same expired coupons. Glob: no test files.",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "checkout-offers",
+      "wallMs": 14809,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3341,
+        "cacheRead": 22876,
+        "output": 1459,
+        "total": 27684
+      },
+      "costUsd": 0.060515200000000005,
+      "apiMs": 14141,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/coupons.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "activeCoupons returns expired coupons and drops the usable ones"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/coupons.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "activeCoupons returns expired coupons and drops the usable ones",
+            "quote": "  return [...coupons.values()].filter((coupon) => coupon.expiresAt < now);",
+            "scenario": "With coupon A expiring yesterday and coupon B expiring tomorrow, checkoutView(cart).offers is ['A']. The shopper is offered A, which applyCoupon rejects with coupon: null, and never sees B, which would work.",
+            "whyNotPrevented": "The repo has no tests and package.json defines no test script. The only other expiry check, applyCoupon's `coupon.expiresAt <= Date.now()`, treats these same coupons as expired, but nothing ties the two checks together. The filter should be `coupon.expiresAt > now`, which also matches applyCoupon at the exact boundary.",
+            "basis": "measured",
+            "measuredBy": "Grep \"expiresAt|activeCoupons|checkoutView\" across the repo: the only expiry checks are src/coupons.js:12 and src/checkout.js:5, and they use the same direction of comparison for opposite meanings. Glob \"**/*\": no test files.",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/checkout.js",
+            "line": 12,
+            "category": "missing-test",
+            "title": "No test covers activeCoupons or checkoutView",
+            "quote": "  return { cart, offers: activeCoupons().map((coupon) => coupon.code) };",
+            "scenario": "The new offers list has no test for expired, unexpired, or exactly-at-now coupons, so an inverted filter like the one in src/coupons.js:12 goes unnoticed.",
+            "whyNotPrevented": "The repo has no test files and no test script.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*\": only package.json, src/checkout.js and src/coupons.js outside .git",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "customer-search",
+      "wallMs": 15307,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3289,
+        "cacheRead": 22907,
+        "output": 1538,
+        "total": 27742
+      },
+      "costUsd": 0.0616854,
+      "apiMs": 14761,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/customers.js",
+            "line": 12,
+            "category": "security",
+            "title": "SQL injection: search term is interpolated into the query string"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/customers.js",
+          "line": 12,
+          "category": "correctness",
+          "title": "LIKE wildcards in the search term are not escaped"
+        },
+        {
+          "severity": "P3",
+          "file": "src/routes.js",
+          "line": 7,
+          "category": "testing",
+          "title": "New search path has no tests"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 2,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/customers.js",
+            "line": 12,
+            "category": "security",
+            "title": "SQL injection: search term is interpolated into the query string",
+            "quote": "    `SELECT id, name, email FROM customers WHERE name ILIKE '%${term}%' ORDER BY id LIMIT $1`,",
+            "scenario": "GET with q=%' UNION SELECT id, password, email FROM users -- closes the string literal and runs attacker-controlled SQL, exposing other tables (the table name is illustrative). A plain name also fails: q=O'Brien leaves an unbalanced quote, so the query raises a syntax error and staff cannot search for that customer.",
+            "whyNotPrevented": "customersHandler passes query.q straight to searchCustomers with no validation, the other queries in this file use $1 placeholders but this one bypasses them for term, and the repo has no tests. Fix: bind the term as a parameter, for example ILIKE $1 ... LIMIT $2 with [`%${term}%`, limit].",
+            "basis": "measured",
+            "measuredBy": "Grep \"searchCustomers|customersHandler|ILIKE|db\\.query\": the only caller is src/routes.js:8, which passes query.q unchanged; getCustomer and listCustomers are the only other queries and both use bound parameters",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/customers.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "LIKE wildcards in the search term are not escaped",
+            "quote": "    `SELECT id, name, email FROM customers WHERE name ILIKE '%${term}%' ORDER BY id LIMIT $1`,",
+            "scenario": "q=% or q=_ matches every customer rather than names containing that literal character, and this remains true after the term is bound as a parameter.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/routes.js",
+            "line": 7,
+            "category": "testing",
+            "title": "New search path has no tests",
+            "quote": "  if (query.q) {",
+            "scenario": "Neither the q branch in customersHandler nor searchCustomers is exercised, so a regression in quoting or parameter order would go unnoticed.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*\" in the repo: only package.json, src/customers.js and src/routes.js are tracked source files, with no test files; package.json defines no test script",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "customer-search",
+      "wallMs": 20209,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3273,
+        "cacheRead": 22786,
+        "output": 1919,
+        "total": 27986
+      },
+      "costUsd": 0.0691532,
+      "apiMs": 19533,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/customers.js",
+            "line": 12,
+            "category": "security",
+            "title": "SQL injection: search term is interpolated into the query string"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/customers.js",
+          "line": 12,
+          "category": "correctness",
+          "title": "LIKE wildcards in the search term are not escaped"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/customers.js",
+            "line": 12,
+            "category": "security",
+            "title": "SQL injection: search term is interpolated into the query string",
+            "quote": "    `SELECT id, name, email FROM customers WHERE name ILIKE '%${term}%' ORDER BY id LIMIT $1`,",
+            "scenario": "A request with q=%' UNION SELECT id, password, email FROM users -- closes the string literal and runs attacker-controlled SQL, which can read other tables (the users table here is illustrative). The stacked form q='; DROP TABLE customers; -- is a further risk if the driver allows multiple statements. An ordinary name also fails: q=O'Brien produces unbalanced quotes, so the query throws a syntax error and staff cannot search for names containing an apostrophe. Fix by binding the value: WHERE name ILIKE $1 ... LIMIT $2 with [`%${term}%`, limit].",
+            "whyNotPrevented": "customersHandler passes query.q straight to searchCustomers with no validation or escaping. The other queries in this file use $1 placeholders, but nothing enforces that, and the repo has no tests or lint config.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/customers.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "LIKE wildcards in the search term are not escaped",
+            "quote": "    `SELECT id, name, email FROM customers WHERE name ILIKE '%${term}%' ORDER BY id LIMIT $1`,",
+            "scenario": "q=% or q=_ matches every customer with a non-empty name instead of only names containing that literal character, and a term like a_b also matches 'axb'. Binding the term as a parameter does not change this, so % , _ and the escape character need escaping separately.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "customer-search",
+      "wallMs": 24942,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3285,
+        "cacheRead": 22798,
+        "output": 2527,
+        "total": 28618
+      },
+      "costUsd": 0.0814116,
+      "apiMs": 24320,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/customers.js",
+            "line": 12,
+            "category": "security",
+            "title": "Search term is interpolated into SQL, allowing injection and breaking names with apostrophes"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/customers.js",
+            "line": 12,
+            "category": "security",
+            "title": "Search term is interpolated into SQL, allowing injection and breaking names with apostrophes",
+            "quote": "`SELECT id, name, email FROM customers WHERE name ILIKE '%${term}%' ORDER BY id LIMIT $1`,",
+            "scenario": "The raw query.q value reaches the SQL text. q = x' UNION SELECT 0, table_name, table_schema FROM information_schema.tables WHERE '%'=' produces valid SQL that keeps $1 and returns data from outside customers, and the same technique can read any table the DB role can access. A legitimate search for O'Brien produces ILIKE '%O'Brien%', which is a syntax error, so the search fails. Fix: pass the pattern as a bound parameter, e.g. WHERE name ILIKE $1 ... LIMIT $2 with [`%${term}%`, limit].",
+            "whyNotPrevented": "customersHandler passes query.q straight through with no validation. The other queries in this file use placeholders, but nothing enforces that, and the repo has no tests or lint config.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/customers.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "LIKE wildcards in the search term are not escaped",
+            "quote": "`SELECT id, name, email FROM customers WHERE name ILIKE '%${term}%' ORDER BY id LIMIT $1`,",
+            "scenario": "q=% matches every customer, and q=_ matches every customer with a non-empty name, instead of names containing those literal characters. This remains after the term is parameterized unless %, _ and \\ are escaped.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/routes.js",
+            "line": 7,
+            "category": "testing",
+            "title": "New search path has no tests",
+            "quote": "  if (query.q) {",
+            "scenario": "Nothing exercises searchCustomers or the query.q branch, so a regression in matching, quoting or routing would go unnoticed. Cases worth covering include a name with an apostrophe and an injection payload.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*.{test,spec}.js\": no files; Grep \"searchCustomers\": matches only in src/routes.js and src/customers.js",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "duration-format",
+      "wallMs": 13486,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3004,
+        "cacheRead": 22320,
+        "output": 1387,
+        "total": 26719
+      },
+      "costUsd": 0.056268000000000006,
+      "apiMs": 12672,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "false-alarm",
+      "expect": [],
+      "forbidden": [
+        {
+          "severity": "P2",
+          "file": "src/format.js",
+          "line": 13,
+          "category": "correctness",
+          "title": "Jobs shorter than 500 ms are logged as taking 0s"
+        }
+      ],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/format.js",
+            "line": 13,
+            "category": "correctness",
+            "title": "Jobs shorter than 500 ms are logged as taking 0s",
+            "quote": "const seconds = Math.round(ms / 1000);",
+            "scenario": "A job that finishes in 300 ms now logs 'nightly wrote 2.0 KB in 0s', where it used to log 'in 300 ms'. Every duration from 0 to 499 ms gives '0s', and 500 to 1499 ms gives '1s', so the log no longer shows the timing of fast jobs and implies they took no time.",
+            "whyNotPrevented": "formatDuration has no sub-second branch, and runJob passes it the raw elapsed time for every job. The repo has no tests: Glob found only package.json, src/format.js and src/jobs.js.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "duration-format",
+      "wallMs": 13436,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3625,
+        "cacheRead": 22619,
+        "output": 1328,
+        "total": 27580
+      },
+      "costUsd": 0.060115800000000004,
+      "apiMs": 12682,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "false-alarm",
+      "expect": [],
+      "forbidden": [
+        {
+          "severity": "P2",
+          "file": "src/format.js",
+          "line": 13,
+          "category": "correctness",
+          "title": "Jobs under 500 ms are logged as taking 0s"
+        }
+      ],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/format.js",
+            "line": 13,
+            "category": "correctness",
+            "title": "Jobs under 500 ms are logged as taking 0s",
+            "quote": "  const seconds = Math.round(ms / 1000);",
+            "scenario": "A job that finishes in 400 ms now logs 'nightly wrote 5.0 MB in 0s'. The old code logged 'in 400 ms'. Every run under 500 ms prints the same 0s, so the log loses the duration and implies the job took no time. Runs from 500 to 1499 ms all print 1s.",
+            "whyNotPrevented": "formatDuration has no branch for values under one second, and runJob passes it the raw elapsed ms for every job. The repo has no tests, and package.json defines no test script.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "duration-format",
+      "wallMs": 15343,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3465,
+        "cacheRead": 22611,
+        "output": 1542,
+        "total": 27626
+      },
+      "costUsd": 0.0631142,
+      "apiMs": 14772,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "false-alarm",
+      "expect": [],
+      "forbidden": [
+        {
+          "severity": "P2",
+          "file": "src/format.js",
+          "line": 13,
+          "category": "correctness",
+          "title": "Jobs shorter than 500 ms are logged as 0s"
+        }
+      ],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/format.js",
+            "line": 13,
+            "category": "correctness",
+            "title": "Jobs shorter than 500 ms are logged as 0s",
+            "quote": "  const seconds = Math.round(ms / 1000);",
+            "scenario": "A job that takes 400 ms calls formatDuration(400). Math.round(0.4) is 0, so the log reads 'nightly wrote 2.0 KB in 0s'. The old code logged '400 ms'. Every run under 500 ms now looks instant, and runs from 500 to 1499 ms all show as 1s, so sub-second timing is lost.",
+            "whyNotPrevented": "formatDuration has no branch for values under one second. Its only caller, runJob in src/jobs.js, passes the raw elapsed time. The repo has no tests, and package.json defines no test script.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "featured-deals",
+      "wallMs": 16455,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2706,
+        "cacheRead": 16002,
+        "output": 1649,
+        "total": 20363
+      },
+      "costUsd": 0.057852400000000005,
+      "apiMs": 15859,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/featured.js",
+            "line": 2,
+            "category": "correctness",
+            "title": "In-place sort reorders the shared cached catalog and breaks the home page's newest list"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/featured.js",
+            "line": 2,
+            "category": "correctness",
+            "title": "In-place sort reorders the shared cached catalog and breaks the home page's newest list",
+            "quote": "  return items.sort((a, b) => a.priceCents - b.priceCents);",
+            "scenario": "loadCatalog returns the same module-level cache object on every call, and featuredDeals passes catalog.items straight to Array.prototype.sort, which mutates it. For items [A 500, B 100, C 300, D 200, E 400, F 600], the first homePage call returns newest [C, D, E, F] because newest is evaluated before deals. That call leaves the cached array sorted by price, so every later homePage call returns newest [D, C, E, F], the four most expensive products in price order, instead of the four newest. Any other listProducts caller also sees price order for the rest of the process.",
+            "whyNotPrevented": "listProducts copies through filter, but cheapestFirst receives the original array. The cache is never reloaded or frozen, and the repo has no tests or test script. The first render looks correct, so the bug only appears from the second render on. Fix by sorting a copy, such as [...items].sort(...) or items.toSorted(...), and add a test that calls homePage twice and asserts newest is unchanged.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "featured-deals",
+      "wallMs": 15929,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3707,
+        "cacheRead": 23177,
+        "output": 1688,
+        "total": 28580
+      },
+      "costUsd": 0.06808339999999999,
+      "apiMs": 15337,
+      "turns": 9,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/featured.js",
+            "line": 2,
+            "category": "correctness",
+            "title": "In-place sort reorders the cached catalog and breaks the home page's newest list"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/featured.js",
+            "line": 2,
+            "category": "correctness",
+            "title": "In-place sort reorders the cached catalog and breaks the home page's newest list",
+            "quote": "  return items.sort((a, b) => a.priceCents - b.priceCents);",
+            "scenario": "loadCatalog returns the same module-level cache object on every call, and featuredDeals passes catalog.items straight to Array.prototype.sort, which mutates it. Take items loaded oldest to newest with prices [500, 100, 900, 300, 700]. The first homePage call gets the correct newest list, because the object literal evaluates newest before deals, but it leaves cache.items sorted by price. Every later homePage call then computes slice(-4) on the price-sorted array, so newest shows the four most expensive products instead of the four newest. Every other listProducts caller also gets price order for the life of the process.",
+            "whyNotPrevented": "catalog.items is a plain mutable array with no freeze or copy. listProducts only copies through filter, and featuredDeals bypasses it. The repo has no tests, and a single homePage call would not show the bug because newest is evaluated first. It only appears on the second call against the same catalog.",
+            "basis": "measured",
+            "measuredBy": "Read src/catalog.js:1-8: cache is returned by reference. Grep \"\\.sort\\(|toSorted\": the only match is src/featured.js:2. Glob \"**/*.{test,spec}.*\": no files.",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "featured-deals",
+      "wallMs": 15966,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2705,
+        "cacheRead": 16001,
+        "output": 1648,
+        "total": 20360
+      },
+      "costUsd": 0.0578242,
+      "apiMs": 15361,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/featured.js",
+            "line": 2,
+            "category": "correctness",
+            "title": "In-place sort reorders the shared catalog cache and breaks the home page's newest list"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/featured.js",
+            "line": 2,
+            "category": "correctness",
+            "title": "In-place sort reorders the shared catalog cache and breaks the home page's newest list",
+            "quote": "  return items.sort((a, b) => a.priceCents - b.priceCents);",
+            "scenario": "loadCatalog returns the same module-level cache object on every call, and featuredDeals passes its catalog.items array straight to Array.prototype.sort, which mutates it. Take items loaded as [A $5, B $1, C $9, D $3, E $7, F $2]. On the first homePage call, newest is built first from a filtered copy, so it is correctly [C, D, E, F]. The sort then leaves the cached array in price order. On every later call, listProducts(catalog).slice(-4) returns the four most expensive items, [D, A, E, C], instead of the four newest. The original order stays lost until the process restarts.",
+            "whyNotPrevented": "listProducts returns a copy through filter, but featuredDeals reads catalog.items directly. Nothing freezes the cache, and the repository has no tests. The first render looks correct because newest is evaluated before deals, so the bug only appears from the second call on.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "free-shipping",
+      "wallMs": 12968,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2930,
+        "cacheRead": 15948,
+        "output": 1296,
+        "total": 20180
+      },
+      "costUsd": 0.0525736,
+      "apiMs": 12204,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/shipping.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "An order of exactly $50.00 is still charged shipping"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/shipping.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "An order of exactly $50.00 is still charged shipping",
+            "quote": "  if (cart.subtotalCents > FREE_SHIPPING_FROM_CENTS) {",
+            "scenario": "With cart.subtotalCents = 5000, shippingCost returns 499 because 5000 > 5000 is false, although orders of $50 or more should ship free. For the same cart, freeShippingBanner computes left = 0 and shows 'Your order ships free', so the customer is told shipping is free and then charged $4.99.",
+            "whyNotPrevented": "The repository has no tests, and the two functions check the threshold separately, so nothing keeps them consistent. Changing the comparison to >= fixes it.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "free-shipping",
+      "wallMs": 18311,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2922,
+        "cacheRead": 15942,
+        "output": 1984,
+        "total": 20854
+      },
+      "costUsd": 0.0662684,
+      "apiMs": 17703,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/shipping.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "An order of exactly $50 is still charged shipping, while the banner says it ships free"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/shipping.js",
+          "line": 13,
+          "category": "missing-requirement",
+          "title": "Nothing calls freeShippingBanner, so the change does not display a banner"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/shipping.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "An order of exactly $50 is still charged shipping, while the banner says it ships free",
+            "quote": "  if (cart.subtotalCents > FREE_SHIPPING_FROM_CENTS) {",
+            "scenario": "With cart.subtotalCents = 5000, shippingCost returns 499 because 5000 > 5000 is false. The requirement is free shipping at $50 or more. freeShippingBanner computes left = 0 for the same cart and returns 'Your order ships free', so the customer is told shipping is free and then charged $4.99.",
+            "whyNotPrevented": "The repository has no tests and package.json has no test script. The two functions also check the threshold separately, so nothing keeps them consistent at the boundary. The constant name FREE_SHIPPING_FROM_CENTS implies an inclusive threshold, but the code does not enforce it.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/shipping.js",
+            "line": 13,
+            "category": "missing-requirement",
+            "title": "Nothing calls freeShippingBanner, so the change does not display a banner",
+            "quote": "export function freeShippingBanner(cart) {",
+            "scenario": "The diff adds the function that builds the banner text, but no code in the repository calls it or renders the result, so shoppers would not see a banner from this change alone. If the UI lives in another repository, it must call this function and also pass a cart to shippingCost, which now requires one.",
+            "whyNotPrevented": "The repository contains only src/money.js and src/shipping.js, with no UI code or tests that use these exports.",
+            "basis": "measured",
+            "measuredBy": "Grep \"shippingCost|freeShippingBanner|formatCents|subtotalCents\" outside .git: the only matches are the definitions and uses in src/shipping.js and the formatCents definition in src/money.js; no call sites for shippingCost or freeShippingBanner",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "free-shipping",
+      "wallMs": 13433,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2934,
+        "cacheRead": 15950,
+        "output": 1381,
+        "total": 20271
+      },
+      "costUsd": 0.05430600000000001,
+      "apiMs": 12695,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P2",
+            "file": "src/shipping.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "An order of exactly $50 is still charged shipping, and the banner says it ships free"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P2",
+            "file": "src/shipping.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "An order of exactly $50 is still charged shipping, and the banner says it ships free",
+            "quote": "  if (cart.subtotalCents > FREE_SHIPPING_FROM_CENTS) {",
+            "scenario": "With cart.subtotalCents = 5000, shippingCost returns 499 because 5000 > 5000 is false. freeShippingBanner computes left = 0 and shows 'Your order ships free', so the customer sees free shipping but is charged $4.99. The requirement is free shipping at $50 or more, so the check should use >=.",
+            "whyNotPrevented": "The repository has no tests or test script, and no shared predicate keeps the two functions consistent: shippingCost uses > while freeShippingBanner uses left > 0.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "leaderboard",
+      "wallMs": 22789,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3860,
+        "cacheRead": 21770,
+        "output": 2421,
+        "total": 28059
+      },
+      "costUsd": 0.08368600000000001,
+      "apiMs": 22165,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/leaderboard.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Sort comparator returns a boolean, so topPlayers does not rank by points"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/leaderboard.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Sort comparator returns a boolean, so topPlayers does not rank by points",
+            "quote": "  return [...board].sort((a, b) => a.points < b.points).slice(0, count);",
+            "scenario": "board = [{player:'a',points:10},{player:'b',points:30},{player:'c',points:20},{player:'d',points:40}]. The comparator returns true or false, which coerce to 1 or 0 and are never negative. On current V8 (Node 11+) the array stays in insertion order, so topPlayers(board) returns a, b, c instead of d, b, c. The top scorer d is left out and a, the lowest scorer, is ranked first. The fix is (a, b) => b.points - a.points.",
+            "whyNotPrevented": "The repo has no tests and package.json has no test script or lint config. There are no types, and Array.prototype.sort accepts a boolean-returning comparator without an error.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "leaderboard",
+      "wallMs": 17159,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2297,
+        "cacheRead": 21647,
+        "output": 1781,
+        "total": 25733
+      },
+      "costUsd": 0.058357400000000004,
+      "apiMs": 16538,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/leaderboard.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Boolean sort comparator does not rank players by points"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/leaderboard.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Boolean sort comparator does not rank players by points",
+            "quote": "  return [...board].sort((a, b) => a.points < b.points).slice(0, count);",
+            "scenario": "A board built in the order a:10, b:20, c:30, d:40 should give d, c, b from topPlayers(board). The comparator returns true or false, which sort coerces to 1 or 0 and never to a negative number, so the sort gets no consistent ordering. On V8 the array typically stays in insertion order, so the result is a, b, c: the first three players to join, and d, the top scorer, is left out.",
+            "whyNotPrevented": "The project is plain JavaScript with no type checker to reject a boolean comparator. package.json defines no test or lint scripts, and a repo-wide search finds topPlayers only at its definition, so no test or caller exercises it.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "leaderboard",
+      "wallMs": 14626,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2699,
+        "cacheRead": 21616,
+        "output": 1537,
+        "total": 25860
+      },
+      "costUsd": 0.05668720000000001,
+      "apiMs": 13954,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/leaderboard.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Sort comparator returns a boolean, so topPlayers does not sort by points"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/leaderboard.js",
+          "line": 11,
+          "category": "missing-test",
+          "title": "topPlayers has no test"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/leaderboard.js",
+            "line": 12,
+            "category": "correctness",
+            "title": "Sort comparator returns a boolean, so topPlayers does not sort by points",
+            "quote": "  return [...board].sort((a, b) => a.points < b.points).slice(0, count);",
+            "scenario": "A board with points [1, 2, 3, 100] in insertion order and the default count of 3 returns the players with 1, 2 and 3 points, and the 100-point player is dropped. The comparator yields true or false, which coerce to 1 or 0 and are never negative, so V8's sort treats the array as already ordered and keeps insertion order. The fix is a numeric comparator: (a, b) => b.points - a.points.",
+            "whyNotPrevented": "The project has no tests, no test script, no lint config and no type checking. Nothing calls topPlayers yet, so no existing code exercises the ordering.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P3",
+            "file": "src/leaderboard.js",
+            "line": 11,
+            "category": "missing-test",
+            "title": "topPlayers has no test",
+            "quote": "export function topPlayers(board, count = 3) {",
+            "scenario": "The repository has no test covering descending order or the count limit, so a broken ordering like the one on line 12 ships unnoticed.",
+            "whyNotPrevented": "The repository contains only package.json and src/leaderboard.js, and package.json defines no test script.",
+            "basis": "measured",
+            "measuredBy": "Grep \"topPlayers|\\.sort\\(|addScore\" across the repo: matches only in src/leaderboard.js; Glob \"**/*\": no test files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "monthly-invoice",
+      "wallMs": 12673,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2482,
+        "cacheRead": 15778,
+        "output": 1409,
+        "total": 19675
+      },
+      "costUsd": 0.0512156,
+      "apiMs": 12037,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/scheduler.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Billing runs every Monday instead of the first of the month"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/scheduler.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Billing runs every Monday instead of the first of the month",
+            "quote": "  if (now.getDay() === 1) {",
+            "scenario": "`getDay()` returns the weekday, and 1 means Monday. On Sunday 2026-11-01, `runDailyJobs(accounts, new Date(2026, 10, 1))` returns [], so the first-of-month billing does not happen. On Monday 2026-11-02 and every later Monday, it invoices every account, so accounts are charged about four times a month. The check should be `now.getDate() === 1`.",
+            "whyNotPrevented": "The repo has no tests and package.json has no test script. `now` is a plain Date, so `getDay` and `getDate` are both valid calls and nothing flags the wrong one.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "monthly-invoice",
+      "wallMs": 20141,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2567,
+        "cacheRead": 15780,
+        "output": 2037,
+        "total": 20390
+      },
+      "costUsd": 0.06445600000000001,
+      "apiMs": 19375,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/scheduler.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Billing runs every Monday instead of the first of the month"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/scheduler.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Billing runs every Monday instead of the first of the month",
+            "quote": "  if (now.getDay() === 1) {",
+            "scenario": "getDay() returns the weekday, and 1 means Monday. On Sunday 2026-11-01 the job returns [] and bills nobody. On Monday 2026-11-02, and every later Monday, it invoices every account, so accounts are billed 4-5 times a month and the 1st is skipped unless it falls on a Monday. The check should use now.getDate() === 1.",
+            "whyNotPrevented": "The repository has no test files and package.json has no test script. The project is plain JS, and getDay() and getDate() both return numbers, so nothing flags the wrong call.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/scheduler.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Billing day uses local time but issuedAt is UTC",
+            "quote": "  if (now.getDay() === 1) {",
+            "scenario": "The day check uses the host's local timezone, while createInvoice stamps issuedAt with toISOString() in UTC. Once the check is changed to getDate(), the same mismatch remains: on a UTC+9 host, a run at local 2026-11-01 00:30 bills the account with issuedAt 2026-10-31T15:30:00.000Z, so the invoice is dated in the previous month. The billing day also depends on the host's timezone setting.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "monthly-invoice",
+      "wallMs": 19497,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2565,
+        "cacheRead": 15778,
+        "output": 2011,
+        "total": 20360
+      },
+      "costUsd": 0.06391960000000001,
+      "apiMs": 18884,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/scheduler.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Billing runs every Monday instead of the first day of the month"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/scheduler.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Billing runs every Monday instead of the first day of the month",
+            "quote": "  if (now.getDay() === 1) {",
+            "scenario": "Date.prototype.getDay() returns the weekday (0 = Sunday, 1 = Monday), not the day of the month. On Sunday 2026-11-01, getDay() is 0, so no account is billed on the first. On Monday 2026-11-02, and again on 2026-11-09, 11-16, 11-23 and 11-30, every account gets an invoice, so accounts are billed five times in November and never on the 1st unless it falls on a Monday. The fix is now.getDate() === 1 or now.getUTCDate() === 1. The choice matters because createInvoice sets issuedAt with toISOString(), which is UTC. With local getDate() on a server ahead of UTC, an invoice created early on the 1st would carry an issuedAt from the previous month.",
+            "whyNotPrevented": "The repo has no tests and package.json has no test script. The code is plain JavaScript, and getDay() and getDate() both return numbers, so nothing flags the mix-up. No other code checks the date before createInvoice runs.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-summary",
+      "wallMs": 5629,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2495,
+        "cacheRead": 15874,
+        "output": 590,
+        "total": 18965
+      },
+      "costUsd": 0.0349588,
+      "apiMs": 5024,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-summary",
+      "wallMs": 6202,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2499,
+        "cacheRead": 15876,
+        "output": 587,
+        "total": 18968
+      },
+      "costUsd": 0.034931199999999996,
+      "apiMs": 5349,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "order-summary",
+      "wallMs": 5753,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2490,
+        "cacheRead": 15869,
+        "output": 566,
+        "total": 18931
+      },
+      "costUsd": 0.034437800000000005,
+      "apiMs": 5063,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "page-range",
+      "wallMs": 26589,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3235,
+        "cacheRead": 16172,
+        "output": 2872,
+        "total": 22285
+      },
+      "costUsd": 0.0865784,
+      "apiMs": 25952,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/pagination.js",
+            "line": 3,
+            "category": "correctness",
+            "title": "Off-by-one end index hides the last product and misreports the range"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/pagination.js",
+          "line": 8,
+          "category": "correctness",
+          "title": "Empty catalog produces a nonsensical range label"
+        },
+        {
+          "severity": "P2",
+          "file": "src/pagination.js",
+          "line": 8,
+          "category": "correctness",
+          "title": "Out-of-range or invalid page values produce a broken range label"
+        }
+      ],
+      "otherHigh": 2,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/pagination.js",
+            "line": 3,
+            "category": "correctness",
+            "title": "Off-by-one end index hides the last product and misreports the range",
+            "quote": "  const end = Math.min(start + size, items.length - 1);",
+            "scenario": "With 45 items, page 3 gives start 40 and end 44. slice(40, 44) returns 4 items, so the 45th product is unreachable, and the label says 'Showing 41 to 44 of 45'. With 20 items, page 1 returns 19 items. With 1 item, end is 0, so the page is empty and says 'Showing 1 to 0 of 1'. The clamp should use items.length because slice's end is exclusive.",
+            "whyNotPrevented": "slice accepts any end value without error, and the repo has no tests or test script. Full non-final pages such as 'Showing 1 to 20 of 45' look correct, so the bug only appears on the last page.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/pagination.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "Empty catalog produces a nonsensical range label",
+            "quote": "    range: `Showing ${start + 1} to ${end} of ${items.length}`,",
+            "scenario": "With no visible products, which is the initial state because products starts as [], page 1 gives start 0 and end -1. The response says 'Showing 1 to -1 of 0'. After the end clamp is fixed it would still say 'Showing 1 to 0 of 0'.",
+            "whyNotPrevented": "The label always uses start + 1 and has no zero-item case. listProducts can legitimately return an empty array, and no test covers it.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/pagination.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "Out-of-range or invalid page values produce a broken range label",
+            "quote": "    range: `Showing ${start + 1} to ${end} of ${items.length}`,",
+            "scenario": "With 45 items, ?page=0 was the first page before this change. It now returns no items and says 'Showing -19 to 0 of 45'. ?page=4 says 'Showing 61 to 44 of 45'. ?page=abc says 'Showing NaN to NaN of 45'.",
+            "whyNotPrevented": "productsHandler passes the parseInt result straight to paginate, with no check for NaN, values below 1, or values above pages. The query string is user input, and no test covers these values.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "page-range",
+      "wallMs": 29188,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3211,
+        "cacheRead": 22253,
+        "output": 3202,
+        "total": 28674
+      },
+      "costUsd": 0.0942106,
+      "apiMs": 28570,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/pagination.js",
+            "line": 3,
+            "category": "correctness",
+            "title": "Off-by-one end index drops the last product and misreports the range"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/pagination.js",
+          "line": 8,
+          "category": "correctness",
+          "title": "Range label is nonsensical for an empty catalog or a page past the end"
+        },
+        {
+          "severity": "P2",
+          "file": "src/routes.js",
+          "line": 7,
+          "category": "correctness",
+          "title": "Invalid page values now produce broken ranges, and page=0 no longer returns the first page"
+        }
+      ],
+      "otherHigh": 2,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/pagination.js",
+            "line": 3,
+            "category": "correctness",
+            "title": "Off-by-one end index drops the last product and misreports the range",
+            "quote": "  const end = Math.min(start + size, items.length - 1);",
+            "scenario": "With 45 items, page 3 gets start 40 and end 44, so slice(40, 44) returns 4 items instead of 5. The range reads 'Showing 41 to 44 of 45', and item 45 appears on no page. With 20 items, page 1 returns 19 items. With 1 item, page 1 returns no items and reads 'Showing 1 to 0 of 1'.",
+            "whyNotPrevented": "slice already treats end as exclusive, and the range label reuses the same wrong value. The repository has no test files and package.json defines no test script.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/pagination.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "Range label is nonsensical for an empty catalog or a page past the end",
+            "quote": "    range: `Showing ${start + 1} to ${end} of ${items.length}`,",
+            "scenario": "With no visible products, page 1 reads 'Showing 1 to -1 of 0'. With 45 items, page 4 reads 'Showing 61 to 44 of 45'. Correcting the end index still leaves 'Showing 1 to 0 of 0' and 'Showing 61 to 45 of 45'.",
+            "whyNotPrevented": "The label is built unconditionally, with no handling for a page that has no items. The products array starts empty, and listProducts can return an empty list when no product is visible. No tests exist.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/routes.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Invalid page values now produce broken ranges, and page=0 no longer returns the first page",
+            "quote": "  const page = Number.parseInt(query.page ?? '1', 10);",
+            "scenario": "With 45 items, ?page=0 was the first page before this change. It now returns no items and reads 'Showing -19 to 0 of 45'. ?page=abc reads 'Showing NaN to NaN of 45'. ?page=-1 gives start -40 and end -20, so slice returns items counted from the end of the list, labelled 'Showing -39 to -20 of 45'.",
+            "whyNotPrevented": "The query string is user input, and the handler passes the parseInt result to paginate without checking that it is a positive integer. paginate does not validate page either, and no tests exist.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "page-range",
+      "wallMs": 29360,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3236,
+        "cacheRead": 16173,
+        "output": 3220,
+        "total": 22635
+      },
+      "costUsd": 0.0935466,
+      "apiMs": 28706,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/pagination.js",
+            "line": 3,
+            "category": "correctness",
+            "title": "Off-by-one end index drops the last item from the final page"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/pagination.js",
+          "line": 8,
+          "category": "correctness",
+          "title": "Empty catalog produces an impossible range"
+        },
+        {
+          "severity": "P2",
+          "file": "src/routes.js",
+          "line": 7,
+          "category": "correctness",
+          "title": "Invalid or out-of-range page values produce a nonsense range, and negative pages return wrong items"
+        }
+      ],
+      "otherHigh": 2,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/pagination.js",
+            "line": 3,
+            "category": "correctness",
+            "title": "Off-by-one end index drops the last item from the final page",
+            "quote": "  const end = Math.min(start + size, items.length - 1);",
+            "scenario": "With 45 visible products, page=3 gives start 40 and end 44. slice(40, 44) returns 4 items instead of 5, the range reads 'Showing 41 to 44 of 45', and item 45 cannot be reached on any page. With exactly 20 products, page 1 returns 19 items and reads 'Showing 1 to 19 of 20'. With 21 products, page 2 returns no items and reads 'Showing 21 to 20 of 21'. The cap should be items.length, because slice's end is exclusive and the range's end is a 1-based count.",
+            "whyNotPrevented": "Nothing checks the slice bounds, and the repository has no tests or test script. Full pages look correct, including the 'Showing 1 to 20 of 45' example, because the cap only applies on the last page.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/pagination.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "Empty catalog produces an impossible range",
+            "quote": "    range: `Showing ${start + 1} to ${end} of ${items.length}`,",
+            "scenario": "With no visible products, which is the initial state because products.js starts with an empty array, page 1 gives start 0 and end -1. The response reads 'Showing 1 to -1 of 0'. Changing the cap to items.length still gives 'Showing 1 to 0 of 0', so this case needs its own handling.",
+            "whyNotPrevented": "paginate has no zero-item branch, listProducts can legitimately return an empty array, and no test covers it.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/routes.js",
+            "line": 7,
+            "category": "correctness",
+            "title": "Invalid or out-of-range page values produce a nonsense range, and negative pages return wrong items",
+            "quote": "  const page = Number.parseInt(query.page ?? '1', 10);",
+            "scenario": "With 45 products: page=4 returns no items and reads 'Showing 61 to 44 of 45'. page=0, the old first page, returns no items and reads 'Showing -19 to 0 of 45', so any client still using 0-based links gets an empty first page. page=abc reads 'Showing NaN to NaN of 45'. page=-1 gives slice(-40, -20), which returns 20 real items labeled 'Showing -39 to -20 of 45'.",
+            "whyNotPrevented": "query.page is user input, but the handler only parses it and never validates it against 1..pages. paginate does not check it either, and no test covers these values.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "page-size-limit",
+      "wallMs": 14468,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2741,
+        "cacheRead": 15904,
+        "output": 1396,
+        "total": 20047
+      },
+      "costUsd": 0.0530528,
+      "apiMs": 13714,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "page-size-limit",
+      "wallMs": 16608,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2738,
+        "cacheRead": 15899,
+        "output": 1620,
+        "total": 20263
+      },
+      "costUsd": 0.0575078,
+      "apiMs": 15999,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "page-size-limit",
+      "wallMs": 13531,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2746,
+        "cacheRead": 15905,
+        "output": 1316,
+        "total": 19973
+      },
+      "costUsd": 0.051493,
+      "apiMs": 12770,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "price-cache",
+      "wallMs": 19506,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2677,
+        "cacheRead": 15834,
+        "output": 1955,
+        "total": 20472
+      },
+      "costUsd": 0.06370680000000001,
+      "apiMs": 18809,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/prices.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "Cache key omits currency, so later currencies get the first currency's price"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/prices.js",
+          "line": 11,
+          "category": "correctness",
+          "title": "Cached prices never expire or update when the rate or product price changes"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/prices.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "Cache key omits currency, so later currencies get the first currency's price",
+            "quote": "  if (converted.has(product.id)) {",
+            "scenario": "priceIn(client, {id: 1, priceCents: 1000}, 'EUR') at rate 0.9 caches 900. A later priceIn(client, {id: 1, priceCents: 1000}, 'JPY') at rate 150 returns 900 instead of 150000, without calling the rates service.",
+            "whyNotPrevented": "The Map is keyed only by product.id and is shared across all calls in the module. currency is not checked before the early return, and the repo has no tests: its only non-.git files are src/prices.js, src/rates.js and package.json.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/prices.js",
+            "line": 11,
+            "category": "correctness",
+            "title": "Cached prices never expire or update when the rate or product price changes",
+            "quote": "  converted.set(product.id, cents);",
+            "scenario": "Product 1 is cached at 900 with rate 0.9 and priceCents 1000. If the rate changes to 0.8, or priceCents changes to 2000, priceIn keeps returning 900 until the process restarts. Correct values would be 800 and 1800 respectively.",
+            "whyNotPrevented": "The entry has no TTL, and nothing in the code deletes or clears it. The hit path ignores the current product.priceCents, and the module does not export the Map, so callers cannot invalidate it. No tests cover cache behavior. Entries also accumulate for the life of the process.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "price-cache",
+      "wallMs": 23069,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2683,
+        "cacheRead": 15843,
+        "output": 2364,
+        "total": 20896
+      },
+      "costUsd": 0.0719366,
+      "apiMs": 22355,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/prices.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "Cache key omits currency, so a product returns the first currency's price for every currency"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/prices.js",
+          "line": 11,
+          "category": "correctness",
+          "title": "Cached prices never expire, so rate and product price changes are ignored until restart"
+        },
+        {
+          "severity": "P3",
+          "file": "src/prices.js",
+          "line": 6,
+          "category": "missing-test",
+          "title": "No tests cover the new cache behavior"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/prices.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "Cache key omits currency, so a product returns the first currency's price for every currency",
+            "quote": "  if (converted.has(product.id)) {",
+            "scenario": "priceIn(client, {id: 1, priceCents: 1000}, 'EUR') with rate 0.9 caches 900. A later priceIn(client, {id: 1, priceCents: 1000}, 'JPY') with rate 150 returns 900 instead of 150000, and fetchRate is never called.",
+            "whyNotPrevented": "The map is keyed by product.id alone on both get and set (lines 6, 7 and 11), although currency is a parameter that changes the result. The repo has no tests, and nothing else checks the returned value.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/prices.js",
+            "line": 11,
+            "category": "correctness",
+            "title": "Cached prices never expire, so rate and product price changes are ignored until restart",
+            "quote": "  converted.set(product.id, cents);",
+            "scenario": "Product 1 is cached at 900 with EUR rate 0.9. If the rate moves to 0.95, or product.priceCents changes from 1000 to 1200, priceIn still returns 900 for the life of the process. The module-level Map also grows with every entry because nothing evicts them.",
+            "whyNotPrevented": "The Map has no TTL, eviction or invalidation path, and it is not exported, so no caller can clear it. The cache check returns before priceCents or the rate is read, and no test covers changes over time.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/prices.js",
+            "line": 6,
+            "category": "missing-test",
+            "title": "No tests cover the new cache behavior",
+            "quote": "  if (converted.has(product.id)) {",
+            "scenario": "Cache hits, misses, per-currency separation and expiry are all unverified, which is how the wrong-currency bug can ship unnoticed. The module-level Map would also carry state between tests unless it can be reset.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*\" in the repo: only src/prices.js, src/rates.js and package.json outside .git, with no test files and no test script in package.json",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "price-cache",
+      "wallMs": 21155,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2689,
+        "cacheRead": 15842,
+        "output": 2165,
+        "total": 20702
+      },
+      "costUsd": 0.0680044,
+      "apiMs": 20439,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/prices.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "Cache key omits currency, so a product returns its price in the first currency requested"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/prices.js",
+          "line": 3,
+          "category": "correctness",
+          "title": "Cached prices never expire, so rate and product price changes are ignored until restart"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/prices.js",
+            "line": 6,
+            "category": "correctness",
+            "title": "Cache key omits currency, so a product returns its price in the first currency requested",
+            "quote": "  if (converted.has(product.id)) {",
+            "scenario": "priceIn(client, {id: 1, priceCents: 1000}, 'EUR') with rate 0.9 caches 900. priceIn(client, {id: 1, priceCents: 1000}, 'JPY') with rate 150 then returns 900 instead of 150000, with no rate fetched. Every later request for that product gets the first currency's amount until the process restarts.",
+            "whyNotPrevented": "The key is only product.id, and currency is not checked anywhere on the cache path. The repo has no tests, so nothing exercises one product in two currencies.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/prices.js",
+            "line": 3,
+            "category": "correctness",
+            "title": "Cached prices never expire, so rate and product price changes are ignored until restart",
+            "quote": "const converted = new Map();",
+            "scenario": "Product 1 is cached at 900 with EUR rate 0.9. The rate moves to 0.95, or priceCents changes from 1000 to 1200, and priceIn still returns 900 for the life of the process. Before this change each call used the current rate and the priceCents passed in. The Map also grows with no size limit.",
+            "whyNotPrevented": "The module-level Map has no TTL, eviction or invalidation path, and the cached value is returned without comparing product.priceCents. No tests cover staleness.",
+            "basis": "measured",
+            "measuredBy": "Grep \"priceIn|fetchRate|converted\" outside .git: the only uses of converted are new Map, has, get and set in src/prices.js, with no delete or clear",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "price-sort",
+      "wallMs": 12752,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3482,
+        "cacheRead": 22609,
+        "output": 1276,
+        "total": 27375
+      },
+      "costUsd": 0.0579298,
+      "apiMs": 12032,
+      "turns": 9,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "price-sort",
+      "wallMs": 9891,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3000,
+        "cacheRead": 16073,
+        "output": 992,
+        "total": 20071
+      },
+      "costUsd": 0.0470786,
+      "apiMs": 9191,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "price-sort",
+      "wallMs": 17274,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3622,
+        "cacheRead": 22612,
+        "output": 1752,
+        "total": 27994
+      },
+      "costUsd": 0.0685704,
+      "apiMs": 16495,
+      "turns": 10,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "rate-cache",
+      "wallMs": 27960,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 3338,
+        "cacheRead": 16169,
+        "output": 2876,
+        "total": 22389
+      },
+      "costUsd": 0.0874818,
+      "apiMs": 27345,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 14,
+          "category": "correctness",
+          "title": "Concurrent cache misses each call the rates service"
+        },
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 10,
+          "category": "correctness",
+          "title": "Module-level cache ignores the client argument"
+        },
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 15,
+          "category": "correctness",
+          "title": "A missing rate is cached for the full ten minutes"
+        },
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 9,
+          "category": "missing-test",
+          "title": "Cache behavior has no tests"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 4,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 14,
+            "category": "correctness",
+            "title": "Concurrent cache misses each call the rates service",
+            "quote": "  const rate = await fetchRate(client, currency);",
+            "scenario": "50 concurrent priceIn calls for EUR on a cold or just-expired cache all pass the cache check before the first response is stored, so they make 50 calls to the rates service instead of 1. This repeats every ten minutes under load, which works against the goal of cutting calls.",
+            "whyNotPrevented": "The cache stores only resolved rates, so nothing records a fetch in progress. No test covers concurrent calls.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 10,
+            "category": "correctness",
+            "title": "Module-level cache ignores the client argument",
+            "quote": "  const cached = cachedRates.get(currency);",
+            "scenario": "If priceIn is called with client A and then client B for USD within ten minutes, client B gets client A's rate and is never called. This gives wrong prices if clients point at different environments or rate sources, and a fake client in one test can leak its rate into the next.",
+            "whyNotPrevented": "The cache key is only the currency, and the repository has no callers or tests showing that a single client is guaranteed.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 15,
+            "category": "correctness",
+            "title": "A missing rate is cached for the full ten minutes",
+            "quote": "  cachedRates.set(currency, { rate, fetchedAt: now });",
+            "scenario": "If client.get resolves without a rate field, for example on an error body, undefined is cached and priceIn returns NaN for that currency for ten minutes. Before this change, the next call would fetch again and could recover. Unknown currency codes would also add entries to the Map, which has no size limit or eviction. The client is not in this repository, so it is unconfirmed whether it can resolve this way.",
+            "whyNotPrevented": "cachedRate stores whatever fetchRate returns without checking it, and fetchRate does not validate the response.",
+            "basis": "guessed",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 9,
+            "category": "missing-test",
+            "title": "Cache behavior has no tests",
+            "quote": "export async function cachedRate(client, currency, now = Date.now()) {",
+            "scenario": "A regression in the TTL comparison, such as an inverted check or a wrong unit in RATE_TTL_MS, would either serve stale rates indefinitely or stop caching, and nothing would fail. The now parameter allows TTL tests, but no test uses it.",
+            "whyNotPrevented": "The repository has no test files, and package.json defines no test script.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*.test.*\": no files found; Grep \"cachedRate\" outside .git: matches only in src/rates.js and src/prices.js; package.json has no scripts section",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "rate-cache",
+      "wallMs": 28667,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3018,
+        "cacheRead": 22480,
+        "output": 2954,
+        "total": 28460
+      },
+      "costUsd": 0.087752,
+      "apiMs": 27940,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 10,
+          "category": "correctness",
+          "title": "Cache key ignores the client, so clients share cached rates"
+        },
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 14,
+          "category": "correctness",
+          "title": "Concurrent cache misses each call the rates service"
+        },
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 15,
+          "category": "correctness",
+          "title": "A response without a usable rate is cached for ten minutes"
+        },
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 9,
+          "category": "testing",
+          "title": "No tests cover the cache hit, expiry, or refetch behaviour"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 4,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 10,
+            "category": "correctness",
+            "title": "Cache key ignores the client, so clients share cached rates",
+            "quote": "const cached = cachedRates.get(currency);",
+            "scenario": "If priceIn is called with two clients that reach different rate sources, such as sandbox and production, the second client gets the first client's EUR rate for up to ten minutes and prices with it. No caller in this repo shows that two clients exist, so this is a latent risk rather than a confirmed bug.",
+            "whyNotPrevented": "client is passed on every call, but the module-level Map is keyed only by currency. The repo has no tests and no callers of priceIn.",
+            "basis": "inferred",
+            "measuredBy": "",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 14,
+            "category": "correctness",
+            "title": "Concurrent cache misses each call the rates service",
+            "quote": "const rate = await fetchRate(client, currency);",
+            "scenario": "When 50 concurrent priceIn calls for USD arrive on a cold or just-expired entry, all 50 miss before the first response is stored, so the service gets 50 requests. This recurs every ten minutes per currency at peak load and weakens the goal of cutting calls.",
+            "whyNotPrevented": "Only resolved rates are stored, not in-flight promises, so nothing deduplicates requests during the await.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 15,
+            "category": "correctness",
+            "title": "A response without a usable rate is cached for ten minutes",
+            "quote": "cachedRates.set(currency, { rate, fetchedAt: now });",
+            "scenario": "If the client resolves with a body that has no rate, such as an error payload, rate is undefined and priceIn returns NaN. Before this change that affected one request; now every price in that currency is NaN until the entry expires. The client is not in this repo, so whether it can resolve this way is unconfirmed.",
+            "whyNotPrevented": "The value is stored without checking that it is a number, and no test covers this path.",
+            "basis": "guessed",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 9,
+            "category": "testing",
+            "title": "No tests cover the cache hit, expiry, or refetch behaviour",
+            "quote": "export async function cachedRate(client, currency, now = Date.now()) {",
+            "scenario": "Changing the `<` comparison or the TTL constant would go unnoticed, for example if rates were served past ten minutes or never cached. The Map also has no reset, so future tests would share state unless they use distinct currencies or re-import the module.",
+            "whyNotPrevented": "The repo has no test files, and package.json defines no test script.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*.{test,spec}.*\": no files found; package.json has no scripts",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "rate-cache",
+      "wallMs": 31145,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3110,
+        "cacheRead": 22486,
+        "output": 3070,
+        "total": 28674
+      },
+      "costUsd": 0.0908092,
+      "apiMs": 30506,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 14,
+          "category": "correctness",
+          "title": "Concurrent cache misses each call the rates service"
+        },
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 15,
+          "category": "correctness",
+          "title": "A missing rate would be cached for the full ten minutes"
+        },
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 10,
+          "category": "correctness",
+          "title": "Module-level cache ignores the client argument"
+        },
+        {
+          "severity": "P3",
+          "file": "src/rates.js",
+          "line": 9,
+          "category": "testing",
+          "title": "Cache hit and TTL expiry have no tests"
+        }
+      ],
+      "otherHigh": 0,
+      "otherLow": 4,
+      "review": {
+        "findings": [
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 14,
+            "category": "correctness",
+            "title": "Concurrent cache misses each call the rates service",
+            "quote": "  const rate = await fetchRate(client, currency);",
+            "scenario": "With a cold or expired entry, 50 concurrent priceIn calls for EUR all miss, because the entry is only set after the await. That makes 50 calls to the rates service instead of 1, and the burst repeats each time the TTL expires.",
+            "whyNotPrevented": "Only resolved rates are cached, not in-flight promises, and no test covers concurrent calls. No caller of priceIn exists in this repo, so real concurrency is unconfirmed.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 15,
+            "category": "correctness",
+            "title": "A missing rate would be cached for the full ten minutes",
+            "quote": "  cachedRates.set(currency, { rate, fetchedAt: now });",
+            "scenario": "If client.get resolves with a body that has no rate, such as an error payload, undefined is cached. priceIn then returns NaN for that currency for ten minutes, where previously the next call could recover.",
+            "whyNotPrevented": "The rate is stored without validation. The client is not defined in this repo, so whether client.get rejects on error responses is unconfirmed.",
+            "basis": "guessed",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 10,
+            "category": "correctness",
+            "title": "Module-level cache ignores the client argument",
+            "quote": "  const cached = cachedRates.get(currency);",
+            "scenario": "If two clients point at different rate sources, such as separate tenants or environments, the second caller for USD gets the rate fetched through the first client for up to ten minutes.",
+            "whyNotPrevented": "The cache key is currency only, while client is still a per-call parameter. No caller exists in this repo, so whether more than one client is ever used is unconfirmed.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/rates.js",
+            "line": 9,
+            "category": "testing",
+            "title": "Cache hit and TTL expiry have no tests",
+            "quote": "export async function cachedRate(client, currency, now = Date.now()) {",
+            "scenario": "A change to the TTL comparison, such as a flipped operator or a wrong unit, would either serve stale rates indefinitely or disable the cache, and nothing would fail. The now parameter looks intended for tests, but no caller passes it.",
+            "whyNotPrevented": "The repo has no test files and package.json has no test script.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*\": only package.json, src/prices.js and src/rates.js outside .git; Grep \"cachedRate\": the only call is src/prices.js:4, with no now argument",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "rename-finder",
+      "wallMs": 6564,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2786,
+        "cacheRead": 15656,
+        "output": 614,
+        "total": 19062
+      },
+      "costUsd": 0.0377232,
+      "apiMs": 5938,
+      "turns": 5,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "rename-finder",
+      "wallMs": 7876,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3277,
+        "cacheRead": 22832,
+        "output": 796,
+        "total": 26913
+      },
+      "costUsd": 0.046734399999999995,
+      "apiMs": 7235,
+      "turns": 8,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "rename-finder",
+      "wallMs": 6967,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2862,
+        "cacheRead": 15772,
+        "output": 690,
+        "total": 19330
+      },
+      "costUsd": 0.039874400000000004,
+      "apiMs": 6297,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "clean",
+      "result": "clean",
+      "expect": [],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-timeout",
+      "wallMs": 13042,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3568,
+        "cacheRead": 23156,
+        "output": 1381,
+        "total": 28113
+      },
+      "costUsd": 0.0608272,
+      "apiMs": 12340,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/http.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "timeoutMs: 0 falls back to the 5s default, so the timeout cannot be turned off"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/http.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "timeoutMs: 0 falls back to the 5s default, so the timeout cannot be turned off",
+            "quote": "  const timeout = timeoutMs || DEFAULT_TIMEOUT_MS;",
+            "scenario": "downloadExport calls request with { timeoutMs: 0 }. Because 0 is falsy, `timeout` becomes 5000, the `timeout === 0` branch on line 7 is never taken, and an export whose response takes over 5s to arrive is still aborted. Use `timeoutMs ?? DEFAULT_TIMEOUT_MS` so that only undefined or null fall back to the default.",
+            "whyNotPrevented": "The project has no tests and no test script, and plain JS has no type check. Nothing exercises timeoutMs: 0, and the line 7 check looks like it handles the case even though it is unreachable.",
+            "basis": "measured",
+            "measuredBy": "Grep \"timeoutMs|request\\(|DEFAULT_TIMEOUT_MS|downloadExport\" across the repo: the only matches are in src/http.js and src/export.js, so no test covers this; Glob \"**/*\" found no test files",
+            "multipleFixes": false,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-timeout",
+      "wallMs": 13732,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3587,
+        "cacheRead": 23053,
+        "output": 1440,
+        "total": 28088
+      },
+      "costUsd": 0.062138599999999995,
+      "apiMs": 12835,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/http.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "timeoutMs: 0 falls back to the 5000 ms default, so the timeout cannot be turned off"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/http.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "timeoutMs: 0 falls back to the 5000 ms default, so the timeout cannot be turned off",
+            "quote": "  const timeout = timeoutMs || DEFAULT_TIMEOUT_MS;",
+            "scenario": "downloadExport calls request with { timeoutMs: 0 }. Because 0 is falsy, `timeout` becomes 5000, the `timeout === 0` branch on line 7 never runs, and setTimeout aborts the request after 5 seconds. An export whose response takes longer than 5 seconds to start still fails with an abort error, which is the case the change was meant to fix. Replacing `||` with `??` keeps the default for undefined and lets 0 through.",
+            "whyNotPrevented": "Nothing in the code or tooling catches it: the code is plain JavaScript with no type checking, package.json defines no test script or lint config, and the repository has no test files. The `timeout === 0` check on line 7 looks like it handles the case, but it is unreachable.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*\": only package.json, src/export.js and src/http.js outside .git, no test files. Grep \"timeoutMs\": the only call site passing it is src/export.js:4 with 0, and src/http.js:5 is the only place it is read.",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "request-timeout",
+      "wallMs": 13063,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 3622,
+        "cacheRead": 23088,
+        "output": 1429,
+        "total": 28147
+      },
+      "costUsd": 0.0622056,
+      "apiMs": 12369,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/http.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "timeoutMs: 0 falls back to the 5000 ms default, so the timeout cannot be turned off"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [],
+      "otherHigh": 0,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/http.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "timeoutMs: 0 falls back to the 5000 ms default, so the timeout cannot be turned off",
+            "quote": "  const timeout = timeoutMs || DEFAULT_TIMEOUT_MS;",
+            "scenario": "downloadExport calls request with { timeoutMs: 0 }. Since 0 is falsy, timeout becomes 5000, the `timeout === 0` branch on line 7 can never run, and an export whose response takes more than 5 s to start is still aborted. Use `timeoutMs ?? DEFAULT_TIMEOUT_MS` so that only undefined or null fall back to the default.",
+            "whyNotPrevented": "The project has no tests and no test script in package.json, and nothing checks the option at runtime. The dead `timeout === 0` branch makes the code look as if it handles 0.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*\" in the repo: only package.json, src/http.js and src/export.js outside .git, so no test files. Grep \"timeoutMs\": the only reads are src/http.js lines 4-5, and the only caller passes 0 at src/export.js:4.",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-expiry",
+      "wallMs": 20735,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2544,
+        "cacheRead": 21908,
+        "output": 2186,
+        "total": 26646
+      },
+      "costUsd": 0.06848560000000001,
+      "apiMs": 20073,
+      "turns": 6,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/sessions.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "TTL in seconds is added to a millisecond timestamp, so sessions expire about 1000x too early"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/sessions.js",
+          "line": 14,
+          "category": "correctness",
+          "title": "A non-numeric TTL makes sessions never expire"
+        },
+        {
+          "severity": "P3",
+          "file": "src/sessions.js",
+          "line": 12,
+          "category": "missing-test",
+          "title": "Session expiry has no tests"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 1,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/sessions.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "TTL in seconds is added to a millisecond timestamp, so sessions expire about 1000x too early",
+            "quote": "sessions.set(id, { userId, expiresAt: now + config.sessionTtlSeconds });",
+            "scenario": "With the default SESSION_TTL_SECONDS of 1800, createSession at now=1000000 sets expiresAt=1001800. getSession at now=1001800, 1.8 seconds later, returns null instead of keeping the session for 30 minutes. Users are logged out almost immediately.",
+            "whyNotPrevented": "Date.now() returns milliseconds while config.sessionTtlSeconds is in seconds, and both are plain numbers, so nothing checks the units. The repository has no tests that exercise expiry.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/sessions.js",
+            "line": 14,
+            "category": "correctness",
+            "title": "A non-numeric TTL makes sessions never expire",
+            "quote": "if (!session || session.expiresAt <= now) {",
+            "scenario": "With SESSION_TTL_SECONDS=30m, Number() in src/config.js:2 gives NaN, so expiresAt is NaN. NaN <= now is always false, so getSession returns every session indefinitely and expiry is silently disabled.",
+            "whyNotPrevented": "src/config.js does not validate the parsed value, and the comparison in getSession treats NaN as not expired. No test covers an invalid TTL.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/sessions.js",
+            "line": 12,
+            "category": "missing-test",
+            "title": "Session expiry has no tests",
+            "quote": "export function getSession(id, now = Date.now()) {",
+            "scenario": "The new now parameters make expiry easy to test, but no test checks that a session is valid just before the TTL and gone at the TTL. Such a test would have caught the seconds and milliseconds mismatch.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*\" in the repository: only src/config.js, src/sessions.js and package.json outside .git, with no test files and no test script in package.json",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-expiry",
+      "wallMs": 20481,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2833,
+        "cacheRead": 15931,
+        "output": 2191,
+        "total": 20961
+      },
+      "costUsd": 0.0696942,
+      "apiMs": 19880,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/sessions.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "TTL in seconds is added to a millisecond timestamp, so sessions expire about 1000x too early"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/sessions.js",
+          "line": 14,
+          "category": "correctness",
+          "title": "A non-numeric SESSION_TTL_SECONDS makes sessions never expire"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/sessions.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "TTL in seconds is added to a millisecond timestamp, so sessions expire about 1000x too early",
+            "quote": "  sessions.set(id, { userId, expiresAt: now + config.sessionTtlSeconds });",
+            "scenario": "With the default sessionTtlSeconds of 1800, createSession at now=1000000 sets expiresAt=1001800. Date.now() is in milliseconds, so getSession returns null 1.8 seconds later instead of after 30 minutes, and users are logged out almost immediately.",
+            "whyNotPrevented": "Both values are plain numbers with no unit type, and the repo has no tests. Grep for createSession/getSession found only the definitions in src/sessions.js, so nothing exercises the expiry time.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/sessions.js",
+            "line": 14,
+            "category": "correctness",
+            "title": "A non-numeric SESSION_TTL_SECONDS makes sessions never expire",
+            "quote": "  if (!session || session.expiresAt <= now) {",
+            "scenario": "With SESSION_TTL_SECONDS=30m, config.js computes Number('30m') = NaN, so expiresAt is NaN. NaN <= now is always false, so getSession returns the session forever and expiry silently fails open.",
+            "whyNotPrevented": "src/config.js line 2 passes the env value through Number() with no validation, and the ?? default only covers an unset variable. The comparison in getSession treats NaN as not expired, and no test covers it.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "session-expiry",
+      "wallMs": 23449,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2849,
+        "cacheRead": 21894,
+        "output": 2402,
+        "total": 27153
+      },
+      "costUsd": 0.0752428,
+      "apiMs": 22783,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/sessions.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "TTL in seconds is added to a timestamp in milliseconds, so sessions expire 1000x too early"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/sessions.js",
+          "line": 14,
+          "category": "correctness",
+          "title": "A non-numeric TTL makes sessions never expire"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/sessions.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "TTL in seconds is added to a timestamp in milliseconds, so sessions expire 1000x too early",
+            "quote": "  sessions.set(id, { userId, expiresAt: now + config.sessionTtlSeconds });",
+            "scenario": "With the default SESSION_TTL_SECONDS of 1800, createSession sets expiresAt to Date.now() + 1800, which is 1.8 seconds later. getSession called 2 seconds after login returns null instead of the session, so users are logged out almost immediately rather than after 30 minutes.",
+            "whyNotPrevented": "Both values are plain numbers, so nothing checks the units. `now` defaults to Date.now() (milliseconds), config.js defines the TTL in seconds, and the repository has no tests.",
+            "basis": "inferred",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P2",
+            "file": "src/sessions.js",
+            "line": 14,
+            "category": "correctness",
+            "title": "A non-numeric TTL makes sessions never expire",
+            "quote": "  if (!session || session.expiresAt <= now) {",
+            "scenario": "With SESSION_TTL_SECONDS=30m, Number() in config.js yields NaN, so expiresAt is NaN. `NaN <= now` is false, so getSession returns the session forever and expiry is silently disabled.",
+            "whyNotPrevented": "config.js passes the environment value through Number() with no validation, the expiry comparison fails open on NaN, and no test covers an invalid TTL.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": true,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          },
+          {
+            "severity": "P3",
+            "file": "src/sessions.js",
+            "line": 14,
+            "category": "missing-test",
+            "title": "Session expiry has no tests",
+            "quote": "  if (!session || session.expiresAt <= now) {",
+            "scenario": "The injectable `now` parameters make expiry easy to test, but nothing checks that a session is valid just before the TTL and gone at it. Such a test would have caught the seconds and milliseconds mismatch.",
+            "basis": "measured",
+            "measuredBy": "Glob \"**/*\" in the repository: the only non-.git files are package.json, src/config.js and src/sessions.js, so there are no test files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "signup-duplicate",
+      "wallMs": 20026,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2658,
+        "cacheRead": 15785,
+        "output": 2036,
+        "total": 20485
+      },
+      "costUsd": 0.065165,
+      "apiMs": 18938,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/signup.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Missing await on repo.exists rejects every sign-up"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/signup.js",
+          "line": 8,
+          "category": "correctness",
+          "title": "Concurrent sign-ups can get past the duplicate check"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/signup.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Missing await on repo.exists rejects every sign-up",
+            "quote": "  if (repo.exists(email)) {",
+            "scenario": "A brand-new email such as new@example.com calls repo.exists, which returns a pending Promise. The Promise is always truthy, so signUp throws DuplicateEmailError and never reaches repo.insert. No user can register, and if the query fails, its rejection is left unhandled.",
+            "whyNotPrevented": "The project has no type checking, lint config, or tests, so nothing flags a Promise used as a condition.",
+            "basis": "measured",
+            "measuredBy": "Grep \"exists|DuplicateEmailError|signUp\" outside .git: src/users-repo.js:3 declares `async exists(email)`, and the only call, src/signup.js:5, has no await. Glob \"**/*\": no test or lint config files.",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/signup.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "Concurrent sign-ups can get past the duplicate check",
+            "quote": "  await repo.insert({ email, name: input.name });",
+            "scenario": "Even with the await added, two simultaneous requests for a@example.com (such as a double-submitted form) can both see exists return false before either inserts. Without a unique constraint on users.email, two rows are created. With one, the second request fails with a raw database error instead of DuplicateEmailError.",
+            "whyNotPrevented": "The check and insert are separate queries with no transaction or lock, repo.insert has no conflict handling, and the repository contains no schema or migration showing a unique constraint.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "signup-duplicate",
+      "wallMs": 16920,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 6,
+        "cacheCreation": 2655,
+        "cacheRead": 15782,
+        "output": 1787,
+        "total": 20230
+      },
+      "costUsd": 0.0601604,
+      "apiMs": 16149,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/signup.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Missing await on repo.exists rejects every sign-up"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/signup.js",
+          "line": 8,
+          "category": "race-condition",
+          "title": "Concurrent sign-ups can get past the duplicate check"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/signup.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Missing await on repo.exists rejects every sign-up",
+            "quote": "  if (repo.exists(email)) {",
+            "scenario": "A new address such as new@example.com is passed to signUp with a repo from createUsersRepo. exists() returns a Promise, which is always truthy, so signUp throws DuplicateEmailError and never calls insert. No one can register, and the database query's result is ignored.",
+            "whyNotPrevented": "The project is plain JavaScript with no type checking, and it has no lint config or tests, so nothing flags a Promise used as a condition.",
+            "basis": "measured",
+            "measuredBy": "Grep \"signUp|DuplicateEmailError|exists\\(\" outside .git: src/users-repo.js:3 declares `async exists(email)`, and src/signup.js:5 calls it without await. Glob \"**/*\": no test or lint config files.",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/signup.js",
+            "line": 8,
+            "category": "race-condition",
+            "title": "Concurrent sign-ups can get past the duplicate check",
+            "quote": "  await repo.insert({ email, name: input.name });",
+            "scenario": "Once the await is added, two simultaneous requests for a@example.com can both see exists() return false, and both then call insert. Without a unique constraint on users.email, this creates two accounts for one email. With a constraint, the second request fails with a raw database error instead of DuplicateEmailError.",
+            "whyNotPrevented": "The check and insert are separate queries with no transaction or conflict handling. insert does not translate unique violations, and the repository has no schema or migration showing a unique constraint on users.email.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    },
+    {
+      "case": "signup-duplicate",
+      "wallMs": 19768,
+      "model": "claude-opus-5-5",
+      "tokens": {
+        "input": 8,
+        "cacheCreation": 2710,
+        "cacheRead": 21590,
+        "output": 2006,
+        "total": 26314
+      },
+      "costUsd": 0.06615,
+      "apiMs": 19129,
+      "turns": 7,
+      "strictJson": true,
+      "kind": "bug",
+      "result": "found",
+      "expect": [
+        {
+          "status": "found",
+          "finding": {
+            "severity": "P1",
+            "file": "src/signup.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Missing await on repo.exists makes every sign-up fail as a duplicate"
+          }
+        }
+      ],
+      "forbidden": [],
+      "other": [
+        {
+          "severity": "P2",
+          "file": "src/signup.js",
+          "line": 8,
+          "category": "correctness",
+          "title": "Concurrent sign-ups can get past the check-then-insert duplicate test"
+        }
+      ],
+      "otherHigh": 1,
+      "otherLow": 0,
+      "review": {
+        "findings": [
+          {
+            "severity": "P1",
+            "file": "src/signup.js",
+            "line": 5,
+            "category": "correctness",
+            "title": "Missing await on repo.exists makes every sign-up fail as a duplicate",
+            "quote": "  if (repo.exists(email)) {",
+            "scenario": "A new address such as new@example.com is submitted. repo.exists is async, so it returns a Promise, which is always truthy. signUp throws DuplicateEmailError and never calls repo.insert, so no user can register.",
+            "whyNotPrevented": "The project has no type checking, lint config, or tests. package.json has no scripts or dependencies, and the repository contains no test files, so nothing catches an unawaited Promise used as a condition.",
+            "basis": "measured",
+            "measuredBy": "Grep \"exists\" found `async exists(email)` at src/users-repo.js:3 and the unawaited call at src/signup.js:5; Glob \"**/*\" found no test or lint config files",
+            "multipleFixes": false,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": true
+          },
+          {
+            "severity": "P2",
+            "file": "src/signup.js",
+            "line": 8,
+            "category": "correctness",
+            "title": "Concurrent sign-ups can get past the check-then-insert duplicate test",
+            "quote": "  await repo.insert({ email, name: input.name });",
+            "scenario": "Once the await is added, two simultaneous requests for a@example.com can both see exists return false, and both then call insert. Without a unique constraint on users.email, this creates two rows. With one, the second request fails with a raw database error instead of DuplicateEmailError.",
+            "whyNotPrevented": "The check and the insert are separate queries with no transaction or lock. repo.insert has no conflict handling, and the repository has no schema or migration showing a unique constraint on users.email.",
+            "basis": "inferred",
+            "multipleFixes": true,
+            "behaviorChange": false,
+            "removesFeature": false,
+            "touchesTests": false,
+            "ruleCandidate": false
+          }
+        ],
+        "resolved": [],
+        "stillOpen": []
+      }
+    }
+  ]
+}
