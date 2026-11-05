@@ -315,7 +315,7 @@ review-loop không tự thực hiện lệnh gọi mạng nào. Claude và revie
 - Mỗi check có tối đa 5 phút, và tất cả check cộng lại có tối đa 9 phút.
 - Script dừng một bản sửa vì làm yếu test hoặc check chỉ đọc các tệp JavaScript và TypeScript, thay đổi dưới `__snapshots__/`, và thay đổi dưới `.github/workflows/`. Ở ngôn ngữ khác, một test bị bỏ qua như `@pytest.mark.skip` hoặc `t.Skip()`, hay một quy tắc lint bị tắt, không dừng vòng lặp.
 - Khi không có commit gate, việc hỏi trước khi commit là một chỉ dẫn cho Claude, không phải một sự đảm bảo.
-- Báo cáo đến với bạn qua một hook. Khi tắt hết hook (`disableAllHooks`), bạn chỉ thấy báo cáo trong phần output đã thu gọn của lệnh trả về nó.
+- Báo cáo đến với bạn qua một hook. Khi tắt hết hook (`disableAllHooks`), bạn chỉ thấy báo cáo trong phần output đã thu gọn của lệnh trả về nó. Commit gate cũng là một hook nên cũng bị tắt: các commit của Claude không bị chặn cho đến khi một lần review vượt qua.
 - Commit gate chỉ kiểm tra các lệnh mà Claude chạy qua công cụ Bash của nó. Các commit bạn tự gõ trong terminal của mình không được kiểm tra. Một commit qua git alias như `git ci` được kiểm tra giống như `git commit`, một shell alias (`!...`) có commit sẽ được hỏi lại vì gate không thể nhìn vào bên trong nó, và alias đặt trực tiếp bằng `git -c alias.ci=commit` không được đọc như một alias, nên gate sẽ hỏi về nó.
 - Nếu bạn khởi động Claude Code trong một thư mục không phải repository, gate không thể kiểm tra commit mà nó không xác định được repository, ví dụ sau `cd "$(...)"`.
 - Nó review mọi thứ mà `git add -A` sẽ bao gồm, không phải một tập thay đổi đã stage do bạn tự chọn.

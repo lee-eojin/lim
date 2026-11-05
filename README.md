@@ -313,7 +313,7 @@ review-loop makes no network calls of its own. Claude and the reviewer read the 
 - Each check gets up to 5 minutes, and all checks together up to 9 minutes.
 - The script that stops a fix for weakening tests or checks reads only JavaScript and TypeScript files, changes under `__snapshots__/`, and changes under `.github/workflows/`. In other languages, a skipped test such as `@pytest.mark.skip` or `t.Skip()`, or a lint rule turned off, does not stop the loop.
 - Without the commit gate, asking before a commit is an instruction to Claude, not a guarantee.
-- Reports reach you through a hook. With hooks turned off (`disableAllHooks`), you see a report only inside the collapsed output of the command that returned it.
+- Reports reach you through a hook. With hooks turned off (`disableAllHooks`), you see a report only inside the collapsed output of the command that returned it. The commit gate is a hook too, so it is also off: Claude's commits are not blocked until a review passes.
 - The commit gate checks only commands that Claude runs through its Bash tool. Commits you type in your own terminal are not checked. A commit through a git alias such as `git ci` is checked like `git commit`, a shell alias (`!...`) that commits is asked about because the gate cannot see inside it, and an alias set inline with `git -c alias.ci=commit` is not read as an alias, so the gate asks about it.
 - If you start Claude Code in a folder that is not a repository, the gate cannot check a commit whose repository it cannot tell, for example after `cd "$(...)"`.
 - It reviews everything `git add -A` would include, not a hand-picked set of staged changes.
