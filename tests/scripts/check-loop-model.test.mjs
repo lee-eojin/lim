@@ -58,7 +58,7 @@ test('a TLC counterexample reads as the loop commands that produce it', () => {
 
 test('ReviewLoop.cfg names the bounds and the invariants the script checks', () => {
   const config = readConfig(readFileSync(path.join(root, 'scripts', 'loop-model', 'ReviewLoop.cfg'), 'utf8'));
-  assert.deepEqual(config.invariants, ['DecideNextStopHasProof', 'StopIfProvenStopHasProof', 'StopWaitingStopHasProof', 'GateNeedsProof']);
+  assert.deepEqual(config.invariants, ['DecideNextStopHasProof', 'StopIfProvenStopHasProof', 'StopWaitingStopHasProof', 'GateNeedsProof', 'KeptNeverReoffered']);
 });
 
 function beforeFix200() {

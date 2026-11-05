@@ -22,6 +22,7 @@ const BROKEN = {
   StopIfProvenStopHasProof: (stop, ids) => `stopIfProven stopped the loop as ${stop} while ${ids} had no regression test or no-test reason.`,
   StopWaitingStopHasProof: (stop, ids) => `stopWaiting stopped the loop as ${stop} while ${ids} had no regression test or no-test reason.`,
   GateNeedsProof: (stop, ids) => `the commit gate lets a commit through (allow, or ask to confirm) while ${ids} has no regression test or no-test reason.`,
+  KeptNeverReoffered: (stop, ids, reoffered) => `a finding kept as ${reoffered} was offered again (open or deferred with no decision).`,
 };
 
 export function readConfig(text) {
@@ -180,6 +181,12 @@ function unprovenSlots(loop) {
     finding.where === 'resolved' && finding.kind === 'reviewer' && finding.regression === 'none' ? [index + 1] : []));
 }
 
+function reofferedSlots(loop) {
+  const kept = new Set(loop.everKept ?? []);
+  return findingsOf(loop).flatMap((finding, index) => (
+    kept.has(index + 1) && ['open', 'deferred'].includes(finding.where) && finding.decision === 'none' ? [index + 1] : []));
+}
+
 function where(loop) {
   if (loop.awaiting === 'decisions') return `the loop is stopped (${loop.stopReason})`;
   return {
@@ -243,7 +250,8 @@ export function describeTrace(trace, invariant) {
   });
   const last = trace.at(-1).loop;
   const unproven = named(unprovenSlots(last));
-  return [...steps, `Broken: ${BROKEN[invariant]?.(last.stopReason, unproven) ?? invariant}`];
+  const reoffered = named(reofferedSlots(last));
+  return [...steps, `Broken: ${BROKEN[invariant]?.(last.stopReason, unproven, reoffered) ?? invariant}`];
 }
 
 function sha256(file) {
