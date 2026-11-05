@@ -223,7 +223,9 @@ test('ends-with-summary only requires loop summary as the last loop command', ()
 
 test('hook-owns-loop-reports fails when Claude pastes a loop report the hook already shows', () => {
   const pasted = [...happySteps.slice(0, -1), '```\nRound 2 of 3\n```', loop('summary')];
-  assert.equal(outcome(checkScenario(scenario('review-with-verify'), buildSession(stream(pasted), happyRepository)), 'hook-owns-loop-reports').pass, false);
+  const pastedOutcome = outcome(checkScenario(scenario('review-with-verify'), buildSession(stream(pasted), happyRepository)), 'hook-owns-loop-reports');
+  assert.equal(pastedOutcome.pass, false);
+  assert.match(pastedOutcome.evidence, /pasted after/);
   assert.equal(reportNotPastedAfter(buildSession(stream(happySteps), happyRepository), /^loop (record\b|summary$)/).pass, true);
 });
 
@@ -239,6 +241,48 @@ test('a finding recorded as keep is not offered again in the closing message', (
   const bad = buildSession(stream(happySteps, { result: 'You could fix F-2 or delete the F-2 comment before committing.' }), keptRepo);
   assert.equal(keptNotReoffered(bad).pass, false);
   assert.match(keptNotReoffered(bad).evidence, /F-2/);
+});
+
+
+test('a keep-finding session that keeps the finding and only lists it as kept passes every expectation', () => {
+  const keepSteps = [
+    ['Skill', { skill: 'review-loop:review-loop' }],
+    loop('start'),
+    reviewer,
+    loop('record --file .lim-review/round-1.json'),
+    loop('decide --id F-1 --choice keep'),
+    'F-1 (Remove the debug console.log) is kept as you asked.',
+  ];
+  const keptRepo = {
+    ledger: [{ event: 'decision', id: 'F-1', severity: 'P4', title: 'Remove the debug console.log', choice: 'keep' }],
+    reviewState: { kept: [{ id: 'F-1', severity: 'P4', title: 'Remove the debug console.log' }] },
+    commits: 1,
+    changedFiles: ['src/slug.js'],
+    files: {},
+  };
+  const results = checkScenario(scenario('keep-finding'), buildSession(stream(keepSteps, { result: 'Kept F-1 as is. Nothing is committed.' }), keptRepo));
+  assert.deepEqual(results.filter((item) => !item.pass), []);
+});
+
+test('offering to fix a kept finding after the keep fails the kept-not-reoffered check', () => {
+  const keepSteps = [
+    ['Skill', { skill: 'review-loop:review-loop' }],
+    loop('start'),
+    reviewer,
+    loop('record --file .lim-review/round-1.json'),
+    loop('decide --id F-1 --choice keep'),
+  ];
+  const keptRepo = {
+    ledger: [{ event: 'decision', id: 'F-1', severity: 'P4', title: 'Remove the debug console.log', choice: 'keep' }],
+    reviewState: { kept: [{ id: 'F-1', severity: 'P4', title: 'Remove the debug console.log' }] },
+    commits: 1,
+    changedFiles: ['src/slug.js'],
+    files: {},
+  };
+  const bad = buildSession(stream(keepSteps, { result: 'You could fix F-1 or delete the F-1 console.log before committing.' }), keptRepo);
+  assert.equal(keptNotReoffered(bad).pass, false);
+  assert.match(keptNotReoffered(bad).evidence, /F-1/);
+  assert.equal(outcome(checkScenario(scenario('keep-finding'), bad), 'kept-not-reoffered').pass, false);
 });
 
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {

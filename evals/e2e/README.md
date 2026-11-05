@@ -3,11 +3,11 @@
 Unit tests and benchmarks prove the scripts. These runs prove the skills: each one is a whole headless Claude Code session that should follow a skill from the first request to the last report, and the runner checks what the session actually did.
 
 ```bash
-node evals/e2e/run-sessions.mjs                          # all four scenarios, one session each
+node evals/e2e/run-sessions.mjs                          # all five scenarios, one session each
 node evals/e2e/run-sessions.mjs --scenario failing-check --keep
 ```
 
-It uses your Claude account. One pass over all four scenarios costs about $1.50 with `claude-opus-5-5`.
+It uses your Claude account. One pass over the four original scenarios costs about $1.50 with `claude-opus-5-5`; `keep-finding` has not been run yet.
 
 ## How a run works
 
@@ -16,6 +16,7 @@ For each scenario the runner copies a fixture from `fixtures/` into a temporary 
 After the session it checks expectations against three kinds of evidence:
 
 - the main session's tool calls in order, with script commands named by their arguments (`loop record --file ...`, `verify run --id ...`); calls made inside a subagent are kept apart
+- whether Claude pasted a loop report the PostToolUse hook already shows (`hookOwnsLoopReports`), and whether a finding recorded as keep is offered again (`keptNotReoffered`)
 - the scripts' saved state: `.git/lim/review-loop/ledger.jsonl` and `state.json`, and verify's runs in `.git/lim/verify/runs/`
 - the files the session changed and the commit count
 
@@ -27,6 +28,7 @@ Each expectation in the results file has `pass` and the evidence for it. `--keep
 |---|---|---|---|
 | `review-with-verify` | A cents formatter CLI with a `verify.features.json` map and a passing `npm test`. The change adds `--symbol` and drops the zero padding, so `cents 5` prints `$0.5` and the map's `two-decimal-places` check fails. | An unattended review before committing | review-loop starts unattended, the reviewer names the map check, the finding is reproduced with `verify run --id` and `loop reproduce`, fixed, proven with a regression test, rerun with verify, re-reviewed, resolved as measured, and summarized, with no question and no commit |
 | `failing-check` | A slug library whose change drops the trailing hyphen trim, so `npm test` fails | An unattended review before committing | The failing test becomes a P1 from checks, gets fixed without weakening the test, and other fixed P1 or P2 findings get a regression test or a no-test reason |
+| `keep-finding` | The slug library; the change leaves a `console.log` debug line in `slugify` | A review before committing that says to keep the debug line if the review raises it | `hookOwnsLoopReports` passes (Claude does not paste a loop report the hook already shows), the finding is recorded with `loop decide --choice keep`, and `keptNotReoffered` passes |
 | `verify-tool` | The cents CLI without a map; the change adds `--symbol` correctly | "Can you check that this tool's features actually work?" | verify reads the README and its format reference, writes a map that covers the README, runs it, and shows the report first without touching the code |
 | `explain-korean` | Any repository | A Korean question about closures | clear-explain starts, and the answer is Korean, has no U+2014 or U+00B7, and keeps closure in English |
 
@@ -112,3 +114,4 @@ Three `failing-check` sessions on review-loop 0.11.10 (commit `7442758`), which 
 
 - Claude Code runs read-only shell commands such as `git diff` and `cat` even under `dontAsk` with an allow list that does not name them, so sessions could read the diff with Bash. A chained command such as `L=...; node $L checks; node $L status` was denied.
 - Steps that need a person to answer AskUserQuestion (B05) are out of scope; the review scenarios ask for unattended runs so that no question is needed.
+- `keep-finding` passes only when the reviewer raises the debug line and Claude records the keep; a session where the reviewer does not raise it fails `kept-recorded` and says so, and it does not test a keep made in an earlier run (#267).
