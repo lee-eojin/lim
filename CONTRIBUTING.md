@@ -40,7 +40,7 @@ When you record a claim that something works, write it as an evidence report and
 
 After you add or change rows in an `evals/*/behaviors.csv`, run `node scripts/sync-counts.mjs`. It writes the behavior counts into `README.md`, its translations, and the plugin READMEs, and `--check` lists the files that are out of date without writing. It finds each count by the HTML comment right before it, `<!--total-->`, `<!--tested-->`, or `<!--rest-->`, which GitHub does not render; a new translation needs these markers, and the script and `--check` stop with an error until every file has all three. `node --test` fails while any of them is out of date. If the number of behaviors that need a model run changes, also update the list of them in each file by hand.
 
-`npm test` runs `node --test`, and `npm run lint` runs `node scripts/check-i18n.mjs`. review-loop finds these scripts in the root `package.json`, so it runs them when it reviews a change here. `scripts/check.sh` is left out of `npm run lint` because it needs bash and python3, which Windows may not have.
+`npm test` runs `node --test`. `npm run lint` runs `node scripts/check-i18n.mjs`, `node scripts/check-comments.mjs`, and `node scripts/sync-counts.mjs --check`, in that order, and stops at the first one that fails. review-loop finds the `test` and `lint` scripts in the root `package.json`, so it runs them when it reviews a change here. `scripts/check.sh` is left out of `npm run lint` because it needs bash and python3, which Windows may not have.
 
 ### Tests that run on only some systems
 
