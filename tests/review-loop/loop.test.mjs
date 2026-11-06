@@ -2824,6 +2824,8 @@ describe('kept findings', () => {
     writeFiles(root, { 'package.json': pass });
     assert.equal(loop(root, ['start', '--fresh']).status, 'review');
     assert.deepEqual(loop(root, ['record'], { findings: [] }).fix, []);
+    assert.match(loop(root, ['summary']).report, /Decided F-\d+ \[P1\] .+: once/);
+    assert.doesNotMatch(loop(root, ['summary']).report, /undefined/);
     writeFiles(root, { 'package.json': fail });
     assert.equal(loop(root, ['start', '--fresh']).status, 'review');
     const result = loop(root, ['record'], { findings: [] });

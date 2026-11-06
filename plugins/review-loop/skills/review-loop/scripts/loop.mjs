@@ -1303,7 +1303,8 @@ function recordReview(repository, input) {
   const keptBefore = keptSeverities(repository);
   const endedPrints = new Set([...keptBefore.keys()].filter((print) => passedPrints.has(print)));
   for (const print of endedPrints) {
-    logEvent(repository, { event: 'decision', choice: 'once', fingerprint: print });
+    const prior = ledgerEvents(repository).findLast((entry) => entry.event === 'decision' && entry.fingerprint === print);
+    logEvent(repository, { event: 'decision', ...summarize(prior ?? {}), choice: 'once', fingerprint: print });
   }
   const seenBefore = kindCounts(repository, { except: state.runId });
   const previouslyKept = (state.kept ?? []).filter((item) => !endedPrints.has(item.fingerprint));
