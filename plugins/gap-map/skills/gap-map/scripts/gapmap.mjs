@@ -2,9 +2,13 @@
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { checkIds } from './_shared/check-ids.mjs';
 import { isEntryPoint } from './_shared/entry-point.mjs';
+import { within } from './_shared/within.mjs';
 import { renderSvg, TONES } from './render.mjs';
 import { judge, runOnce } from './run.mjs';
+
+export { within };
 
 export const MAP_FILE = 'gap-map.json';
 export const OUT_FOLDER = 'gap-map';
@@ -13,7 +17,6 @@ export const AUTHORITIES = ['read', 'run'];
 export const DISPOSITIONS = ['active', 'wontfix', 'blocked'];
 const STAGE_KINDS = ['state', 'end', 'stopped'];
 const STREAMS = ['stdout', 'stdout+stderr'];
-const ID_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
 const POINTER = /^(.+?):(\d+)(?:-(\d+))?$/;
 const MAX_TIMEOUT_MS = 10 * 60 * 1000;
 const EXCERPT = 2000;
@@ -37,21 +40,6 @@ export function loadMap(mapPath) {
   return { map, mapDir, root, ignored, problems: validate(map, root) };
 }
 
-function ids(list, label, problems) {
-  const seen = new Set();
-  for (const item of list ?? []) {
-    if (typeof item?.id !== 'string' || !ID_PATTERN.test(item.id)) problems.push(`${label} id ${JSON.stringify(item?.id)} must match ${ID_PATTERN}`);
-    else if (seen.has(item.id)) problems.push(`${label} id ${item.id} appears twice`);
-    seen.add(item?.id);
-  }
-  return seen;
-}
-
-export function within(base, file) {
-  const relative = path.relative(base, file);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-}
-
 export const lineCount = (text) => (text === '' ? 0 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0));
 
 function insideRoot(root, relative) {
@@ -71,12 +59,12 @@ export function validate(map, root) {
     if (!Array.isArray(map[key])) problems.push(`${key} must be a list`);
   }
   if (problems.length) return problems;
-  const groups = ids(map.groups, 'group', problems);
+  const groups = checkIds(map.groups, 'group', problems);
   for (const group of map.groups) {
     if (group.tone !== undefined && !(group.tone in TONES)) problems.push(`group ${group.id} tone must be one of ${Object.keys(TONES).join(', ')}`);
   }
-  const regions = ids(map.regions ?? [], 'region', problems);
-  const stages = ids(map.stages, 'stage', problems);
+  const regions = checkIds(map.regions ?? [], 'region', problems);
+  const stages = checkIds(map.stages, 'stage', problems);
   const verifiers = new Set(Object.keys(map.verifiers ?? {}));
   for (const stage of map.stages) {
     if (typeof stage.label !== 'string' || !stage.label.trim()) problems.push(`stage ${stage.id} needs a label`);
@@ -112,7 +100,7 @@ export function validate(map, root) {
       problems.push(`verifier ${name} timeoutMs must be a whole number from 1 to ${MAX_TIMEOUT_MS}`);
     }
   }
-  ids(map.obligations, 'obligation', problems);
+  checkIds(map.obligations, 'obligation', problems);
   for (const obligation of map.obligations) {
     const label = `obligation ${obligation.id}`;
     if (!stages.has(obligation.stage)) problems.push(`${label} names stage ${obligation.stage}, which is not in stages`);

@@ -3,7 +3,11 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { checkIds } from './_shared/check-ids.mjs';
 import { isEntryPoint } from './_shared/entry-point.mjs';
+import { within } from './_shared/within.mjs';
+
+export { within };
 
 export const LEDGER_FILE = 'ledger.json';
 export const BREAKS_FILE = 'ledger-breaks.tsv';
@@ -11,7 +15,6 @@ const BREAK_KINDS = ['unchanged', 'moved', 'changed', 'not recorded'];
 export const EVIDENCE_FOLDER = 'ledger-evidence';
 export const KINDS = ['observed', 'inferred'];
 export const NEEDS = ['static', 'runtime'];
-const ID_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
 const POINTER = /^(.+?):(\d+)(?:-(\d+))?$/;
 const SKIPPED_FOLDERS = new Set(['.git', 'node_modules', EVIDENCE_FOLDER]);
 const SEARCH_FILE_LIMIT = 20000;
@@ -20,11 +23,6 @@ const EXCERPT = 200000;
 const REA_ID = /^ev_[0-9a-f]{64}$/;
 
 const sha256 = (data) => createHash('sha256').update(data).digest('hex');
-
-export function within(base, file) {
-  const relative = path.relative(base, file);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-}
 
 function insideRoot(root, relative) {
   const target = path.resolve(root, relative);
@@ -47,16 +45,6 @@ export function loadLedger(ledgerPath) {
   return { ledger, ledgerDir, root, ignored, problems: validate(ledger, root, ledgerDir) };
 }
 
-function checkIds(list, label, problems) {
-  const seen = new Set();
-  for (const item of list) {
-    if (typeof item?.id !== 'string' || !ID_PATTERN.test(item.id)) problems.push(`${label} id ${JSON.stringify(item?.id)} must match ${ID_PATTERN}`);
-    else if (seen.has(item.id) && label !== 'unknown') problems.push(`${label} id ${item.id} appears twice`);
-    seen.add(item?.id);
-  }
-  return seen;
-}
-
 function evidenceShape(evidence) {
   const keys = ['file', 'output', 'search', 'rea'].filter((key) => key in (evidence ?? {}));
   return keys.length === 1 ? keys[0] : null;
@@ -71,7 +59,7 @@ export function validate(ledger, root, ledgerDir = root) {
   if (problems.length) return problems;
   const questions = checkIds(ledger.questions, 'question', problems);
   const claims = checkIds(ledger.claims, 'claim', problems);
-  checkIds(ledger.unknowns ?? [], 'unknown', problems);
+  checkIds(ledger.unknowns ?? [], 'unknown', problems, { allowRepeats: true });
   for (const question of ledger.questions) {
     if (typeof question.question !== 'string' || !question.question.trim()) problems.push(`question ${question.id} needs its question text`);
     if (!NEEDS.includes(question.needs)) problems.push(`question ${question.id} needs must be one of ${NEEDS.join(', ')}`);
