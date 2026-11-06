@@ -168,18 +168,21 @@ StartResume ==
   /\ UNCHANGED ledger
 
 \* record in loop.mjs (recordReview). Slots are reported in order, so new is the next k unreported slots.
+\* A ledger-kept check that this record does not introduce as a new failing check leaves the ledger,
+\* matching a passing kept check that writes a non-keep decision.
 Record ==
   /\ loop.awaiting = "review"
   /\ \E res \in SUBSET (InState(loop, "open") \cup InState(loop, "deferred")),
         k \in 0..Cardinality(InState(loop, "unreported")) :
        LET new == {s \in InState(loop, "unreported") : s <= N - Cardinality(InState(loop, "unreported")) + k}
+           ended == {s \in Slots : <<s, "check">> \in ledger} \ new
        IN \E shape \in {f \in [new -> Shapes] : \A s \in new, kd \in {"reviewer", "check"} :
                               <<s, kd>> \in ledger => (f[s] = "checkFix") = (kd = "check")},
              regr \in IF InState(loop, "resolved") # {} /\ new # {} THEN BOOLEAN ELSE {FALSE} :
             /\ loop' = AfterRecord(loop, res, new, shape, regr, ledger)
+            /\ ledger' = ledger \ {<<s, "check">> : s \in ended}
             /\ cmd' = [name |-> "record", round |-> loop.round, resolved |-> res,
                        new |-> {<<s, shape[s]>> : s \in new}, regression |-> regr]
-  /\ UNCHANGED ledger
 
 \* next in loop.mjs. From the proof state it runs stopIfProven first; if the final checks send the loop back
 \* to fix, the same command goes on into the fix round. With proof still missing it throws and saves nothing.

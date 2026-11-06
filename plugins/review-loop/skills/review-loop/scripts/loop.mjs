@@ -1301,8 +1301,12 @@ function recordReview(repository, input) {
 
   const sourcesFor = (finding) => evidenceSources(repository.root, finding, diffText);
   const keptBefore = keptSeverities(repository);
+  const endedPrints = new Set([...keptBefore.keys()].filter((print) => passedPrints.has(print)));
+  for (const print of endedPrints) {
+    logEvent(repository, { event: 'decision', choice: 'once', fingerprint: print });
+  }
   const seenBefore = kindCounts(repository, { except: state.runId });
-  const previouslyKept = state.kept ?? [];
+  const previouslyKept = (state.kept ?? []).filter((item) => !endedPrints.has(item.fingerprint));
   const undecidedCards = new Map(state.cards.filter((card) => !card.decision).map((card) => [card.fingerprint, card]));
   const decidedCards = state.cards.filter((card) => card.decision);
   const knownPrints = new Set([...state.open, ...previouslyDeferred, ...previouslyKept, ...decidedCards].map((item) => item.fingerprint));

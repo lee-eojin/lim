@@ -4,6 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
+- Fixed: A kept failing check is identified by folder and command, and that keep ends once the check passes once. A different failure from the same command while it stays red is still not offered again. (#297)
 - Changed: The README now says `loop start --fresh` starts a new run with the same ledger, and that deleting `.git/lim/review-loop/` resets the review, the decisions, the gate, and delegation. (#296)
 - Fixed: The report hook only treats a command as a review-loop command when a segment starts with `node` and the script path ends in `skills/review-loop/scripts/loop.mjs`, so an unrelated `loop.mjs` name no longer shows a report. (#315)
 
