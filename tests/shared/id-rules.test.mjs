@@ -65,11 +65,6 @@ test('gap-map reads a null regions list as empty', () => {
   assert.deepEqual(mapProblems({ regions: null }), []);
 });
 
-test('today a gap-map whose regions is not a list throws TypeError from checkIds', () => {
-  assert.throws(() => mapProblems({ regions: 5 }), (error) => {
-    assert.equal(error instanceof TypeError, true);
-    assert.match(error.stack, /checkIds/);
-    assert.match(error.stack, /_shared\/check-ids\.mjs/);
-    return true;
-  });
+test('a gap-map whose regions is not a list reports that', () => {
+  assert.deepEqual(mapProblems({ regions: 5 }), ['regions must be a list']);
 });
