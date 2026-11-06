@@ -20,10 +20,14 @@ test('the report hook shows the user the report a loop command returns exactly a
 });
 
 test('the report hook stays silent unless a loop command returns a report', () => {
-  assert.equal(reportNotice({ command: 'node loop.mjs decide --id F-1 --choice keep', stdout: '{"recorded": true}' }), null);
-  assert.equal(reportNotice({ command: 'node loop.mjs record', stdout: '{"report": "  "}' }), null);
+  assert.equal(reportNotice({ command: 'node /plugins/review-loop/skills/review-loop/scripts/loop.mjs decide --id F-1 --choice keep', stdout: '{"recorded": true}' }), null);
+  assert.equal(reportNotice({ command: 'node /plugins/review-loop/skills/review-loop/scripts/loop.mjs record', stdout: '{"report": "  "}' }), null);
   assert.equal(reportNotice({ command: 'cat notes.json', stdout: JSON.stringify({ report }) }), null);
-  assert.equal(reportNotice({ command: 'node loop.mjs status', stdout: 'loop.mjs: not a git repository' }), null);
+  assert.equal(reportNotice({ command: 'node /plugins/review-loop/skills/review-loop/scripts/loop.mjs status', stdout: 'loop.mjs: not a git repository' }), null);
+  const unrelated = JSON.stringify({ report: 'Unrelated command result' });
+  assert.equal(reportNotice({ command: 'node ./tools/game/loop.mjs', stdout: unrelated }), null);
+  assert.equal(reportNotice({ command: 'cat notes.json # see loop.mjs', stdout: unrelated }), null);
+  assert.equal(reportNotice({ command: 'node my-loop.mjs', stdout: unrelated }), null);
   for (const payload of ['not json', JSON.stringify({ tool_name: 'Read' }), JSON.stringify({ tool_name: 'Bash' })]) {
     const run = runHook(payload);
     assert.equal(run.status, 0);
