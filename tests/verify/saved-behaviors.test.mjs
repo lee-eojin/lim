@@ -6,11 +6,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const resultsDir = path.join(root, 'evals/verify/results');
-const repeats = [1, 2, 3].map((n) => `2026-10-27-claude-opus-5-5-repeat-${n}.json`);
+const readmePath = path.join(root, 'plugins/verify/README.md');
+const baselines = JSON.parse(readFileSync(path.join(root, 'evals/verify/baseline-files.json'), 'utf8'));
 
 test('Claude writes expectations from the docs so a broken feature fails instead of passing', () => {
-  assert.ok(repeats.length >= 3);
-  for (const name of repeats) {
+  assert.ok(baselines.length >= 3);
+  for (const name of baselines) {
     const runs = JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8')).runs.filter((entry) => entry.broken);
     assert.ok(runs.length >= 4, name);
     assert.ok(runs.every((entry) => entry.result === 'caught'), name);
@@ -18,7 +19,7 @@ test('Claude writes expectations from the docs so a broken feature fails instead
 });
 
 test('Claude does not report working features as failing', () => {
-  for (const name of repeats) {
+  for (const name of baselines) {
     const runs = JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8')).runs.filter((entry) => !entry.broken);
     assert.ok(runs.length >= 2, name);
     assert.ok(runs.every((entry) => entry.result === 'clean'), name);
@@ -26,7 +27,7 @@ test('Claude does not report working features as failing', () => {
 });
 
 test('Claude shows the script\'s report first and says where each failing expectation comes from', () => {
-  for (const name of repeats) {
+  for (const name of baselines) {
     const runs = JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8')).runs.filter((entry) => entry.broken);
     for (const run of runs) {
       assert.ok(String(run.finalMessage ?? '').trimStart().startsWith('```'), `${name} ${run.case}`);
@@ -36,7 +37,7 @@ test('Claude shows the script\'s report first and says where each failing expect
 });
 
 test('Claude does not edit a failing check or remove it to make the run pass', () => {
-  for (const name of repeats) {
+  for (const name of baselines) {
     for (const run of JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8')).runs) {
       assert.deepEqual(run.changedAfterFail ?? [], [], `${name} ${run.case}`);
       assert.deepEqual(run.removedAfterFail ?? [], [], `${name} ${run.case}`);
@@ -45,9 +46,22 @@ test('Claude does not edit a failing check or remove it to make the run pass', (
 });
 
 test('Claude does not change the project\'s code unless asked', () => {
-  for (const name of repeats) {
+  for (const name of baselines) {
     for (const run of JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8')).runs) {
       assert.deepEqual(run.sourceChanged ?? [], [], `${name} ${run.case}`);
     }
+  }
+});
+
+test('every baseline pointer file exists', () => {
+  for (const name of baselines) {
+    readFileSync(path.join(resultsDir, name));
+  }
+});
+
+test('the plugin README names the same baseline files as the pointer', () => {
+  const text = readFileSync(readmePath, 'utf8');
+  for (const name of baselines) {
+    assert.match(text, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), name);
   }
 });

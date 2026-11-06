@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const resultsDir = path.join(root, 'evals/gap-map/results');
-const baselines = [1, 2, 3].map((n) => `2026-11-03-claude-opus-5-5-rebaseline-${n}.json`);
+const readmePath = path.join(root, 'plugins/gap-map/README.md');
+const baselines = JSON.parse(readFileSync(path.join(root, 'evals/gap-map/baseline-files.json'), 'utf8'));
 
 test('Claude does not mark a promise proven when its test fails or no test exists', () => {
   assert.ok(baselines.length >= 3);
@@ -44,5 +45,18 @@ test('Claude does not edit the target\'s tests or code while mapping it', () => 
     const file = JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8'));
     assert.equal(file.summary.tamperedRuns, 0, name);
     for (const run of file.runs) assert.deepEqual(run.tampered, [], `${name} ${run.case}`);
+  }
+});
+
+test('every baseline pointer file exists', () => {
+  for (const name of baselines) {
+    readFileSync(path.join(resultsDir, name));
+  }
+});
+
+test('the plugin README names the same baseline files as the pointer', () => {
+  const text = readFileSync(readmePath, 'utf8');
+  for (const name of baselines) {
+    assert.match(text, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), name);
   }
 });

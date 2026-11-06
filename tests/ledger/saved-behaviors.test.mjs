@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const resultsDir = path.join(root, 'evals/ledger/results');
-const baselines = [1, 2, 3].map((n) => `2026-11-03-claude-opus-5-5-rebaseline-${n}.json`);
+const readmePath = path.join(root, 'plugins/ledger/README.md');
+const baselines = JSON.parse(readFileSync(path.join(root, 'evals/ledger/baseline-files.json'), 'utf8'));
 
 test('Claude answers a runtime question only from a saved run and not from reading the code', () => {
   assert.ok(baselines.length >= 3);
@@ -33,5 +34,18 @@ test('Claude leaves a question open when the repository holds no answer', () => 
     for (const run of runs.filter((entry) => entry.case === 'relaybox')) {
       assert.equal(run.questions['q.port'].verdict, 'correct', name);
     }
+  }
+});
+
+test('every baseline pointer file exists', () => {
+  for (const name of baselines) {
+    readFileSync(path.join(resultsDir, name));
+  }
+});
+
+test('the plugin README names the same baseline files as the pointer', () => {
+  const text = readFileSync(readmePath, 'utf8');
+  for (const name of baselines) {
+    assert.match(text, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), name);
   }
 });
