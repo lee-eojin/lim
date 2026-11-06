@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url';
 
 const LOOP = 'plugins/review-loop/skills/review-loop/scripts/loop.mjs';
 const SKILL = '.claude/skills/check-loop-model/SKILL.md';
-const WHOLE_LINE_COMMENT = '^[[:space:]]*//';
 const HUNK = /^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@ ?(.*)$/;
 const HEADER_NAME = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\s*\*?\s*|(?:const|let|var)\s+)?([\w$]+)/;
 const DEFINITIONS = [
@@ -67,7 +66,7 @@ const resolved = git('rev-parse', '--verify', '--quiet', `${sync}^{commit}`);
 if (resolved.status !== 0) {
   stop(`Sync commit ${sync} is not in this clone. Fetch full history (git fetch --unshallow) or fix the sha in ${SKILL}.`);
 }
-const diff = git('--no-pager', 'diff', '--unified=0', '--no-color', '--no-ext-diff', `--ignore-matching-lines=${WHOLE_LINE_COMMENT}`, `${resolved.stdout.trim()}..HEAD`, '--', LOOP);
+const diff = git('--no-pager', 'diff', '--unified=0', '--no-color', '--no-ext-diff', `${resolved.stdout.trim()}..HEAD`, '--', LOOP);
 if (diff.status !== 0) stop(`git diff failed: ${diff.stderr.trim()}`);
 
 if (!diff.stdout.trim()) {
