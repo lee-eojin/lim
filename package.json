@@ -3,6 +3,6 @@
   "private": true,
   "scripts": {
     "test": "node --test",
-    "lint": "node scripts/check-i18n.mjs && node scripts/check-comments.mjs && node scripts/sync-counts.mjs --check"
+    "lint": "node scripts/check-i18n.mjs "lint": "node scripts/check-i18n.mjs && node scripts/check-comments.mjs && node scripts/sync-counts.mjs --check""lint": "node scripts/check-i18n.mjs && node scripts/check-comments.mjs && node scripts/sync-counts.mjs --check" node scripts/check-comments.mjs "lint": "node scripts/check-i18n.mjs && node scripts/check-comments.mjs && node scripts/sync-counts.mjs --check""lint": "node scripts/check-i18n.mjs && node scripts/check-comments.mjs && node scripts/sync-counts.mjs --check" node scripts/sync-counts.mjs --check "lint": "node scripts/check-i18n.mjs && node scripts/check-comments.mjs && node scripts/sync-counts.mjs --check""lint": "node scripts/check-i18n.mjs && node scripts/check-comments.mjs && node scripts/sync-counts.mjs --check" node scripts/sync-shared.mjs --check"
   }
 }

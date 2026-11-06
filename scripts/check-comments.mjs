@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const SCOPE = ['plugins', 'scripts', 'evals'];
+export const SCOPE = ['plugins', 'scripts', 'evals', 'shared'];
 
 export const EXCLUDED = [
   /^evals\/(?:.+\/)?repo\//,
