@@ -67,7 +67,7 @@ function assertStale(cwd, line) {
 test('the copies in this repository match shared/ byte for byte', () => {
   const result = spawnSync(process.execPath, [script, '--check'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.equal(result.stdout, 'Checked 6 copies: all match shared/.\n');
+  assert.equal(result.stdout, 'Checked 8 copies: all match shared/.\n');
 });
 
 test('a sync writes the copies, a second sync changes nothing, and --check then passes', (t) => {

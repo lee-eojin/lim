@@ -9,6 +9,7 @@ export const COPIES = {
   'entry-point.mjs': ['gap-map', 'ledger'],
   'check-ids.mjs': ['gap-map', 'ledger'],
   'within.mjs': ['gap-map', 'ledger'],
+  'count-hits.mjs': ['gap-map', 'ledger'],
 };
 
 const statOf = (root, file) => lstatSync(path.join(root, file), { throwIfNoEntry: false });
