@@ -63,7 +63,8 @@ export function validate(map, root) {
   for (const group of map.groups) {
     if (group.tone !== undefined && !(group.tone in TONES)) problems.push(`group ${group.id} tone must be one of ${Object.keys(TONES).join(', ')}`);
   }
-  const regions = checkIds(map.regions ?? [], 'region', problems);
+  if (map.regions != null && !Array.isArray(map.regions)) problems.push('regions must be a list');
+  const regions = checkIds(Array.isArray(map.regions) ? map.regions : [], 'region', problems);
   const stages = checkIds(map.stages, 'stage', problems);
   const verifiers = new Set(Object.keys(map.verifiers ?? {}));
   for (const stage of map.stages) {
