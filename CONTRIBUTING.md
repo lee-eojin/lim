@@ -20,6 +20,7 @@ Every plugin under `plugins/` follows these rules.
 5. No network calls unless the plugin README says where data goes and how to turn it off.
 6. Anything a plugin needs to install is explained to the user first: what, why, where, and how to remove it.
 7. Skills, docs, and code are written in English. Skills reply in the user's language. The only exception is README translations in `docs/i18n/` (see Translations).
+8. A plugin imports only files inside its own folder, because installing a plugin copies only that folder. Code that plugins share lives in `shared/`, and a plugin imports its copy from `skills/<plugin>/scripts/_shared/`. Never edit a copy by hand.
 
 ## Before you open a pull request
 
@@ -36,11 +37,14 @@ When you record a claim that something works, write it as an evidence report and
 
 `node --test` also runs `scripts/check-loop-model-sync.mjs` on this repository, except in a shallow clone such as the Windows CI job. It fails when a function the review-loop model covers changed after the sync commit in `.claude/skills/check-loop-model/SKILL.md`.
 
-`node --test` also runs `scripts/check-comments.mjs`. It fails when a `.mjs` file under `plugins/`, `scripts/`, or `evals/` has a comment. Its `EXCLUDED` constant skips only fixture paths: `repo/` folders under `evals/`, `fixtures/` folders, and `node_modules/`.
+`node --test` also runs `scripts/check-comments.mjs`. It fails when a `.mjs` file under `plugins/`, `scripts/`, `evals/`, or `shared/` has a comment. Its `EXCLUDED` constant skips only fixture paths: `repo/` folders under `evals/`, `fixtures/` folders, and `node_modules/`.
 
 After you add or change rows in an `evals/*/behaviors.csv`, run `node scripts/sync-counts.mjs`. It writes the behavior counts into `README.md`, its translations, and the plugin READMEs, and `--check` lists the files that are out of date without writing. It finds each count by the HTML comment right before it, `<!--total-->`, `<!--tested-->`, or `<!--rest-->`, which GitHub does not render; a new translation needs these markers, and the script and `--check` stop with an error until every file has all three. `node --test` fails while any of them is out of date. If the number of behaviors that need a model run changes, also update the list of them in each file by hand.
 
-`npm test` runs `node --test`. `npm run lint` runs `node scripts/check-i18n.mjs`, `node scripts/check-comments.mjs`, and `node scripts/sync-counts.mjs --check`, in that order, and stops at the first one that fails. review-loop finds the `test` and `lint` scripts in the root `package.json`, so it runs them when it reviews a change here. `scripts/check.sh` is left out of `npm run lint` because it needs bash and python3, which Windows may not have.
+After you change a file in `shared/`, run `node scripts/sync-shared.mjs`. It copies each helper to the plugins named for it in `COPIES` in that script, as `plugins/<plugin>/skills/<plugin>/scripts/_shared/<helper>.mjs`, and `--check` lists what is out of date without writing. `node --test` fails while a copy is missing, differs by one byte, is a link, or is not in `COPIES`. A plugin gets a copy only when one of its files imports it. A change to a helper reaches users when each plugin with a copy is released.
+
+
+`npm test` runs `node --test`. `npm run lint` runs `node scripts/check-i18n.mjs`, `node scripts/check-comments.mjs`, `node scripts/sync-counts.mjs --check`, and `node scripts/sync-shared.mjs --check`, in that order, and stops at the first one that fails. review-loop finds the `test` and `lint` scripts in the root `package.json`, so it runs them when it reviews a change here. `scripts/check.sh` is left out of `npm run lint` because it needs bash and python3, which Windows may not have.
 
 ### Tests that run on only some systems
 

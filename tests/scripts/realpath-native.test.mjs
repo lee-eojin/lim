@@ -21,11 +21,13 @@ function nonNativeLines(text) {
 }
 
 function nonNativeUses(root) {
-  const plugins = path.join(root, 'plugins');
-  return readdirSync(plugins, { recursive: true })
-    .filter((file) => /\.(mjs|cjs|js)$/.test(file) && statSync(path.join(plugins, file)).isFile())
-    .flatMap((file) => nonNativeLines(readFileSync(path.join(plugins, file), 'utf8'))
-      .map((line) => `plugins/${file.split(path.sep).join('/')}:${line}`));
+  return ['plugins', 'scripts', 'shared'].flatMap((folder) => {
+    const base = path.join(root, folder);
+    return readdirSync(base, { recursive: true })
+      .filter((file) => /\.(mjs|cjs|js)$/.test(file) && statSync(path.join(base, file)).isFile())
+      .flatMap((file) => nonNativeLines(readFileSync(path.join(base, file), 'utf8'))
+        .map((line) => `${folder}/${file.split(path.sep).join('/')}:${line}`));
+  });
 }
 
 test('every way of reaching realpathSync without .native is found', () => {
@@ -47,7 +49,7 @@ test('every way of reaching realpathSync without .native is found', () => {
 
 test('hooks, nested script folders, and .cjs and .js files are scanned', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'realpath-native-'));
-  const files = ['plugins/p/hooks/gate.mjs', 'plugins/p/skills/s/scripts/lib/nested.mjs', 'plugins/p/skills/s/scripts/other.cjs', 'plugins/p/tool.js'];
+  const files = ['plugins/p/hooks/gate.mjs', 'plugins/p/skills/s/scripts/lib/nested.mjs', 'plugins/p/skills/s/scripts/other.cjs', 'plugins/p/tool.js', 'scripts/tool.mjs', 'shared/helper.mjs'];
   for (const file of files) {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     writeFileSync(path.join(root, file), 'realpathSync(x);\n');
@@ -57,7 +59,7 @@ test('hooks, nested script folders, and .cjs and .js files are scanned', () => {
 });
 
 // On Windows realpathSync can keep an 8.3 short name (RUNNER~1) while git and realpathSync.native give the long one.
-test('plugin code resolves real paths with realpathSync.native', () => {
+test('plugin, repository, and shared code resolves real paths with realpathSync.native', () => {
   const uses = nonNativeUses(repositoryRoot);
   assert.deepEqual(uses, [], `call realpathSync.native instead of realpathSync at ${uses.join(', ')}, so a path compares equal to the one git gives on Windows (#178, #189)`);
 });

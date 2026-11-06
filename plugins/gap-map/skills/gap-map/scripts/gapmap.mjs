@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isEntryPoint } from './_shared/entry-point.mjs';
 import { renderSvg, TONES } from './render.mjs';
 import { judge, runOnce } from './run.mjs';
 
@@ -432,13 +432,4 @@ async function main(argv) {
   return 0;
 }
 
-function isEntryPoint() {
-  if (!process.argv[1]) return false;
-  try {
-    return realpathSync.native(process.argv[1]) === realpathSync.native(fileURLToPath(import.meta.url));
-  } catch {
-    return false;
-  }
-}
-
-if (isEntryPoint()) process.exitCode = await main(process.argv.slice(2));
+if (isEntryPoint(import.meta.url)) process.exitCode = await main(process.argv.slice(2));
