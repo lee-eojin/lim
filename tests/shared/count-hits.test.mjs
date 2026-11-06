@@ -1,6 +1,6 @@
 
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -36,4 +36,44 @@ test('a search of a missing scope returns only the error', (t) => {
 test('gap-map and ledger both return hits and files', (t) => {
   const root = tree(t, { 'a.txt': 'needle\n', 'b.txt': 'needle\n' });
   for (const countHits of [gapMapCountHits, ledgerCountHits]) assert.deepEqual(countHits(root, '.', 'needle'), { hits: 2, files: 2 });
+});
+
+const skipMode000File = (process.platform === 'win32' || process.getuid?.() === 0) && 'mode 000 does not stop Windows or root from reading a file';
+const skipMode000Folder = (process.platform === 'win32' || process.getuid?.() === 0) && 'mode 000 does not stop Windows or root from reading a folder';
+
+test('a search of an unreadable file returns only the error', { skip: skipMode000File }, (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), 'count-hits-'));
+  const readable = path.join(root, 'ok.txt');
+  const blocked = path.join(root, 'secret.txt');
+  t.after(() => {
+    chmodSync(blocked, 0o644);
+    rmSync(root, { recursive: true, force: true });
+  });
+  writeFileSync(readable, 'needle\n');
+  writeFileSync(blocked, 'needle\n');
+  chmodSync(blocked, 0o000);
+  for (const countHits of [countHitsSkipping(new Set()), gapMapCountHits, ledgerCountHits]) {
+    const counted = countHits(root, '.', 'needle');
+    assert.deepEqual(Object.keys(counted), ['error']);
+    assert.match(counted.error, /EACCES|permission denied|EPERM/i);
+  }
+});
+
+test('a search of an unreadable folder returns only the error', { skip: skipMode000Folder }, (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), 'count-hits-'));
+  const readable = path.join(root, 'ok.txt');
+  const blocked = path.join(root, 'blocked');
+  t.after(() => {
+    chmodSync(blocked, 0o755);
+    rmSync(root, { recursive: true, force: true });
+  });
+  writeFileSync(readable, 'needle\n');
+  mkdirSync(blocked);
+  writeFileSync(path.join(blocked, 'a.txt'), 'needle\n');
+  chmodSync(blocked, 0o000);
+  for (const countHits of [countHitsSkipping(new Set()), gapMapCountHits, ledgerCountHits]) {
+    const counted = countHits(root, '.', 'needle');
+    assert.deepEqual(Object.keys(counted), ['error']);
+    assert.match(counted.error, /EACCES|permission denied|EPERM/i);
+  }
 });

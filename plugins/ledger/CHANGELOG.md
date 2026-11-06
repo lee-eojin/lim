@@ -4,6 +4,7 @@ All notable changes to ledger. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
+- Fixed: A search that cannot read a file or folder now returns the error, the same way a missing scope does, instead of aborting with a stack trace. (#337)
 - Internal: The entry-point guard, the path check `within`, the id check, and the search count `countHits` now come from copies of `shared/` helpers in `scripts/_shared/`. (#328, #332, #335)
 
 ## 0.2.0 (2026-11-02)
