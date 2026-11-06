@@ -118,6 +118,11 @@ test('gap-map records a verifier it cannot kill and does not wait out the grace'
   assert.ok(outcome.ms < LIMIT_MS + GRACE_MS, `${outcome.ms} ms: the run waited out the grace`);
 });
 
-test('verify and the shared helper do not call taskkill', () => {
-  for (const file of ['shared/kill-group.mjs', 'plugins/verify/skills/verify/scripts/verify.mjs']) assert.doesNotMatch(textOf(file), /taskkill/, file);
+test('verify does not call taskkill itself', () => {
+  assert.doesNotMatch(textOf('plugins/verify/skills/verify/scripts/verify.mjs'), /taskkill/);
+});
+
+test('the shared helper holds the Windows tree kill that gap-map used to inline', () => {
+  assert.match(textOf('shared/kill-group.mjs'), /taskkill/);
+  assert.doesNotMatch(textOf('plugins/gap-map/skills/gap-map/scripts/run.mjs'), /taskkill/);
 });

@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -63,8 +63,7 @@ export function runOnce(root, verifier, fixturePath) {
     });
     const timer = setTimeout(() => {
       timedOut = true;
-      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
-      else killGroup(child);
+      killGroup(child);
       grace = setTimeout(() => {
         child.stdout?.destroy();
         child.stderr?.destroy();
