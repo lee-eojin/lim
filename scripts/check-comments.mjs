@@ -10,23 +10,6 @@ export const EXCLUDED = [
   /^evals\/(?:.+\/)?repo\//,
   /(?:^|\/)fixtures\//,
   /(?:^|\/)node_modules\//,
-  'evals/clear-explain/run-explain.mjs',
-  'evals/verify/run-benchmark.mjs',
-  'plugins/clear-explain/skills/clear-explain/scripts/check-clarity.mjs',
-  'evals/e2e/run-sessions.mjs',
-  'evals/review-loop/run-detection.mjs',
-  'scripts/check-loop-model.mjs',
-  'scripts/check-loop-model-sync.mjs',
-  'scripts/check-skills.mjs',
-  'scripts/sync-counts.mjs',
-  'evals/review-loop/run-triggers.mjs',
-  'plugins/ledger/skills/ledger/scripts/ledger.mjs',
-  'scripts/check-evidence-report.mjs',
-  'scripts/check-i18n.mjs',
-  'scripts/release.mjs',
-  'evals/gap-map/run-benchmark.mjs',
-  'plugins/gap-map/skills/gap-map/scripts/gapmap.mjs',
-  'plugins/gap-map/skills/gap-map/scripts/run.mjs',
 ];
 
 const EXPRESSION_KEYWORDS = new Set([

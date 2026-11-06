@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Checks that each translation in docs/i18n/ matches README.md in headings, plugin versions,
-// the numbers in the measured paragraph, and links to files that exist.
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

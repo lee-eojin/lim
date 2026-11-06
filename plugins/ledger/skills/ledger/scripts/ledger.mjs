@@ -166,7 +166,6 @@ function citedLines(text, match) {
   return text.split('\n').slice(Number(match[2]) - 1, Number(match[3] ?? match[2])).join('\n');
 }
 
-// Which kind of change broke a pinned claim: only other lines, the cited text moved, or the cited text changed.
 export function classifyBreak(text, evidence) {
   if (evidence.lines === undefined) return { kind: 'not recorded' };
   const match = POINTER.exec(evidence.file);
@@ -322,7 +321,6 @@ export function saveOutput(root, ledgerDir, command) {
   return { file, body };
 }
 
-// Appends each pin break not seen before (same claim, pointer, and file state) and returns the totals by kind.
 export function recordBreaks(ledgerDir, decisions) {
   const file = path.join(ledgerDir, BREAKS_FILE);
   const rows = existsSync(file) ? readFileSync(file, 'utf8').split('\n').slice(1).filter(Boolean).map((line) => line.split('\t')) : [];

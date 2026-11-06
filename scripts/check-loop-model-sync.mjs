@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Fails when a function the review-loop model covers changed after the skill's sync commit.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -44,9 +43,6 @@ function readSkill() {
   return { sync, covered };
 }
 
-// -U0 keeps each hunk to the changed lines, so its header names the function around them.
-// With git's default context, an edit to a function's first lines is headed by the function before it.
-// An addition just after a covered function is headed by that function too: a false alarm, not a miss.
 function touchedNames(diff) {
   const names = new Set();
   let inHunk = false;

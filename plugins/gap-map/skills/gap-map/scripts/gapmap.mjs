@@ -172,7 +172,6 @@ export function resolvePointer(root, pointer) {
   return first >= 1 && last >= first && last <= lineCount(readFileSync(target, 'utf8'));
 }
 
-// null when the pointed lines hold the text; otherwise why not, naming where the text sits now if it moved.
 export function anchorProblem(root, pointer, text) {
   if (!resolvePointer(root, pointer)) return null;
   const match = POINTER.exec(pointer);

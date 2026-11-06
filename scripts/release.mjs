@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Usage: node scripts/release.mjs <plugin> <version> [--date YYYY-MM-DD]
-// Bumps a plugin's version in plugin.json, marketplace.json, the README plugin tables, and its CHANGELOG.
 import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

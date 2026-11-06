@@ -36,7 +36,7 @@ When you record a claim that something works, write it as an evidence report and
 
 `node --test` also runs `scripts/check-loop-model-sync.mjs` on this repository, except in a shallow clone such as the Windows CI job. It fails when a function the review-loop model covers changed after the sync commit in `.claude/skills/check-loop-model/SKILL.md`.
 
-`node --test` also runs `scripts/check-comments.mjs`. It fails when a `.mjs` file under `plugins/`, `scripts/`, or `evals/` has a comment. Files that still have comments are listed in its `EXCLUDED` constant; when you remove a file's comments, delete its line there.
+`node --test` also runs `scripts/check-comments.mjs`. It fails when a `.mjs` file under `plugins/`, `scripts/`, or `evals/` has a comment. Its `EXCLUDED` constant skips only fixture paths: `repo/` folders under `evals/`, `fixtures/` folders, and `node_modules/`.
 
 After you add or change rows in an `evals/*/behaviors.csv`, run `node scripts/sync-counts.mjs`. It writes the behavior counts into `README.md`, its translations, and the plugin READMEs, and `--check` lists the files that are out of date without writing. It finds each count by the HTML comment right before it, `<!--total-->`, `<!--tested-->`, or `<!--rest-->`, which GitHub does not render; a new translation needs these markers, and the script and `--check` stop with an error until every file has all three. `node --test` fails while any of them is out of date. If the number of behaviors that need a model run changes, also update the list of them in each file by hand.
 

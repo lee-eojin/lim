@@ -93,8 +93,6 @@ function locatedAt(location, finding, readLines) {
   return lines.slice(from - 1, to).some((line) => line.includes(quote) || (quote.includes(line.trim()) && line.trim().length > 8));
 }
 
-// A keyword only counts as a whole word or phrase, so "0" does not match "200 ms". Edges that are
-// symbols, as in "|| default", have no word boundary and must match exactly.
 function keywordPattern(keyword) {
   const words = keyword.trim();
   const phrase = words.split(/\s+/).map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+');
@@ -180,8 +178,6 @@ function projectNameOf(repo) {
   }
 }
 
-// Build output from running a case's own checks (target/, __pycache__/) is git-ignored here,
-// and copying it would hand the reviewer paths that name this eval.
 function ignoredPaths(repo) {
   try {
     const listed = git(repo, 'ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z');
@@ -191,8 +187,6 @@ function ignoredPaths(repo) {
   }
 }
 
-// The reviewer must not be able to tell it is being measured, so the copy lives under a
-// plain project name in the system temp folder and the diff sits where review-loop keeps it.
 export function prepareCase(caseDir, expected) {
   const sourceRepo = path.join(caseDir, expected.root ?? 'repo');
   const diffFile = path.join(caseDir, expected.diff ?? 'change.diff');

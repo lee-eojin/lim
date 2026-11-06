@@ -28,8 +28,6 @@ const ISOLATION = ['--setting-sources', '', '--strict-mcp-config', '--no-session
 
 export const startedReviewLoop = (skills) => skills.some((skill) => String(skill).includes('review-loop'));
 
-// No --tools: the run gets the same tools as a normal session, so the skill competes with
-// running git directly, as it does when a person asks.
 export function triggerArgs(prompt, model, pluginDir) {
   return ['-p', prompt, ...ISOLATION, '--max-turns', '2', '--output-format', 'stream-json', '--verbose', '--model', model, '--plugin-dir', pluginDir];
 }

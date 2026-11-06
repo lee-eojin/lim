@@ -17,7 +17,6 @@ const SCRIPTS = {
   verify: path.join(repoRoot, 'plugins/verify/skills/verify/scripts/verify.mjs'),
   'check-clarity': path.join(repoRoot, 'plugins/clear-explain/skills/clear-explain/scripts/check-clarity.mjs'),
 };
-// Only the skills' own scripts may run in Bash; everything else a session tries is denied and recorded.
 export const ALLOWED_TOOLS = [
   'Skill', 'Agent', 'Read', 'Grep', 'Glob', 'Write', 'Edit', 'TodoWrite',
   ...Object.values(SCRIPTS).map((script) => `Bash(node ${script.split(path.sep).join('/')}:*)`),
@@ -38,8 +37,6 @@ and no user settings, and checks the session's tool calls and the scripts' saved
   --keep                keep the temporary repositories and each session's raw stream
 `;
 
-// Each label is what a reader of the transcript would call the step: a script command with its
-// arguments, a subagent or skill by name, a file tool by path, or any other tool by name.
 export function labelOf(name, input = {}, workDir = '') {
   if (name === 'Bash') {
     const call = scriptCall(input.command);
@@ -57,7 +54,6 @@ export function scriptCall(command) {
   return match ? { script: match[2], path: match[1], args: (match[3] ?? '').trim() } : null;
 }
 
-// Main-session text and tool calls in order, with each call's result; a subagent's calls carry its parent's id.
 export function sessionTimeline(events, workDir = '') {
   const results = new Map();
   for (const event of events) {
@@ -107,7 +103,6 @@ export function buildSession(events, repo = {}) {
 
 const short = (text, length = 160) => String(text ?? '').replace(/\s+/g, ' ').slice(0, length);
 
-// Finds the patterns as an ordered subsequence of the steps; the evidence names each matched step.
 export function inOrder(steps, patterns) {
   const matched = [];
   let from = 0;
@@ -585,7 +580,6 @@ function defaultOut(model, label) {
   return file;
 }
 
-// Each changed or new file under plugins/ with a hash of its content, so a result shows which skill text it measured.
 export function uncommittedPluginFiles(root = repoRoot) {
   const entries = git(root, 'status', '--porcelain', '-z', '--untracked-files=all', '--', 'plugins').split('\0').filter(Boolean);
   const files = {};

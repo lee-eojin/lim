@@ -23,7 +23,6 @@ a file it cannot read, otherwise 0.
 
 export const LIMITS = { englishWords: 25, koreanCharacters: 100, possessives: 2 };
 
-// Built from code points so this file never contains the characters it reports.
 const FORBIDDEN_CHARACTERS = [
   { character: String.fromCharCode(0x2014), name: 'em dash (U+2014)', advice: 'end the sentence, or use a comma or parentheses' },
   { character: String.fromCharCode(0x00b7), name: 'middle dot (U+00B7)', advice: 'use a comma or a slash, or write "and" or "or"' },
@@ -76,21 +75,16 @@ function vaguePatterns() {
   return defaultPatterns;
 }
 
-// A fence starts with at most three spaces of indentation, as in CommonMark, except inside a
-// list, where the item's own indentation comes first.
 function fenceAt(line, inList) {
   const match = FENCE.exec(line);
   if (!match || (!inList && match[1].replace(/\t/g, '    ').length > 3)) return null;
   return { marker: match[2], rest: match[3] };
 }
 
-// As in CommonMark, only a bare fence of the same character, at least as long, closes the block.
 const closes = (fence, opening) => Boolean(fence) && fence.marker[0] === opening[0] && fence.marker.length >= opening.length && !fence.rest.trim();
 
 const indentOf = (line) => /^[ \t]*/.exec(line)[0].replace(/\t/g, '    ').length;
 
-// An indented code block starts after a blank line and runs until a line that is neither blank
-// nor indented. Inside a list it needs four spaces more than the list item's text.
 export function proseLines(text) {
   const lines = [];
   const allLines = text.split('\n');
@@ -149,9 +143,6 @@ export function sentenceSize(sentence) {
   return { size: sentence.split(/\s+/).filter(Boolean).length, unit: 'words', limit: LIMITS.englishWords };
 }
 
-// A soft line break does not end a sentence, so consecutive prose lines form one paragraph.
-// A blank line, a skipped line, a heading or its setext underline, a table row, a new list item,
-// or the start of a quote ends it.
 function paragraphs(lines) {
   const blocks = [];
   let current = null;
