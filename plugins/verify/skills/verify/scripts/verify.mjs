@@ -677,8 +677,8 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
 }
 
 export function judge(entry, outcome, files = [], limitMs = Infinity) {
-  if (outcome.startError) return { status: 'not-verified', reasons: [`the command could not start: ${outcome.startError}`] };
   if (outcome.timedOut) return { status: 'not-verified', reasons: [`timed out after ${outcome.timeoutMs} ms`] };
+  if (outcome.startError) return { status: 'not-verified', reasons: [`the command could not start: ${outcome.startError}`] };
   const expect = entry.expect;
   const reasons = [];
   const notJudged = [];
