@@ -113,8 +113,8 @@ test('gap-map waits out the grace when the verifier is gone and something holds 
   assert.equal(outcome.exitCode, null);
   assert.equal(outcome.stderr, '');
   assert.ok(outcome.ms >= LEAVE_LIMIT_MS + GRACE_MS - 100, `${outcome.ms} ms`);
-  assert.equal(started[0].child.stdout.destroyed, false);
-  assert.equal(started[0].child.stderr.destroyed, false);
+  assert.equal(started[0].child.stdout.destroyed, true);
+  assert.equal(started[0].child.stderr.destroyed, true);
   assert.equal(isRunning(pid), true);
 });
 
