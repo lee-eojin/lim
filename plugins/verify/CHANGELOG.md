@@ -2,6 +2,10 @@
 
 All notable changes to verify. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Internal: The process group kill at the time limit now comes from a copy of `shared/kill-group.mjs` in `scripts/_shared/`. (#339)
+
 ## 0.6.1 (2026-10-29)
 
 - Fixed: On a disk that ignores letter case, such as macOS, verify refuses a script path into node_modules, .git, .venv, venv, or __pycache__ written in other letter case, such as `Node_Modules/eslint/bin/eslint.js`, and the message names the file it resolves to instead of calling it a link. (#189)

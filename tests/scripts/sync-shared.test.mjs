@@ -67,7 +67,7 @@ function assertStale(cwd, line) {
 test('the copies in this repository match shared/ byte for byte', () => {
   const result = spawnSync(process.execPath, [script, '--check'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.equal(result.stdout, 'Checked 8 copies: all match shared/.\n');
+  assert.equal(result.stdout, 'Checked 10 copies: all match shared/.\n');
 });
 
 test('a sync writes the copies, a second sync changes nothing, and --check then passes', (t) => {
@@ -202,3 +202,11 @@ for (const [plugin, file] of [['gap-map', 'gapmap.mjs'], ['ledger', 'ledger.mjs'
     assert.match(result.stdout, new RegExp(`${file} check`));
   });
 }
+
+test('verify runs from a copy of its folder with no repository around it', (t) => {
+  const folder = path.join(temporary(t), 'verify');
+  cpSync(path.join(root, 'plugins', 'verify'), folder, { recursive: true });
+  const result = spawnSync(process.execPath, [path.join(folder, 'skills', 'verify', 'scripts', 'verify.mjs')], { encoding: 'utf8' });
+  assert.equal(result.status, 2, result.stderr);
+  assert.match(result.stderr, /usage: verify\.mjs/);
+});
