@@ -44,6 +44,13 @@ else if (command === 'fork') {
   fs.writeFileSync('grandchild.pid', String(child.pid));
   setTimeout(() => {}, 60000);
 }
+else if (command === 'detach') {
+  const child = require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: 'ignore' });
+  child.unref();
+  fs.writeFileSync('grandchild.pid', String(child.pid));
+  console.log('detached');
+  setTimeout(() => {}, 60000);
+}
 else { console.error('Unknown command: ' + command); process.exit(2); }
 `;
 
@@ -166,6 +173,20 @@ describe('run', () => {
       const deadline = Date.now() + 3000;
       while (isRunning(pid) && Date.now() < deadline) spawnSync('sleep', ['0.1']);
       assert.equal(isRunning(pid), false, `grandchild ${pid} is still running`);
+    } finally {
+      if (isRunning(pid)) process.kill(pid, 'SIGKILL');
+    }
+  });
+
+  test('a detached grandchild the check started is killed at the time limit', { skip: process.platform !== 'win32' && 'detached grandchildren are measured on the windows job' }, () => {
+    const root = createRepository([{ ...upper, id: 'detach', run: ['node', 'cli.js', 'detach'], timeoutMs: 1000, expect: { exitCode: 0, stdout: { includes: 'detached' } } }]);
+    const result = verify(root, 'run');
+    const pid = Number(readFileSync(path.join(root, 'grandchild.pid'), 'utf8'));
+    try {
+      assert.equal(result.checks[0].status, 'not-verified');
+      const deadline = Date.now() + 3000;
+      while (isRunning(pid) && Date.now() < deadline) spawnSync('sleep', ['0.1']);
+      assert.equal(isRunning(pid), false, `detached grandchild ${pid} is still running`);
     } finally {
       if (isRunning(pid)) process.kill(pid, 'SIGKILL');
     }

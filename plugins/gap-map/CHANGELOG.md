@@ -4,6 +4,7 @@ All notable changes to gap-map. Versions follow [Semantic Versioning](https://se
 
 ## Unreleased
 
+- Internal: The Windows process-tree kill at the time limit now comes from the shared kill-group helper. (#343)
 - Fixed: A map whose regions is not a list is now reported as "regions must be a list" instead of crashing. A missing, null, or undefined regions list is still read as empty. (#334)
 - Fixed: A search that cannot read a file or folder now returns the error, the same way a missing scope does, instead of aborting with a stack trace. (#337)
 - Fixed: When a verifier times out and a leftover process holds its output pipes, gap-map closes the pipes at the end of the grace and exits, as verify does; it used to wait until that process ended. (#341)

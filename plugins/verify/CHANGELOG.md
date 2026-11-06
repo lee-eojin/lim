@@ -4,6 +4,7 @@ All notable changes to verify. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
+- Fixed: On Windows, a check that times out now kills its process tree, including a detached grandchild, through the shared helper. (#343)
 - Fixed: When a check times out and killing it then fails, verify reports the timeout instead of saying the command could not start. (#342)
 - Internal: The process group kill at the time limit now comes from a copy of `shared/kill-group.mjs` in `scripts/_shared/`. (#339)
 
