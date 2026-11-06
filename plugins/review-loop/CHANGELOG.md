@@ -4,6 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
+- Changed: The README now says `loop start --fresh` starts a new run with the same ledger, and that deleting `.git/lim/review-loop/` resets the review, the decisions, the gate, and delegation. (#296)
 - Fixed: The report hook only treats a command as a review-loop command when a segment starts with `node` and the script path ends in `skills/review-loop/scripts/loop.mjs`, so an unrelated `loop.mjs` name no longer shows a report. (#315)
 
 ## 0.11.12 (2026-11-05)
