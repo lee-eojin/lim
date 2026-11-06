@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -155,4 +155,24 @@ test('this repository has no covered drift past its sync commit', (t) => {
   }
   const result = run(root);
   assert.equal(result.status, 0, result.stderr);
+});
+
+test('every covered name in the skill exists as a column-0 definition in loop.mjs', () => {
+  const skillText = readFileSync(path.join(root, skillPath), 'utf8');
+  const loopText = readFileSync(path.join(root, loopPath), 'utf8');
+  const bullet = skillText.split(/\r?\n/).find((line) => line.startsWith(`- \`${loopPath}\`:`));
+  assert.ok(bullet);
+  const covered = [...bullet.matchAll(/`([^`]+)`/g)].map((match) => match[1]).filter((token) => token !== loopPath);
+  const definitions = [
+    /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([\w$]+)/,
+    /^(?:export\s+)?(?:const|let|var)\s+([\w$]+)\s*=/,
+  ];
+  const defined = new Set();
+  for (const line of loopText.split(/\r?\n/)) {
+    for (const definition of definitions) {
+      const name = definition.exec(line)?.[1];
+      if (name) defined.add(name);
+    }
+  }
+  assert.deepEqual(covered.filter((name) => !defined.has(name)), []);
 });

@@ -67,7 +67,7 @@ Any other result is new. When a known finding is fixed, its invariant passes. Up
 
 ## Coverage record
 
-- `plugins/review-loop/skills/review-loop/scripts/loop.mjs`: `decideNext` (generated table), `recordReview`, `next`, `stopIfProven`, `needsProof`, `hasRegressionProof`, `isBeingFixed`, `rule`, `recordNoTest`, `decide`, `start`, `isKept`, `keptSeverities`, `isInProgress`, `pendingDecisionIds`, `decidableFindings`, `setUnattended`, `makeUnattended`, `makeAttended`, `stopWaiting`, `unattendedFixable`, `defer`, `reviewVerdict`, `UNFINISHED`.
+- `plugins/review-loop/skills/review-loop/scripts/loop.mjs`: `decideNext` (generated table), `recordReview`, `next`, `stopIfProven`, `needsProof`, `hasRegressionProof`, `isBeingFixed`, `rule`, `recordNoTest`, `decide`, `start`, `isKept`, `keptSeverities`, `isInProgress`, `pendingDecisionIds`, `decidableFindings`, `setUnattended`, `makeUnattended`, `makeAttended`, `unattendedFixable`, `defer`, `reviewVerdict`, `UNFINISHED`.
 - `scripts/loop-model/ReviewLoop.tla`, `scripts/loop-model/ReviewLoop.cfg`, `scripts/check-loop-model.mjs`, `tests/scripts/check-loop-model.test.mjs`.
 
 Sync commit: `eb2a4c4`. The model was last confirmed against `loop.mjs` at this commit. `recordReview` ledger-kept check entries keep `fromChecks`/`folder` for `runRoundChecks`; TLA `NewFinding`/`LedgerKept` unchanged.
