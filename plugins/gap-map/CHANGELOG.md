@@ -4,6 +4,7 @@ All notable changes to gap-map. Versions follow [Semantic Versioning](https://se
 
 ## Unreleased
 
+- Fixed: A search that cannot read a file or folder now returns the error, the same way a missing scope does, instead of aborting with a stack trace. (#337)
 - Fixed: When a verifier times out and a leftover process holds its output pipes, gap-map closes the pipes at the end of the grace and exits, as verify does; it used to wait until that process ended. (#341)
 - Fixed: When a verifier's process group cannot be killed at the time limit, gap-map now tries the verifier itself and records any failure in that run's stderr, instead of ignoring it. (#339)
 - Internal: The entry-point guard, the path check `within`, the id check, the search count `countHits`, and the process group kill now come from copies of `shared/` helpers in `scripts/_shared/`. (#328, #332, #335, #339)
