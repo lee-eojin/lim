@@ -10,6 +10,7 @@ export const COPIES = {
   'check-ids.mjs': ['gap-map', 'ledger'],
   'within.mjs': ['gap-map', 'ledger'],
   'count-hits.mjs': ['gap-map', 'ledger'],
+  'kill-group.mjs': ['gap-map', 'verify'],
 };
 
 const statOf = (root, file) => lstatSync(path.join(root, file), { throwIfNoEntry: false });

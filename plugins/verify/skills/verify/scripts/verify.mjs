@@ -8,6 +8,7 @@ import {
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MessageChannel, receiveMessageOnPort, Worker } from 'node:worker_threads';
+import { killGroup } from './_shared/kill-group.mjs';
 
 export const MAP_FILE = 'verify.features.json';
 const CHECKS_FOLDER = 'verify-checks';
@@ -661,11 +662,7 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
     };
     const timer = setTimeout(() => {
       timedOut = true;
-      try {
-        process.kill(-child.pid, 'SIGKILL');
-      } catch {
-        child.kill('SIGKILL');
-      }
+        killGroup(child);
       setTimeout(() => {
         child.stdout.destroy();
         child.stderr.destroy();

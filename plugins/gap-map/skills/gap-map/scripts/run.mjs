@@ -2,6 +2,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { killGroup } from './_shared/kill-group.mjs';
 
 const DEFAULT_TIMEOUT_MS = 60 * 1000;
 const CLOSE_GRACE_MS = 2000;
@@ -62,10 +63,8 @@ export function runOnce(root, verifier, fixturePath) {
     });
     const timer = setTimeout(() => {
       timedOut = true;
-      try {
-        if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
-        else process.kill(-child.pid, 'SIGKILL');
-      } catch {}
+      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
+      else killGroup(child);
       grace = setTimeout(() => finish(null), CLOSE_GRACE_MS);
     }, timeoutMs);
     child.stdout?.on('data', (chunk) => stdout.push(chunk));

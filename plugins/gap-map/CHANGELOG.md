@@ -4,7 +4,8 @@ All notable changes to gap-map. Versions follow [Semantic Versioning](https://se
 
 ## Unreleased
 
-- Internal: The entry-point guard, the path check `within`, the id check, and the search count `countHits` now come from copies of `shared/` helpers in `scripts/_shared/`. (#328, #332, #335)
+- Fixed: When a verifier's process group cannot be killed at the time limit, gap-map now tries the verifier itself and records any failure in that run's stderr, instead of ignoring it. (#339)
+- Internal: The entry-point guard, the path check `within`, the id check, the search count `countHits`, and the process group kill now come from copies of `shared/` helpers in `scripts/_shared/`. (#328, #332, #335, #339)
 
 ## 0.3.0 (2026-11-02)
 

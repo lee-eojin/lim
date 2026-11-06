@@ -63,7 +63,7 @@ How they are proven:
 
 When you add a test that skips on some systems, give the skip a reason, add the test to this table, and say in the pull request which run showed it pass.
 
-The other skips work the other way. They run on Linux and skip on Windows or as root: tests that need bash and python3, symbolic links, or a file with mode 000 that the user cannot read. The `check` CI job on Linux runs them.
+The other skips work the other way. They run on Linux and skip on Windows or as root: tests that need bash and python3, symbolic links, process groups, or a file with mode 000 that the user cannot read. The `check` CI job on Linux runs them.
 
 ### Changing review-loop's SKILL.md or reviewer.md
 
