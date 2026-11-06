@@ -358,7 +358,7 @@ review-loop bekerja dengan pemeriksaan yang sudah kamu punya. Semakin baik scrip
 - **Issue lebih dulu.** Setiap perubahan dimulai dari sebuah issue dan masuk melalui pull request yang di-squash-merge oleh seorang maintainer.
 - **Di-review oleh dirinya sendiri.** review-loop telah me-review banyak pull request milik LIM sendiri, dan deskripsinya menunjukkan laporan serta keputusan untuk setiap temuan. Yang terbaru membawa laporan bukti sebagai gantinya.
 - **Versi per plugin.** Setiap plugin mengikuti Semantic Versioning, memiliki `CHANGELOG.md` sendiri, dan diberi tag `<plugin>--v<version>`. Rilis minor dan major mendapat GitHub Release.
-- **Sengaja dibuat kecil.** Sebuah plugin memiliki satu entry skill, satu `SKILL.md` di bawah 250 baris, dan hanya hook yang bersifat opt-in.
+- **Sengaja dibuat kecil.** Sebuah plugin memiliki satu entry skill, satu `SKILL.md` di bawah 250 baris, dan hook yang bersifat opt-in, kecuali hook yang hanya menampilkan apa yang dikembalikan oleh perintahnya sendiri.
 
 ## Roadmap
 

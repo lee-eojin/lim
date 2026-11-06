@@ -10,4 +10,4 @@
 - [ ] `node scripts/check-i18n.mjs` passes
 - [ ] Docs updated if behavior changed
 - [ ] One line under `## Unreleased` in the plugin's `CHANGELOG.md` if users will notice
-- [ ] New hooks are opt-in and documented
+- [ ] New hooks follow plugin rule 4 in CONTRIBUTING.md

@@ -358,7 +358,7 @@ review-loop arbeitet mit den Checks, die du schon hast. Je besser deine Skripte 
 - **Zuerst Issues.** Jede Änderung beginnt mit einem Issue. Sie kommt über einen Pull Request in das Projekt, den ein Maintainer per Squash-Merge zusammenführt.
 - **Von sich selbst geprüft.** review-loop hat viele der eigenen Pull Requests von LIM geprüft, und ihre Beschreibungen zeigen den Bericht und eine Entscheidung zu jedem Finding. Neuere tragen statt dessen einen Evidence-Bericht.
 - **Versionen pro Plugin.** Jedes Plugin folgt Semantic Versioning, hat ein eigenes `CHANGELOG.md` und bekommt Tags im Format `<plugin>--v<version>`. Minor- und Major-Releases bekommen ein GitHub Release.
-- **Bewusst klein.** Ein Plugin hat einen Einstiegs-Skill, eine `SKILL.md` mit weniger als 250 Zeilen und nur Opt-in-Hooks.
+- **Bewusst klein.** Ein Plugin hat einen Einstiegs-Skill, eine `SKILL.md` mit weniger als 250 Zeilen und Opt-in-Hooks, außer Hooks, die dir nur zeigen, was seine eigenen Befehle zurückgegeben haben.
 
 ## Roadmap
 

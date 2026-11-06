@@ -356,7 +356,7 @@ review-loop works with the checks you already have. The better your `typecheck`,
 - **Issues first.** Every change starts from an issue and lands through a pull request that a maintainer squash-merges.
 - **Reviewed by itself.** review-loop has reviewed many of LIM's own pull requests, and their descriptions show the report and a decision for each finding. Recent ones carry an evidence report instead.
 - **Versions per plugin.** Each plugin follows Semantic Versioning, keeps its own `CHANGELOG.md`, and is tagged `<plugin>--v<version>`. Minor and major releases get a GitHub Release.
-- **Small on purpose.** A plugin has one entry skill, a `SKILL.md` under 250 lines, and opt-in hooks only.
+- **Small on purpose.** A plugin has one entry skill, a `SKILL.md` under 250 lines, and opt-in hooks, except hooks that only show you what its own commands returned.
 
 ## Roadmap
 
