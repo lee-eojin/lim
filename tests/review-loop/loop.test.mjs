@@ -2814,6 +2814,24 @@ describe('kept findings', () => {
     assert.deepEqual(loop(root, ['status']).review.pendingDecisions, []);
     assert.equal(stateFile(root).kept[0].fromChecks, true);
   });
+
+  test('a failing check kept in an earlier run is offered again after it has passed once', () => {
+    const fail = JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } });
+    const pass = JSON.stringify({ scripts: { test: 'node -e "process.exit(0)"' } });
+    const root = createRepository({ 'package.json': fail, 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [], ['--max-rounds', '1']);
+    writeFiles(root, { 'package.json': pass });
+    assert.equal(loop(root, ['start', '--fresh']).status, 'review');
+    assert.deepEqual(loop(root, ['record'], { findings: [] }).fix, []);
+    assert.match(loop(root, ['summary']).report, /Decided F-\d+ \[P1\] .+: once/);
+    assert.doesNotMatch(loop(root, ['summary']).report, /undefined/);
+    writeFiles(root, { 'package.json': fail });
+    assert.equal(loop(root, ['start', '--fresh']).status, 'review');
+    const result = loop(root, ['record'], { findings: [] });
+    assert.equal(result.fix[0].fromChecks, true);
+    assert.doesNotMatch(result.report, /kept before/);
+  });
 });
 
 describe('repeated kinds', () => {
