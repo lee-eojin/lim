@@ -358,7 +358,7 @@ review-loop funciona con las comprobaciones que ya tienes. Cuanto mejores sean t
 - **Primero los issues.** Cada cambio empieza con un issue y llega a través de un pull request que un maintainer integra con squash merge.
 - **Revisado por sí mismo.** review-loop ha revisado muchos de los pull requests del propio LIM, y sus descripciones muestran el informe y una decisión para cada hallazgo. Los recientes llevan un informe de evidencia en su lugar.
 - **Versiones por plugin.** Cada plugin sigue Semantic Versioning, tiene su propio `CHANGELOG.md` y usa tags con el formato `<plugin>--v<version>`. Las versiones minor y major tienen un GitHub Release.
-- **Pequeño a propósito.** Un plugin tiene una skill de entrada, un `SKILL.md` de menos de 250 líneas y solo hooks opt-in.
+- **Pequeño a propósito.** Un plugin tiene una skill de entrada, un `SKILL.md` de menos de 250 líneas y hooks opt-in, salvo los hooks que solo te muestran lo que devolvieron sus propios comandos.
 
 ## Hoja de ruta
 

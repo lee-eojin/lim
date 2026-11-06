@@ -358,7 +358,7 @@ review-loop는 이미 있는 검사를 그대로 씁니다. `typecheck`, `lint`,
 - **이슈 먼저.** 모든 변경은 이슈에서 시작합니다. 변경은 pull request로 들어가고, 메인테이너가 그 pull request를 squash merge합니다.
 - **스스로 리뷰.** review-loop는 LIM 자체의 pull request를 많이 리뷰해 왔고, 그 설명에는 보고서와 지적 사항별 결정이 들어갑니다. 최근 것들은 대신 근거 보고서를 담습니다.
 - **플러그인별 버전.** 각 플러그인은 Semantic Versioning을 따르고, 자체 `CHANGELOG.md`를 유지하며, `<plugin>--v<version>` 형식으로 태그를 붙입니다. minor 릴리스와 major 릴리스에는 GitHub Release를 만듭니다.
-- **의도적으로 작게.** 플러그인 하나는 진입 스킬 하나, 250줄 미만의 `SKILL.md`, opt-in hook만 가집니다.
+- **의도적으로 작게.** 플러그인 하나는 진입 스킬 하나, 250줄 미만의 `SKILL.md`, opt-in hook을 가집니다. 다만 플러그인 자신의 명령이 돌려준 결과를 보여 주기만 하는 hook은 예외입니다.
 
 ## 로드맵
 

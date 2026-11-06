@@ -358,7 +358,7 @@ review-loop 使用你已有的檢查。你的 `typecheck`、`lint` 和 `test` �
 - **先有 issue。** 每個變更都從一個 issue 開始，並透過 pull request 合併進來。維護者使用 squash merge 合併該 pull request。
 - **用自己審查自己。** review-loop 已經審查過 LIM 自己的許多 pull request，它們的說明會展示報告和對每個發現項目的決定。最近的則改為附上證據報告。
 - **每個外掛獨立版本。** 每個外掛遵循語意化版本（Semantic Versioning），維護自己的 `CHANGELOG.md`，並使用 `<plugin>--v<version>` 格式的標籤。minor 和 major 版本會發布 GitHub Release。
-- **刻意保持小巧。** 一個外掛只有一個入口 skill，`SKILL.md` 少於 250 行，並且只包含需要主動啟用的 hook。
+- **刻意保持小巧。** 一個外掛只有一個入口 skill，`SKILL.md` 少於 250 行，並且只包含需要主動啟用的 hook，只顯示外掛自身指令回傳結果的 hook 除外。
 
 ## 路線圖
 

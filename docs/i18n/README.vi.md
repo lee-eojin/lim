@@ -358,7 +358,7 @@ review-loop làm việc với các check bạn đã có. Script `typecheck`, `li
 - **Issue trước.** Mọi thay đổi bắt đầu từ một issue và đi vào dự án qua một pull request mà một maintainer squash-merge.
 - **Tự review chính mình.** review-loop đã review nhiều pull request của chính LIM, và phần mô tả của chúng cho thấy báo cáo cùng quyết định cho từng phát hiện. Các pull request gần đây mang theo báo cáo bằng chứng thay thế.
 - **Phiên bản theo từng plugin.** Mỗi plugin tuân theo Semantic Versioning, có `CHANGELOG.md` riêng và được gắn tag `<plugin>--v<version>`. Các bản phát hành minor và major có GitHub Release.
-- **Nhỏ có chủ đích.** Một plugin có một entry skill, một `SKILL.md` dưới 250 dòng và chỉ có hook dạng opt-in.
+- **Nhỏ có chủ đích.** Một plugin có một entry skill, một `SKILL.md` dưới 250 dòng và các hook dạng opt-in, trừ những hook chỉ hiển thị kết quả mà chính các lệnh của plugin đó trả về.
 
 ## Lộ trình
 

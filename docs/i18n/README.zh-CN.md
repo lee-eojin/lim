@@ -358,7 +358,7 @@ review-loop 使用你已有的检查。你的 `typecheck`、`lint` 和 `test` �
 - **先有 issue。** 每个改动都从一个 issue 开始，并通过 pull request 合入。维护者使用 squash merge 合并该 pull request。
 - **用自己审查自己。** review-loop 已经审查过 LIM 自己的许多 pull request，它们的描述会展示报告和对每个发现项的决定。最近的则改为附上证据报告。
 - **每个插件独立版本。** 每个插件遵循语义化版本（Semantic Versioning），维护自己的 `CHANGELOG.md`，并使用 `<plugin>--v<version>` 格式的标签。minor 和 major 版本会发布 GitHub Release。
-- **有意保持小巧。** 一个插件只有一个入口 skill，`SKILL.md` 少于 250 行，并且只包含需要主动开启的 hook。
+- **有意保持小巧。** 一个插件只有一个入口 skill，`SKILL.md` 少于 250 行，并且只包含需要主动开启的 hook，只展示插件自身命令返回结果的 hook 除外。
 
 ## 路线图
 

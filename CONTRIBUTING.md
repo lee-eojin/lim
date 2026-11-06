@@ -16,7 +16,7 @@ Every plugin under `plugins/` follows these rules.
 1. One entry skill. Sub-features become arguments or sub-commands, not extra skills.
 2. `SKILL.md` stays under 250 lines. Details go in `references/`, data in `data/`, and deterministic logic in `scripts/`.
 3. The skill `description` says what the skill does and when to use it, in two sentences or fewer.
-4. Hooks are opt-in, documented in the plugin README, and exit 0 on their own errors so they never block the user by accident.
+4. Hooks are opt-in: a hook has no effect until the user turns it on. The one exception is a hook that only shows the user what the plugin's own commands returned: it outputs nothing but a `systemMessage`, and nothing at all for other commands. Every hook is documented in the plugin README, exits 0 on its own errors so it never blocks the user by accident, and is listed in `tests/scripts/hook-rule.test.mjs`.
 5. No network calls unless the plugin README says where data goes and how to turn it off.
 6. Anything a plugin needs to install is explained to the user first: what, why, where, and how to remove it.
 7. Skills, docs, and code are written in English. Skills reply in the user's language. The only exception is README translations in `docs/i18n/` (see Translations).
