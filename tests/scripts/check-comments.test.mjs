@@ -119,6 +119,17 @@ test('division before a comment is not read as a regex', () => {
   for (const source of cases) assert.equal(count(`${source} // c`), 1, source);
 });
 
+test('a regex after if, while, for or with parentheses is not division', () => {
+  for (const head of ['if', 'while', 'for', 'with']) {
+    assert.equal(count(`${head} (a) /'/.test(b) /* real */ || /'/.test(c);`), 1, head);
+  }
+  assert.equal(count('if (a) /\\/\\//.test(b);'), 0);
+});
+
+test('a regex after a spread is not division', () => {
+  assert.equal(count("f(.../'/.test(a) /* real */ || /'/.test(c));"), 1);
+});
+
 test('blanking keeps length, line breaks and parsing', () => {
   const source = 'function f() { return /* x\n*/ 1 }\n';
   const blank = blankComments(source, findComments(source));
@@ -128,7 +139,7 @@ test('blanking keeps length, line breaks and parsing', () => {
 });
 
 test('a misread regex stops with exit 2 instead of a false report', (t) => {
-  const result = fixture(t, { 'scripts/misread.mjs': 'if (a) /\\/\\//.test(b);\n' });
+  const result = fixture(t, { 'scripts/misread.mjs': 'function f() {} /\\/\\//.test(b);\n' });
   assert.equal(result.status, 2, result.stderr);
   assert.match(result.stderr, /scripts\/misread\.mjs/);
   assert.ok(!result.stderr.includes('line comment'), result.stderr);
@@ -142,7 +153,7 @@ test('a comment-free file that does not parse stays exit 0', (t) => {
 
 test('a misread file and a real comment exit 2 and list both', (t) => {
   const result = fixture(t, {
-    'scripts/misread.mjs': 'if (a) /\\/\\//.test(b);\n',
+    'scripts/misread.mjs': 'function f() {} /\\/\\//.test(b);\n',
     'scripts/real.mjs': '// x\n',
   });
   assert.equal(result.status, 2, result.stderr);

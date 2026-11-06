@@ -16,6 +16,7 @@ const EXPRESSION_KEYWORDS = new Set([
   'await', 'case', 'default', 'delete', 'do', 'else', 'extends', 'in', 'instanceof',
   'new', 'return', 'throw', 'typeof', 'void', 'yield',
 ]);
+const PAREN_REGEX_KEYWORDS = new Set(['if', 'while', 'for', 'with']);
 const WORD = /[\p{ID_Continue}$\\\u200C\u200D]+/uy;
 const LINE_END = /[\n\r\u2028\u2029]/;
 const SPACE = /[\s\uFEFF]/;
@@ -84,8 +85,10 @@ function scanTemplate(text, start, from) {
 export function findComments(text) {
   const comments = [];
   const braces = [];
+  const parens = [];
   let regexAllowed = true;
   let afterDot = false;
+  let regexAfterParen = false;
   let i = 0;
   if (text.startsWith('#!')) {
     const match = LINE_END.exec(text);
@@ -96,6 +99,7 @@ export function findComments(text) {
     if (opened) braces.push(start);
     regexAllowed = opened;
     afterDot = false;
+    regexAfterParen = false;
     return end;
   };
   while (i < text.length) {
@@ -117,28 +121,40 @@ export function findComments(text) {
       i = skipRegex(text, i);
       regexAllowed = false;
       afterDot = false;
+      regexAfterParen = false;
     } else if (c === '\'' || c === '"') {
       i = skipQuoted(text, i);
       regexAllowed = false;
       afterDot = false;
+      regexAfterParen = false;
     } else if (c === '`') {
       i = enterTemplate(i, i + 1);
     } else if ((WORD.lastIndex = i, WORD.test(text))) {
       const word = text.slice(i, WORD.lastIndex);
-      regexAllowed = !afterDot && EXPRESSION_KEYWORDS.has(word);
+      const dotted = afterDot;
+      regexAllowed = !dotted && EXPRESSION_KEYWORDS.has(word);
+      regexAfterParen = !dotted && PAREN_REGEX_KEYWORDS.has(word);
       afterDot = false;
       i = WORD.lastIndex;
     } else if ((c === '+' || c === '-') && next === c) {
       afterDot = false;
+      regexAfterParen = false;
       i += 2;
+    } else if (c === '.' && next === '.' && text[i + 2] === '.') {
+      regexAllowed = true;
+      afterDot = false;
+      regexAfterParen = false;
+      i += 3;
     } else if (c === '.' || c === '#') {
       afterDot = true;
       regexAllowed = false;
+      regexAfterParen = false;
       i += 1;
     } else if (c === '{') {
       braces.push(null);
       regexAllowed = true;
       afterDot = false;
+      regexAfterParen = false;
       i += 1;
     } else if (c === '}') {
       const entry = braces.pop();
@@ -147,15 +163,29 @@ export function findComments(text) {
       } else {
         regexAllowed = false;
         afterDot = false;
+        regexAfterParen = false;
         i += 1;
       }
-    } else if (c === ')' || c === ']') {
+    } else if (c === '(') {
+      parens.push(regexAfterParen);
+      regexAfterParen = false;
+      regexAllowed = true;
+      afterDot = false;
+      i += 1;
+    } else if (c === ')') {
+      regexAllowed = Boolean(parens.pop());
+      afterDot = false;
+      regexAfterParen = false;
+      i += 1;
+    } else if (c === ']') {
       regexAllowed = false;
       afterDot = false;
+      regexAfterParen = false;
       i += 1;
     } else {
       regexAllowed = true;
       afterDot = false;
+      regexAfterParen = false;
       i += 1;
     }
   }
@@ -204,7 +234,7 @@ export function checkFile(root, file) {
   if (parsed.status !== 0) {
     const reason = parsed.stderr.split('\n').find((line) => line.startsWith('SyntaxError')) ?? 'parse failed';
     return {
-      undecided: [`${file}: no longer parses once its comments are blanked: ${reason}. Move a regular expression that follows ), } or ... into a const.`],
+      undecided: [`${file}: no longer parses once its comments are blanked: ${reason}. Move a regular expression that follows } into a const.`],
       comments: [],
     };
   }
