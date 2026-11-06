@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Model-checks the review-loop state machine with TLC. See .claude/skills/check-loop-model/SKILL.md.
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -39,8 +38,6 @@ function countsFor(length, code, base) {
   return Array.from({ length }, (_, index) => Math.floor(code / base ** index) % base);
 }
 
-// Every input the model can hand decideNext, indexed as Rows[Len(counts)][CountsCode(counts) + 1][waiting + 1]
-// [unproven + 1][stuck + 1][regressions + 1], so the spec's lookup is a plain function application.
 export function decideNextModule(decideNext, { slots, maxRounds, roundLimit }) {
   const outcomes = [];
   const outcomeIndex = (result) => {
@@ -194,7 +191,6 @@ function where(loop) {
   }[loop.awaiting] ?? loop.awaiting;
 }
 
-// Turns a TLC trace into the loop commands that produce it, with ids assigned the way assignIds does.
 export function describeTrace(trace, invariant) {
   let ids = new Map();
   let nextId = 1;
@@ -281,8 +277,6 @@ async function ensureJar() {
   return TLA_TOOLS.path;
 }
 
-// Several workers make a full search fast; one worker keeps breadth-first order, so its counterexample is a shortest one.
-// TLC unpacks its standard modules (Naturals.tla, ...) into $TMPDIR, so runs sharing one folder overwrite each other's files.
 export function tlcCommand(jar, folder, config, workers, env = process.env) {
   const run = `${path.basename(config, '.cfg')}-${workers}`;
   const tempFolder = path.join(folder, 'tmp', run);

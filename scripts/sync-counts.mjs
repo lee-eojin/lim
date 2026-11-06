@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Writes the behavior counts from evals/*/behaviors.csv into README.md, its translations, and the plugin READMEs.
-// Usage: node scripts/sync-counts.mjs [--check] [root]
 import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,8 +37,6 @@ export function russianBehaviorNoun(count) {
 
 const countNames = ['total', 'tested', 'rest'];
 
-// A count in a README is the number right after <!--total-->, <!--tested-->, or <!--rest-->.
-// GitHub renders the comment as nothing. A Russian noun after the number is matched so its form can follow the count.
 const countMarker = /<!--(total|tested|rest)-->(\d+)(?:(\s+)вариант(?:ов|а)?(?![а-яё]))?/gu;
 
 export function countTargets(root = defaultRoot) {

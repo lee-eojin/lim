@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Static structure check only; cannot prove Claude runtime loading.
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,8 +8,6 @@ const problems = [];
 const report = (file, message) => problems.push(`${file}: ${message}`);
 const read = (file) => readFileSync(path.join(root, file), 'utf8');
 
-// Entry skills use a flat YAML mapping of string scalars. Reject unsupported
-// syntax rather than silently accepting frontmatter we cannot validate.
 function frontmatterName(text) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
   if (!match) throw new Error('missing or unclosed frontmatter');
@@ -54,7 +51,7 @@ try {
     let directories = [];
     try {
       directories = readdirSync(path.join(root, base, 'skills'), { withFileTypes: true }).filter((entry) => entry.isDirectory());
-    } catch { /* The missing entry is reported below. */ }
+    } catch {}
     if (!directories.some((entry) => entry.name === plugin.name)) report(expected, 'missing entry skill directory');
     for (const directory of directories) {
       const file = `${base}/skills/${directory.name}/SKILL.md`;

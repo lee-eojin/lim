@@ -55,8 +55,6 @@ export function projectNameOf(repo) {
   }
 }
 
-// The model must not be able to tell it is being measured, so the copy has a plain project
-// name and one commit, and the break is part of that commit rather than a visible change.
 export function prepareProject(projectDir, broken) {
   const sourceRepo = path.join(projectDir, 'repo');
   const workDir = realpathSync(mkdtempSync(path.join(tmpdir(), `${projectNameOf(sourceRepo).replace(/[^\w.-]/g, '-')}-`)));
@@ -102,7 +100,6 @@ export function readEvidence(workDir) {
   return { runs: files.length, latest, changedAfterFail: [...changedAfterFail], removedAfterFail: [...removedAfterFail] };
 }
 
-// verify writes evidence even when no check could start, so only a pass or a fail shows that one ran.
 export function scoreCase({ broken, modelStatuses, intactStatuses }) {
   const ran = Object.values(modelStatuses).some((status) => status === 'pass' || status === 'fail');
   if (!ran) return { result: 'error', error: 'no check reached a pass or fail', catching: [], falseFailures: [], notVerified: [] };
@@ -149,7 +146,6 @@ export function parseStream(text) {
     try {
       events.push(JSON.parse(line));
     } catch {
-      // A partial last line after a timeout carries nothing to score.
     }
   }
   return { events, result: events.findLast((event) => event.type === 'result') };
@@ -159,7 +155,6 @@ const excerpt = (value, length = 300) => (typeof value === 'string' ? value : JS
 
 const inputSummary = (input = {}) => input.command ?? input.file_path ?? input.skill ?? excerpt(input);
 
-// What Claude tried, kept because a headless run leaves no session to look at afterwards.
 export function toolActivity(events, result = {}) {
   const outcomes = new Map();
   for (const event of events) {
@@ -217,8 +212,6 @@ export const untrackedFiles = (workDir) => git(workDir, 'ls-files', '--others', 
 
 const applyEdit = (text, { old_string: before, new_string: after, replace_all: all }) => (all ? text.split(before).join(after) : text.replace(before, () => after));
 
-// A check can change the fixture it reads, so the working copy gets each file as Claude last wrote it.
-// null means Claude edited a file it never wrote in full, and the file on disk is used instead.
 export function writtenContents(events) {
   const contents = new Map();
   for (const event of events) {
@@ -235,8 +228,6 @@ export function writtenContents(events) {
   return contents;
 }
 
-// Checks often read fixture files the model wrote next to the map, so the working copy needs them.
-// Only files the model wrote with its file tools are copied: files the checks wrote are results, not inputs.
 export function copyFixtures(fromDir, toDir, filesWritten, contents = new Map()) {
   const written = new Map(filesWritten.map((file) => {
     const target = path.resolve(fromDir, file);
@@ -334,8 +325,6 @@ async function runOne(entry, options) {
   }
 }
 
-// The reference map's checks read files from reference-files/, such as a script that calls a library function;
-// they are copied in after the commit, so a prepared copy for Claude never has them.
 export function dryRun(projectDir) {
   const reference = path.join(projectDir, 'reference.features.json');
   const referenceFiles = path.join(projectDir, 'reference-files');

@@ -11,7 +11,6 @@ const script = fileURLToPath(new URL('../../scripts/check-comments.mjs', import.
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const run = (cwd) => spawnSync(process.execPath, [script, cwd], { encoding: 'utf8' });
 const read = (file) => readFileSync(path.join(root, file), 'utf8');
-const listed = EXCLUDED.filter((rule) => typeof rule === 'string');
 const render = 'plugins/gap-map/skills/gap-map/scripts/render.mjs';
 const gate = 'plugins/review-loop/hooks/commit-gate.mjs';
 
@@ -34,20 +33,24 @@ test('the repository has no comments in scanned files', () => {
   assert.match(result.stdout, /Checked \d+ files: no comments\./);
 });
 
-test('scope includes clean files and leaves out listed ones', () => {
+test('scope includes real files from plugins, scripts and evals', () => {
   const files = scopedFiles(root);
   for (const file of ['scripts/check-comments.mjs', render, gate]) assert.ok(files.includes(file), file);
   assert.ok(files.includes('plugins/review-loop/skills/review-loop/scripts/loop.mjs'));
   assert.ok(files.includes('plugins/verify/skills/verify/scripts/verify.mjs'));
-  for (const file of listed) assert.ok(!files.includes(file), file);
+  assert.ok(files.includes('evals/e2e/run-sessions.mjs'));
 });
 
-test('every listed exclusion exists and still has a comment', () => {
-  for (const file of listed) assert.ok(count(read(file)) > 0, `${file} has no comments; remove it from EXCLUDED`);
+test('EXCLUDED holds only the three fixture path rules', () => {
+  assert.deepEqual(EXCLUDED.map(String), [
+    String.raw`/^evals\/(?:.+\/)?repo\//`,
+    String.raw`/(?:^|\/)fixtures\//`,
+    String.raw`/(?:^|\/)node_modules\//`,
+  ]);
 });
 
 test('an appended comment is always found in every real file', () => {
-  for (const file of [...scopedFiles(root), ...listed]) {
+  for (const file of scopedFiles(root)) {
     const text = read(file);
     for (const extra of ['\n// x\n', '\n/* x */\n']) {
       assert.equal(count(text + extra), count(text) + 1, `${file} ${JSON.stringify(extra)}`);
@@ -138,11 +141,11 @@ test('an empty or missing root exits 2', (t) => {
   assert.equal(run(path.join(cwd, 'missing')).status, 2);
 });
 
-test('fixture paths and listed files are excluded, lookalikes are not', (t) => {
+test('fixture paths are excluded, lookalikes are not', (t) => {
   const bad = '// x\n';
   const skipped = fixture(t, {
     'evals/t/repo/a.mjs': bad, 'evals/t/deep/er/repo/b.mjs': bad, 'evals/t/fixtures/c.mjs': bad,
-    'plugins/t/fixtures/d.mjs': bad, 'plugins/t/node_modules/e.mjs': bad, [listed[0]]: bad, 'evals/t/a.js': bad,
+    'plugins/t/fixtures/d.mjs': bad, 'plugins/t/node_modules/e.mjs': bad, 'evals/t/a.js': bad,
   });
   assert.equal(skipped.status, 0, skipped.stderr);
   for (const file of ['plugins/t/repo/a.mjs', 'evals/t/repository/a.mjs']) {

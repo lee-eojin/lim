@@ -48,7 +48,6 @@ function covers(pointer, promise) {
 
 const MISSING_FIXTURE = /^(\w+): no fixture$/;
 
-// Open only because it asked for case kinds no fixture covers, after at least one case kind had a fixture.
 export function onlyStricter(obligation, decision) {
   if (decision.status !== 'open') return false;
   const missing = decision.reasons.map((reason) => MISSING_FIXTURE.exec(reason)?.[1]).filter(Boolean);

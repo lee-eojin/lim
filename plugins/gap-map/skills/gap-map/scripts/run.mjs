@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const DEFAULT_TIMEOUT_MS = 60 * 1000;
-// A descendant that left the process group can keep a pipe open after the kill.
 const CLOSE_GRACE_MS = 2000;
 
 const tidy = (text) => text.replace(/[ \t]+$/gm, '').trim();

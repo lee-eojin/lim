@@ -1,10 +1,8 @@
 #!/usr/bin/env node
-// Checks the shape of one evidence report. It cannot prove that the report is true.
 import { readFileSync } from 'node:fs';
 
 const REQUIRED = ['revision', 'repro', 'run', 'proof', 'limits', 'verdict'];
 const VERDICTS = ['PASS', 'FAIL', 'NOT_RUN', 'BLOCKED'];
-// A label starts its line. Without a colon it stands alone, so a sentence like "Run the tests" stays text.
 const LABEL = /^(revision|repro|run|proof|limits|verdict|mutation)(?::(.*))?\s*$/i;
 
 function parseText(text, problems) {

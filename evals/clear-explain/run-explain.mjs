@@ -47,8 +47,6 @@ different model, which sees the two answers in random order, to pick the clearer
                           judge and the script prefer the original; no new answers
 `;
 
-// Each runner lists the flags each of its modes reads. A flag the chosen mode would ignore, or a
-// count that is not a whole number above 0, stops the run before it starts.
 export function parseRunnerArgs(args, { options, modes, modeOf, counts, allowPositionals = false }) {
   const { values, positionals, tokens } = parseArgs({ args, options, allowPositionals, tokens: true });
   if (values.help) return { mode: 'help', values, positionals };
@@ -105,8 +103,6 @@ export function selectQuestions(questions, ids) {
 const PREAMBLE = /^(?:great question|good question|sure\b|certainly\b|let me\b|let's\b|i'll\b|here(?:'s| is) (?:a|an|the) (?:explanation|overview|breakdown)|좋은 질문|설명해 ?드릴게요|설명해 ?드리겠습니다|알겠습니다)/i;
 const BLOCK_START = /^(?:#|\||```|~~~|>|[-*+]\s|\d+[.)]\s)/;
 
-// A structural check only: the answer opens with a prose paragraph rather than a heading,
-// a list, a table, code, or a preamble. The judge decides whether that paragraph answers.
 export function opensWithAnswer(text) {
   const first = text.split('\n').map((line) => line.trim()).find(Boolean);
   if (!first || BLOCK_START.test(first)) return false;
@@ -202,7 +198,6 @@ export function parseJudgeOutput(text) {
   return { error: 'judge output is not JSON with clearer set to A, B, or tie' };
 }
 
-// order lists the arms in the order the judge saw them, so A is order[0].
 export function unblind(verdict, order) {
   const armOf = (letter) => order[letter === 'A' ? 0 : 1];
   const perArm = (field) => Object.fromEntries(['A', 'B'].map((letter) => [armOf(letter), verdict[field]?.[letter] ?? null]));
@@ -272,7 +267,6 @@ export const startedSkill = (entry) => Boolean(entry?.skills?.some((skill) => sk
 
 const sha256 = (text) => createHash('sha256').update(text).digest('hex');
 
-// The body hash leaves out the frontmatter, so a change to the description alone keeps it.
 export function skillVersion(text) {
   const frontmatter = /^---\n([\s\S]*?)\n---\n/.exec(text);
   return {
@@ -389,8 +383,6 @@ export function summarize(items) {
   };
 }
 
-// No --tools: the run gets the same tools as a normal session, so the skill competes with
-// editing, searching, and the shell, as it does when a person uses it.
 export function triggerArgs(prompt, model, maxTurns) {
   return ['-p', prompt, ...ISOLATION, '--max-turns', String(maxTurns), '--output-format', 'stream-json', '--verbose',
     '--model', model, '--plugin-dir', pluginDir];
@@ -404,8 +396,6 @@ async function triggerRun(entry, options) {
   return { ...record, stop: result.subtype, turns: result.num_turns, model: mainModel(result), costUsd: result.total_cost_usd };
 }
 
-// The tuning set is the questions plus the other requests. A held-out set is one file that
-// marks each request itself, so it can be run without the requests the description was written against.
 export function triggerRequests(questions, others) {
   return [
     ...questions.map((question) => ({ id: question.id, lang: question.lang, prompt: question.question, explain: true })),
@@ -465,8 +455,6 @@ export function rescore(results) {
   return { ...results, rescoredAt: new Date().toISOString(), items, summary: summarize(items) };
 }
 
-// Compares the first judge pass with the second, which saw every pair in the opposite order.
-// A question where the two passes disagree was decided by the order, not by the answers.
 export function compareJudgePasses(items) {
   const pairs = items.filter((item) => item.judge?.winner && item.judgeSwapped?.winner);
   const runs = items.map((item) => item.judgeSwapped).filter(Boolean);
@@ -617,8 +605,6 @@ function report(results, out) {
   process.stdout.write(`results: ${out}\n`);
 }
 
-// Answers are stored verbatim, but the repository keeps these two characters out of every file,
-// so they are written as JSON escapes, which read back as the same text.
 export function serialize(results) {
   return `${JSON.stringify(results, null, 2)}\n`.replace(/[\u2014\u00b7]/g, (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
 }
