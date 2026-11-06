@@ -2,6 +2,10 @@
 
 All notable changes to review-loop. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Fixed: The report hook only treats a command as a review-loop command when a segment starts with `node` and the script path ends in `skills/review-loop/scripts/loop.mjs`, so an unrelated `loop.mjs` name no longer shows a report. (#315)
+
 ## 0.11.12 (2026-11-05)
 
 - Fixed: A new hook shows you each review report right below the command that returned it, so you see it before any question even when Claude does not repeat it. A finding you keep as is is no longer offered again in the closing message. (#248)

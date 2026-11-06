@@ -2425,8 +2425,10 @@ function unreadVerdict(command, folders) {
   return verdict('ask', 'review-loop: this command names git and commit or push, or an alias for them, in a form the commit gate cannot read, so it cannot check it. Confirm before Claude runs it.');
 }
 
+const REVIEW_LOOP_COMMAND = /(?:^|&&|\|\||[;\n|])\s*node\s+(?:"[^"]*|'[^']*|[^\s"';&|]*)[\\/]+skills[\\/]+review-loop[\\/]+scripts[\\/]+loop\.mjs["']?(?=[\s;&|]|$)/;
+
 export function reportNotice({ command, stdout }) {
-  if (!/\bloop\.mjs\b/.test(String(command ?? ''))) return null;
+  if (!REVIEW_LOOP_COMMAND.test(String(command ?? ''))) return null;
   try {
     const { report } = JSON.parse(String(stdout ?? ''));
     return typeof report === 'string' && report.trim() ? `review-loop report\n${report}` : null;
