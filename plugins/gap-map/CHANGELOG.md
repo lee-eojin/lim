@@ -4,7 +4,7 @@ All notable changes to gap-map. Versions follow [Semantic Versioning](https://se
 
 ## Unreleased
 
-- Internal: The entry-point guard, the path check `within`, and the id check now come from copies of `shared/` helpers in `scripts/_shared/`. (#328, #332)
+- Internal: The entry-point guard, the path check `within`, the id check, and the search count `countHits` now come from copies of `shared/` helpers in `scripts/_shared/`. (#328, #332, #335)
 
 ## 0.3.0 (2026-11-02)
 
