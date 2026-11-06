@@ -1034,6 +1034,13 @@ describe('fixed rules', () => {
     assert.equal(judge(upper, { ...outcome, exitCode: null, signal: 'SIGSEGV' }).status, 'fail');
   });
 
+  test('a timed-out check whose kill failed is reported as timed out', () => {
+    assert.deepEqual(
+      judge(upper, { ...outcome, timedOut: true, startError: 'kill EPERM', timeoutMs: 5 }),
+      { status: 'not-verified', reasons: ['timed out after 5 ms'] },
+    );
+  });
+
   test('equals ignores trailing whitespace and matches works per line', () => {
     assert.equal(satisfies({ equals: 'ABC' }, 'ABC\n\n'), true);
     assert.equal(satisfies({ equals: 'ABC' }, ' ABC'), false);
