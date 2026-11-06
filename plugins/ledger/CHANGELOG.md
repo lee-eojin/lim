@@ -4,7 +4,7 @@ All notable changes to ledger. Versions follow [Semantic Versioning](https://sem
 
 ## Unreleased
 
-- Internal: The entry-point guard now comes from a copy of `shared/entry-point.mjs` in `scripts/_shared/`. (#328)
+- Internal: The entry-point guard, the path check `within`, and the id check now come from copies of `shared/` helpers in `scripts/_shared/`. (#328, #332)
 
 ## 0.2.0 (2026-11-02)
 

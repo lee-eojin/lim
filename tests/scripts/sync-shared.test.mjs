@@ -13,7 +13,8 @@ const script = path.join(root, 'scripts', 'sync-shared.mjs');
 const run = (cwd, ...args) => spawnSync(process.execPath, [script, ...args, cwd], { encoding: 'utf8' });
 
 const source = 'shared/entry-point.mjs';
-const copies = ['gap-map', 'ledger'].map((plugin) => `plugins/${plugin}/skills/${plugin}/scripts/_shared/entry-point.mjs`);
+const sources = Object.keys(COPIES).map((name) => `shared/${name}`);
+const copies = Object.entries(COPIES).flatMap(([name, plugins]) => plugins.map((plugin) => `plugins/${plugin}/skills/${plugin}/scripts/_shared/${name}`));
 const helper = 'export const one = 1;\n';
 
 function temporary(t) {
@@ -32,7 +33,7 @@ function write(cwd, files) {
 function unsynced(t) {
   const cwd = temporary(t);
   write(cwd, {
-    [source]: helper,
+    ...Object.fromEntries(sources.map((file) => [file, helper])),
     'plugins/gap-map/skills/gap-map/scripts/gapmap.mjs': '',
     'plugins/ledger/skills/ledger/scripts/ledger.mjs': '',
     'plugins/verify/skills/verify/scripts/verify.mjs': '',
@@ -66,7 +67,7 @@ function assertStale(cwd, line) {
 test('the copies in this repository match shared/ byte for byte', () => {
   const result = spawnSync(process.execPath, [script, '--check'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.equal(result.stdout, 'Checked 2 copies: all match shared/.\n');
+  assert.equal(result.stdout, 'Checked 6 copies: all match shared/.\n');
 });
 
 test('a sync writes the copies, a second sync changes nothing, and --check then passes', (t) => {
