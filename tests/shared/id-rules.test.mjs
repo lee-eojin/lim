@@ -64,3 +64,12 @@ test('a list that is not a list stops ledger before any id is read', () => {
 test('gap-map reads a null regions list as empty', () => {
   assert.deepEqual(mapProblems({ regions: null }), []);
 });
+
+test('today a gap-map whose regions is not a list throws TypeError from checkIds', () => {
+  assert.throws(() => mapProblems({ regions: 5 }), (error) => {
+    assert.equal(error instanceof TypeError, true);
+    assert.match(error.stack, /checkIds/);
+    assert.match(error.stack, /_shared\/check-ids\.mjs/);
+    return true;
+  });
+});
