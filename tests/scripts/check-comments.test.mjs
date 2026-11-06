@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -131,6 +131,23 @@ test('a misread regex stops with exit 2 instead of a false report', (t) => {
   const result = fixture(t, { 'scripts/misread.mjs': 'if (a) /\\/\\//.test(b);\n' });
   assert.equal(result.status, 2, result.stderr);
   assert.match(result.stderr, /scripts\/misread\.mjs/);
+  assert.ok(!result.stderr.includes('line comment'), result.stderr);
+});
+
+test('a comment-free file that does not parse stays exit 0', (t) => {
+  const result = fixture(t, { 'scripts/broken.mjs': 'const a = ;\n' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Checked \d+ files: no comments\./);
+});
+
+test('a misread file and a real comment exit 2 and list both', (t) => {
+  const result = fixture(t, {
+    'scripts/misread.mjs': 'if (a) /\\/\\//.test(b);\n',
+    'scripts/real.mjs': '// x\n',
+  });
+  assert.equal(result.status, 2, result.stderr);
+  assert.match(result.stderr, /scripts\/real\.mjs:1: line comment/);
+  assert.match(result.stderr, /scripts\/misread\.mjs/);
 });
 
 test('broken files exit 2 and name the file', (t) => {
@@ -146,6 +163,31 @@ test('an empty or missing root exits 2', (t) => {
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   assert.equal(run(cwd).status, 2);
   assert.equal(run(path.join(cwd, 'missing')).status, 2);
+});
+
+test('a folder in scope that cannot be read exits 2', { skip: (process.platform === 'win32' || process.getuid?.() === 0) && 'mode 000 does not stop Windows or root from reading a folder' }, (t) => {
+  const cwd = mkdtempSync(path.join(tmpdir(), 'comment-check-'));
+  const blocked = path.join(cwd, 'plugins');
+  t.after(() => {
+    chmodSync(blocked, 0o755);
+    rmSync(cwd, { recursive: true, force: true });
+  });
+  mkdirSync(blocked);
+  mkdirSync(path.join(cwd, 'evals'));
+  mkdirSync(path.join(cwd, 'scripts'));
+  writeFileSync(path.join(cwd, 'scripts/clean.mjs'), 'export const a = 1;\n');
+  chmodSync(blocked, 0o000);
+  const result = run(cwd);
+  assert.equal(result.status, 2, result.stderr);
+  assert.match(result.stderr, /Cannot read/);
+});
+
+test('the default root is the repository when no folder is given', (t) => {
+  const cwd = mkdtempSync(path.join(tmpdir(), 'comment-check-'));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const result = spawnSync(process.execPath, [script], { cwd, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Checked \d+ files: no comments\./);
 });
 
 test('fixture paths are excluded, lookalikes are not', (t) => {
@@ -166,4 +208,11 @@ test('comments are listed sorted by path then line', (t) => {
   assert.equal(result.status, 1);
   const lines = result.stderr.split('\n').filter((line) => line.includes(' comment'));
   assert.deepEqual(lines.slice(0, 3), ['plugins/a.mjs:2: block comment', 'scripts/b.mjs:1: line comment', 'scripts/b.mjs:2: line comment']);
+});
+
+test('comments are listed in sorted path order, not folder walk order', (t) => {
+  const result = fixture(t, { 'evals/z.mjs': '// e\n', 'plugins/a.mjs': '// p\n' });
+  assert.equal(result.status, 1, result.stderr);
+  const lines = result.stderr.split('\n').filter((line) => line.includes(' comment'));
+  assert.deepEqual(lines.slice(0, 2), ['evals/z.mjs:1: line comment', 'plugins/a.mjs:1: line comment']);
 });
