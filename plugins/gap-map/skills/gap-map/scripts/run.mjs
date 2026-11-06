@@ -65,7 +65,11 @@ export function runOnce(root, verifier, fixturePath) {
       timedOut = true;
       if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
       else killGroup(child);
-      grace = setTimeout(() => finish(null), CLOSE_GRACE_MS);
+      grace = setTimeout(() => {
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        finish(null);
+      }, CLOSE_GRACE_MS);
     }, timeoutMs);
     child.stdout?.on('data', (chunk) => stdout.push(chunk));
     child.stderr?.on('data', (chunk) => stderr.push(chunk));
