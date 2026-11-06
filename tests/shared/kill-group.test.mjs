@@ -13,6 +13,7 @@ const GRACE_MS = 2000;
 const LIMIT_MS = 300;
 const HOLDER = 'setTimeout(() => {}, 30000);';
 const posixOnly = process.platform === 'win32' && 'process groups exist only off Windows';
+const unixKillPath = process.platform === 'win32' && 'on Windows killGroup uses taskkill, not a process group';
 const textOf = (file) => readFileSync(fileURLToPath(new URL(`../../${file}`, import.meta.url)), 'utf8');
 const verifier = { run: [process.execPath, '-e', HOLDER], timeoutMs: LIMIT_MS, pass: { exitCode: 0 } };
 
@@ -60,7 +61,7 @@ function watchSpawn(t, change = () => {}) {
   return started;
 }
 
-test('killGroup signals the group and does not touch the child when that works', (t) => {
+test('killGroup signals the group and does not touch the child when that works', { skip: unixKillPath }, (t) => {
   const signal = t.mock.method(process, 'kill', () => true);
   const child = { pid: 4242, kill: t.mock.fn() };
   killGroup(child);
@@ -68,7 +69,7 @@ test('killGroup signals the group and does not touch the child when that works',
   assert.equal(child.kill.mock.callCount(), 0);
 });
 
-test('killGroup kills the child when the group cannot be signaled', (t) => {
+test('killGroup kills the child when the group cannot be signaled', { skip: unixKillPath }, (t) => {
   t.mock.method(process, 'kill', () => {
     throw new Error('kill ESRCH');
   });
@@ -77,7 +78,7 @@ test('killGroup kills the child when the group cannot be signaled', (t) => {
   assert.deepEqual(child.kill.mock.calls.map((call) => call.arguments), [['SIGKILL']]);
 });
 
-test('killGroup does not hide an error from the fallback', (t) => {
+test('killGroup does not hide an error from the fallback', { skip: unixKillPath }, (t) => {
   t.mock.method(process, 'kill', () => {
     throw new Error('kill ESRCH');
   });
