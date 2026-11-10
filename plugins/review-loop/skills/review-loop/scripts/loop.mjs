@@ -745,6 +745,15 @@ function passedCheckPrints(root, checks, files) {
   return new Set([...passed, ...manifestReads].map(checkFingerprint));
 }
 
+function endKeepsThatPassed(repository, passedPrints) {
+  const ended = new Set([...keptSeverities(repository).keys()].filter((print) => passedPrints.has(print)));
+  for (const print of ended) {
+    const prior = ledgerEvents(repository).findLast((entry) => entry.event === 'decision' && entry.fingerprint === print);
+    logEvent(repository, { event: 'decision', ...summarize(prior ?? {}), choice: 'once', fingerprint: print });
+  }
+  return ended;
+}
+
 function rerunBlocks(item) {
   return Boolean(item.reproduced) && item.rerun?.status !== 'pass';
 }
@@ -1301,11 +1310,7 @@ function recordReview(repository, input) {
 
   const sourcesFor = (finding) => evidenceSources(repository.root, finding, diffText);
   const keptBefore = keptSeverities(repository);
-  const endedPrints = new Set([...keptBefore.keys()].filter((print) => passedPrints.has(print)));
-  for (const print of endedPrints) {
-    const prior = ledgerEvents(repository).findLast((entry) => entry.event === 'decision' && entry.fingerprint === print);
-    logEvent(repository, { event: 'decision', ...summarize(prior ?? {}), choice: 'once', fingerprint: print });
-  }
+  const endedPrints = endKeepsThatPassed(repository, passedPrints);
   const seenBefore = kindCounts(repository, { except: state.runId });
   const previouslyKept = (state.kept ?? []).filter((item) => !endedPrints.has(item.fingerprint));
   const undecidedCards = new Map(state.cards.filter((card) => !card.decision).map((card) => [card.fingerprint, card]));
@@ -1672,6 +1677,7 @@ function stopIfProven(repository, state) {
   const files = [...(state.reviewedFiles ?? state.files ?? []), ...drafts];
   const { checks, leftOut } = runFinalChecks(repository, state, files);
   logEvent(repository, { event: 'checks', tree, checks: checkEvents(checks) });
+  endKeepsThatPassed(repository, passedCheckPrints(repository.root, checks, files));
   const failing = checks.filter((check) => !isNotVerified(check) && check.exitCode !== 0);
   if (failing.length) {
     const unreviewed = new Set(filesBetween(repository, state.reviewedTree, tree));
@@ -1798,13 +1804,15 @@ function rerunChecks(cwd) {
   const tree = snapshotTree(repository);
   let checks;
   let leftOut;
+  const files = state?.awaiting === 'review' ? state.files ?? [] : state?.reviewedFiles ?? state?.files ?? [];
   if (state?.awaiting === 'review') {
     checks = runRoundChecks(repository, state);
     leftOut = state.checksLeftOut;
   } else {
-    ({ checks, leftOut } = runFinalChecks(repository, state, state?.reviewedFiles ?? state?.files ?? []));
+    ({ checks, leftOut } = runFinalChecks(repository, state, files));
   }
   logEvent(repository, { event: 'checks', tree, checks: checkEvents(checks) });
+  endKeepsThatPassed(repository, passedCheckPrints(repository.root, checks, files));
   return {
     checks,
     ...leftOutField(leftOut),
