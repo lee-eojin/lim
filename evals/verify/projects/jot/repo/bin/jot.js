@@ -6,16 +6,18 @@ const args = process.argv.slice(2);
 const fileIndex = args.indexOf('--file');
 const file = fileIndex === -1 ? 'todo.json' : args.splice(fileIndex, 2)[1];
 const [command, ...rest] = args;
-const todos = load(file);
+const todos = file ? load(file) : [];
 
-if (command === 'add' && rest.length) {
+if (!file) {
+  printUsage();
+} else if (command === 'add' && rest.length) {
   const text = rest.join(' ');
   const next = addTodo(todos, text);
   save(file, next);
   console.log(`Added #${next.length}: ${text}`);
 } else if (command === 'list') {
   console.log(formatList(todos));
-} else if (command === 'done' && rest.length === 1) {
+} else if (command === 'done' && rest.length === 1 && /^\d+$/.test(rest[0])) {
   const number = Number(rest[0]);
   try {
     const next = completeTodo(todos, number);
@@ -26,6 +28,10 @@ if (command === 'add' && rest.length) {
     process.exit(1);
   }
 } else {
+  printUsage();
+}
+
+function printUsage() {
   console.error('Usage: jot [--file <path>] add <text> | list | done <number>');
   process.exit(1);
 }
