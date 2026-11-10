@@ -2829,6 +2829,79 @@ describe('kept findings', () => {
     assert.equal(result.fix[0].fromChecks, true);
     assert.doesNotMatch(result.report, /kept before/);
   });
+
+  test('a failing check kept in an earlier run is offered again after loop checks saw it pass once', () => {
+    const fail = JSON.stringify({ scripts: { test: 'node -e "process.exit(1)"' } });
+    const pass = JSON.stringify({ scripts: { test: 'node -e "process.exit(0)"' } });
+    const root = createRepository({ 'package.json': fail, 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [], ['--max-rounds', '1']);
+    writeFiles(root, { 'package.json': pass });
+    assert.equal(loop(root, ['checks']).passed, true);
+    writeFiles(root, { 'package.json': fail });
+    assert.equal(loop(root, ['start', '--fresh']).status, 'review');
+    const result = loop(root, ['record'], { findings: [] });
+    assert.equal(result.fix[0].fromChecks, true);
+    assert.doesNotMatch(result.report, /kept before/);
+  });
+
+  test('a kept manifest failure in a subfolder project outside the round files ends its keep when loop checks read it', () => {
+    const pass = JSON.stringify({ scripts: { test: 'node -e "process.exit(0)"' } });
+    const root = createRepository({ 'web/package.json': pass, 'web/index.js': '', 'src/cart.js': correctCart });
+    writeFiles(root, { 'web/package.json': '{', 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const first = loop(root, ['record'], { findings: [doubledPrice] });
+    const manifest = first.fix.find((item) => item.fromChecks);
+    assert.equal(manifest.file, 'web: read package.json');
+    loop(root, ['decide', '--id', manifest.id, '--choice', 'keep']);
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    assert.ok(!stateFile(root).files.some((file) => file.startsWith('web/')));
+    writeFiles(root, { 'web/package.json': pass });
+    assert.equal(loop(root, ['checks']).passed, true);
+    writeFiles(root, { 'web/package.json': '{' });
+    assert.equal(loop(root, ['start', '--fresh']).status, 'review');
+    const result = loop(root, ['record'], { findings: [] });
+    assert.deepEqual(result.fix.filter((item) => item.fromChecks).map((item) => item.file), ['web: read package.json']);
+  });
+
+  test('a kept subfolder manifest failure ends its keep when loop checks read a repaired manifest that declares no checks', () => {
+    const pass = JSON.stringify({ scripts: { test: 'node -e "process.exit(0)"' } });
+    const root = createRepository({ 'web/package.json': pass, 'web/index.js': '', 'src/cart.js': correctCart });
+    writeFiles(root, { 'web/package.json': '{', 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const manifest = loop(root, ['record'], { findings: [doubledPrice] }).fix.find((item) => item.fromChecks);
+    loop(root, ['decide', '--id', manifest.id, '--choice', 'keep']);
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    writeFiles(root, { 'web/package.json': '{}' });
+    assert.equal(loop(root, ['checks']).passed, true);
+    writeFiles(root, { 'web/package.json': '{' });
+    assert.equal(loop(root, ['start', '--fresh']).status, 'review');
+    const result = loop(root, ['record'], { findings: [] });
+    assert.deepEqual(result.fix.filter((item) => item.fromChecks).map((item) => item.file), ['web: read package.json']);
+  });
+
+  test('a failing check kept in an earlier run is offered again after the final checks saw it pass once', () => {
+    const flagged = JSON.stringify({ scripts: { test: 'node -e "process.exit(require(\'node:fs\').existsSync(\'flag\') ? 0 : 1)"' } });
+    const root = createRepository({ 'package.json': flagged, 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [], ['--max-rounds', '1']);
+    const first = loop(root, ['record'], { findings: [doubledPrice] });
+    const cart = first.fix.find((item) => item.file === 'src/cart.js').id;
+    assert.ok(first.fix.every((item) => !item.fromChecks));
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    assert.equal(loop(root, ['record'], { resolved: [cart], findings: [] }).reason, 'proof');
+    writeFiles(root, { flag: '' });
+    assert.equal(loop(root, ['rule', '--id', cart, '--no-test', 'the total is only visible in the browser']).decision, 'stop');
+    rmSync(path.join(root, 'flag'));
+    writeFiles(root, { 'src/extra.js': 'export {};\n' });
+    assert.equal(loop(root, ['start', '--fresh']).status, 'review');
+    const result = loop(root, ['record'], { findings: [] });
+    assert.equal(result.fix[0].fromChecks, true);
+    assert.doesNotMatch(result.report, /kept before/);
+  });
 });
 
 describe('repeated kinds', () => {
