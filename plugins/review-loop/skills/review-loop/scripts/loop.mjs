@@ -742,7 +742,10 @@ function checkFingerprint(check) {
 
 function passedCheckPrints(root, checks, files, recheckedFiles = []) {
   const passed = checks.filter((check) => check.exitCode === 0);
-  const manifestReads = checkedFolders(root, files, recheckedFiles)
+  const readCarried = recheckedFiles
+    .map((file) => (path.posix.dirname(file) === '.' ? '' : path.posix.dirname(file)))
+    .filter((folder) => !packageScripts(path.join(root, folder), root).some((check) => check.problem));
+  const manifestReads = [...new Set([...checkedFolders(root, files, recheckedFiles), ...readCarried])]
     .filter((folder) => existsSync(path.join(root, folder, 'package.json')))
     .filter((folder) => !checks.some((check) => check.command === MANIFEST_READ && (check.folder ?? '') === folder))
     .map((folder) => (folder ? { folder, command: MANIFEST_READ } : { command: MANIFEST_READ }));
