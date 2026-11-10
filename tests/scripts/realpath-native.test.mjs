@@ -8,9 +8,7 @@ import { fileURLToPath } from 'node:url';
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 const FS_NAMED_IMPORTS = /\bimport\s*\{([^}]*)\}\s*from\s*['"](?:node:)?fs['"]/g;
 
-// Lines that name realpathSync without .native, so an alias, a stored reference, or a split call is caught too.
-// Only a plain named import from node:fs is left alone: every use after it is checked on its own.
-function nonNativeLines(text) {
+function linesReachingNonNativeRealpath(text) {
   const imported = new Set([...text.matchAll(FS_NAMED_IMPORTS)].flatMap((match) => {
     const start = match.index + match[0].indexOf('{') + 1;
     return [...match[1].matchAll(/\brealpathSync\b(?!\s+as\b)/g)].map((name) => start + name.index);
@@ -25,12 +23,12 @@ function nonNativeUses(root) {
     const base = path.join(root, folder);
     return readdirSync(base, { recursive: true })
       .filter((file) => /\.(mjs|cjs|js)$/.test(file) && statSync(path.join(base, file)).isFile())
-      .flatMap((file) => nonNativeLines(readFileSync(path.join(base, file), 'utf8'))
+      .flatMap((file) => linesReachingNonNativeRealpath(readFileSync(path.join(base, file), 'utf8'))
         .map((line) => `${folder}/${file.split(path.sep).join('/')}:${line}`));
   });
 }
 
-test('every way of reaching realpathSync without .native is found', () => {
+test('every way of reaching realpathSync without .native is found, and a plain named import from node:fs is checked at each later use', () => {
   const evasions = {
     'an aliased import': "import { readFileSync, realpathSync as rp } from 'node:fs';\nrp(x);",
     'a stored reference': "import fs from 'node:fs';\nconst resolve = fs.realpathSync;\nresolve(x);",
@@ -41,10 +39,10 @@ test('every way of reaching realpathSync without .native is found', () => {
     'a direct call after a named import': "import { realpathSync } from 'node:fs';\nrealpathSync(x);",
     'a bracket lookup': "fs['realpathSync'](x);",
   };
-  for (const [form, text] of Object.entries(evasions)) assert.notDeepEqual(nonNativeLines(text), [], form);
-  assert.deepEqual(nonNativeLines("import { realpathSync as rp } from 'node:fs';"), [1]);
-  assert.deepEqual(nonNativeLines('const real = fs.realpathSync\n  (x);'), [1]);
-  assert.deepEqual(nonNativeLines("import {\n  readFileSync,\n  realpathSync,\n} from 'node:fs';\nrealpathSync.native(x);\nfs.realpathSync .native(x);\nconst resolve = realpathSync.native;"), []);
+  for (const [form, text] of Object.entries(evasions)) assert.notDeepEqual(linesReachingNonNativeRealpath(text), [], form);
+  assert.deepEqual(linesReachingNonNativeRealpath("import { realpathSync as rp } from 'node:fs';"), [1]);
+  assert.deepEqual(linesReachingNonNativeRealpath('const real = fs.realpathSync\n  (x);'), [1]);
+  assert.deepEqual(linesReachingNonNativeRealpath("import {\n  readFileSync,\n  realpathSync,\n} from 'node:fs';\nrealpathSync.native(x);\nfs.realpathSync .native(x);\nconst resolve = realpathSync.native;"), []);
 });
 
 test('hooks, nested script folders, and .cjs and .js files are scanned', () => {
@@ -58,8 +56,7 @@ test('hooks, nested script folders, and .cjs and .js files are scanned', () => {
   assert.deepEqual(nonNativeUses(root).sort(), files.map((file) => `${file}:1`).sort());
 });
 
-// On Windows realpathSync can keep an 8.3 short name (RUNNER~1) while git and realpathSync.native give the long one.
-test('plugin, repository, and shared code resolves real paths with realpathSync.native', () => {
+test('plugin, repository, and shared code resolves real paths with realpathSync.native, because realpathSync can keep a Windows 8.3 short name such as RUNNER~1 where git gives the long one', () => {
   const uses = nonNativeUses(repositoryRoot);
   assert.deepEqual(uses, [], `call realpathSync.native instead of realpathSync at ${uses.join(', ')}, so a path compares equal to the one git gives on Windows (#178, #189)`);
 });

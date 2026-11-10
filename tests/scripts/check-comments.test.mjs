@@ -33,12 +33,13 @@ test('the repository has no comments in scanned files', () => {
   assert.match(result.stdout, /Checked \d+ files: no comments\./);
 });
 
-test('scope includes real files from plugins, scripts, evals and shared', () => {
+test('scope includes real files from plugins, scripts, evals, shared and tests', () => {
   const files = scopedFiles(root);
   for (const file of ['scripts/check-comments.mjs', 'scripts/sync-shared.mjs', 'shared/entry-point.mjs', 'plugins/gap-map/skills/gap-map/scripts/_shared/entry-point.mjs', render, gate]) assert.ok(files.includes(file), file);
   assert.ok(files.includes('plugins/review-loop/skills/review-loop/scripts/loop.mjs'));
   assert.ok(files.includes('plugins/verify/skills/verify/scripts/verify.mjs'));
   assert.ok(files.includes('evals/e2e/run-sessions.mjs'));
+  assert.ok(files.includes('tests/scripts/check-comments.test.mjs'));
 });
 
 test('EXCLUDED holds only the three fixture path rules', () => {
@@ -54,6 +55,12 @@ test('a comment in shared/ fails with path and line', (t) => {
   const result = fixture(t, { 'shared/helper.mjs': 'export const a = 1;\n// x\n' });
   assert.equal(result.status, 1, result.stderr);
   assert.ok(result.stderr.includes('shared/helper.mjs:2:'), result.stderr);
+});
+
+test('a comment in tests/ fails with path and line', (t) => {
+  const result = fixture(t, { 'tests/helper.test.mjs': 'export const a = 1;\n// x\n' });
+  assert.equal(result.status, 1, result.stderr);
+  assert.ok(result.stderr.includes('tests/helper.test.mjs:2:'), result.stderr);
 });
 
 test('an appended comment is always found in every real file', () => {

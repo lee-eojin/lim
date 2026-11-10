@@ -40,12 +40,10 @@ const doubledPrice = {
 };
 const brokenCartSource = () => [brokenCart];
 const windows = process.platform === 'win32';
-// The gate reads commands as Git Bash runs them, where a backslash escapes the next character.
-const shellPath = (folder) => folder.split(path.sep).join('/');
+const gitBashPath = (folder) => folder.split(path.sep).join('/');
 const home = () => process.env.HOME || homedir();
 
-// A PATH with git and the given programs only, so a tool the machine has installed still counts as missing.
-function pathWith(programs = {}) {
+function pathWithOnly(programs = {}) {
   const bin = mkdtempSync(path.join(tmpdir(), 'review-loop-bin-'));
   for (const [name, { posix, windows: batch }] of Object.entries(programs)) {
     writeFileSync(path.join(bin, windows ? `${name}.cmd` : name), windows ? batch : posix, { mode: 0o755 });
@@ -538,7 +536,7 @@ describe('check detection', () => {
 
   test('a dotnet project runs in its project folder and a failing test is a P1', () => {
     const withFakeDotnet = {
-      PATH: pathWith({
+      PATH: pathWithOnly({
         dotnet: {
           posix: '#!/bin/sh\necho "Failed! in $(basename "$(pwd)") for $1" >&2\nexit 1\n',
           windows: '@echo off\r\nfor %%I in (.) do echo Failed! in %%~nxI for %~1 1>&2\r\nexit /b 1\r\n',
@@ -622,7 +620,7 @@ describe('check detection', () => {
   });
 
   test('a check whose program is not installed is reported as not verified instead of failing', () => {
-    const withoutGo = { PATH: pathWith() };
+    const withoutGo = { PATH: pathWithOnly() };
     const root = createRepository({ 'go.mod': 'module example.com/cart\n', 'src/cart.js': correctCart });
     writeFiles(root, { 'src/cart.js': brokenCart });
     const started = loop(root, ['start'], undefined, withoutGo);
@@ -2172,7 +2170,7 @@ describe('commit gate', () => {
     const root = reviewedRepository();
     loop(root, ['delegate', '--scope', 'repo']);
     const allowed = [
-      'git commit -m x', `cd ${shellPath(root)} && git commit -m x`, `git -C ${shellPath(root)} commit -m x`,
+      'git commit -m x', `cd ${gitBashPath(root)} && git commit -m x`, `git -C ${gitBashPath(root)} commit -m x`,
       'git add -A && git commit -m x && git status', 'git commit -m x\ngit log -1', "git commit -m x && git status -- 'a>b'",
     ];
     for (const command of allowed) assert.equal(commit(root, command).decision, 'allow', command);
@@ -2192,7 +2190,7 @@ describe('commit gate', () => {
       'git commit -m x & git status',
       'git commit -m x | git status',
       'git commit -m x && git add *.js',
-      `cd ~ && cd ${shellPath(root)} && git commit -m x`,
+      `cd ~ && cd ${gitBashPath(root)} && git commit -m x`,
     ];
     for (const command of lowered) assert.equal(commit(root, command).decision, 'ask', command);
   });
@@ -2230,7 +2228,7 @@ describe('commit gate', () => {
     writeFiles(unreviewed, { 'src/cart.js': brokenCart });
     for (const command of forms) assert.equal(commit(unreviewed, command)?.decision, 'ask', command);
     const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
-    assert.equal(commit(plainDirectory, `cd ${shellPath(unreviewed)} && bash -c "git commit -m x"`)?.decision, 'ask');
+    assert.equal(commit(plainDirectory, `cd ${gitBashPath(unreviewed)} && bash -c "git commit -m x"`)?.decision, 'ask');
     assert.equal(commit(plainDirectory, 'bash -c "git commit -m x"'), null);
   });
 
@@ -2276,7 +2274,7 @@ describe('commit gate', () => {
       'echo "git commit"', 'echo Run git commit when done', 'echo then git push origin main', 'grep -rn "git commit" .',
       'man git commit', 'git log --grep "git push"', 'gh pr create --body "Avoid \\`git push --force\\`"',
       `gh pr create --title "fix: x" --body "$(cat <<'EOF'\nRun git commit after the review.\nEOF\n)"`,
-      `cd ${shellPath(root)} && echo "run git commit"`,
+      `cd ${gitBashPath(root)} && echo "run git commit"`,
     ];
     for (const command of text) assert.equal(commit(root, command), null, command);
     const asked = [
@@ -2353,7 +2351,7 @@ describe('commit gate', () => {
   test('a plain commit into an ungated repository is left alone, and one with a pipe or redirect is asked about', () => {
     const gated = createRepository({ 'src/cart.js': correctCart });
     loop(gated, ['gate', '--on']);
-    const ungated = shellPath(createRepository({ 'src/cart.js': correctCart }));
+    const ungated = gitBashPath(createRepository({ 'src/cart.js': correctCart }));
     for (const command of [`git -C ${ungated} commit -m x`, `cd ${ungated} && git add -A && git commit -m x`]) {
       assert.equal(commit(gated, command), null, command);
     }
@@ -2369,7 +2367,7 @@ describe('commit gate', () => {
     loop(root, ['gate', '--on']);
     writeFiles(root, { 'src/cart.js': brokenCart });
     const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
-    const repository = shellPath(root);
+    const repository = gitBashPath(root);
     const commands = [
       `pushd ${repository} && git commit -m x`, `cd -P ${repository} && git commit -m x`, `cd -- ${repository} && git commit -m x`,
       `git --git-dir=${repository}/.git commit -m x`, `git --git-dir ${repository}/.git --work-tree ${repository} commit -m x`,
@@ -2457,7 +2455,7 @@ describe('commit gate', () => {
     assert.equal(commit(root, 'cd "$(git rev-parse --show-toplevel)" && git commit -m x').decision, 'ask');
     assert.equal(commit(root, 'git -C missing commit -m x').decision, 'ask');
     const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
-    assert.equal(commit(root, `git -C ${shellPath(plainDirectory)} commit -m x`), null);
+    assert.equal(commit(root, `git -C ${gitBashPath(plainDirectory)} commit -m x`), null);
     const gateOff = createRepository({ 'src/cart.js': correctCart });
     assert.equal(commit(gateOff, 'cd $WORK && git commit -m x'), null);
   });
@@ -2514,10 +2512,10 @@ describe('commit gate', () => {
     loop(root, ['gate', '--on']);
     writeFiles(root, { 'src/cart.js': brokenCart });
     const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
-    assert.equal(commit(root, `(cd ${shellPath(plainDirectory)}) && git commit -m x`).decision, 'deny');
-    assert.equal(commit(plainDirectory, `(cd ${shellPath(root)} && git commit -m x)`).decision, 'deny');
-    assert.equal(commit(plainDirectory, `cd ${shellPath(root)} && git commit -m x || (echo failed)`).decision, 'deny');
-    assert.equal(commit(plainDirectory, `cd ${shellPath(root)} && git commit -m x && echo $(git rev-parse HEAD)`).decision, 'deny');
+    assert.equal(commit(root, `(cd ${gitBashPath(plainDirectory)}) && git commit -m x`).decision, 'deny');
+    assert.equal(commit(plainDirectory, `(cd ${gitBashPath(root)} && git commit -m x)`).decision, 'deny');
+    assert.equal(commit(plainDirectory, `cd ${gitBashPath(root)} && git commit -m x || (echo failed)`).decision, 'deny');
+    assert.equal(commit(plainDirectory, `cd ${gitBashPath(root)} && git commit -m x && echo $(git rev-parse HEAD)`).decision, 'deny');
   });
 
   test('many cds in parentheses stay bounded and still block', () => {
@@ -2611,7 +2609,7 @@ describe('commit gate', () => {
     loop(root, ['gate', '--on']);
     writeFiles(root, { 'src/cart.js': brokenCart });
     const elsewhere = mkdtempSync(path.join(tmpdir(), 'review-loop-cwd-'));
-    assert.equal(gateDecision({ cwd: elsewhere, command: `git -C ${shellPath(root)} commit -m x` }).decision, 'deny');
+    assert.equal(gateDecision({ cwd: elsewhere, command: `git -C ${gitBashPath(root)} commit -m x` }).decision, 'deny');
   });
 });
 
@@ -2630,12 +2628,11 @@ describe('commit gate hook script', () => {
     assert.ok(existsSync(target));
   });
 
-  test('hook fails open on internal gate errors', () => {
+  test('hook fails open on internal gate errors: gateDecision throws on this state and the hook still exits 0 silently', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);
     writeFiles(root, { '.git/lim/review-loop/state.json': JSON.stringify({ resolved: {} }) });
     const payload = { tool_name: 'Bash', tool_input: { command: 'git commit -m x' }, cwd: root };
-    // Prove gateDecision throws on this state, so the silent exit below comes from the hook's catch.
     assert.throws(() => gateDecision({ cwd: payload.cwd, command: payload.tool_input.command }), TypeError);
     const result = spawnSync(process.execPath, [hook], { input: JSON.stringify(payload), encoding: 'utf8' });
     assert.ifError(result.error);

@@ -147,10 +147,9 @@ test('missing git exits 2', { skip: process.platform === 'win32' }, (t) => {
   assert.match(result.stderr, /Cannot run git/);
 });
 
-// The Windows CI job clones one commit, so the sync commit is only there with full history.
-test('this repository has no covered drift past its sync commit', (t) => {
+test('this repository has no covered drift past its sync commit when the clone has full history', (t) => {
   if (execFileSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: root, encoding: 'utf8' }).trim() === 'true') {
-    t.skip('shallow clone');
+    t.skip('shallow clone, such as the one-commit clone on the Windows CI job');
     return;
   }
   const result = run(root);

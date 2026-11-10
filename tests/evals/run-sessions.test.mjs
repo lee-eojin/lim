@@ -13,8 +13,7 @@ const LOOP = '/repo/plugins/review-loop/skills/review-loop/scripts/loop.mjs';
 const VERIFY = '/repo/plugins/verify/skills/verify/scripts/verify.mjs';
 const scenario = (name) => SCENARIOS.find((entry) => entry.name === name);
 
-// A recorded stream: each step is [tool, input] or a string of assistant text; a third entry marks a subagent call.
-function stream(steps, { denied = [], result = 'done' } = {}) {
+function recordedStream(steps, { denied = [], result = 'done' } = {}) {
   const events = [];
   steps.forEach((step, index) => {
     if (typeof step === 'string') {
@@ -83,7 +82,7 @@ test('script calls are labeled by script and arguments, and a command with anyth
 });
 
 test('a session that follows review-loop and verify end to end passes every expectation', () => {
-  const results = checkScenario(scenario('review-with-verify'), buildSession(stream(happySteps), happyRepository));
+  const results = checkScenario(scenario('review-with-verify'), buildSession(recordedStream(happySteps), happyRepository));
   assert.deepEqual(results.filter((item) => !item.pass), []);
   assert.match(outcome(results, 'reproduce-fix-rerun-order').evidence, /loop reproduce --id F-1 -> #\d+ Edit src\/format\.js/);
 });
@@ -92,21 +91,21 @@ test('a fix made before the verify reproduction fails the order expectation and 
   const firstVerify = happySteps.findIndex((step) => Array.isArray(step) && step[0] === 'Bash' && /verify\.mjs run --id two-decimal-places/.test(step[1].command));
   const fixFirst = happySteps.filter((step) => step !== fix);
   fixFirst.splice(firstVerify, 0, fix);
-  const results = checkScenario(scenario('review-with-verify'), buildSession(stream(fixFirst), happyRepository));
+  const results = checkScenario(scenario('review-with-verify'), buildSession(recordedStream(fixFirst), happyRepository));
   const order = outcome(results, 'reproduce-fix-rerun-order');
   assert.equal(order.pass, false);
   assert.match(order.evidence, /loop reproduce --id F-1; then no step matches/);
 });
 
 test('subagent tool calls stay out of the main sequence', () => {
-  const session = buildSession(stream(happySteps), happyRepository);
+  const session = buildSession(recordedStream(happySteps), happyRepository);
   assert.equal(session.steps.some((step) => step.label === 'Read src/format.js'), false);
   assert.deepEqual(session.subagentSteps.map((step) => step.label), ['Read src/format.js']);
 });
 
 test('an unattended run that asks the user, commits, or ends without loop summary fails those expectations', () => {
   const steps = [...happySteps.slice(0, -1), ['AskUserQuestion', { questions: [] }], ['Bash', { command: 'git commit -m wip' }]];
-  const results = checkScenario(scenario('review-with-verify'), buildSession(stream(steps, { denied: [steps.length - 1] }), happyRepository));
+  const results = checkScenario(scenario('review-with-verify'), buildSession(recordedStream(steps, { denied: [steps.length - 1] }), happyRepository));
   assert.equal(outcome(results, 'no-question').pass, false);
   assert.equal(outcome(results, 'no-commit-or-push').pass, false);
   assert.match(outcome(results, 'ends-with-summary').evidence, /last loop command: loop record/);
@@ -114,15 +113,15 @@ test('an unattended run that asks the user, commits, or ends without loop summar
 
 test('a resolved finding whose verify check never passed on the fixed code is not resolved as measured', () => {
   const repository = { ...happyRepository, reviewState: { resolved: [{ ...happyRepository.reviewState.resolved[0], rerun: undefined }] } };
-  const result = outcome(checkScenario(scenario('review-with-verify'), buildSession(stream(happySteps), repository)), 'resolved-measured');
+  const result = outcome(checkScenario(scenario('review-with-verify'), buildSession(recordedStream(happySteps), repository)), 'resolved-measured');
   assert.equal(result.pass, false);
   assert.match(result.evidence, /rerun none/);
 });
 
 test('a report counts as shown first only when the next text opens a code block before any other tool runs', () => {
-  const shown = buildSession(stream([verify('run'), '```\nreport\n```']));
-  const late = buildSession(stream([verify('run'), ['Read', { file_path: 'x' }], '```\nreport\n```']));
-  const prose = buildSession(stream([verify('run'), 'All three checks passed.']));
+  const shown = buildSession(recordedStream([verify('run'), '```\nreport\n```']));
+  const late = buildSession(recordedStream([verify('run'), ['Read', { file_path: 'x' }], '```\nreport\n```']));
+  const prose = buildSession(recordedStream([verify('run'), 'All three checks passed.']));
   assert.equal(reportShownAfter(shown, /^verify run/).pass, true);
   assert.equal(reportShownAfter(late, /^verify run/).pass, false);
   assert.equal(reportShownAfter(prose, /^verify run/).pass, false);
@@ -130,11 +129,11 @@ test('a report counts as shown first only when the next text opens a code block 
 
 test('report-first fails when an earlier verify run is not followed by its report, even if the last one is', () => {
   const steps = [verify('run'), 'Two checks failed.', verify('run --id slug'), '```\nreport\n```'];
-  const result = outcome(checkScenario(scenario('verify-tool'), buildSession(stream(steps))), 'report-first');
+  const result = outcome(checkScenario(scenario('verify-tool'), buildSession(recordedStream(steps))), 'report-first');
   assert.equal(result.pass, false);
   assert.match(result.evidence, /Two checks failed/);
   const shown = [verify('run'), '```\nfirst report\n```', verify('run --id slug'), '```\nsecond report\n```'];
-  assert.equal(outcome(checkScenario(scenario('verify-tool'), buildSession(stream(shown))), 'report-first').pass, true);
+  assert.equal(outcome(checkScenario(scenario('verify-tool'), buildSession(recordedStream(shown))), 'report-first').pass, true);
 });
 
 test('the checks scenario accepts a checks P1 as its own proof and rejects another fixed P2 without a regression step', () => {
@@ -143,14 +142,14 @@ test('the checks scenario accepts a checks P1 as its own proof and rejects anoth
     reviewState: { resolved: [{ id: 'F-1', severity: 'P1', fromChecks: true, title: 'test failed' }], open: [] },
   };
   const steps = [['Skill', { skill: 'review-loop:review-loop' }], loop('start --unattended')];
-  const regression = (repository) => outcome(checkScenario(scenario('failing-check'), buildSession(stream(steps), repository)), 'regression-or-reason');
+  const regression = (repository) => outcome(checkScenario(scenario('failing-check'), buildSession(recordedStream(steps), repository)), 'regression-or-reason');
   assert.equal(regression(checksOnly).pass, true);
   const withP2 = { ...checksOnly, ledger: [], reviewState: { resolved: [...checksOnly.reviewState.resolved, { id: 'F-2', severity: 'P2', title: 'trailing hyphen' }] } };
   assert.match(regression(withP2).evidence, /no regression entry for F-2/);
 });
 
 test('an explanation with a forbidden character or a transliterated concept fails', () => {
-  const answer = (text) => checkScenario(scenario('explain-korean'), buildSession(stream([['Skill', { skill: 'clear-explain:clear-explain' }]], { result: text }), { changedFiles: [] }));
+  const answer = (text) => checkScenario(scenario('explain-korean'), buildSession(recordedStream([['Skill', { skill: 'clear-explain:clear-explain' }]], { result: text }), { changedFiles: [] }));
   const clean = answer('closure는 함수가 만들어진 scope의 변수를 기억하는 함수입니다.');
   assert.deepEqual(clean.filter((item) => !item.pass), []);
   const dash = answer(`closure는 함수입니다${String.fromCharCode(0x2014)}변수를 기억합니다.`);
@@ -214,19 +213,19 @@ test('deleting the existing test file fails tests-not-weakened', () => {
 
 test('ends-with-summary only requires loop summary as the last loop command', () => {
   const steps = [loop('summary'), loop('next'), loop('record --file x.json')];
-  const result = outcome(checkScenario(scenario('failing-check'), buildSession(stream(steps))), 'ends-with-summary');
+  const result = outcome(checkScenario(scenario('failing-check'), buildSession(recordedStream(steps))), 'ends-with-summary');
   assert.equal(result.pass, false);
   assert.match(result.evidence, /last loop command: loop record/);
   const ended = [loop('record --file x.json'), loop('summary'), 'Waiting for you.'];
-  assert.equal(outcome(checkScenario(scenario('failing-check'), buildSession(stream(ended))), 'ends-with-summary').pass, true);
+  assert.equal(outcome(checkScenario(scenario('failing-check'), buildSession(recordedStream(ended))), 'ends-with-summary').pass, true);
 });
 
 test('hook-owns-loop-reports fails when Claude pastes a loop report the hook already shows', () => {
   const pasted = [...happySteps.slice(0, -1), '```\nRound 2 of 3\n```', loop('summary')];
-  const pastedOutcome = outcome(checkScenario(scenario('review-with-verify'), buildSession(stream(pasted), happyRepository)), 'hook-owns-loop-reports');
+  const pastedOutcome = outcome(checkScenario(scenario('review-with-verify'), buildSession(recordedStream(pasted), happyRepository)), 'hook-owns-loop-reports');
   assert.equal(pastedOutcome.pass, false);
   assert.match(pastedOutcome.evidence, /pasted after/);
-  assert.equal(reportNotPastedAfter(buildSession(stream(happySteps), happyRepository), /^loop (record\b|summary$)/).pass, true);
+  assert.equal(reportNotPastedAfter(buildSession(recordedStream(happySteps), happyRepository), /^loop (record\b|summary$)/).pass, true);
 });
 
 test('a finding recorded as keep is not offered again in the closing message', () => {
@@ -235,10 +234,10 @@ test('a finding recorded as keep is not offered again in the closing message', (
     ledger: [...happyRepository.ledger, { event: 'decision', id: 'F-2', choice: 'keep', title: 'Debug log left in' }],
     reviewState: { ...happyRepository.reviewState, kept: [{ id: 'F-2', severity: 'P3', title: 'Debug log left in' }] },
   };
-  const ok = buildSession(stream(happySteps, { result: 'Kept as is at your request:\n- F-2 [P3] Debug log left in\nNothing else to fix.' }), keptRepo);
+  const ok = buildSession(recordedStream(happySteps, { result: 'Kept as is at your request:\n- F-2 [P3] Debug log left in\nNothing else to fix.' }), keptRepo);
   assert.equal(keptNotReoffered(ok).pass, true);
   assert.equal(outcome(checkScenario(scenario('review-with-verify'), ok), 'kept-not-reoffered').pass, true);
-  const bad = buildSession(stream(happySteps, { result: 'You could fix F-2 or delete the F-2 comment before committing.' }), keptRepo);
+  const bad = buildSession(recordedStream(happySteps, { result: 'You could fix F-2 or delete the F-2 comment before committing.' }), keptRepo);
   assert.equal(keptNotReoffered(bad).pass, false);
   assert.match(keptNotReoffered(bad).evidence, /F-2/);
 });
@@ -260,7 +259,7 @@ test('a keep-finding session that keeps the finding and only lists it as kept pa
     changedFiles: ['src/slug.js'],
     files: {},
   };
-  const results = checkScenario(scenario('keep-finding'), buildSession(stream(keepSteps, { result: 'Kept F-1 as is. Nothing is committed.' }), keptRepo));
+  const results = checkScenario(scenario('keep-finding'), buildSession(recordedStream(keepSteps, { result: 'Kept F-1 as is. Nothing is committed.' }), keptRepo));
   assert.deepEqual(results.filter((item) => !item.pass), []);
 });
 
@@ -279,7 +278,7 @@ test('offering to fix a kept finding after the keep fails the kept-not-reoffered
     changedFiles: ['src/slug.js'],
     files: {},
   };
-  const bad = buildSession(stream(keepSteps, { result: 'You could fix F-1 or delete the F-1 console.log before committing.' }), keptRepo);
+  const bad = buildSession(recordedStream(keepSteps, { result: 'You could fix F-1 or delete the F-1 console.log before committing.' }), keptRepo);
   assert.equal(keptNotReoffered(bad).pass, false);
   assert.match(keptNotReoffered(bad).evidence, /F-1/);
   assert.equal(outcome(checkScenario(scenario('keep-finding'), bad), 'kept-not-reoffered').pass, false);
@@ -298,11 +297,11 @@ test('In an unattended run Claude never uses AskUserQuestion and takes the safe 
     loop('note --phase fix --decision "padded cents" --why "unattended: smallest fix" --evidence "verify failed"'),
     ...happySteps.slice(happySteps.indexOf(fix) + 1),
   ];
-  const results = checkScenario(scenario('review-with-verify'), buildSession(stream(withNote), happyRepository));
+  const results = checkScenario(scenario('review-with-verify'), buildSession(recordedStream(withNote), happyRepository));
   assert.equal(outcome(results, 'no-question').pass, true);
   assert.equal(outcome(results, 'no-commit-or-push').pass, true);
   assert.equal(outcome(results, 'ends-with-summary').pass, true);
   assert.ok(withNote.some((step) => Array.isArray(step) && /loop\.mjs note /.test(step[1]?.command ?? '')));
   const asked = [...happySteps.slice(0, -1), ['AskUserQuestion', { questions: [] }], loop('summary')];
-  assert.equal(outcome(checkScenario(scenario('review-with-verify'), buildSession(stream(asked), happyRepository)), 'no-question').pass, false);
+  assert.equal(outcome(checkScenario(scenario('review-with-verify'), buildSession(recordedStream(asked), happyRepository)), 'no-question').pass, false);
 });

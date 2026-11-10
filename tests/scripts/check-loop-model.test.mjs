@@ -18,10 +18,9 @@ function lookup(moduleText) {
   const definition = (name) => parseValue(moduleText.match(new RegExp(`^${name} == (<<[\\s\\S]*?>>)\\n(?=\\w)`, 'm'))[1]);
   const outcomes = definition('Outcomes');
   const rows = definition('Rows');
-  // CountsCode in the generated module reads the first count as the lowest digit.
   return ({ counts, waiting, unproven, stuck, regressions }) => {
-    const code = counts.reduceRight((sum, count) => sum * (bounds.slots + 1) + count, 0);
-    return outcomes[rows[counts.length - 1][code][waiting][unproven][stuck][regressions] - 1];
+    const codeLowestCountFirst = counts.reduceRight((sum, count) => sum * (bounds.slots + 1) + count, 0);
+    return outcomes[rows[counts.length - 1][codeLowestCountFirst][waiting][unproven][stuck][regressions] - 1];
   };
 }
 
