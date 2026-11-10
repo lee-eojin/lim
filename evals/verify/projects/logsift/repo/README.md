@@ -20,7 +20,7 @@ ERR 1
 ```
 
 - A log line is `<date> <time> <LEVEL> <message>`. The levels, lowest first, are `DBG`, `INF`, `WRN`, and `ERR`. Lines without a level, such as indented details, are left out.
-- Without options, every log line is printed as it is in the file, spaces included, one line each. Every printed line ends with a newline, even when the last line of the file has none.
+- Without options, every log line is printed as it is in the file.
 - `--min <level>` keeps lines at that level or higher. The level name ignores case, so `wrn` and `WRN` are the same.
 - `--grep <text>` keeps lines whose message contains the text, ignoring case.
 - `--levels` prints how many lines each level has, one `<LEVEL> <number>` line per level that has any, lowest level first. It counts after `--min` and `--grep`.
