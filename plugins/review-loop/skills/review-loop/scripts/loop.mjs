@@ -618,13 +618,17 @@ export function changedProjects(root, files) {
 
 const projectFileOf = (item) => (item.fromChecks ? `${item.folder || '.'}/.` : item.file);
 
-function checkedFolders(root, files) {
-  return ['', ...changedProjects(root, files).slice(0, MAX_PROJECTS)];
+function projectsToCheck(root, files, recheckedFiles = []) {
+  const changed = changedProjects(root, files);
+  return [...changed, ...changedProjects(root, recheckedFiles).filter((project) => !changed.includes(project))];
+}
+
+function checkedFolders(root, files, recheckedFiles = []) {
+  return ['', ...projectsToCheck(root, files, recheckedFiles).slice(0, MAX_PROJECTS)];
 }
 
 function selectChecks(root, files, recheckedFiles = []) {
-  const changed = changedProjects(root, files);
-  const projects = [...changed, ...changedProjects(root, recheckedFiles).filter((project) => !changed.includes(project))];
+  const projects = projectsToCheck(root, files, recheckedFiles);
   const seen = new Set();
   const checks = ['', ...projects.slice(0, MAX_PROJECTS)].flatMap((folder) => detectFolderChecks(root, folder)).filter((check) => {
     if (!check.command) return true;
@@ -736,9 +740,9 @@ function checkFingerprint(check) {
   return fingerprint({ file: checkTarget(check), category: 'checks', quote: checkTarget(check) });
 }
 
-function passedCheckPrints(root, checks, files) {
+function passedCheckPrints(root, checks, files, recheckedFiles = []) {
   const passed = checks.filter((check) => check.exitCode === 0);
-  const manifestReads = checkedFolders(root, files)
+  const manifestReads = checkedFolders(root, files, recheckedFiles)
     .filter((folder) => existsSync(path.join(root, folder, 'package.json')))
     .filter((folder) => !checks.some((check) => check.command === MANIFEST_READ && (check.folder ?? '') === folder))
     .map((folder) => (folder ? { folder, command: MANIFEST_READ } : { command: MANIFEST_READ }));
@@ -1101,9 +1105,12 @@ function clampRounds(value) {
   return Number.isNaN(rounds) ? DEFAULT_MAX_ROUNDS : Math.min(Math.max(rounds, 1), MAX_ROUNDS_LIMIT);
 }
 
+function recheckedFilesOf(state) {
+  return [...state.open, ...(state.deferred ?? []), ...(state.kept ?? [])].filter((item) => item.fromChecks).map(projectFileOf);
+}
+
 function runRoundChecks(repository, state) {
-  const failingChecks = [...state.open, ...(state.deferred ?? []), ...(state.kept ?? [])].filter((item) => item.fromChecks).map(projectFileOf);
-  const { checks, leftOut } = selectChecks(repository.root, state.files ?? [], failingChecks);
+  const { checks, leftOut } = selectChecks(repository.root, state.files ?? [], recheckedFilesOf(state));
   state.checks = runChecks(repository.root, repository.file(`round-${state.round}.checks.log`), checks);
   state.checksLeftOut = leftOut;
   state.latestChecks = state.checks;
@@ -1287,7 +1294,7 @@ function recordReview(repository, input) {
   const diffText = readFileSync(repository.file(`round-${state.round}.diff`), 'utf8');
   const filesInRound = new Set(state.files);
   const failingChecks = checkFindings(state.checks);
-  const passedPrints = passedCheckPrints(repository.root, state.checks, state.files ?? []);
+  const passedPrints = passedCheckPrints(repository.root, state.checks, state.files ?? [], recheckedFilesOf(state));
   const unverified = new Map(state.checks.filter(isNotVerified).map((check) => [checkFingerprint(check), check]));
   const resolvedIds = new Set(review.resolved ?? []);
   const isResolved = (item) => (item.fromChecks ? passedPrints.has(item.fingerprint) : resolvedIds.has(item.id) && !rerunBlocks(item));
@@ -1804,15 +1811,16 @@ function rerunChecks(cwd) {
   const tree = snapshotTree(repository);
   let checks;
   let leftOut;
-  const files = state?.awaiting === 'review' ? state.files ?? [] : state?.reviewedFiles ?? state?.files ?? [];
-  if (state?.awaiting === 'review') {
+  const reviewing = state?.awaiting === 'review';
+  const files = reviewing ? state.files ?? [] : state?.reviewedFiles ?? state?.files ?? [];
+  if (reviewing) {
     checks = runRoundChecks(repository, state);
     leftOut = state.checksLeftOut;
   } else {
     ({ checks, leftOut } = runFinalChecks(repository, state, files));
   }
   logEvent(repository, { event: 'checks', tree, checks: checkEvents(checks) });
-  endKeepsThatPassed(repository, passedCheckPrints(repository.root, checks, files));
+  endKeepsThatPassed(repository, passedCheckPrints(repository.root, checks, files, reviewing ? recheckedFilesOf(state) : []));
   return {
     checks,
     ...leftOutField(leftOut),
