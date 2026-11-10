@@ -31,6 +31,18 @@
       "feature": "Lists an empty list",
       "run": ["node", "bin/jot.js", "--file", "tmp/empty.json", "list"],
       "expect": { "exitCode": 0, "stdout": { "equals": "No todos." } }
+    },
+    {
+      "id": "jot-usage-not-a-number",
+      "feature": "Prints the usage line for done with something that is not a number",
+      "run": ["node", "bin/jot.js", "--file", "tmp/none.json", "done", "abc"],
+      "expect": { "exitCode": 1, "stderr": { "includes": "Usage: jot " } }
+    },
+    {
+      "id": "jot-usage-file-no-path",
+      "feature": "Prints the usage line for --file without a path",
+      "run": ["node", "bin/jot.js", "list", "--file"],
+      "expect": { "exitCode": 1, "stderr": { "includes": "Usage: jot " } }
     }
   ]
 }
