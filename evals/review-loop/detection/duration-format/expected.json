@@ -1,5 +1,5 @@
 {
-  "intent": "Log job durations in a readable form such as 1m 5s",
+  "intent": "Log job durations in a readable form such as 1m 5s, rounded to whole seconds",
   "root": "repo",
   "diff": "change.diff",
   "seeded": null,
