@@ -2844,6 +2844,27 @@ describe('kept findings', () => {
     assert.equal(result.fix[0].fromChecks, true);
     assert.doesNotMatch(result.report, /kept before/);
   });
+
+  test('a failing check kept in an earlier run is offered again after the final checks saw it pass once', () => {
+    const flagged = JSON.stringify({ scripts: { test: 'node -e "process.exit(require(\'node:fs\').existsSync(\'flag\') ? 0 : 1)"' } });
+    const root = createRepository({ 'package.json': flagged, 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    keepInFirstReview(root, [], ['--max-rounds', '1']);
+    const first = loop(root, ['record'], { findings: [doubledPrice] });
+    const cart = first.fix.find((item) => item.file === 'src/cart.js').id;
+    assert.ok(first.fix.every((item) => !item.fromChecks));
+    writeFiles(root, { 'src/cart.js': correctCart });
+    loop(root, ['next']);
+    assert.equal(loop(root, ['record'], { resolved: [cart], findings: [] }).reason, 'proof');
+    writeFiles(root, { flag: '' });
+    assert.equal(loop(root, ['rule', '--id', cart, '--no-test', 'the total is only visible in the browser']).decision, 'stop');
+    rmSync(path.join(root, 'flag'));
+    writeFiles(root, { 'src/extra.js': 'export {};\n' });
+    assert.equal(loop(root, ['start', '--fresh']).status, 'review');
+    const result = loop(root, ['record'], { findings: [] });
+    assert.equal(result.fix[0].fromChecks, true);
+    assert.doesNotMatch(result.report, /kept before/);
+  });
 });
 
 describe('repeated kinds', () => {
