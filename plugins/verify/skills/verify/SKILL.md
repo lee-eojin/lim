@@ -60,7 +60,7 @@ Run `verify run`. To run one check, `verify run --id <id>` (repeat `--id` for mo
 The script decides each check with fixed rules:
 - `pass`: the command finished within its time limit, the exit code matched, and every expected output and file matched.
 - `fail`: the command finished, but the exit code, an output, or a file did not match. Each reason is listed.
-- `not verified`: the command timed out, or it was not run because its script, program, or `stdin` file does not exist, or because a file it expects, its `stdin` file, or a file named in `run` already satisfied a rule before the run, or because a rule could not be judged: its stream was longer than the 1,048,576 characters the script keeps, or matching a `matches` rule threw an error or did not finish in time; or because a path in it now leaves the repository through a link an earlier check made. It is neither a pass nor a fail.
+- `not verified`: the command timed out, or it was not run because its script, program, or `stdin` file does not exist, or because a file it expects, its `stdin` file, or a file named in `run` already satisfied a rule before the run, or because a rule could not be judged: its stream was longer than the 1,048,576 characters the script keeps, or matching a `matches` rule threw an error or did not finish in time, or the output differed from an `equals` or `includes` rule only by blanks at line ends that no starting file holds, which usually means the file was written without them; or because a path in it now leaves the repository through a link an earlier check made. It is neither a pass nor a fail.
 
 ## 4. Report
 
