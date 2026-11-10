@@ -22,8 +22,7 @@ function filesUnder(folder) {
 
 const phrasesOf = (text) => String(text).split('\n').map((line) => line.trim()).filter((line) => line.length >= SHORTEST_PHRASE);
 
-// A renamed copy of a benchmark example keeps its inputs and outputs, so their words are matched one by one.
-const tokensOf = (text) => String(text).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((word) => [...word].length >= SHORTEST_TOKEN);
+const wordsKeptByRenamedCopy = (text) => String(text).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((word) => [...word].length >= SHORTEST_TOKEN);
 
 function expectedTexts(rule) {
   if (!rule) return [];
@@ -42,16 +41,14 @@ function fencedLines(markdown) {
   return lines;
 }
 
-// Common words that a benchmark input or output shares with ordinary plugin prose, one per line as `word: reason`.
-export function readAllowlist() {
+export function readSharedProseWords() {
   return new Map(readFileSync(allowlistFile, 'utf8').split('\n').filter((line) => line.trim() && !line.startsWith('#')).map((line) => {
     const [word, ...reason] = line.split(':');
     return [word.trim(), reason.join(':').trim()];
   }));
 }
 
-// Everything that would tell Claude which checks catch the benchmark's breaks.
-export function benchmarkTerms() {
+export function termsRevealingBenchmarkChecks() {
   const phrases = new Set();
   const tokens = new Set();
   for (const project of readdirSync(projectsDir)) {
@@ -81,15 +78,15 @@ export function benchmarkTerms() {
       phrases.add(entry.id);
       phrases.add(entry.feature);
       phrasesOf(entry.run.join(' ')).forEach((phrase) => phrases.add(phrase));
-      // The interpreter is the run form every check uses, which the plugin must name; the script and arguments are the benchmark's own.
-      for (const argument of INTERPRETERS.includes(entry.run[0]) ? entry.run.slice(1) : entry.run) {
+      const argumentsAfterSharedInterpreter = INTERPRETERS.includes(entry.run[0]) ? entry.run.slice(1) : entry.run;
+      for (const argument of argumentsAfterSharedInterpreter) {
         phrasesOf(argument).forEach((phrase) => phrases.add(phrase));
-        tokensOf(argument).forEach((token) => tokens.add(token));
+        wordsKeptByRenamedCopy(argument).forEach((token) => tokens.add(token));
       }
       const expect = entry.expect;
       for (const text of [expect.stdout, expect.stderr, ...(expect.files ?? [])].flatMap(expectedTexts)) {
         phrasesOf(text).forEach((phrase) => phrases.add(phrase));
-        tokensOf(text).forEach((token) => tokens.add(token));
+        wordsKeptByRenamedCopy(text).forEach((token) => tokens.add(token));
       }
       for (const file of expect.files ?? []) phrases.add(file.path);
     }
@@ -106,8 +103,8 @@ function phrasePattern(term) {
 const tokenPattern = (token) => new RegExp(`(?<![\\p{L}\\p{N}])${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'iu');
 
 function matchers() {
-  const { phrases, tokens } = benchmarkTerms();
-  const allowed = readAllowlist();
+  const { phrases, tokens } = termsRevealingBenchmarkChecks();
+  const allowed = readSharedProseWords();
   return [
     ...phrases.map((term) => [term, phrasePattern(term)]),
     ...tokens.filter((token) => !allowed.has(token)).map((token) => [token, tokenPattern(token)]),
@@ -119,7 +116,7 @@ function hitsIn(text, patterns = matchers()) {
 }
 
 test('the forbidden list is built from every benchmark project', () => {
-  const { phrases, tokens } = benchmarkTerms();
+  const { phrases, tokens } = termsRevealingBenchmarkChecks();
   for (const project of readdirSync(projectsDir)) assert.ok(phrases.includes(project), project);
   assert.ok(phrases.includes('Turns accented letters into plain letters'), 'feature sentences');
   assert.ok(phrases.length > 40, `only ${phrases.length} phrases`);
@@ -129,9 +126,9 @@ test('the forbidden list is built from every benchmark project', () => {
 });
 
 test('each allowlisted word is a benchmark token, has a reason, and would otherwise hit a plugin file', () => {
-  const { tokens } = benchmarkTerms();
+  const { tokens } = termsRevealingBenchmarkChecks();
   const pluginText = filesUnder(pluginDir).map((file) => readFileSync(file, 'utf8')).join('\n');
-  for (const [word, reason] of readAllowlist()) {
+  for (const [word, reason] of readSharedProseWords()) {
     assert.ok(tokens.includes(word), `${word} is not a benchmark token`);
     assert.ok(reason.length > 20, `${word} needs a reason`);
     assert.ok(tokenPattern(word).test(pluginText), `${word} no longer appears in the plugin, so it does not need an exception`);

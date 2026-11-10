@@ -39,7 +39,7 @@ Guidance for AI agents working in this repository. Humans are welcome to read it
 | A plugin imports only files inside its own folder, because an install copies only that folder | `tests/scripts/sync-shared.test.mjs` |
 | Code in `plugins/`, `scripts/`, and `shared/` compares real paths with `realpathSync.native` | `tests/scripts/realpath-native.test.mjs`; `tests/shared/entry-point.test.mjs` starts each guarded script directly and through a link |
 | Hooks are opt-in except those that only display their plugin's own command results with `systemMessage` alone | `tests/scripts/hook-rule.test.mjs` inventories every registered hook and checks opt-in effects and display-only outputs |
-| `.mjs` files under `plugins/`, `scripts/`, `evals/`, and `shared/` have no comments, except the fixture paths in `EXCLUDED` | `node scripts/check-comments.mjs`; `tests/scripts/check-comments.test.mjs` runs it on this repository |
+| `.mjs` files under `plugins/`, `scripts/`, `evals/`, `shared/`, and `tests/` have no comments, except the fixture paths in `EXCLUDED` | `node scripts/check-comments.mjs`; `tests/scripts/check-comments.test.mjs` runs it on this repository |
 | No blocked words, no invalid JSON | `scripts/check.sh` (blocked words only with `LIM_DENYLIST` or `LIM_DENYLIST_FILE`; in CI a missing list fails the check, except on pull requests from forks) |
 | Translations keep the English README's headings, numbers, and links | `node scripts/check-i18n.mjs` |
 | An evidence report has REVISION, REPRO, RUN, PROOF, LIMITS, and a known verdict | `node scripts/check-evidence-report.mjs <file>`, required by `.claude/skills/prove-it/SKILL.md` |

@@ -11,8 +11,8 @@ import { definitionOf, judge, satisfies, validateMap } from '../../plugins/verif
 
 const script = fileURLToPath(new URL('../../plugins/verify/skills/verify/scripts/verify.mjs', import.meta.url));
 const windows = process.platform === 'win32';
-// A #! line names a POSIX path, so on Windows one that names a file by its C:\ path is not a #! line that runs node or python3.
-const insideInterpreter = (line, name) => (windows
+const hashBangNamesPosixPathOnly = windows;
+const insideInterpreter = (line, name) => (hashBangNamesPosixPathOnly
   ? `whose first line ${JSON.stringify(line)} does not run node or python3 without options`
   : `whose first line runs "${line.slice(2)}", a file in the repository, not an installed ${name}`);
 

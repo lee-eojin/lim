@@ -25,8 +25,7 @@ function fixture(t, skill = valid, manifest = 'tool', directory = 'tool') {
   return run(cwd);
 }
 
-// Static structure only: this cannot prove Claude runtime loading.
-test('static entry skill structure checks all five repository plugins', () => {
+test('static entry skill structure checks all five repository plugins without proving Claude loads them at runtime', () => {
   const result = run(root);
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Checked 5 plugin entry skills/);
