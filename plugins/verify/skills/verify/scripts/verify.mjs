@@ -372,11 +372,10 @@ function startingFileLostBlanks(rule, text, startingTexts) {
   const kind = 'includes' in rule ? 'includes' : 'equals';
   if (!satisfies({ [kind]: withoutBlanksAtLineEnds(rule[kind]) }, withoutBlanksAtLineEnds(text))) return false;
   const padded = rule[kind].split('\n').filter((line) => /[ \t]$/.test(line));
-  return padded.length > 0 && padded.every((line) => {
-    const bare = withoutBlanksAtLineEnds(line);
-    return Boolean(bare) && startingTexts.some((starting) => starting.includes(bare)) && !startingTexts.some((starting) => starting.includes(line));
-  });
+  return padded.length > 0 && padded.every((line) => endsALine(startingTexts, withoutBlanksAtLineEnds(line)) && !endsALine(startingTexts, line));
 }
+
+const endsALine = (texts, end) => texts.some((text) => text.split('\n').some((line) => (end ? line.endsWith(end) : line === end)));
 
 function satisfiesIgnoringWhitespace(rule, text) {
   if ('matches' in rule) return false;
@@ -826,6 +825,7 @@ async function runEntry(root, entry, timeoutMs, deadline) {
   });
   const checkFiles = namedCheckFiles(root, entry, cwd).map((file) => ({ file, before: hashOf(path.join(root, file)) }));
   const stdin = outside.length ? {} : stdinOf(root, entry);
+  const startingTexts = startingTextsOf(root, entry, stdin);
   const notRun = timeoutMs <= 0 ? [] : outside.length ? outside : notRunReasons(root, entry, stdin, watched, matchLimitOf(timeoutMs, deadline));
   const commandLimit = Math.min(timeoutMs, deadline - Date.now());
   if (!notRun.length && commandLimit <= 0) notRun.push('the time budget for this run was used up');
@@ -842,7 +842,7 @@ async function runEntry(root, entry, timeoutMs, deadline) {
   for (const checkFile of checkFiles) checkFile.after = hashOf(path.join(root, checkFile.file));
   const verdict = outcome.notRun
     ? { status: 'not-verified', reasons: outcome.notRun.map((reason) => `not run: ${reason}`) }
-    : judge(entry, outcome, files, matchLimitOf(timeoutMs, deadline), startingTextsOf(root, entry, stdin));
+    : judge(entry, outcome, files, matchLimitOf(timeoutMs, deadline), startingTexts);
   const check = {
     id: entry.id,
     feature: entry.feature,

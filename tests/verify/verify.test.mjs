@@ -497,6 +497,25 @@ describe('checks that cannot fail are refused', () => {
     assert.deepEqual(result.checks.map((check) => check.status), ['fail']);
   });
 
+  test('the starting file is read before the check runs and must hold the bare line at a line end', () => {
+    const rewrite = "const fs = require('node:fs'); const text = fs.readFileSync(process.argv[2], 'utf8'); for (const line of text.split('\\n')) if (line.startsWith('INF')) console.log(line.trimEnd()); fs.writeFileSync(process.argv[2], text.replace(/[ \\t]+$/gm, ''));\n";
+    const suffix = "for (const line of require('node:fs').readFileSync(process.argv[2], 'utf8').split('\\n')) if (line.startsWith('INF')) console.log(line.replace(/X$/, ''));\n";
+    const keep = "for (const line of require('node:fs').readFileSync(process.argv[2], 'utf8').split('\\n')) if (!line.startsWith('DBG')) console.log(line);\n";
+    const expected = { exitCode: 0, stdout: { equals: 'INF belt replaced  \nINF stopped' } };
+    const rewritten = { id: 'rewritten', feature: 'Prints the INF lines as they are', run: ['node', 'tools/rewrite.js', 'verify-checks/rewrite.txt'], expect: expected };
+    const longer = { id: 'longer', feature: 'Prints the INF lines as they are', run: ['node', 'tools/suffix.js', 'verify-checks/longer.txt'], expect: expected };
+    const blank = { id: 'blank', feature: 'Prints the lines that are not DBG', run: ['node', 'tools/keep.js', 'verify-checks/blank.txt'], expect: { exitCode: 0, stdout: { equals: 'INF a\n  \nINF b' } } };
+    const result = verify(createRepository([rewritten, longer, blank], {
+      'tools/rewrite.js': rewrite,
+      'tools/suffix.js': suffix,
+      'tools/keep.js': keep,
+      'verify-checks/rewrite.txt': 'INF belt replaced  \nDBG skipped\nINF stopped\n',
+      'verify-checks/longer.txt': 'INF belt replacedX\nINF stopped\n',
+      'verify-checks/blank.txt': 'INF a\n\nDBG skipped\nINF b',
+    }), 'run');
+    assert.deepEqual(result.checks.map((check) => check.status), ['fail', 'fail', 'not-verified']);
+  });
+
   test('a file named in run or a stdin file that cannot be read makes only that check not verified', {
     skip: (windows || process.getuid?.() === 0) && 'mode 000 does not stop Windows or root from reading a file',
   }, () => {
