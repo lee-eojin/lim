@@ -21,7 +21,7 @@ allocate("-1.00", 2)   # raises ValueError: Cannot allocate a negative amount: '
 
 ## to_cents(text)
 
-Returns the amount as a whole number of cents. An amount is digits with an optional leading `-`, optional commas between groups of three digits, and at most two decimals. Anything else raises `ValueError: Not an amount: '<text>'`.
+Returns the amount as a whole number of cents. An amount is digits with an optional leading `-`, optional commas between groups of three digits, and at most two decimals. Spaces around the amount are ignored, so `" 12.34 "` is 1234. Anything else raises `ValueError: Not an amount: '<text>'`.
 
 ## from_cents(cents)
 
