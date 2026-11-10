@@ -16,7 +16,7 @@ new file mode 100644
 index 0000000..c0fb5dc
 --- /dev/null
 +++ b/src/webhooks.js
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,25 @@
 +import { updateShipment } from './shipments.js';
 +import { verifySignature } from './signature.js';
 +
@@ -33,9 +33,12 @@ index 0000000..c0fb5dc
 +  if (event.type === 'ping') {
 +    return { status: 200, body: { ok: true } };
 +  }
-+  await updateShipment(event.data.shipmentId, {
++  const shipment = await updateShipment(event.data.shipmentId, {
 +    status: event.data.status,
 +    trackingNumber: event.data.tracking?.number ?? null,
 +  });
++  if (!shipment) {
++    return { status: 404, body: { error: 'unknown shipment' } };
++  }
 +  return { status: 200, body: { ok: true } };
 +}
