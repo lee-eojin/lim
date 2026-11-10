@@ -100,6 +100,7 @@ const isObject = (value) => value !== null && typeof value === 'object' && !Arra
 const quote = (text) => JSON.stringify(text);
 const cleanOutput = (text) => text.replace(ANSI, '').replace(/\r\n/g, '\n');
 const rulesOf = (value) => (value === undefined ? [] : [value].flat());
+const STREAMS = ['stdout', 'stderr'];
 
 class UsageError extends Error {}
 
@@ -364,6 +365,17 @@ function satisfiesAll(pairs, deadline) {
 }
 
 const withoutWhitespace = (text) => text.replace(/\s+/g, '');
+const withoutBlanksAtLineEnds = (text) => text.replace(/[ \t]+$/gm, '');
+
+function startingFileLostBlanks(rule, text, startingTexts) {
+  if ('matches' in rule) return false;
+  const kind = 'includes' in rule ? 'includes' : 'equals';
+  if (!satisfies({ [kind]: withoutBlanksAtLineEnds(rule[kind]) }, withoutBlanksAtLineEnds(text))) return false;
+  const padded = rule[kind].split('\n').filter((line) => /[ \t]$/.test(line));
+  return padded.length > 0 && padded.every((line) => endsALine(startingTexts, withoutBlanksAtLineEnds(line)) && !endsALine(startingTexts, line));
+}
+
+const endsALine = (texts, end) => texts.some((text) => text.split('\n').some((line) => (end ? line.endsWith(end) : line === end)));
 
 function satisfiesIgnoringWhitespace(rule, text) {
   if ('matches' in rule) return false;
@@ -676,7 +688,7 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
   });
 }
 
-export function judge(entry, outcome, files = [], limitMs = Infinity) {
+export function judge(entry, outcome, files = [], limitMs = Infinity, startingTexts = []) {
   if (outcome.timedOut) return { status: 'not-verified', reasons: [`timed out after ${outcome.timeoutMs} ms`] };
   if (outcome.startError) return { status: 'not-verified', reasons: [`the command could not start: ${outcome.startError}`] };
   const expect = entry.expect;
@@ -685,7 +697,7 @@ export function judge(entry, outcome, files = [], limitMs = Infinity) {
   const findings = [];
   if (outcome.exitCode === null) reasons.push(`the command was killed by ${outcome.signal}`);
   else if (outcome.exitCode !== expect.exitCode) reasons.push(`exit code ${outcome.exitCode}, expected ${expect.exitCode}`);
-  for (const stream of ['stdout', 'stderr']) {
+  for (const stream of STREAMS) {
     const rules = rulesOf(expect[stream]);
     if (rules.length && outcome.truncated?.includes(stream)) {
       notJudged.push(`${stream} was not judged: it is longer than the ${CAPTURE_LIMIT} characters verify keeps`);
@@ -707,7 +719,7 @@ export function judge(entry, outcome, files = [], limitMs = Infinity) {
       reasons.push(finding);
       continue;
     }
-    const [subject, rule] = finding;
+    const [subject, rule, text] = finding;
     const satisfied = results.next().value;
     if (satisfied === undefined) {
       notJudged.push(slowPattern
@@ -715,7 +727,9 @@ export function judge(entry, outcome, files = [], limitMs = Infinity) {
         : `${subject} was not judged: matching ${quote(rule.matches)} did not finish ${within(limitMs, 'this run')}`);
       slowPattern ??= rule.matches;
     } else if (satisfied.error) notJudged.push(`${subject} was not judged: matching ${quote(rule.matches)} could not be evaluated: ${satisfied.error}`);
-    else if (!satisfied) reasons.push(`${subject} does not ${describeRule(rule)}`);
+    else if (!satisfied && STREAMS.includes(subject) && startingFileLostBlanks(rule, text, startingTexts)) {
+      notJudged.push(`${subject} was not judged: it would ${describeRule(rule)} without the blanks at line ends, which no starting file holds, so a starting file was likely written without them; write it again with them`);
+    } else if (!satisfied) reasons.push(`${subject} does not ${describeRule(rule)}`);
   }
   const status = reasons.length ? 'fail' : notJudged.length ? 'not-verified' : 'pass';
   return { status, reasons: [...reasons, ...notJudged] };
@@ -784,6 +798,11 @@ function notRunReasons(root, entry, stdin, watched, limitMs) {
   return reasons;
 }
 
+function startingTextsOf(root, entry, stdin) {
+  const named = argumentFiles(root, entry).filter((file) => !file.problem).map((file) => file.text);
+  return isObject(entry.stdin) && stdin.text ? [...named, cleanOutput(stdin.text.toString('utf8'))] : named;
+}
+
 function outsidePaths(root, entry) {
   const paths = [
     ...(entry.cwd === undefined ? [] : [['cwd', entry.cwd, { file: false }]]),
@@ -806,6 +825,7 @@ async function runEntry(root, entry, timeoutMs, deadline) {
   });
   const checkFiles = namedCheckFiles(root, entry, cwd).map((file) => ({ file, before: hashOf(path.join(root, file)) }));
   const stdin = outside.length ? {} : stdinOf(root, entry);
+  const startingTexts = startingTextsOf(root, entry, stdin);
   const notRun = timeoutMs <= 0 ? [] : outside.length ? outside : notRunReasons(root, entry, stdin, watched, matchLimitOf(timeoutMs, deadline));
   const commandLimit = Math.min(timeoutMs, deadline - Date.now());
   if (!notRun.length && commandLimit <= 0) notRun.push('the time budget for this run was used up');
@@ -822,7 +842,7 @@ async function runEntry(root, entry, timeoutMs, deadline) {
   for (const checkFile of checkFiles) checkFile.after = hashOf(path.join(root, checkFile.file));
   const verdict = outcome.notRun
     ? { status: 'not-verified', reasons: outcome.notRun.map((reason) => `not run: ${reason}`) }
-    : judge(entry, outcome, files, matchLimitOf(timeoutMs, deadline));
+    : judge(entry, outcome, files, matchLimitOf(timeoutMs, deadline), startingTexts);
   const check = {
     id: entry.id,
     feature: entry.feature,

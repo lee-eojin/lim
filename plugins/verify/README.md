@@ -56,7 +56,7 @@ Evidence: /path/to/repo/.git/lim/verify/runs/2026-10-25T14-32-11-200Z.json
 |---|---|
 | pass | The command finished within its time limit, the exit code matched, and every expected output and file matched |
 | fail | The command finished, but the exit code, an output, or a file did not match. Each reason is listed |
-| not verified | The command timed out, or the program could not start, for example because it was not found, or its `stdin` file does not exist, or a file it expects or reads already satisfied a rule before the run, or a rule could not be judged because its stream was longer than the 1,048,576 characters the script keeps or matching a `matches` rule threw an error or did not finish in time, or a path in the check leaves the repository through a link made after the map was read |
+| not verified | The command timed out, or the program could not start, for example because it was not found, or its `stdin` file does not exist, or a file it expects or reads already satisfied a rule before the run, or a rule could not be judged because its stream was longer than the 1,048,576 characters the script keeps or matching a `matches` rule threw an error or did not finish in time, or the output differed from the expected text only by blanks at line ends that no file the check reads holds, or a path in the check leaves the repository through a link made after the map was read |
 
 A check's `run` is a list in one of two forms, and the script refuses everything else:
 
