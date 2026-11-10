@@ -33,8 +33,8 @@ function readSkill() {
   } catch (error) {
     stop(`Cannot read ${SKILL}: ${error.message}`);
   }
-  const sync = /^Sync commit: `([0-9a-f]{4,64})`\./m.exec(text)?.[1];
-  if (!sync) stop(`${SKILL}: no "Sync commit: \`<sha>\`." line`);
+  const sync = /^Sync blob: `([0-9a-f]{4,64})`\./m.exec(text)?.[1];
+  if (!sync) stop(`${SKILL}: no "Sync blob: \`<sha>\`." line`);
   const bullet = text.split(/\r?\n/).find((line) => line.startsWith(`- \`${LOOP}\`:`));
   if (!bullet) stop(`${SKILL}: no coverage bullet for ${LOOP}`);
   const covered = new Set([...bullet.matchAll(/`([^`]+)`/g)].map((match) => match[1]).filter((token) => token !== LOOP));
@@ -61,12 +61,18 @@ function touchedNames(diff) {
   return [...names];
 }
 
-const { sync, covered } = readSkill();
-const resolved = git('rev-parse', '--verify', '--quiet', `${sync}^{commit}`);
-if (resolved.status !== 0) {
-  stop(`Sync commit ${sync} is not in this clone. Fetch full history (git fetch --unshallow) or fix the sha in ${SKILL}.`);
+function missingBlob(sync) {
+  const shallow = git('rev-parse', '--is-shallow-repository').stdout.trim() === 'true';
+  if (shallow) stop(`Sync blob ${sync} is not in this shallow clone. Fetch full history (git fetch --unshallow) and run again.`);
+  stop(`Sync blob ${sync} is not in this repository. Set it in ${SKILL} to the loop.mjs blob the model was confirmed against: git rev-parse HEAD:${LOOP}`);
 }
-const diff = git('--no-pager', 'diff', '--unified=0', '--no-color', '--no-ext-diff', `${resolved.stdout.trim()}..HEAD`, '--', LOOP);
+
+const { sync, covered } = readSkill();
+const resolved = git('rev-parse', '--verify', '--quiet', `${sync}^{blob}`);
+if (resolved.status !== 0) missingBlob(sync);
+const head = git('rev-parse', '--verify', '--quiet', `HEAD:${LOOP}`);
+if (head.status !== 0) stop(`${LOOP} is not in HEAD.`);
+const diff = git('--no-pager', 'diff', '--unified=0', '--no-color', '--no-ext-diff', resolved.stdout.trim(), head.stdout.trim());
 if (diff.status !== 0) stop(`git diff failed: ${diff.stderr.trim()}`);
 
 if (!diff.stdout.trim()) {
@@ -76,10 +82,10 @@ if (!diff.stdout.trim()) {
   const drifted = names.filter((name) => covered.has(name));
   if (drifted.length) {
     console.error(`Covered names in loop.mjs changed since ${sync}: ${drifted.join(', ')}.`);
-    console.error('Re-read those actions in scripts/loop-model/ReviewLoop.tla, rerun `node scripts/check-loop-model.mjs`, show a mutation failing if the model changed, then move the Sync commit forward.');
+    console.error(`Re-read those actions in scripts/loop-model/ReviewLoop.tla, rerun \`node scripts/check-loop-model.mjs\`, show a mutation failing if the model changed, then set the Sync blob to git rev-parse HEAD:${LOOP}.`);
     process.exitCode = 1;
   } else {
     const near = names.length ? ` Uncovered names at the edits: ${names.join(', ')}.` : '';
-    console.log(`Loop-model sync OK (loop.mjs changed since ${sync}, no covered name touched).${near} The Sync commit may still move forward after a reconfirm.`);
+    console.log(`Loop-model sync OK (loop.mjs changed since ${sync}, no covered name touched).${near} The Sync blob may still move forward after a reconfirm.`);
   }
 }

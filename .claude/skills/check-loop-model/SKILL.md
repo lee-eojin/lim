@@ -20,7 +20,7 @@ It needs Java 11 or later. It downloads `.tools/tla2tools.jar` (TLA+ tools v1.7.
 - `--invariant <name>` runs one invariant.
 - `--loop <file>` takes `decideNext` from another copy of `loop.mjs`, for example `git show <commit>:plugins/review-loop/skills/review-loop/scripts/loop.mjs > /tmp/loop.mjs`.
 
-## Expected result at the sync commit
+## Expected result at the sync blob
 
 | Invariant | Stop path it checks | Result |
 | --- | --- | --- |
@@ -70,6 +70,6 @@ Any other result is new. When a known finding is fixed, its invariant passes. Up
 - `plugins/review-loop/skills/review-loop/scripts/loop.mjs`: `decideNext` (generated table), `recordReview`, `next`, `stopIfProven`, `needsProof`, `hasRegressionProof`, `isBeingFixed`, `rule`, `recordNoTest`, `decide`, `start`, `isKept`, `keptSeverities`, `isInProgress`, `pendingDecisionIds`, `decidableFindings`, `setUnattended`, `makeUnattended`, `makeAttended`, `unattendedFixable`, `defer`, `reviewVerdict`, `UNFINISHED`.
 - `scripts/loop-model/ReviewLoop.tla`, `scripts/loop-model/ReviewLoop.cfg`, `scripts/check-loop-model.mjs`, `tests/scripts/check-loop-model.test.mjs`.
 
-Sync commit: `debcaa7`. The model was last confirmed against `loop.mjs` at this commit. `recordReview` ends a ledger-kept check that now passes by writing a non-keep `decision` event. TLA `Record` drops a `<<s, "check">>` pair that the record does not re-introduce.
+Sync blob: `a4a30a1`. The model was last confirmed against this `loop.mjs` blob, the file as of commit `debcaa7`. A blob is the file's content, so it survives a squash merge that drops the branch commits. `recordReview` ends a ledger-kept check that now passes by writing a non-keep `decision` event. TLA `Record` drops a `<<s, "check">>` pair that the record does not re-introduce.
 
-To see what changed in covered code since then, run `git diff debcaa7 -- plugins/review-loop/skills/review-loop/scripts/loop.mjs | grep '^@@'`. Git names the enclosing function in each hunk header. Move the sync commit forward only after you have read every changed covered function against its action and the check gives the expected result. Use `git rev-parse --short refs/remotes/origin/main` for the new value. `node scripts/check-loop-model-sync.mjs` fails when a function in the coverage record changed after the sync commit.
+To see what changed in covered code since then, run `git diff a4a30a1 HEAD:plugins/review-loop/skills/review-loop/scripts/loop.mjs | grep '^@@'`. Git names the enclosing function in each hunk header. Move the sync blob forward only after you have read every changed covered function against its action and the check gives the expected result. Use `git rev-parse --short HEAD:plugins/review-loop/skills/review-loop/scripts/loop.mjs` for the new value, in the same pull request as the `loop.mjs` change. `node scripts/check-loop-model-sync.mjs` fails when a function in the coverage record changed after the sync blob.

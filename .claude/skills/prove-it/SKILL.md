@@ -21,7 +21,7 @@ node scripts/check-i18n.mjs
 node scripts/sync-counts.mjs --check
 ```
 
-When a change touches `loop.mjs` or the loop model, also run `node scripts/check-loop-model.mjs` and `node scripts/check-loop-model-sync.mjs`. The sync check fails when a function the model covers changed after the sync commit in `.claude/skills/check-loop-model/SKILL.md`.
+When a change touches `loop.mjs` or the loop model, also run `node scripts/check-loop-model.mjs` and `node scripts/check-loop-model-sync.mjs`. The sync check fails when a function the model covers changed after the sync blob in `.claude/skills/check-loop-model/SKILL.md`.
 
 ## Evidence contract
 

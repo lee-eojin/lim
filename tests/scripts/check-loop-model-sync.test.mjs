@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const script = fileURLToPath(new URL('../../scripts/check-loop-model-sync.mjs', import.meta.url));
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -29,7 +29,7 @@ function reportNotice() {
 }
 `;
 const coverage = `- \`${loopPath}\`: \`decideNext\` (generated table), \`UNFINISHED\`.`;
-const skill = (sync, bullet = coverage) => `# Model\n\n${bullet}\n\nSync commit: \`${sync}\`. Confirmed here.\n`;
+const skill = (sync, bullet = coverage) => `# Model\n\n${bullet}\n\nSync blob: \`${sync}\`. Confirmed here.\n`;
 const run = (cwd, options) => spawnSync(process.execPath, [script, cwd], { encoding: 'utf8', ...options });
 
 function fixture(t) {
@@ -44,11 +44,13 @@ function fixture(t) {
     write(loopPath, content);
     git('add', '-A');
     git('commit', '-q', '--allow-empty', '-m', 'change');
-    return git('rev-parse', 'HEAD');
+    return git('rev-parse', `HEAD:${loopPath}`);
   };
-  git('init', '-q');
+  git('init', '-q', '-b', 'main');
   const sync = commitLoop(loop);
   write(skillPath, skill(sync.slice(0, 7)));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'pin');
   return { cwd, git, write, commitLoop, sync };
 }
 
@@ -96,14 +98,14 @@ test('an edit to uncovered reportNotice passes and names it', (t) => {
   assert.match(result.stdout, /reportNotice/);
 });
 
-test('a sync commit at HEAD passes with no drift', (t) => {
+test('a sync blob equal to the loop.mjs blob at HEAD passes with no drift', (t) => {
   const { cwd, sync } = fixture(t);
   const result = run(cwd);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, `Loop-model sync OK (no covered loop.mjs drift since ${sync.slice(0, 7)}).\n`);
 });
 
-test('a covered edit passes once the sync commit moves past it', (t) => {
+test('a covered edit passes once the sync blob moves to the edited loop.mjs', (t) => {
   const { cwd, commitLoop, write } = fixture(t);
   const moved = commitLoop(loop.replace('  return first + second', '  return second + first'));
   write(skillPath, skill(moved));
@@ -111,17 +113,60 @@ test('a covered edit passes once the sync commit moves past it', (t) => {
   assert.equal(result.status, 0, result.stderr);
 });
 
-test('a full sha that is not in the clone exits 2', (t) => {
+test('a blob that is not in a full clone exits 2 and says how to set it, not to unshallow', (t) => {
   const { cwd, write } = fixture(t);
   write(skillPath, skill('0123456789abcdef0123456789abcdef01234567'));
   const result = run(cwd);
   assert.equal(result.status, 2);
-  assert.match(result.stderr, /not in this clone/);
+  assert.match(result.stderr, /not in this repository/);
+  assert.match(result.stderr, new RegExp(`git rev-parse HEAD:${loopPath}`));
+  assert.doesNotMatch(result.stderr, /unshallow/);
+});
+
+test('a commit sha in the Sync blob line exits 2', (t) => {
+  const { cwd, git, write } = fixture(t);
+  write(skillPath, skill(git('rev-parse', 'HEAD')));
+  const result = run(cwd);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /not in this repository/);
+});
+
+test('a blob missing from a shallow clone exits 2 and says to fetch full history', (t) => {
+  const { cwd, git, write, commitLoop, sync } = fixture(t);
+  commitLoop(loop.replace("return 'old';", "return 'new';"));
+  write(skillPath, skill(sync));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'keep the old pin');
+  const shallow = mkdtempSync(path.join(tmpdir(), 'loop-sync-shallow-'));
+  t.after(() => rmSync(shallow, { recursive: true, force: true }));
+  execFileSync('git', ['clone', '-q', '--depth', '1', pathToFileURL(cwd).href, shallow]);
+  const result = run(shallow);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /shallow clone/);
   assert.match(result.stderr, /unshallow/);
 });
 
+test('a covered edit pinned on its branch still passes in a fresh clone after a squash merge deletes the branch', (t) => {
+  const { cwd, git, write, commitLoop } = fixture(t);
+  git('checkout', '-q', '-b', 'edit');
+  const edited = commitLoop(loop.replace('  return first + second', '  return second + first'));
+  write(skillPath, skill(edited.slice(0, 7)));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'move the pin');
+  git('checkout', '-q', 'main');
+  git('merge', '-q', '--squash', 'edit');
+  git('commit', '-q', '-m', 'squash');
+  git('branch', '-q', '-D', 'edit');
+  const clone = mkdtempSync(path.join(tmpdir(), 'loop-sync-clone-'));
+  t.after(() => rmSync(clone, { recursive: true, force: true }));
+  execFileSync('git', ['clone', '-q', '--no-local', cwd, clone]);
+  const result = run(clone);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /no covered loop\.mjs drift/);
+});
+
 for (const [label, content, message] of [
-  ['no sync line', '# Model\n', /Sync commit/],
+  ['no sync line', '# Model\n', /Sync blob/],
   ['no coverage bullet', skill('abcdef0', '- something else'), /coverage bullet/],
   ['an empty coverage bullet', skill('abcdef0', `- \`${loopPath}\`: nothing.`), /names nothing/],
 ]) {
@@ -147,7 +192,7 @@ test('missing git exits 2', { skip: process.platform === 'win32' }, (t) => {
   assert.match(result.stderr, /Cannot run git/);
 });
 
-test('this repository has no covered drift past its sync commit when the clone has full history', (t) => {
+test('this repository has no covered drift past its sync blob when the clone has full history', (t) => {
   if (execFileSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: root, encoding: 'utf8' }).trim() === 'true') {
     t.skip('shallow clone, such as the one-commit clone on the Windows CI job');
     return;
