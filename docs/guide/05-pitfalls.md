@@ -139,6 +139,8 @@ $ tail -1 .git/info/exclude
 .lim-review/
 ```
 
+When `.git` is a file, as in a submodule, a `git init --separate-git-dir` repository, or a linked worktree, run `git rev-parse --git-path info/exclude` to print the path of the exclude file.
+
 After a successful record, the file is deleted, and the folder too when it is empty. If the JSON is not valid, the file stays so Claude can fix it:
 
 ```
