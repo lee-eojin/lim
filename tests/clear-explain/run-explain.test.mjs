@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
-  answerArgs, calibrate, compareJudgePasses, degrade, scoreAnswer, heldOutRequests, judgePrompt, opensWithProseParagraph, parseJudgeOutput, parseOptions, parseStream, redact, rejudge, rescore, selectQuestions,
+  answerArgs, applyEdit, calibrate, compareJudgePasses, DEFECTS, degrade, joinSentences, loadVariants, moveAnswer, paragraphs, scoreAnswer, selectDefects, worseCopy, heldOutRequests, judgePrompt, opensWithProseParagraph, parseJudgeOutput, parseOptions, parseStream, redact, rejudge, rescore, selectQuestions,
   jsonWithoutForbiddenCharacters, skillVersion, summarize, summarizeTriggers, swapOrder, triggerArgs, triggerRequests, unblind,
 } from '../../evals/clear-explain/run-explain.mjs';
 
@@ -293,4 +293,183 @@ test('calibration judges each stored answer against its worse copy in both order
   assert.equal(results.summary.script.badOpensWithAnswer, 0);
   assert.equal(results.summary.errors, 0);
   assert.equal(results.summary.costUsd, 0.06);
+});
+
+const storedAnswers = () => savedResults('2026-10-27-opus-after.json').items.flatMap((entry) => ['with', 'without'].map((arm) => ({ id: entry.id, arm, lang: entry.lang, text: entry.answers[arm].answer })));
+const variantsFile = fileURLToPath(new URL('../../evals/clear-explain/calibration-variants.json', import.meta.url));
+const storedVariants = () => loadVariants(JSON.parse(readFileSync(variantsFile, 'utf8')));
+const PREAMBLE_EN = 'Great question!';
+const PREAMBLE_KO = '좋은 질문입니다.';
+const paragraphTexts = (text) => paragraphs(text).map(({ paragraph }) => paragraph);
+
+test('the stacked worse copy is still the one the saved 2026-11-05 calibration judged, for all 24 answers', () => {
+  const saved = savedResults('2026-11-05-sonnet-calibration.json');
+  const answers = storedAnswers();
+  assert.equal(saved.pairs.length, 24);
+  for (const pair of saved.pairs) {
+    const stored = answers.find((entry) => entry.id === pair.id && entry.arm === pair.source);
+    assert.equal(stored.text, pair.answers.good.answer, `${pair.id} ${pair.source}`);
+    assert.equal(degrade(stored.text, stored.lang), pair.answers.bad.answer, `${pair.id} ${pair.source}`);
+    assert.equal(worseCopy('stacked', stored.text, stored.lang), pair.answers.bad.answer, `${pair.id} ${pair.source}`);
+  }
+});
+
+test('the answer-moved copy only reorders paragraphs and moves the one the stacked copy moves, for all 24 answers', () => {
+  let changed = 0;
+  for (const { id, arm, lang, text } of storedAnswers()) {
+    const moved = moveAnswer(text);
+    assert.deepEqual(paragraphTexts(moved).toSorted(), paragraphTexts(text).toSorted(), `${id} ${arm}`);
+    assert.equal(paragraphTexts(moved).at(-1), paragraphs(text).find(({ prose }) => prose).paragraph, `${id} ${arm}`);
+    if (worseCopy('answer-moved', text, lang) !== null) changed += 1;
+  }
+  assert.equal(changed, 24);
+});
+
+test('the joined-sentences copy keeps every paragraph in place and changes only sentence ends in prose paragraphs', () => {
+  const strip = (paragraph) => paragraph.replace(/, and | 그리고 |[.!?]|\s/g, '');
+  const unchanged = [];
+  for (const { id, arm, lang, text } of storedAnswers()) {
+    const joined = joinSentences(text, lang);
+    const before = paragraphs(text);
+    const after = paragraphTexts(joined);
+    assert.equal(after.length, before.length, `${id} ${arm}`);
+    before.forEach(({ paragraph, plainProse }, index) => {
+      if (!plainProse) assert.equal(after[index], paragraph, `${id} ${arm} paragraph ${index} is not prose and stays`);
+      else assert.equal(strip(after[index]), strip(paragraph), `${id} ${arm} paragraph ${index} has the same words`);
+    });
+    assert.ok(!joined.includes(PREAMBLE_EN) && !joined.includes(PREAMBLE_KO), `${id} ${arm} has no preamble`);
+    if (worseCopy('joined-sentences', text, lang) === null) unchanged.push(`${id} ${arm}`);
+  }
+  assert.deepEqual(unchanged, ['ko-memo without', 'ko-401-403 without']);
+});
+
+test('joined sentences keep the last end mark and leave a lead line followed by a list as it is', () => {
+  const text = 'A closure keeps its variables. It is a function.\n\nIt has uses:\n- one. two.\n\n```js\nconst a = 1. b;\n```';
+  assert.equal(joinSentences(text, 'en'), 'A closure keeps its variables, and It is a function.\n\nIt has uses:\n- one. two.\n\n```js\nconst a = 1. b;\n```');
+  assert.equal(joinSentences('클로저는 함수다. 변수를 기억한다.', 'ko'), '클로저는 함수다 그리고 변수를 기억한다.');
+});
+
+test('each hand-written variant is one bounded edit of one stored answer, and answers without a definition to remove are listed', () => {
+  const variants = storedVariants();
+  const answers = storedAnswers();
+  assert.equal(variants.length, 48);
+  const none = [];
+  for (const defect of ['removed-definition', 'factual-error']) {
+    for (const { id, arm, lang, text } of answers) {
+      const variant = variants.find((entry) => entry.id === id && entry.arm === arm && entry.defect === defect);
+      assert.ok(variant, `${id} ${arm} ${defect} is written`);
+      const copy = worseCopy(defect, text, lang, variants, { id, arm });
+      if ('none' in variant) {
+        assert.equal(copy, null);
+        none.push(`${id} ${arm} ${defect}`);
+        continue;
+      }
+      const replace = variant.replace ?? '';
+      const at = text.indexOf(variant.find);
+      assert.equal(copy, `${text.slice(0, at)}${replace}${text.slice(at + variant.find.length)}`, `${id} ${arm} ${defect}`);
+      assert.ok(!variant.find.includes('\n') && !replace.includes('\n'), `${id} ${arm} ${defect} stays on one line`);
+      const before = paragraphs(text);
+      const after = paragraphTexts(copy);
+      assert.equal(after.length, before.length, `${id} ${arm} ${defect}`);
+      const differ = before.filter(({ paragraph }, index) => paragraph !== after[index]);
+      assert.equal(differ.length, 1, `${id} ${arm} ${defect} changes one paragraph`);
+      const fencesBefore = text.slice(0, at).split('\n').filter((line) => /^\s*(?:```|~~~)/.test(line)).length;
+      assert.equal(fencesBefore % 2, 0, `${id} ${arm} ${defect} does not change code`);
+      if (defect === 'removed-definition') {
+        assert.equal(replace, '');
+        assert.ok(variant.find.length <= 300, `${id} ${arm}`);
+        assert.ok(copy.toLowerCase().includes(variant.term.toLowerCase()), `${id} ${arm} still uses ${variant.term}`);
+      } else {
+        assert.ok(variant.find.length <= 80 && replace.length <= 80 && replace.length > 0, `${id} ${arm}`);
+        assert.ok(variant.truth.length > 0);
+      }
+    }
+  }
+  assert.deepEqual(none, ['en-await-loop with removed-definition', 'ko-memo without removed-definition', 'ko-unknown without removed-definition',
+    'ko-401-403 without removed-definition', 'ko-key with removed-definition']);
+});
+
+test('a hand-written edit refuses an anchor that is missing or repeated and names the answer and the defect', () => {
+  assert.equal(applyEdit('one two three', { find: 'two', replace: 'six' }, 'x'), 'one six three');
+  assert.equal(applyEdit('a $& b', { find: 'b', replace: '$&$&' }, 'x'), 'a $& $&$&');
+  const variants = [{ id: 'one', arm: 'with', defect: 'factual-error', find: 'two', replace: 'six', truth: 't' }];
+  assert.throws(() => worseCopy('factual-error', 'one three', 'en', variants, { id: 'one', arm: 'with' }), /^Error: one with factual-error: anchor not found$/);
+  assert.throws(() => worseCopy('factual-error', 'two and two', 'en', variants, { id: 'one', arm: 'with' }), /^Error: one with factual-error: anchor occurs 2 times$/);
+  assert.throws(() => worseCopy('removed-definition', 'two', 'en', variants, { id: 'one', arm: 'with' }), /one with removed-definition: no hand-written variant/);
+});
+
+test('the variants file refuses unknown keys, a missing field, an unknown defect, and the same answer and defect twice', () => {
+  const entry = { id: 'one', arm: 'with', defect: 'removed-definition', term: 'closure', find: 'A closure is a function. ' };
+  assert.equal(loadVariants({ variants: [entry] }).length, 1);
+  assert.throws(() => loadVariants({ variants: [{ ...entry, replace: 'x' }] }), /needs exactly id, arm, defect, term, find/);
+  assert.throws(() => loadVariants({ variants: [{ ...entry, term: '' }] }), /needs exactly/);
+  assert.throws(() => loadVariants({ variants: [{ ...entry, defect: 'answer-moved' }] }), /defect must be one of removed-definition, factual-error/);
+  assert.throws(() => loadVariants({ variants: [entry, { id: 'one', arm: 'with', defect: 'removed-definition', none: 'no definition' }] }), /written twice/);
+  assert.throws(() => loadVariants({ variants: [{ id: 'one', arm: 'with', defect: 'factual-error', find: 'a', replace: 'a', truth: 't' }] }), /replace equals find/);
+});
+
+test('calibration reports each defect in both orders on a stubbed judge and skips copies that equal the original', async () => {
+  const stored = { items: [
+    { id: 'one', lang: 'en', question: 'q1', answers: { with: { answer: 'A closure keeps its variables. It is a function.\n\n```js\nconst a = 1;\n```' }, without: { answer: 'Short.' } } },
+  ] };
+  const variants = [
+    { id: 'one', arm: 'with', defect: 'factual-error', find: 'keeps its variables', replace: 'forgets its variables', truth: 't' },
+    { id: 'one', arm: 'without', defect: 'factual-error', none: 'n' },
+  ];
+  const verdicts = {
+    'answer-moved': (order) => ({ winner: order[0], factualError: { good: false, bad: false } }),
+    'joined-sentences': () => ({ winner: 'good', factualError: { good: false, bad: false } }),
+    'factual-error': (order) => (order[0] === 'good'
+      ? { winner: 'good', factualError: { good: false, bad: true } }
+      : { winner: 'tie', factualError: { good: true, bad: true } }),
+  };
+  const calls = [];
+  const judgeRun = async (pair, answers, options, order) => {
+    calls.push(`${pair.id} ${pair.source} ${pair.defect} ${order.join(' ')}`);
+    return { order, ...verdicts[pair.defect](order), answerFirst: { good: true, bad: false }, costUsd: 0.01 };
+  };
+  const results = await calibrate(stored, { judgeModel: 'sonnet', concurrency: 1, defects: ['answer-moved', 'joined-sentences', 'factual-error'], variants }, judgeRun);
+  assert.deepEqual(calls, [
+    'one with answer-moved good bad', 'one with answer-moved bad good',
+    'one with joined-sentences good bad', 'one with joined-sentences bad good',
+    'one with factual-error good bad', 'one with factual-error bad good',
+  ]);
+  assert.deepEqual(results.defects, ['answer-moved', 'joined-sentences', 'factual-error']);
+  assert.deepEqual(results.unchanged, [
+    { id: 'one', source: 'without', defect: 'answer-moved' },
+    { id: 'one', source: 'without', defect: 'joined-sentences' },
+    { id: 'one', source: 'without', defect: 'factual-error' },
+  ]);
+  assert.deepEqual(results.pairs.map((pair) => pair.answers.bad.answer), [
+    '```js\nconst a = 1;\n```\n\nA closure keeps its variables. It is a function.',
+    'A closure keeps its variables, and It is a function.\n\n```js\nconst a = 1;\n```',
+    'A closure forgets its variables. It is a function.\n\n```js\nconst a = 1;\n```',
+  ]);
+  const counts = (fields) => ({
+    pairs: 1, unchanged: 1, judged: 1, goodBothOrders: 0, badBothOrders: 0, split: 0, goodWhenGoodFirst: 0, goodWhenBadFirst: 0,
+    badFactualError: 0, goodFactualError: 0, badFactualErrorBothOrders: 0, verdicts: 2, errors: 0, ...fields,
+  });
+  assert.deepEqual(results.summary.defects, {
+    'answer-moved': counts({ split: 1, goodWhenGoodFirst: 1 }),
+    'joined-sentences': counts({ goodBothOrders: 1, goodWhenGoodFirst: 1, goodWhenBadFirst: 1 }),
+    'factual-error': counts({ split: 1, goodWhenGoodFirst: 1, badFactualError: 2, goodFactualError: 1, badFactualErrorBothOrders: 1 }),
+  });
+  assert.equal(results.summary.judge.judged, 3);
+  assert.equal(results.summary.costUsd, 0.06);
+});
+
+test('calibration stops before any judge call when a chosen hand-written defect has no variant for a stored answer', async () => {
+  const stored = { items: [{ id: 'one', lang: 'en', question: 'q1', answers: { with: { answer: 'A closure is a function.' }, without: { error: 'timeout' } } }] };
+  const judgeRun = async () => { throw new Error('judge called'); };
+  await assert.rejects(calibrate(stored, { defects: ['stacked', 'removed-definition'], variants: [] }, judgeRun), /one with removed-definition: no hand-written variant/);
+});
+
+test('the calibration defect is chosen with --defect, defaults to stacked, and only --calibrate takes it', () => {
+  assert.deepEqual(DEFECTS, ['stacked', 'answer-moved', 'joined-sentences', 'removed-definition', 'factual-error']);
+  assert.deepEqual(parseOptions(['--calibrate', 'old.json']).values.defect, ['stacked']);
+  assert.deepEqual(parseOptions(['--calibrate', 'old.json', '--defect', 'answer-moved', '--defect', 'factual-error', '--defect', 'answer-moved']).values.defect, ['answer-moved', 'factual-error']);
+  assert.throws(() => parseOptions(['--calibrate', 'old.json', '--defect', 'typo']), /unknown defect: typo; the kinds are stacked, answer-moved, joined-sentences, removed-definition, factual-error/);
+  assert.throws(() => parseOptions(['--rejudge', 'old.json', '--defect', 'stacked']), /--defect is not used by --rejudge/);
+  assert.throws(() => parseOptions(['--defect', 'stacked']), /--defect is not used by a judged run/);
+  assert.deepEqual(selectDefects(undefined), ['stacked']);
 });
