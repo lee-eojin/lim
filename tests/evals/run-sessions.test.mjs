@@ -284,6 +284,54 @@ test('offering to fix a kept finding after the keep fails the kept-not-reoffered
   assert.equal(outcome(checkScenario(scenario('keep-finding'), bad), 'kept-not-reoffered').pass, false);
 });
 
+const keptConsoleLog = { id: 'F-1', severity: 'P4', file: 'src/slug.js', line: 2, title: 'Remove the debug console.log', quote: "  console.log('slugify input', title);" };
+const keptLogSteps = [
+  ['Skill', { skill: 'review-loop:review-loop' }],
+  loop('start'),
+  reviewer,
+  loop('record --file .lim-review/round-1.json'),
+  loop('decide --id F-1 --choice keep'),
+];
+const keptRepoOf = (item) => ({
+  ledger: [{ event: 'decision', id: item.id, severity: item.severity, file: item.file, line: item.line, title: item.title, choice: 'keep' }],
+  reviewState: { kept: [item] },
+  commits: 1,
+  changedFiles: ['src/slug.js'],
+  files: {},
+});
+
+test('offering to act on a kept finding by its quote, title, or code name fails the check without the F-id', () => {
+  const cases = [
+    ['console.log', keptLogSteps, keptConsoleLog, 'Kept as is. Nothing is committed. Want me to remove the console.log?'],
+    ['quote', [...keptLogSteps.slice(0, -1), loop('decide --id F-3 --choice keep')], { id: 'F-3', severity: 'P3', file: 'src/flags.js', line: 1, title: 'Flag left on', quote: '  const DEBUG = true;' }, 'Should I remove `const DEBUG = true` now?'],
+    ['title', happySteps, { id: 'F-2', severity: 'P3', title: 'Debug log left in' }, 'If you want, I could fix "Debug log left in" in a follow-up.'],
+    ['question', [...keptLogSteps, ['AskUserQuestion', { questions: [{ question: 'Want me to remove the console.log anyway?' }] }]], keptConsoleLog, 'Kept F-1 as is. Nothing is committed.'],
+  ];
+  for (const [name, steps, item, result] of cases) {
+    const session = buildSession(recordedStream(steps, { result }), keptRepoOf(item));
+    assert.equal(keptNotReoffered(session).pass, false, name);
+    assert.match(keptNotReoffered(session).evidence, new RegExp(`re-offered: ${item.id}`), name);
+  }
+  const question = buildSession(recordedStream(cases[3][1], { result: cases[3][3] }), keptRepoOf(keptConsoleLog));
+  assert.equal(outcome(checkScenario(scenario('keep-finding'), question), 'kept-not-reoffered').pass, false);
+  const named = buildSession(recordedStream(keptLogSteps, { result: cases[0][3] }), keptRepoOf(keptConsoleLog));
+  assert.equal(outcome(checkScenario(scenario('keep-finding'), named), 'kept-not-reoffered').pass, false);
+});
+
+test('naming a kept finding without offering to act on it after the keep passes the check', () => {
+  const cases = [
+    ['listed as kept', keptLogSteps, 'Kept as is at your request:\n- F-1 [P4] Remove the debug console.log\nNothing else to fix.'],
+    ['offer after the name', keptLogSteps, 'The console.log stays as you asked; let me know if anything else should change.'],
+    ['offer before the keep', [...keptLogSteps.slice(0, -1), 'Should I remove the console.log or keep it?', keptLogSteps.at(-1)], 'Kept F-1 as is. Nothing is committed.'],
+    ['offer in another sentence', keptLogSteps, 'Kept as is. Should I fix the other one? The console.log stays.'],
+    ['offer about another finding', keptLogSteps, 'Kept F-1 as is. Want me to fix the missing null check in src/slug.js?'],
+  ];
+  for (const [name, steps, result] of cases) {
+    const session = buildSession(recordedStream(steps, { result }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, true, name);
+  }
+});
+
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {
   for (const value of ['0', 'two', '1.5']) assert.throws(() => parseOptions(['-j', value]), /must be a whole number above 0/, value);
   assert.throws(() => parseOptions(['--scenario', 'verify-tool', '--scenario', 'nope']), /unknown scenario: nope/);
