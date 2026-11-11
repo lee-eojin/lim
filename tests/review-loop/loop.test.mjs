@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
-  chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync,
+  chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -24,6 +24,7 @@ import {
   missingProgram,
   expandAlias,
 } from '../../plugins/review-loop/skills/review-loop/scripts/loop.mjs';
+import { removeAfterTests, temporaryFolder } from '../temp-folders.mjs';
 
 const script = fileURLToPath(new URL('../../plugins/review-loop/skills/review-loop/scripts/loop.mjs', import.meta.url));
 const correctCart = 'export const total = (items) => items.reduce((sum, item) => sum + item.price, 0);\n';
@@ -44,7 +45,7 @@ const gitBashPath = (folder) => folder.split(path.sep).join('/');
 const home = () => process.env.HOME || homedir();
 
 function pathWithOnly(programs = {}) {
-  const bin = mkdtempSync(path.join(tmpdir(), 'review-loop-bin-'));
+  const bin = temporaryFolder('review-loop-bin-');
   for (const [name, { posix, windows: batch }] of Object.entries(programs)) {
     writeFileSync(path.join(bin, windows ? `${name}.cmd` : name), windows ? batch : posix, { mode: 0o755 });
   }
@@ -60,7 +61,7 @@ function writeFiles(root, files) {
 }
 
 function createRepository(files) {
-  const root = mkdtempSync(path.join(tmpdir(), 'review-loop-'));
+  const root = temporaryFolder('review-loop-');
   const runGit = (...args) => execFileSync('git', args, { cwd: root, stdio: 'ignore' });
   runGit('init', '-q');
   writeFiles(root, files);
@@ -404,7 +405,7 @@ describe('renderReport', () => {
 
 describe('check detection', () => {
   const projectFolder = (files) => {
-    const root = mkdtempSync(path.join(tmpdir(), 'review-loop-checks-'));
+    const root = temporaryFolder('review-loop-checks-');
     writeFiles(root, files);
     return root;
   };
@@ -893,7 +894,7 @@ describe('loop.mjs in a git repository', () => {
     const config = execFileSync('git', ['cat-file', 'blob', `${state.reviewedTree}:src/config.js`], { cwd: root, encoding: 'utf8' });
     assert.equal(config, 'local = false\n');
 
-    const fresh = mkdtempSync(path.join(tmpdir(), 'review-loop-'));
+    const fresh = temporaryFolder('review-loop-');
     execFileSync('git', ['init', '-q'], { cwd: fresh });
     writeFiles(fresh, { 'src/cart.js': correctCart });
     assert.equal(loop(fresh, ['start']).status, 'review');
@@ -1085,7 +1086,7 @@ describe('loop.mjs in a git repository', () => {
 
   test('runs when called through a symlink', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
-    const linkDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-link-'));
+    const linkDirectory = temporaryFolder('review-loop-link-');
     const linkedScript = path.join(linkDirectory, 'loop.mjs');
     symlinkSync(script, linkedScript);
     const output = execFileSync('node', [linkedScript, 'status'], { cwd: root, encoding: 'utf8' });
@@ -2227,7 +2228,7 @@ describe('commit gate', () => {
     loop(unreviewed, ['gate', '--on']);
     writeFiles(unreviewed, { 'src/cart.js': brokenCart });
     for (const command of forms) assert.equal(commit(unreviewed, command)?.decision, 'ask', command);
-    const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
+    const plainDirectory = temporaryFolder('review-loop-plain-');
     assert.equal(commit(plainDirectory, `cd ${gitBashPath(unreviewed)} && bash -c "git commit -m x"`)?.decision, 'ask');
     assert.equal(commit(plainDirectory, 'bash -c "git commit -m x"'), null);
   });
@@ -2366,7 +2367,7 @@ describe('commit gate', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);
     writeFiles(root, { 'src/cart.js': brokenCart });
-    const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
+    const plainDirectory = temporaryFolder('review-loop-plain-');
     const repository = gitBashPath(root);
     const commands = [
       `pushd ${repository} && git commit -m x`, `cd -P ${repository} && git commit -m x`, `cd -- ${repository} && git commit -m x`,
@@ -2439,7 +2440,7 @@ describe('commit gate', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);
     writeFiles(root, { 'src/cart.js': brokenCart });
-    const elsewhere = mkdtempSync(path.join(tmpdir(), 'review-loop-elsewhere-'));
+    const elsewhere = temporaryFolder('review-loop-elsewhere-');
     const savedHome = process.env.HOME;
     process.env.HOME = path.dirname(root);
     try {
@@ -2454,7 +2455,7 @@ describe('commit gate', () => {
     loop(root, ['delegate', '--scope', 'repo']);
     assert.equal(commit(root, 'cd "$(git rev-parse --show-toplevel)" && git commit -m x').decision, 'ask');
     assert.equal(commit(root, 'git -C missing commit -m x').decision, 'ask');
-    const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
+    const plainDirectory = temporaryFolder('review-loop-plain-');
     assert.equal(commit(root, `git -C ${gitBashPath(plainDirectory)} commit -m x`), null);
     const gateOff = createRepository({ 'src/cart.js': correctCart });
     assert.equal(commit(gateOff, 'cd $WORK && git commit -m x'), null);
@@ -2463,7 +2464,7 @@ describe('commit gate', () => {
   test('a linked worktree shares the gate and delegation but keeps its own review', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);
-    const worktree = `${root}-worktree`;
+    const worktree = removeAfterTests(`${root}-worktree`);
     execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
     assert.equal(loop(worktree, ['status']).gate.enabled, true);
     writeFiles(worktree, { 'src/cart.js': brokenCart });
@@ -2478,7 +2479,7 @@ describe('commit gate', () => {
 
   test('a gate turned on inside a worktree by 0.2.0 still applies', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
-    const worktree = `${root}-worktree`;
+    const worktree = removeAfterTests(`${root}-worktree`);
     execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
     const worktreeGitDir = execFileSync('git', ['rev-parse', '--absolute-git-dir'], { cwd: worktree, encoding: 'utf8' }).trim();
     writeFiles(worktreeGitDir, { 'lim/review-loop/gate.json': JSON.stringify({ enabled: true, configured: true }) });
@@ -2490,7 +2491,7 @@ describe('commit gate', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);
     loop(root, ['delegate', '--scope', 'repo']);
-    const worktree = `${root}-worktree`;
+    const worktree = removeAfterTests(`${root}-worktree`);
     execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
     loop(worktree, ['gate', '--skip-once']);
     writeFiles(root, { 'src/cart.js': brokenCart });
@@ -2511,7 +2512,7 @@ describe('commit gate', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);
     writeFiles(root, { 'src/cart.js': brokenCart });
-    const plainDirectory = mkdtempSync(path.join(tmpdir(), 'review-loop-plain-'));
+    const plainDirectory = temporaryFolder('review-loop-plain-');
     assert.equal(commit(root, `(cd ${gitBashPath(plainDirectory)}) && git commit -m x`).decision, 'deny');
     assert.equal(commit(plainDirectory, `(cd ${gitBashPath(root)} && git commit -m x)`).decision, 'deny');
     assert.equal(commit(plainDirectory, `cd ${gitBashPath(root)} && git commit -m x || (echo failed)`).decision, 'deny');
@@ -2548,7 +2549,7 @@ describe('commit gate', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);
     writeFiles(root, { 'src/cart.js': brokenCart });
-    const elsewhere = mkdtempSync(path.join(tmpdir(), 'review-loop-elsewhere-'));
+    const elsewhere = temporaryFolder('review-loop-elsewhere-');
     const command = 'cd "$(git -C ../repo rev-parse --show-toplevel)" && git commit -m x';
     assert.equal(gateDecision({ cwd: elsewhere, command }), null);
     assert.equal(gateDecision({ cwd: elsewhere, command, projectDir: root }).decision, 'ask');
@@ -2569,7 +2570,7 @@ describe('commit gate', () => {
   test('turning the gate off and on cancels a pending skip in every worktree', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);
-    const worktree = `${root}-worktree`;
+    const worktree = removeAfterTests(`${root}-worktree`);
     execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
     loop(worktree, ['gate', '--skip-once']);
     loop(root, ['gate', '--off']);
@@ -2608,7 +2609,7 @@ describe('commit gate', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);
     writeFiles(root, { 'src/cart.js': brokenCart });
-    const elsewhere = mkdtempSync(path.join(tmpdir(), 'review-loop-cwd-'));
+    const elsewhere = temporaryFolder('review-loop-cwd-');
     assert.equal(gateDecision({ cwd: elsewhere, command: `git -C ${gitBashPath(root)} commit -m x` }).decision, 'deny');
   });
 });
@@ -2946,7 +2947,7 @@ describe('repeated kinds', () => {
 
   test('a review counts kinds recorded in another worktree and keeps them after that worktree is removed', () => {
     const root = brokenCartRepository();
-    const worktree = path.join(mkdtempSync(path.join(tmpdir(), 'review-loop-worktree-')), 'other');
+    const worktree = path.join(temporaryFolder('review-loop-worktree-'), 'other');
     execFileSync('git', ['worktree', 'add', '-q', '--detach', worktree], { cwd: root, stdio: 'ignore' });
     writeFiles(worktree, { 'src/cart.js': brokenCart });
     loop(root, ['start', '--fresh']);
@@ -3584,7 +3585,7 @@ describe('review file', () => {
     writeFiles(root, { 'src/cart.js': correctCart });
     assert.equal(loop(root, ['next']).reviewPath, path.join(reviewFolder, 'round-2.json'));
 
-    const worktree = `${root}-worktree`;
+    const worktree = removeAfterTests(`${root}-worktree`);
     execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
     writeFiles(worktree, { 'src/cart.js': brokenCart });
     const worktreeReview = loop(worktree, ['start']).reviewPath;

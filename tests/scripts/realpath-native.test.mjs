@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { temporaryFolder } from '../temp-folders.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 const FS_NAMED_IMPORTS = /\bimport\s*\{([^}]*)\}\s*from\s*['"](?:node:)?fs['"]/g;
@@ -46,7 +46,7 @@ test('every way of reaching realpathSync without .native is found, and a plain n
 });
 
 test('hooks, nested script folders, and .cjs and .js files are scanned', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'realpath-native-'));
+  const root = temporaryFolder('realpath-native-');
   const files = ['plugins/p/hooks/gate.mjs', 'plugins/p/skills/s/scripts/lib/nested.mjs', 'plugins/p/skills/s/scripts/other.cjs', 'plugins/p/tool.js', 'scripts/tool.mjs', 'shared/helper.mjs'];
   for (const file of files) {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
