@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-그다음 review-loop를 실행한 각 저장소에서 `.git/lim/review-loop/`와 `.git/info/exclude`의 `.lim-review/` 줄을 삭제합니다. submodule이나 `git init --separate-git-dir`로 만든 저장소에서는 `.git`이 파일이어서 이 경로들이 없습니다. 연결된 worktree에는 그 worktree만의 폴더도 있습니다. 두 경우 모두 폴더를 찾는 방법은 [review-loop README](../../plugins/review-loop/README.md#data)에 있습니다.
+그다음 review-loop를 실행한 각 저장소에서 `.git/lim/review-loop/`와 `.git/info/exclude`의 `.lim-review/` 줄을 삭제합니다. submodule이나 `git init --separate-git-dir`로 만든 저장소에서는 `.git`이 파일이어서 이 경로들이 없습니다. 연결된 worktree에는 그 worktree만의 폴더도 있습니다. 두 경우 모두 폴더를 찾는 방법은 [review-loop README](../../plugins/review-loop/README.md#data)에 있습니다. `git rev-parse --git-path info/exclude`는 exclude 파일의 경로를 출력합니다.
 
 ## 내 것으로 만들기
 

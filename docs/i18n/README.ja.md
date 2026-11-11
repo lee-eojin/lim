@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-その後、review-loopを実行した各リポジトリで`.git/lim/review-loop/`と、`.git/info/exclude`の`.lim-review/`の行を削除します。サブモジュール、または`git init --separate-git-dir`で作ったリポジトリでは、`.git`はファイルなので、これらのパスはありません。リンクされたworktreeには、そのworktree専用のフォルダーもあります。どちらの場合も、フォルダーの場所の調べ方は[review-loop README](../../plugins/review-loop/README.md#data)にあります。
+その後、review-loopを実行した各リポジトリで`.git/lim/review-loop/`と、`.git/info/exclude`の`.lim-review/`の行を削除します。サブモジュール、または`git init --separate-git-dir`で作ったリポジトリでは、`.git`はファイルなので、これらのパスはありません。リンクされたworktreeには、そのworktree専用のフォルダーもあります。どちらの場合も、フォルダーの場所の調べ方は[review-loop README](../../plugins/review-loop/README.md#data)にあります。excludeファイルのパスは`git rev-parse --git-path info/exclude`で表示できます。
 
 ## 自分のものにする
 

@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Lalu hapus `.git/lim/review-loop/` di setiap repository tempat kamu menjalankan review-loop, beserta baris `.lim-review/` di `.git/info/exclude` miliknya. Di submodule, atau di repository yang dibuat dengan `git init --separate-git-dir`, `.git` adalah file sehingga path-path itu tidak ada. Worktree yang tertaut juga punya folder sendiri. [review-loop README](../../plugins/review-loop/README.md#data) menjelaskan cara menemukan folder untuk kedua kasus itu.
+Lalu hapus `.git/lim/review-loop/` di setiap repository tempat kamu menjalankan review-loop, beserta baris `.lim-review/` di `.git/info/exclude` miliknya. Di submodule, atau di repository yang dibuat dengan `git init --separate-git-dir`, `.git` adalah file sehingga path-path itu tidak ada. Worktree yang tertaut juga punya folder sendiri. [review-loop README](../../plugins/review-loop/README.md#data) menjelaskan cara menemukan folder untuk kedua kasus itu. `git rev-parse --git-path info/exclude` menampilkan path file exclude.
 
 ## Jadikan milikmu
 

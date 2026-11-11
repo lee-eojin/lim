@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Затем удалите `.git/lim/review-loop/` в каждом репозитории, где вы запускали review-loop, и строку `.lim-review/` в его `.git/info/exclude`. В подмодуле или в репозитории, созданном командой `git init --separate-git-dir`, `.git` — это файл, и таких путей нет. У связанного worktree есть и своя папка. В [review-loop README](../../plugins/review-loop/README.md#data) описано, как найти папку в обоих случаях.
+Затем удалите `.git/lim/review-loop/` в каждом репозитории, где вы запускали review-loop, и строку `.lim-review/` в его `.git/info/exclude`. В подмодуле или в репозитории, созданном командой `git init --separate-git-dir`, `.git` — это файл, и таких путей нет. У связанного worktree есть и своя папка. В [review-loop README](../../plugins/review-loop/README.md#data) описано, как найти папку в обоих случаях. `git rev-parse --git-path info/exclude` выводит путь к файлу exclude.
 
 ## Подстройте под себя
 

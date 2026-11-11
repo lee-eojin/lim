@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Depois, apague `.git/lim/review-loop/` em cada repositório onde você executou o review-loop, e a linha `.lim-review/` do `.git/info/exclude` dele. Em um submódulo, ou em um repositório criado com `git init --separate-git-dir`, `.git` é um arquivo e esses caminhos não existem. Um worktree vinculado também tem sua própria pasta. O [review-loop README](../../plugins/review-loop/README.md#data) mostra como encontrar a pasta nos dois casos.
+Depois, apague `.git/lim/review-loop/` em cada repositório onde você executou o review-loop, e a linha `.lim-review/` do `.git/info/exclude` dele. Em um submódulo, ou em um repositório criado com `git init --separate-git-dir`, `.git` é um arquivo e esses caminhos não existem. Um worktree vinculado também tem sua própria pasta. O [review-loop README](../../plugins/review-loop/README.md#data) mostra como encontrar a pasta nos dois casos. `git rev-parse --git-path info/exclude` mostra o caminho do arquivo exclude.
 
 ## Deixe do seu jeito
 

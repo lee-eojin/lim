@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Sau đó, xóa `.git/lim/review-loop/` trong mỗi repository mà bạn đã chạy review-loop, cùng dòng `.lim-review/` trong `.git/info/exclude` của repository đó. Trong một submodule, hoặc một repository được tạo bằng `git init --separate-git-dir`, `.git` là một file và các đường dẫn đó không tồn tại. Một worktree liên kết cũng có thư mục riêng. [review-loop README](../../plugins/review-loop/README.md#data) chỉ cách tìm thư mục trong cả hai trường hợp.
+Sau đó, xóa `.git/lim/review-loop/` trong mỗi repository mà bạn đã chạy review-loop, cùng dòng `.lim-review/` trong `.git/info/exclude` của repository đó. Trong một submodule, hoặc một repository được tạo bằng `git init --separate-git-dir`, `.git` là một file và các đường dẫn đó không tồn tại. Một worktree liên kết cũng có thư mục riêng. [review-loop README](../../plugins/review-loop/README.md#data) chỉ cách tìm thư mục trong cả hai trường hợp. `git rev-parse --git-path info/exclude` in ra đường dẫn của file exclude.
 
 ## Biến nó thành của bạn
 

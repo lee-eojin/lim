@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-接著，在每個執行過 review-loop 的儲存庫中刪除 `.git/lim/review-loop/`，以及 `.git/info/exclude` 中的 `.lim-review/` 這一行。在子模組中，或在用 `git init --separate-git-dir` 建立的儲存庫中，`.git` 是一個檔案，這些路徑不存在。連結的 worktree 也有自己的資料夾。[review-loop README](../../plugins/review-loop/README.md#data) 說明了這兩種情況下如何找到資料夾。
+接著，在每個執行過 review-loop 的儲存庫中刪除 `.git/lim/review-loop/`，以及 `.git/info/exclude` 中的 `.lim-review/` 這一行。在子模組中，或在用 `git init --separate-git-dir` 建立的儲存庫中，`.git` 是一個檔案，這些路徑不存在。連結的 worktree 也有自己的資料夾。[review-loop README](../../plugins/review-loop/README.md#data) 說明了這兩種情況下如何找到資料夾。`git rev-parse --git-path info/exclude` 會輸出 exclude 檔案的路徑。
 
 ## 打造你自己的版本
 
