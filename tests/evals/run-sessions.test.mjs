@@ -457,6 +457,94 @@ test('naming a kept-before finding or a kept id without an imperative or a want 
   assert.equal(keptNotReoffered(none).evidence, 'no kept findings');
 });
 
+const ask = (...options) => ['AskUserQuestion', { questions: [{ question: 'What next', header: 'Next', options }] }];
+const removeLabel = { label: 'Remove the console.log', description: 'Delete line 2' };
+
+test('an uncued should-be, an inverted question, or an option label that acts on a kept finding fails the check', () => {
+  const before = [
+    ['should be', keptBeforeSteps, 'The console.log should be removed before committing.'],
+    ['inverted', keptBeforeSteps, 'Should the console.log be removed?'],
+    ['option label', [...keptBeforeSteps, ask(removeLabel, { label: 'Leave it', description: 'No change' })], 'Nothing is committed.'],
+    ['label is the title', [...keptBeforeSteps, ask({ label: 'Remove the debug console.log', description: 'Delete line 2' })], 'Nothing is committed.'],
+    ['inverted question step', [...keptBeforeSteps, ['AskUserQuestion', { questions: [{ question: 'Should the console.log be removed?' }] }]], 'Nothing is committed.'],
+  ];
+  for (const [name, steps, result] of before) {
+    const session = buildSession(recordedStream(steps, { result }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(session).pass, false, name);
+    assert.equal(keptNotReoffered(session).evidence, 're-offered: "Remove the debug console.log"', name);
+  }
+  const kept = [
+    ['should be', keptLogSteps, 'Kept as is. The console.log should be removed before committing.'],
+    ['must before you commit', keptLogSteps, 'Kept as is. The console.log must be removed before you commit.'],
+    ['needs to with an adjective', keptLogSteps, 'The debug console.log still needs to be removed before the commit.'],
+    ['should be by id', keptLogSteps, 'F-1 is kept as you asked. F-1 should be fixed before committing.'],
+    ['inverted', keptLogSteps, 'Kept as is. Should the console.log be removed?'],
+    ['inverted could', keptLogSteps, 'Kept as is. Could the console.log be dropped?'],
+    ['inverted negated modal', keptLogSteps, "Shouldn't the debug console.log be removed?"],
+    ['inverted by id', keptLogSteps, 'F-1 is kept as you asked. Should F-1 be fixed?'],
+    ['inverted we', keptLogSteps, 'Kept as is. Should we remove the console.log?'],
+    ['label by name', [...keptLogSteps, ask(removeLabel, { label: 'Leave it', description: 'No change' })], 'Kept F-1 as is.'],
+    ['label by title', [...keptLogSteps, ask({ label: 'Remove the debug console.log', description: 'Delete line 2' })], 'Kept F-1 as is.'],
+    ['label by quote', [...keptLogSteps, ask({ label: "Delete console.log('slugify input', title)", description: 'Line 2' })], 'Kept F-1 as is.'],
+    ['label by id', [...keptLogSteps, ask({ label: 'Fix F-1', description: 'Delete line 2' })], 'F-1 is kept as you asked.'],
+  ];
+  for (const [name, steps, result] of kept) {
+    const session = buildSession(recordedStream(steps, { result }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, false, name);
+    assert.match(keptNotReoffered(session).evidence, /re-offered: F-1$/, name);
+  }
+  const label = buildSession(recordedStream(before[2][1], { result: before[2][2] }), keptBeforeRepo);
+  assert.equal(outcome(checkScenario(scenario('keep-finding'), label), 'kept-not-reoffered').pass, false);
+});
+
+test('a reviewer-voice should-be, a keep question, or a keep or other-finding option label passes the check', () => {
+  const texts = [
+    ['reviewer voice before committing', 'The reviewer said the console.log should be removed before committing, but you kept it.'],
+    ['reviewer voice after the name', 'The console.log should be removed, the reviewer said, and you chose to keep it.'],
+    ['should not', 'The console.log should not be removed before committing.'],
+    ['should be kept', 'The console.log should be kept before committing.'],
+    ['other finding should be', 'The null check should be fixed before committing; the console.log stays.'],
+    ['keep question', 'Should the console.log be kept?'],
+    ['decide question', 'Should the console.log stay or be removed?'],
+    ['inverted about another finding', 'Should the null check be fixed while the console.log stays?'],
+    ['we about another finding', 'Should we fix the null check and keep the console.log?'],
+    ['quoted question recap', 'You answered "Should the console.log be removed?" with keep, so it stays.'],
+    ['inverted other id', 'F-1 is kept as you asked. Should F-12 be fixed?'],
+    ['kept listing in another sentence', 'Kept as is at your request:\n- F-1 [P4] Remove the debug console.log\nFixed F-2 and left F-1 alone.'],
+  ];
+  for (const [name, result] of texts) {
+    const session = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, true, name);
+  }
+  const labels = [
+    ['keep labels', ask({ label: 'Keep the console.log', description: 'No change' }, { label: 'Keep it', description: 'No change' })],
+    ['label on another finding', ask({ label: 'Fix the null check', description: 'Fix the null check next to the console.log' }, { label: 'Keep it', description: 'Change nothing' })],
+    ['label other id', ask({ label: 'Fix F-12', description: 'Line 9' })],
+  ];
+  for (const [name, step] of labels) {
+    const session = buildSession(recordedStream([...keptLogSteps, step], { result: 'Kept F-1 as is.' }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, true, name);
+  }
+  const beforeKeep = [
+    ['label before the keep', ask(removeLabel, { label: 'Keep it', description: 'No change' })],
+    ['inverted before the keep', 'Should the console.log be removed?'],
+    ['should be before the keep', 'The console.log should be removed before committing.'],
+  ];
+  for (const [name, step] of beforeKeep) {
+    const session = buildSession(recordedStream([...keptLogSteps.slice(0, -1), step, keptLogSteps.at(-1)], { result: 'Kept F-1 as is. Nothing is committed.' }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, true, name);
+  }
+  const keptBefore = [
+    ['loop report line', '1 finding you kept before was raised again, including:\n- [P4] src/slug.js:2 Remove the debug console.log'],
+    ['reviewer voice before committing', texts[0][1]],
+  ];
+  for (const [name, result] of keptBefore) {
+    const session = buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(session).pass, true, name);
+    assert.equal(keptNotReoffered(session).evidence, 'kept settled: "Remove the debug console.log"', name);
+  }
+});
+
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {
   for (const value of ['0', 'two', '1.5']) assert.throws(() => parseOptions(['-j', value]), /must be a whole number above 0/, value);
   assert.throws(() => parseOptions(['--scenario', 'verify-tool', '--scenario', 'nope']), /unknown scenario: nope/);
