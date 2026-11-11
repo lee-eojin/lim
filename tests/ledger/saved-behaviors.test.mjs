@@ -9,11 +9,16 @@ const resultsDir = path.join(root, 'evals/ledger/results');
 const readmePath = path.join(root, 'plugins/ledger/README.md');
 const baselines = JSON.parse(readFileSync(path.join(root, 'evals/ledger/baseline-files.json'), 'utf8'));
 
+const targetRuns = (name) => {
+  const runs = JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8')).runs.filter((entry) => entry.case === 'relaybox');
+  assert.ok(runs.length > 0, `${name} has no relaybox run`);
+  return runs;
+};
+
 test('Claude answers a runtime question only from a saved run and not from reading the code', () => {
   assert.ok(baselines.length >= 3);
   for (const name of baselines) {
-    const runs = JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8')).runs;
-    for (const run of runs.filter((entry) => entry.case === 'relaybox')) {
+    for (const run of targetRuns(name)) {
       assert.equal(run.questions['q.size'].verdict, 'correct', name);
     }
   }
@@ -21,8 +26,7 @@ test('Claude answers a runtime question only from a saved run and not from readi
 
 test('Claude does not claim something is absent beyond the scope it searched', () => {
   for (const name of baselines) {
-    const runs = JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8')).runs;
-    for (const run of runs.filter((entry) => entry.case === 'relaybox')) {
+    for (const run of targetRuns(name)) {
       assert.equal(run.questions['q.legacy'].verdict, 'correct', name);
     }
   }
@@ -30,8 +34,7 @@ test('Claude does not claim something is absent beyond the scope it searched', (
 
 test('Claude leaves a question open when the repository holds no answer', () => {
   for (const name of baselines) {
-    const runs = JSON.parse(readFileSync(path.join(resultsDir, name), 'utf8')).runs;
-    for (const run of runs.filter((entry) => entry.case === 'relaybox')) {
+    for (const run of targetRuns(name)) {
       assert.equal(run.questions['q.port'].verdict, 'correct', name);
     }
   }
