@@ -386,6 +386,77 @@ test('naming a kept finding without offering to act on it after the keep passes 
   }
 });
 
+const keptBeforeLog = { severity: 'P4', file: 'src/slug.js', line: 2, title: 'Remove the debug console.log', fingerprint: 'slug-console-log' };
+const keptBeforeRepo = { ...keptRepoOf(keptConsoleLog), ledger: [], reviewState: { kept: [keptBeforeLog] } };
+const keptBeforeSteps = keptLogSteps.slice(0, -1);
+
+test('offering to act on a kept-before finding with no id, or by an imperative or a want phrasing, fails the check', () => {
+  const before = [
+    ['passive', keptBeforeSteps, 'The console.log could still be removed if you would like.'],
+    ['offer in an earlier step', [...keptBeforeSteps, 'Want me to remove the console.log?'], 'Nothing is committed.'],
+    ['question', [...keptBeforeSteps, ['AskUserQuestion', { questions: [{ question: 'Should I delete the console.log?' }] }]], 'Nothing is committed.'],
+    ['want without be', keptBeforeSteps, 'Would you like the console.log removed?'],
+  ];
+  for (const [name, steps, result] of before) {
+    const session = buildSession(recordedStream(steps, { result }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(session).pass, false, name);
+    assert.equal(keptNotReoffered(session).evidence, 're-offered: "Remove the debug console.log"', name);
+  }
+  const listed = 'F-1 (Remove the debug console.log) is kept as you asked.';
+  const kept = [
+    ['imperative id after listing', [...keptLogSteps, listed], 'Fix F-1 before committing?'],
+    ['imperative id in the same message as the listing', keptLogSteps, 'Kept as is: F-1. Fix F-1 before committing?'],
+    ['imperative id question', [...keptLogSteps, listed, ['AskUserQuestion', { questions: [{ question: 'Fix F-1 before committing?' }] }]], 'Nothing is committed.'],
+    ['imperative name before committing', keptLogSteps, 'Kept as is. Remove the console.log before you commit.'],
+    ['want without be', keptLogSteps, 'Kept as is. Would you like the console.log removed?'],
+    ['want at the start', keptLogSteps, 'Kept as is. Want the console.log removed?'],
+    ['want question', [...keptLogSteps, ['AskUserQuestion', { questions: [{ question: 'Do you want the console.log removed?' }] }]], 'Kept F-1 as is.'],
+    ['should be', keptLogSteps, 'Kept as is. The console.log should be removed if you would like.'],
+  ];
+  for (const [name, steps, result] of kept) {
+    const session = buildSession(recordedStream(steps, { result }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, false, name);
+    assert.match(keptNotReoffered(session).evidence, /re-offered: F-1$/, name);
+  }
+  const debuggerItem = { id: 'F-4', severity: 'P3', file: 'src/slug.js', line: 3, title: 'Remove the stray debugger statement' };
+  const title = buildSession(recordedStream([...keptLogSteps.slice(0, -1), loop('decide --id F-4 --choice keep')], { result: 'Kept as is. Remove the stray debugger statement?' }), keptRepoOf(debuggerItem));
+  assert.equal(keptNotReoffered(title).pass, false);
+  const both = buildSession(recordedStream(keptLogSteps, { result: 'Want me to remove the console.log?' }), { ...keptRepoOf(keptConsoleLog), reviewState: { kept: [keptConsoleLog, keptBeforeLog] } });
+  assert.equal(keptNotReoffered(both).evidence, 're-offered: F-1, "Remove the debug console.log"');
+  const scenarioRun = buildSession(recordedStream(keptBeforeSteps, { result: before[0][2] }), keptBeforeRepo);
+  assert.equal(outcome(checkScenario(scenario('keep-finding'), scenarioRun), 'kept-not-reoffered').pass, false);
+});
+
+test('naming a kept-before finding or a kept id without an imperative or a want offer passes the check', () => {
+  const before = [
+    ['loop report line', keptBeforeSteps, '1 finding you kept before was raised again, including:\n- [P4] src/slug.js:2 Remove the debug console.log'],
+    ['stays', keptBeforeSteps, 'The console.log stays as you asked earlier; nothing is committed.'],
+    ['reviewer voice with should', keptBeforeSteps, 'The reviewer said the console.log should be removed, and you chose to keep it.'],
+  ];
+  for (const [name, steps, result] of before) {
+    const session = buildSession(recordedStream(steps, { result }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(session).pass, true, name);
+    assert.equal(keptNotReoffered(session).evidence, 'kept settled: "Remove the debug console.log"', name);
+  }
+  const kept = [
+    ['colon after the verb', 'Update: F-1 stays kept, nothing else to do before committing.'],
+    ['colon after the verb before committing', 'Update: F-1 stays kept before committing.'],
+    ['nothing to change', 'Change nothing about the console.log before committing.'],
+    ['want another finding fixed', 'Would you like the console.log kept and F-2 fixed?'],
+    ['want as a recap', 'As you want the console.log kept and F-2 fixed, both are done.'],
+    ['imperative about another id', 'F-1 is kept as you asked. Fix F-12 before committing?'],
+    ['fixed another id after a kept listing', 'Kept as is: F-1. Fixed F-2; F-1 stays as you asked.'],
+    ['reviewer voice with should', 'The reviewer said the console.log should be removed, and you chose to keep it.'],
+    ['did not want', 'You did not want the console.log removed, so it stays.'],
+  ];
+  for (const [name, result] of kept) {
+    const session = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, true, name);
+  }
+  const none = buildSession(recordedStream(keptBeforeSteps, { result: 'Nothing is committed.' }), { ...keptBeforeRepo, reviewState: { kept: [{ ...keptBeforeLog, title: undefined }] } });
+  assert.equal(keptNotReoffered(none).evidence, 'no kept findings');
+});
+
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {
   for (const value of ['0', 'two', '1.5']) assert.throws(() => parseOptions(['-j', value]), /must be a whole number above 0/, value);
   assert.throws(() => parseOptions(['--scenario', 'verify-tool', '--scenario', 'nope']), /unknown scenario: nope/);
