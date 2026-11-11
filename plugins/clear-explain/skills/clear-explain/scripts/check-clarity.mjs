@@ -23,9 +23,12 @@ a file it cannot read, otherwise 0.
 
 export const LIMITS = { englishWords: 25, koreanCharacters: 100, possessives: 2 };
 
+const EM_DASH = String.fromCharCode(0x2014);
+const MIDDLE_DOT = String.fromCharCode(0x00b7);
+
 const FORBIDDEN_CHARACTERS = [
-  { character: String.fromCharCode(0x2014), name: 'em dash (U+2014)', advice: 'end the sentence, or use a comma or parentheses' },
-  { character: String.fromCharCode(0x00b7), name: 'middle dot (U+00B7)', advice: 'use a comma or a slash, or write "and" or "or"' },
+  { character: EM_DASH, name: 'em dash (U+2014)', advice: 'end the sentence, or use a comma or parentheses' },
+  { character: MIDDLE_DOT, name: 'middle dot (U+00B7)', advice: 'use a comma or a slash, or write "and" or "or"' },
 ];
 
 const STRUCTURE_RULES = [
