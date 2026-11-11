@@ -340,6 +340,12 @@ export function fixBasisStated(session) {
     const who = resolved.map((item) => item.id).filter(Boolean).join(', ') || 'a fix';
     return { pass: false, evidence: resolved.length ? `${who} resolved, prose never says measured or inferred` : 'prose never says measured or inferred' };
   }
+  const ids = resolved.map((item) => item.id).filter(Boolean).map(String);
+  const names = (id) => new RegExp(`(?<![\\w-])${escapeRegex(id)}(?![\\w-])`);
+  const bare = ids.filter((id) => paragraphs.some((paragraph) => names(id).test(paragraph) && claim.test(paragraph) && !basis.test(paragraph)));
+  if (bare.length) return { pass: false, evidence: `${bare.join(', ')} named as fixed without measured or inferred` };
+  const unnamed = resolved.length > 1 ? ids.filter((id) => !paragraphs.some((paragraph) => names(id).test(paragraph) && basis.test(paragraph))) : [];
+  if (unnamed.length) return { pass: false, evidence: `${unnamed.join(', ')} resolved, never named with measured or inferred` };
   return { pass: true, evidence: 'how the fix is known is stated' };
 }
 
