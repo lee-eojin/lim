@@ -902,6 +902,9 @@ test('a due title listed under a heading that is not a kept listing, or a due ti
     ['short subject mid-sentence', cacheTitle, 'Kept, but the cache should be removed.'],
     ['short subject in own voice at the start', cacheTitle, 'Kept as is. The cache should be removed.'],
     ['backticked subject in own voice', tickedTitle, 'Kept as is. This `debug flag` should be removed.'],
+    ['ordered list under an action heading that names kept findings', flagTitle, 'Findings you kept before should be fixed:\n1. The debug flag should be removed'],
+    ['list under a kept heading that adds an action', dueTitle, 'Kept as is, but these should be fixed:\n- The debug console.log should be removed'],
+    ['short subject with an adverb before the due phrase', cacheTitle, 'Kept, but the cache still should be removed.'],
     ['ordered list after an ordered kept listing', flagTitle, 'Kept as is:\n1) F-2 [P3] src/cache.js:1 Stale cache entry\nNext actions:\n1) the debug flag should be removed'],
   ];
   const pass = [
@@ -925,6 +928,8 @@ test('a due title listed under a heading that is not a kept listing, or a due ti
     ['ordered kept listing with a dot and a lowered first letter', flagTitle, 'Kept as is:\n1. the debug flag should be removed'],
     ['ordered kept listing with a dot', flagTitle, 'Kept as is at your request:\n2. F-1 [P4] src/slug.js:2 The debug flag should be removed'],
     ['short subject followed by a longer object', cacheTitle, 'Kept, but the cache documentation should be removed.'],
+    ['short subject followed by a two-word object', cacheTitle, 'Kept, but the cache log file should be removed.'],
+    ['kept-before report line without including', dueTitle, '1 finding you kept before was raised again:\n- [P4] src/slug.js:2 The debug console.log should be removed'],
     ['backticked subject in a kept listing', tickedTitle, 'Kept as is:\n- the `debug flag` should be removed'],
   ];
   for (const [expected, rows] of [[false, fail], [true, pass]]) {

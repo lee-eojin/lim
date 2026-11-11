@@ -229,7 +229,7 @@ const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
 const ITEM = String.raw`(?<=^[\s>]*(?:[*•–—-]|\d+[.)])\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?)`;
 const LISTED = String.raw`(?<=[\])(:"'\`*_•–—-]\s*|:\d+\s+)`;
 const LIST_PREFIX = /^[\s>]*(?:[*•–—-]|\d+[.)])\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?/;
-const KEPT_LISTING = /^[\s>#*_]*(?:kept as is\b[^\n]*|[^\n]*\byou\s+kept\s+before\b[^\n]*):[\s*_]*$/i;
+const KEPT_LISTING = /^[\s>#*_]*(?:kept as is(?:\s+at\s+your\s+request)?|[^\n]*\byou\s+kept\s+before\s+(?:was|were)\s+raised\s+again(?:,\s*including)?):[\s*_]*$/i;
 
 function offersToAct(anchor, segment, own = segment) {
   return new RegExp(`${OFFER_TO_ACT}(?:${BESIDE}|${INCLUDING})${anchor}`, 'i').test(segment)
@@ -290,7 +290,7 @@ function keptAnchors(records) {
   const names = texts.flatMap((text) => text.match(DOTTED_NAME) ?? []).filter((name) => !files.includes(name));
   const subjects = texts.map((text) => text.match(DUE_SUBJECT)?.[1] ?? '').filter((text) => text.length >= 3 && !/^(?:it|this|that|these|those|they|them)$/i.test(text));
   const anchors = [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
-  return [...new Set([...anchors, ...subjects.map((text) => `(?<![\\w$])${escapeRegex(text).replace(/\s+/g, '\\s+')}(?![\\w$])(?!\\s+[\\w-]+\\s+${DUE})`)])];
+  return [...new Set([...anchors, ...subjects.map((text) => `(?<![\\w$])${escapeRegex(text).replace(/\s+/g, '\\s+')}(?![\\w$])(?!(?:\\s+(?!(?:still|also|always|really|just|now)\\b)[\\w-]+)+\\s+${DUE})`)])];
 }
 
 function keepStep(session, id) {
