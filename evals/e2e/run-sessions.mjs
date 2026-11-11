@@ -204,13 +204,21 @@ const LEAD = String.raw`(?:^|[:\[]")[\s*_>•-]*`;
 const PUSH = String.raw`(?:\?|\bbefore (?:committing|you commit|the commit)\b)`;
 const NEAR = String.raw`(?:(?!\b(?:and|or|but|not)\b)[^;,]){0,20}?`;
 const GAP = String.raw`(?:(?!\b(?:nothing|no|not|none)\b)[^;,:?]){0,40}?`;
+const MODAL = 'should|shall|could|can|would|may|might|must';
+const DUE = String.raw`\b(?:${MODAL}|ought to|needs? to|has to)(?:\s+(?:still|also|always|easily|just|really))?\s+be\s+(?:${DONE})\b`;
+const OPENING = String.raw`(?:(?:and|but|so|then|also|still)[,\s]+)?`;
+const SUBJECT = String.raw`(?:(?:the|this|that|your)\s+)?(?:[\w-]+\s+)?`;
+const REACH = String.raw`(?:(?!\b(?:and|or|but|not|nothing|no|none)\b)[^;,:?"]){0,40}?`;
 
 function offersToAct(anchor, segment) {
   return new RegExp(`${OFFER_TO_ACT}${anchor}`, 'i').test(segment)
     || new RegExp(`${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
     || new RegExp(`${OFFER_CUE}[^;]{0,20}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
     || new RegExp(`${LEAD}(?:(?:and|or|so|then|also|maybe|still)\\s+)?(?=(?:${ACT})\\b)${GAP}${anchor}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
-    || new RegExp(`(?:\\b(?:would you (?:like|prefer)|do you (?:want|need))\\b|${LEAD}want\\b|${OFFER_CUE})${NEAR}${anchor}${NEAR}\\b(?:${DONE})\\b`, 'i').test(segment);
+    || new RegExp(`(?:\\b(?:would you (?:like|prefer)|do you (?:want|need))\\b|${LEAD}want\\b|${OFFER_CUE})${NEAR}${anchor}${NEAR}\\b(?:${DONE})\\b`, 'i').test(segment)
+    || new RegExp(`${LEAD}${OPENING}${SUBJECT}${anchor}${NEAR}${DUE}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
+    || new RegExp(`${LEAD}${OPENING}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we)\\s+(?=(?:${ACT})\\b)${REACH}${anchor})`, 'i').test(segment)
+    || new RegExp(`"label":"[\\s*_>•-]*(?=(?:${ACT})\\b)${REACH}${anchor}`, 'i').test(segment);
 }
 
 const segmentsOf = (prose) => prose.split(/\n+|(?<=[.?!])\s+/);
