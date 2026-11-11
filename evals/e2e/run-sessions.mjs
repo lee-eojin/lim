@@ -225,7 +225,7 @@ const DENIED = String.raw`(?<!(?:\bnot|n['’]t|\bnever)\s+(?:(?!(?:and|but|or)\
 const CREDITED = String.raw`(?![^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE}(?:\s+(?:so|too|earlier(?:\s+today)?|before|first|again|yesterday|today|tonight|just\s+now|last\s+night|this\s+(?:morning|afternoon)|in\s+(?:the\s+)?(?:previous|last|first|earlier)\s+(?:review|round)|in\s+round\s+\d+))?\s*(?:[,.;)!?]|$))`;
 const INCLUDING = String.raw`,\s*(?:including|plus|and\s+also|as\s+well\s+as|along\s+with|together\s+with)\s+(?:(?:the|this|that|your)\s+)?`;
 const TAG = String.raw`,?\s+(?:too|as\s+well)\b`;
-const OBJECT_END = String.raw`(?=\s*(?:[,.;:!)"”]|$|${PUSH})|${TAG})`;
+const OBJECT_END = String.raw`(?!\s+(?:(?:still|also|just|now)\s+)?(?:stays?|remains?|is|are|was|were|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|gets?|keeps?|sits?|lives?|goes|seems?|looks?)\b)`;
 const AND_TOO = String.raw`,\s*and\s+(?:(?:the|this|that|your)\s+)?`;
 const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+to\s+)?`;
 const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;

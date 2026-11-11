@@ -889,6 +889,9 @@ test('an and-too offer after a neighbor fails, a reviewer credit with a time tai
     ['plus at the clause end', [], 'I can fix the null check, plus the console.log.'],
     ['plus with too', [], 'I can fix the null check, plus the console.log too.'],
     ['plus before committing', [], 'I can fix the null check, plus the console.log before committing?'],
+    ['including a coordinated object', [], 'I can remove the debug output, including the console.log and console.warn.'],
+    ['plus a coordinated object', [], 'I can fix the null check, plus the console.log and the stale test?'],
+    ['plus a place after the name', [], 'I can fix the null check, plus the console.log on line 2?'],
     ['credit tail about another finding', [], 'The console.log should be removed, as the reviewer noted yesterday about the null check.'],
     ...words.flatMap((word) => [
       [`i with ${word} after the name`, [], `Should I fix the console.log ${word} the null check?`],
@@ -908,6 +911,8 @@ test('an and-too offer after a neighbor fails, a reviewer credit with a time tai
     ['plus before remains', [], 'I can fix the null check, plus the console.log remains.'],
     ['along with before is kept', [], 'I can fix the null check, along with the console.log is kept.'],
     ['including before stays', [], 'I can fix the null check, including the console.log stays.'],
+    ['plus before an adverb and stays', [], 'I can fix the null check, plus the console.log still stays.'],
+    ['including before is kept', [], 'I can fix the null check, including the console.log is kept.'],
     ...words.flatMap((word) => [
       [`should-be about ${word}`, [], `The null check ${word} the console.log should be fixed.`],
       [`inverted about ${word}`, [], `Should the null check ${word} the console.log be fixed?`],
