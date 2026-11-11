@@ -44,4 +44,4 @@ Guidance for AI agents working in this repository. Humans are welcome to read it
 | Translations keep the English README's headings, numbers, and links | `node scripts/check-i18n.mjs` |
 | An evidence report has REVISION, REPRO, RUN, PROOF, LIMITS, and a known verdict | `node scripts/check-evidence-report.mjs <file>`, required by `.claude/skills/prove-it/SKILL.md` |
 | A function the review-loop model covers does not change past the skill's sync blob | `node scripts/check-loop-model-sync.mjs`; `tests/scripts/check-loop-model-sync.test.mjs` runs it on this repository, except in a shallow clone |
-| A pull request merges only after both CI jobs (`check`, `windows`) pass | The `main` ruleset's required status checks |
+| A pull request merges only after the `check` and `windows` CI jobs pass; the `macos` job is not required | The `main` ruleset's required status checks |
