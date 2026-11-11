@@ -35,8 +35,8 @@
       "id": "en-effect-twice",
       "arm": "with",
       "defect": "removed-definition",
-      "term": "cleanup function",
-      "find": " The cleanup function is the function your Effect returns."
+      "term": "Strict Mode",
+      "find": "Strict Mode is a development-only wrapper that runs extra checks on the components inside it. "
     },
     {
       "id": "en-effect-twice",
@@ -206,9 +206,9 @@
       "id": "ko-event-loop",
       "arm": "without",
       "defect": "factual-error",
-      "find": "`process.nextTick`은 Promise보다도 먼저 실행돼요.",
-      "replace": "`process.nextTick`은 Promise보다 나중에 실행돼요.",
-      "truth": "In Node.js the process.nextTick queue runs before the Promise microtasks."
+      "find": "**태스크 큐보다 우선순위가 높아요.**",
+      "replace": "**태스크 큐보다 우선순위가 낮아요.**",
+      "truth": "The microtask queue is emptied before the next task runs, so it comes first, not last."
     },
     {
       "id": "ko-memo",
