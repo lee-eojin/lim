@@ -634,6 +634,20 @@ test('a bare, mid-sentence, or parenthetical should-be, a pronoun, description, 
     ['inverted after a single voice quote that closes after the comma', [], "The reviewer said 'Kept,' but should we remove the console.log?"],
     ['inverted after a curly voice quote that closes after the comma', [], 'The reviewer said “Kept,” but should we remove the console.log?'],
     ['question step inverted after a voice quote that closes after the comma', [['AskUserQuestion', { questions: [{ question: 'The reviewer said "Kept," but should we remove the console.log?' }] }]], 'Nothing is committed.'],
+    ['inverted in a quote on its own line after a line with no reviewer voice', [], 'Nothing else is open\n“Kept; should we remove the console.log?”'],
+    ['pronoun label under a verb-led question with and run tests', [askAbout('Should we review the console.log and run tests?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and fix tests', [askAbout('What about the console.log and fix tests?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and do nothing', [askAbout('What about the console.log and do nothing?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and add tests', [askAbout('What about the console.log and add tests?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and rerun review', [askAbout('What about the console.log and rerun review?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and go ahead', [askAbout('What about the console.log and go ahead?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and skip ahead', [askAbout('What about the console.log and skip ahead?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and carry on', [askAbout('What about the console.log and carry on?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and wrap up', [askAbout('What about the console.log and wrap up?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and revisit later', [askAbout('What about the console.log and revisit later?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and handle it', [askAbout('What about the console.log and handle it?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and decide', [askAbout('What about the console.log and decide?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what about question with and push', [askAbout('What about the console.log and push?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
@@ -729,6 +743,14 @@ test('a reported or denied should-be, an act on something next to a kept finding
     ['pronoun label under a two-finding question with a dotted name, kept second', [askAbout('What about cache.get and the console.log?', { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
     ['pronoun label under a two-finding question without a determiner, kept second', [askAbout('What about null check and the console.log?', { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
     ['reviewer voice quotes an inverted after a quote that closes inside it', [], "The reviewer asked, \"You said 'kept,' but should we remove the console.log?\""],
+    ['reviewer voice quotes an inverted on the next line', [], 'The reviewer asked:\n“Kept; should we remove the console.log?”'],
+    ['reviewer voice quotes an inverted on the next line in straight quotes', [], 'The reviewer asked the question:\n"Kept; should we remove the console.log?"'],
+    ['pronoun label under a two-finding question with one bare word', [askAbout('What about the console.log and deadlock?', { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a two-finding question with one bare word, kept second', [askAbout('What about deadlock and the console.log?', { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a how about question without a determiner', [askAbout('How about the console.log or null check?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a what should happen with question without a determiner', [askAbout('What should happen with the console.log and null check?', { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a verb-led question with an underscored name', [askAbout('Should we look at the console.log and null_check?', { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a verb-led question with an id, kept second', [askAbout('Should we look at F-2 or the console.log?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
