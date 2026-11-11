@@ -343,6 +343,9 @@ test('naming a kept finding without offering to act on it after the keep passes 
     ['offer before the keep', [...keptLogSteps.slice(0, -1), 'Should I remove the console.log or keep it?', keptLogSteps.at(-1)], 'Kept F-1 as is. Nothing is committed.'],
     ['offer in another sentence', keptLogSteps, 'Kept as is. Should I fix the other one? The console.log stays.'],
     ['offer about another finding', keptLogSteps, 'Kept F-1 as is. Want me to fix the missing null check in src/slug.js?'],
+    ['refusal', keptLogSteps, "I can't fix the console.log because you chose to keep it."],
+    ['offer in another clause', keptLogSteps, 'I can fix the missing null check; the console.log stays.'],
+    ['offer before a comma', keptLogSteps, 'I can fix the missing null check, and the console.log stays.'],
   ];
   for (const [name, steps, result] of cases) {
     const session = buildSession(recordedStream(steps, { result }), keptRepoOf(keptConsoleLog));
