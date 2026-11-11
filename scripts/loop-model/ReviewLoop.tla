@@ -29,6 +29,9 @@ VARIABLES loop, cmd, ledger
 
 InState(l, place) == {s \in Slots : l.findings[s].where = place}
 
+Decidable(l) == InState(l, "open") \cup InState(l, "deferred")
+                  \cup {s \in InState(l, "kept") : l.findings[s].route # "none"}
+
 \* needsProof in loop.mjs: a resolved P1 or P2 not from a failing check, with no regression proof.
 \* regression is "test" for a draft that hasRegressionProof accepts and "noTest" for a no-test reason.
 Unproven(l) == {s \in Slots : /\ l.findings[s].where = "resolved"
@@ -202,7 +205,7 @@ NextCommand ==
 RuleCommand ==
   /\ UNCHANGED ledger
   /\ \E s \in Slots :
-       /\ loop.findings[s].where \in {"open", "deferred", "kept", "resolved"}
+       /\ s \in Decidable(loop) \cup InState(loop, "resolved")
        /\ IF loop.findings[s].decision = "rule"
           THEN \E l2 \in StopIfProven(loop) \ {loop} :
                  loop' = l2 /\ cmd' = [name |-> "rule", slot |-> s, outcome |-> "ruleDraft"]
@@ -218,7 +221,7 @@ RuleCommand ==
 DecideCommand ==
   /\ loop.awaiting # "none"
   /\ \E s \in Slots, choice \in {"keep", "once", "rule"} :
-       /\ loop.findings[s].where \in {"open", "deferred"}
+       /\ s \in Decidable(loop)
        /\ loop.findings[s].decision # choice
        /\ loop' = [loop EXCEPT !.findings[s].decision = choice,
                                !.everKept = IF choice = "keep" THEN @ \cup {s} ELSE @,
