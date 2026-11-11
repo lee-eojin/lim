@@ -977,6 +977,10 @@ test('a bare second finding pairs with the kept name when a closed time or scope
   ];
   const fail = [
     ['a verb-led tail before the release', 'Should we review the console.log and run tests before the release?'],
+    ['send notes before the release', 'Should we review the console.log and send notes before the release?'],
+    ['write docs after the merge', 'Should we look at the console.log and write docs after the merge?'],
+    ['check logs in the next round', 'Should we review the console.log and check logs in the next round?'],
+    ['a for tail after a bare finding', 'Should we review the console.log and null check for the team?'],
     ['a verb-led tail with for the team', 'Should we look at the console.log and send notes for the team?'],
     ['a pronoun after the tail word', 'Should we look at the console.log and send notes for it?'],
     ['a tail with no article', 'Should we review the console.log and null check before release?'],

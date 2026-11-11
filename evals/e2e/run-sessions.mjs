@@ -208,6 +208,7 @@ const MODAL = 'should|shall|could|can|would|may|might|must';
 const DUE = String.raw`\b(?:${MODAL}|ought to|needs? to|has to|is to|are to)(?:\s+(?:still|also|always|easily|just|really))?\s+be\s+(?:${DONE})\b`;
 const OPENING = String.raw`(?:(?:and|but|so|then|also|still)[,\s]+)?`;
 const ONE = String.raw`(?!(?:when|where|why|how|what|which|who|whether|if|then|so|not|now|later|it|its|their|i|we|you|keep|leave|commit|${ACT}|${MODAL}|move|go|proceed|continue|skip|ship|merge|do|add|rerun|run|decide|push|[a-z]+ing)\b|[\w-]+\s+(?:it|this|that|them|these|those|on|up|later)\b)[a-z][\w-]*`;
+const TAIL_VERB = 'send|write|open|file|post|share|ping|notify|tell|email|message|reply|check|test|review|look|bump|tag|release|deploy|publish|close|update';
 const BARE = String.raw`${ONE}(?:\s+[a-z][\w-]*)?`;
 const OTHER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?!(?:[\w-]+\s+){0,2}(?:it|this|that|them|these|those)\b)[^\s?;,]+(?:\s+[^\s?;,]+){0,2}\s*\?|[A-Z]+-\d+\b|\x60[^\x60]|(?=[\w$]*(?:[._][\w$]|\())[a-z_$])`;
 const FORMER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?:[\w-]+\s+){0,2}[\w-]+|[A-Z]+-\d+|[._\x60(][\w$\x60)]+|(?<=\b(?:about|with|for)\s+)${BARE}|(?<=\bat\s+)${ONE})`;
@@ -261,7 +262,7 @@ function optionActs(anchor, question) {
   const asked = `${question?.header ?? ''}\n${question?.question ?? ''}`;
   const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(asked);
   const code = `\\x60?${anchor}\\x60?`;
-  const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|${BARE}(?:\\s+(?:first|too|as\\s+well|(?:before|after|during|until|in)\\s+(?:the|this|that|our|your|next)\\s+[\\w-]+(?:\\s+[\\w-]+)?))?\\s*\\?)`, 'i').test(asked);
+  const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|${BARE}(?:\\s+(?:first|too|as\\s+well))?\\s*\\?|(?!(?:${TAIL_VERB})\\b)${BARE}\\s+(?:before|after|during|until|in)\\s+(?:the|this|that|our|your|next)\\s+[\\w-]+(?:\\s+[\\w-]+)?\\s*\\?)`, 'i').test(asked);
   const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|[\\s.!]*$)`, 'i');
   const plural = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b\\s+(?:them|these|those|both)\\b`, 'i');
   return named && choices.some((text) => (paired ? plural : pronoun).test(text));
