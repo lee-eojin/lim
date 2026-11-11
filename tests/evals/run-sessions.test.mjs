@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import {
-  ALLOWED_TOOLS, SCENARIOS, buildSession, checkScenario, inOrder, keptNotReoffered, parseEvents, parseOptions, reportNotPastedAfter, reportShownAfter, scriptCall, sessionArgs, uncommittedPluginFiles,
+  ALLOWED_TOOLS, SCENARIOS, buildSession, checkScenario, findingBasisLabeled, fixBasisStated, inOrder, keptNotReoffered, parseEvents, parseOptions, reportNotPastedAfter, reportShownAfter, reviewerModelFollowed, scriptCall, sessionArgs, uncommittedPluginFiles,
 } from '../../evals/e2e/run-sessions.mjs';
 
 const WORK = '/tmp/cents-abc';
@@ -20,10 +20,10 @@ function recordedStream(steps, { denied = [], result = 'done' } = {}) {
       events.push({ type: 'assistant', parent_tool_use_id: null, message: { content: [{ type: 'text', text: step }] } });
       return;
     }
-    const [name, input, parent = null] = step;
+    const [name, input, parent = null, output = 'ok'] = step;
     const id = `tool-${index}`;
     events.push({ type: 'assistant', parent_tool_use_id: parent, message: { content: [{ type: 'tool_use', id, name, input }] } });
-    events.push({ type: 'user', parent_tool_use_id: parent, message: { content: [{ type: 'tool_result', tool_use_id: id, content: 'ok', is_error: denied.includes(index) }] } });
+    events.push({ type: 'user', parent_tool_use_id: parent, message: { content: [{ type: 'tool_result', tool_use_id: id, content: output, is_error: denied.includes(index) }] } });
   });
   events.push({ type: 'result', subtype: 'success', result, total_cost_usd: 1, permission_denials: denied.map((index) => ({ tool_use_id: `tool-${index}`, tool_name: 'Bash', tool_input: {} })) });
   return events;
@@ -32,14 +32,20 @@ function recordedStream(steps, { denied = [], result = 'done' } = {}) {
 const loop = (args) => ['Bash', { command: `node ${LOOP} ${args}` }];
 const verify = (args) => ['Bash', { command: `node ${VERIFY} ${args}` }];
 const reviewer = ['Agent', { subagent_type: 'review-loop:reviewer', prompt: 'round 1' }];
+const opusReviewer = ['Agent', { subagent_type: 'review-loop:reviewer', prompt: 'round 1', model: 'opus' }];
+const startOnOpus = [...loop('start --unattended'), null, JSON.stringify({ reviewerModel: 'opus' })];
+const nextOnOpus = [...loop('next'), null, JSON.stringify({ reviewerModel: 'opus' })];
+const measuredReview = JSON.stringify({ findings: [{ id: 'F-1', basis: 'measured', measuredBy: 'npm test: 1 failing before the change' }] });
+const inferredReview = JSON.stringify({ findings: [{ id: 'F-1', basis: 'inferred' }] });
+const happyClose = 'F-1 is fixed. Measured: npm test failed before the change and passes now.';
 const fix = ['Edit', { file_path: `${WORK}/src/format.js`, old_string: 'a', new_string: 'b' }];
 
 const happySteps = [
   ['Skill', { skill: 'review-loop:review-loop' }],
-  loop('start --unattended'),
-  reviewer,
+  startOnOpus,
+  opusReviewer,
   ['Read', { file_path: `${WORK}/src/format.js` }, 'tool-2'],
-  ['Write', { file_path: `${WORK}/.lim-review/round-1.json`, content: '{}' }],
+  ['Write', { file_path: `${WORK}/.lim-review/round-1.json`, content: measuredReview }],
   loop('record --file .lim-review/round-1.json'),
   verify('run --id two-decimal-places'),
   '```\nfail\n```',
@@ -48,8 +54,8 @@ const happySteps = [
   ['Write', { file_path: `${WORK}/test/padding.test.js`, content: 'test' }],
   loop('rule --id F-1 --draft test/padding.test.js'),
   verify('run --id two-decimal-places'),
-  loop('next'),
-  reviewer,
+  nextOnOpus,
+  opusReviewer,
   loop('record --file .lim-review/round-2.json'),
   loop('summary'),
 ];
@@ -82,7 +88,7 @@ test('script calls are labeled by script and arguments, and a command with anyth
 });
 
 test('a session that follows review-loop and verify end to end passes every expectation', () => {
-  const results = checkScenario(scenario('review-with-verify'), buildSession(recordedStream(happySteps), happyRepository));
+  const results = checkScenario(scenario('review-with-verify'), buildSession(recordedStream(happySteps, { result: happyClose }), happyRepository));
   assert.deepEqual(results.filter((item) => !item.pass), []);
   assert.match(outcome(results, 'reproduce-fix-rerun-order').evidence, /loop reproduce --id F-1 -> #\d+ Edit src\/format\.js/);
 });
@@ -248,6 +254,7 @@ test('a keep-finding session that keeps the finding and only lists it as kept pa
     ['Skill', { skill: 'review-loop:review-loop' }],
     loop('start'),
     reviewer,
+    ['Write', { file_path: `${WORK}/.lim-review/round-1.json`, content: inferredReview }],
     loop('record --file .lim-review/round-1.json'),
     loop('decide --id F-1 --choice keep'),
     'F-1 (Remove the debug console.log) is kept as you asked.',
@@ -373,4 +380,110 @@ test('In an unattended run Claude never uses AskUserQuestion and takes the safe 
   assert.ok(withNote.some((step) => Array.isArray(step) && /loop\.mjs note /.test(step[1]?.command ?? '')));
   const asked = [...happySteps.slice(0, -1), ['AskUserQuestion', { questions: [] }], loop('summary')];
   assert.equal(outcome(checkScenario(scenario('review-with-verify'), buildSession(recordedStream(asked), happyRepository)), 'no-question').pass, false);
+});
+
+const outcomeOf = (check, steps, repo = happyRepository, result = happyClose) => check(buildSession(recordedStream(steps, { result }), repo));
+const withReview = (content) => happySteps.map((step) => (Array.isArray(step) && step[0] === 'Write' && /\.lim-review\/round-1\.json$/.test(step[1].file_path) ? ['Write', { ...step[1], content }] : step));
+const noneResolved = { ...happyRepository, reviewState: { resolved: [], open: [] } };
+
+test('the model-half expectations are wired on the review scenarios that can check them', () => {
+  const ids = (name) => scenario(name).expectations.map((item) => item.id);
+  for (const id of ['finding-basis-labeled', 'fix-basis-stated', 'reviewer-model-followed']) {
+    assert.equal(ids('review-with-verify').includes(id), true, id);
+  }
+  assert.equal(ids('failing-check').includes('fix-basis-stated'), true);
+  assert.equal(ids('failing-check').includes('finding-basis-labeled'), false);
+  assert.equal(ids('failing-check').includes('reviewer-model-followed'), false);
+  assert.equal(ids('keep-finding').includes('finding-basis-labeled'), true);
+  assert.equal(ids('keep-finding').includes('reviewer-model-followed'), true);
+  assert.equal(ids('keep-finding').includes('fix-basis-stated'), false);
+  assert.equal(ids('review-with-verify').filter((id) => id === 'no-question').length, 1);
+  assert.equal(ids('failing-check').filter((id) => id === 'no-question').length, 1);
+});
+
+test('a review finding without a confidence label, or with one that is not allowed, fails the basis check', () => {
+  const missing = outcomeOf(findingBasisLabeled, withReview(JSON.stringify({ findings: [{ id: 'F-1' }] })));
+  assert.equal(missing.pass, false);
+  assert.match(missing.evidence, /round-1\.json F-1: basis missing/);
+  const certain = outcomeOf(findingBasisLabeled, withReview(JSON.stringify({ findings: [{ id: 'F-1', basis: 'certain' }] })));
+  assert.equal(certain.pass, false);
+  assert.match(certain.evidence, /round-1\.json F-1: basis "certain"/);
+});
+
+test('a measured finding without a measuredBy string fails, and an empty findings list or a guessed finding passes', () => {
+  const blank = outcomeOf(findingBasisLabeled, withReview(JSON.stringify({ findings: [{ id: 'F-1', basis: 'measured', measuredBy: '  ' }] })));
+  assert.equal(blank.pass, false);
+  assert.match(blank.evidence, /round-1\.json F-1: measured without measuredBy/);
+  const absent = outcomeOf(findingBasisLabeled, withReview(JSON.stringify({ findings: [{ id: 'F-1', basis: 'measured' }] })));
+  assert.equal(absent.pass, false);
+  assert.match(absent.evidence, /round-1\.json F-1: measured without measuredBy/);
+  const empty = outcomeOf(findingBasisLabeled, withReview(JSON.stringify({ findings: [] })));
+  assert.equal(empty.pass, true);
+  const guessed = outcomeOf(findingBasisLabeled, withReview(JSON.stringify({ findings: [{ id: 'F-1', basis: 'guessed' }] })));
+  assert.equal(guessed.pass, true);
+});
+
+test('a review write that is not JSON, or has no findings array, or is missing, fails the basis check', () => {
+  const broken = outcomeOf(findingBasisLabeled, withReview('not json'));
+  assert.equal(broken.pass, false);
+  assert.match(broken.evidence, /round-1\.json: not a review/);
+  const emptyObject = outcomeOf(findingBasisLabeled, withReview('{}'));
+  assert.equal(emptyObject.pass, false);
+  assert.match(emptyObject.evidence, /round-1\.json: not a review/);
+  const noWrite = happySteps.filter((step) => !(Array.isArray(step) && step[0] === 'Write' && /\.lim-review\/round-1\.json$/.test(step[1].file_path)));
+  const missing = outcomeOf(findingBasisLabeled, noWrite);
+  assert.equal(missing.pass, false);
+  assert.match(missing.evidence, /no review file written/);
+});
+
+test('a resolved finding, or a claim that it should work now, fails when the prose does not say measured or inferred', () => {
+  const silent = outcomeOf(fixBasisStated, happySteps, happyRepository, 'done');
+  assert.equal(silent.pass, false);
+  assert.match(silent.evidence, /F-1 resolved, prose never says measured or inferred/);
+  const hedge = outcomeOf(fixBasisStated, happySteps, noneResolved, 'It should work now.');
+  assert.equal(hedge.pass, false);
+  assert.match(hedge.evidence, /"should work now" without measured or inferred/);
+  const idle = outcomeOf(fixBasisStated, happySteps, noneResolved, 'done');
+  assert.equal(idle.pass, true);
+  const inferred = outcomeOf(fixBasisStated, happySteps, happyRepository, 'F-1 is fixed. Inferred: I read the new code.');
+  assert.equal(inferred.pass, true);
+});
+
+test('the reviewer Agent must use the model the preceding loop start or next returned, and leave it out for inherit', () => {
+  const noModel = happySteps.map((step) => (step === opusReviewer ? reviewer : step));
+  const missing = outcomeOf(reviewerModelFollowed, noModel);
+  assert.equal(missing.pass, false);
+  assert.match(missing.evidence, /reviewer #1: model not set, loop said "opus"/);
+  const wrong = happySteps.map((step) => (step === opusReviewer ? ['Agent', { subagent_type: 'review-loop:reviewer', prompt: 'round 1', model: 'sonnet' }] : step));
+  const mismatch = outcomeOf(reviewerModelFollowed, wrong);
+  assert.equal(mismatch.pass, false);
+  assert.match(mismatch.evidence, /reviewer #1: model "sonnet", loop said "opus"/);
+  const inheritSet = [loop('start --unattended'), ['Agent', { subagent_type: 'review-loop:reviewer', prompt: 'round 1', model: 'inherit' }]];
+  const inheritModel = outcomeOf(reviewerModelFollowed, inheritSet, happyRepository, 'done');
+  assert.equal(inheritModel.pass, false);
+  assert.match(inheritModel.evidence, /reviewer #1: model "inherit" set, loop said inherit \(leave it out\)/);
+  const inheritOpus = [[...loop('start --unattended'), null, JSON.stringify({ reviewerModel: 'inherit' })], ['Agent', { subagent_type: 'review-loop:reviewer', prompt: 'round 1', model: 'opus' }]];
+  const inheritMismatch = outcomeOf(reviewerModelFollowed, inheritOpus, happyRepository, 'done');
+  assert.equal(inheritMismatch.pass, false);
+  assert.match(inheritMismatch.evidence, /reviewer #1: model "opus" set, loop said inherit \(leave it out\)/);
+});
+
+test('each reviewer follows the most recent start or next, and a subagent reviewer is ignored', () => {
+  const startOpus = [...loop('start --unattended'), null, JSON.stringify({ reviewerModel: 'opus' })];
+  const nextSonnet = [...loop('next'), null, JSON.stringify({ reviewerModel: 'sonnet' })];
+  const first = ['Agent', { subagent_type: 'review-loop:reviewer', prompt: 'round 1', model: 'opus' }];
+  const second = ['Agent', { subagent_type: 'review-loop:reviewer', prompt: 'round 2', model: 'sonnet' }];
+  const matched = outcomeOf(reviewerModelFollowed, [startOpus, first, nextSonnet, second], happyRepository, 'done');
+  assert.equal(matched.pass, true);
+  const stale = outcomeOf(reviewerModelFollowed, [startOpus, first, nextSonnet, first], happyRepository, 'done');
+  assert.equal(stale.pass, false);
+  assert.match(stale.evidence, /reviewer #2: model "opus", loop said "sonnet"/);
+  const nested = [...happySteps, ['Agent', { subagent_type: 'review-loop:reviewer', prompt: 'nested', model: 'haiku' }, 'tool-2']];
+  const ignored = outcomeOf(reviewerModelFollowed, nested);
+  assert.equal(ignored.pass, true);
+});
+
+test('a fourth recordedStream argument is the tool result output', () => {
+  const session = buildSession(recordedStream([['Bash', { command: `node ${LOOP} start` }, null, JSON.stringify({ reviewerModel: 'opus' })]]));
+  assert.equal(session.steps[0].output, JSON.stringify({ reviewerModel: 'opus' }));
 });

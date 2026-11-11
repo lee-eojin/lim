@@ -10,6 +10,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const shown = (file) => (path.relative(root, file).startsWith('..') ? file : path.relative(root, file));
 const modelFolder = path.join(root, 'scripts', 'loop-model');
 const defaultLoop = path.join(root, 'plugins', 'review-loop', 'skills', 'review-loop', 'scripts', 'loop.mjs');
+const SHORTEST_TRACE_WORKERS = 1;
 export const TLA_TOOLS = {
   url: 'https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar',
   sha256: '936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88',
@@ -340,7 +341,7 @@ async function main() {
       const startedAt = Date.now();
       const workers = Math.max(1, Math.floor(availableParallelism() / invariants.length));
       let { output } = await runTlc(jar, workFolder, config, workers);
-      if (workers > 1 && /^Error: Invariant \w+ is violated/m.test(output)) ({ output } = await runTlc(jar, workFolder, config, 1));
+      if (workers > 1 && /^Error: Invariant \w+ is violated/m.test(output)) ({ output } = await runTlc(jar, workFolder, config, SHORTEST_TRACE_WORKERS));
       return { invariant, output, seconds: ((Date.now() - startedAt) / 1000).toFixed(1) };
     }));
   } finally {

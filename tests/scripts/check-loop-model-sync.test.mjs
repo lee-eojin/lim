@@ -81,6 +81,16 @@ test('a whole-line comment added inside a covered function is drift', (t) => {
   assert.match(result.stderr, /decideNext/);
 });
 
+test('an addition right after a covered function is reported as that function', (t) => {
+  const { cwd, commitLoop } = fixture(t);
+  const after = '  return first + second + third + fourth;\n}\n\nfunction reportNotice()';
+  assert.ok(loop.includes(after));
+  commitLoop(loop.replace(after, '  return first + second + third + fourth;\n}\n\nconst added = 1;\n\nfunction reportNotice()'));
+  const result = run(cwd);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr, /changed since [0-9a-f]+: decideNext\./);
+});
+
 test('deleting a covered function fails', (t) => {
   const { cwd, commitLoop } = fixture(t);
   commitLoop(loop.replace(/export function decideNext[\s\S]*?\n}\n\n/, ''));
