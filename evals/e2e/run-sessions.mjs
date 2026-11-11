@@ -192,11 +192,36 @@ const hookOwnsLoopReports = {
   check: (s) => reportNotPastedAfter(s, /^loop (record\b|summary$)/),
 };
 
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const DOTTED_NAME = /[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+/g;
+const OFFER_TO_ACT = String.raw`\b(?:want me to|would you like|should i|shall i|can i|i can(?!['’]t)|i could|you could|you may want to|if you want|if you'd like|let me know if|happy to)\b.{0,40}\b(?:fix|delete|remove|change|update|edit|drop|strip|clean up)\b[^;,]{0,60}`;
+
+function keptAnchors(records) {
+  const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim().replace(/[;,]+$/, ''));
+  const files = records.map((item) => item.file ?? '').join('\n');
+  const names = texts.flatMap((text) => text.match(DOTTED_NAME) ?? []).filter((name) => !files.includes(name));
+  return [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
+}
+
+function proseAfterKeep(session, id) {
+  const keepOf = new RegExp(`--id[= ]${escapeRegex(id)}(?:\\s|$)`);
+  const keepAt = session.timeline.findLastIndex((item) => item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label) && keepOf.test(item.label));
+  if (keepAt === -1) return session.finalMessage ?? '';
+  const after = session.timeline.slice(keepAt + 1).flatMap((item) => {
+    if (item.kind === 'text') return [item.text];
+    if (item.kind === 'tool' && !item.parent && item.tool === 'AskUserQuestion') return [JSON.stringify(item.input ?? {})];
+    return [];
+  });
+  return [...after, session.finalMessage ?? ''].join('\n');
+}
+
 export function keptNotReoffered(session) {
-  const keptIds = [...new Set([
-    ...ledgerEvents(session, 'decision').filter((entry) => entry.choice === 'keep').map((entry) => entry.id).filter(Boolean),
-    ...(session.reviewState?.kept ?? []).map((item) => item.id).filter(Boolean),
-  ])];
+  const keptRecords = [
+    ...ledgerEvents(session, 'decision').filter((entry) => entry.choice === 'keep' && entry.id),
+    ...(session.reviewState?.kept ?? []).filter((item) => item.id),
+    ...['open', 'cards', 'deferred'].flatMap((list) => session.reviewState?.[list] ?? []).filter((item) => item.id && item.decision === 'keep'),
+  ];
+  const keptIds = [...new Set(keptRecords.map((item) => item.id))];
   if (!keptIds.length) return { pass: true, evidence: 'no kept findings' };
   const askText = session.steps
     .filter((step) => step.tool === 'AskUserQuestion')
@@ -210,7 +235,10 @@ export function keptNotReoffered(session) {
   const reoffered = keptIds.filter((id) => {
     const offer = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
     const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
-    return offer.test(prose) && !listedKeep.test(prose);
+    if (offer.test(prose) && !listedKeep.test(prose)) return true;
+    const anchors = keptAnchors(keptRecords.filter((item) => item.id === id));
+    const segments = proseAfterKeep(session, id).split(/\n+|(?<=[.?!])\s+/);
+    return anchors.some((anchor) => segments.some((segment) => new RegExp(`${OFFER_TO_ACT}${anchor}`, 'i').test(segment)));
   });
   return {
     pass: reoffered.length === 0,
