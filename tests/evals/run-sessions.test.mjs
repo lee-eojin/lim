@@ -936,6 +936,8 @@ test('a first-person change of speaker before a quote ends the reviewer attribut
     ['but my question is', 'The reviewer said no but my question is “Kept; should we remove the console.log?”'],
     ['I ask after a semicolon', 'The reviewer said no; I ask: "Kept; should we remove the console.log?"'],
     ['I asked after a comma', 'The reviewer said no, I asked “Kept; should we remove the console.log?”'],
+    ['I ask after an em dash', 'The reviewer said no — I ask: "Kept; should we remove the console.log?"'],
+    ['I ask after an en dash', 'The reviewer said no – I ask “Kept; should we remove the console.log?”'],
     ['so I ask after a long attribution', 'The reviewer asked about the finding in round one and so I ask, "Kept; should we remove the console.log?"'],
   ];
   const pass = [
