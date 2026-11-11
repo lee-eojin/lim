@@ -883,6 +883,7 @@ test('a due title listed under a heading that is not a kept listing, or a due ti
   const flagTitle = { ...dueTitle, title: 'The debug flag should be removed' };
   const cacheTitle = { ...dueTitle, title: 'The cache should be removed' };
   const pronounTitle = { ...dueTitle, title: 'This should be removed' };
+  const tickedTitle = { ...dueTitle, title: 'The `debug flag` should be removed' };
   const beforeOf = (item) => ({ ...keptBeforeRepo, reviewState: { kept: [{ ...keptBeforeLog, title: item.title }] } });
   const fail = [
     ['action list', dueTitle, 'Next actions:\n- The debug console.log should be removed'],
@@ -900,6 +901,8 @@ test('a due title listed under a heading that is not a kept listing, or a due ti
     ['ordered action list with a dot', dueTitle, 'Next actions:\n2. The debug console.log should be removed'],
     ['short subject mid-sentence', cacheTitle, 'Kept, but the cache should be removed.'],
     ['short subject in own voice at the start', cacheTitle, 'Kept as is. The cache should be removed.'],
+    ['backticked subject in own voice', tickedTitle, 'Kept as is. This `debug flag` should be removed.'],
+    ['ordered list after an ordered kept listing', flagTitle, 'Kept as is:\n1) F-2 [P3] src/cache.js:1 Stale cache entry\nNext actions:\n1) the debug flag should be removed'],
   ];
   const pass = [
     ['kept listing with a second item', dueTitle, 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The debug console.log should be removed\n- F-2 [P3] src/cache.js:1 Stale cache entry'],
@@ -917,6 +920,12 @@ test('a due title listed under a heading that is not a kept listing, or a due ti
     ['short subject inside a longer word', cacheTitle, 'Kept, but cachedValue should be removed.'],
     ['short subject in a kept listing', cacheTitle, 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The cache should be removed'],
     ['pronoun subject does not anchor another sentence', pronounTitle, 'Kept as is. This line should be removed later.'],
+    ['pronoun subject does not anchor a denial', pronounTitle, 'Kept as is. Nothing in this should be removed.'],
+    ['ordered kept listing with a lowered first letter', flagTitle, 'Kept as is:\n1) the debug flag should be removed'],
+    ['ordered kept listing with a dot and a lowered first letter', flagTitle, 'Kept as is:\n1. the debug flag should be removed'],
+    ['ordered kept listing with a dot', flagTitle, 'Kept as is at your request:\n2. F-1 [P4] src/slug.js:2 The debug flag should be removed'],
+    ['short subject followed by a longer object', cacheTitle, 'Kept, but the cache documentation should be removed.'],
+    ['backticked subject in a kept listing', tickedTitle, 'Kept as is:\n- the `debug flag` should be removed'],
   ];
   for (const [expected, rows] of [[false, fail], [true, pass]]) {
     for (const [name, item, result] of rows) {

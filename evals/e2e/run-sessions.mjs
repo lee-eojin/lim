@@ -226,7 +226,7 @@ const CREDITED = String.raw`(?![^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE}(?
 const INCLUDING = String.raw`,\s*(?:including|plus|and\s+also|as\s+well\s+as|along\s+with|together\s+with)\s+(?:(?:the|this|that|your)\s+)?`;
 const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+to\s+)?`;
 const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
-const ITEM = String.raw`(?<=^[\s>]*[*•–—-]\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?)`;
+const ITEM = String.raw`(?<=^[\s>]*(?:[*•–—-]|\d+[.)])\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?)`;
 const LISTED = String.raw`(?<=[\])(:"'\`*_•–—-]\s*|:\d+\s+)`;
 const LIST_PREFIX = /^[\s>]*(?:[*•–—-]|\d+[.)])\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?/;
 const KEPT_LISTING = /^[\s>#*_]*(?:kept as is\b[^\n]*|[^\n]*\byou\s+kept\s+before\b[^\n]*):[\s*_]*$/i;
@@ -243,7 +243,7 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own);
 }
 
-const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<=[.?!])${QUOTED}\s+`, 'i');
+const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+`, 'i');
 const segmentsOf = (prose) => prose.split(SENTENCE);
 
 function optionActs(anchor, question) {
@@ -290,7 +290,7 @@ function keptAnchors(records) {
   const names = texts.flatMap((text) => text.match(DOTTED_NAME) ?? []).filter((name) => !files.includes(name));
   const subjects = texts.map((text) => text.match(DUE_SUBJECT)?.[1] ?? '').filter((text) => text.length >= 3 && !/^(?:it|this|that|these|those|they|them)$/i.test(text));
   const anchors = [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
-  return [...new Set([...anchors, ...subjects.map((text) => `\\b${escapeRegex(text).replace(/\s+/g, '\\s+')}\\b`)])];
+  return [...new Set([...anchors, ...subjects.map((text) => `(?<![\\w$])${escapeRegex(text).replace(/\s+/g, '\\s+')}(?![\\w$])(?!\\s+[\\w-]+\\s+${DUE})`)])];
 }
 
 function keepStep(session, id) {
