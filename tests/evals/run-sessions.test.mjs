@@ -585,6 +585,13 @@ test('a bare, mid-sentence, or parenthetical should-be, a pronoun, description, 
     ['do we', [], 'Do we remove the console.log?'],
     ['do we need to', [], 'Do we need to remove the console.log?'],
     ['does need question step', [['AskUserQuestion', { questions: [{ question: 'Does the console.log need to be removed?' }] }]], 'Nothing is committed.'],
+    ['mid-sentence inverted', [], 'Kept, but should the console.log be removed?'],
+    ['mid-sentence inverted we', [], 'Kept, but should we remove the console.log?'],
+    ['mid-sentence do we', [], 'Kept, but do we remove the console.log?'],
+    ['is to be statement', [], 'The console.log is to be removed.'],
+    ['label by name under a two-finding question', [askAbout('What about the console.log and the null check?', { label: 'Remove the console.log', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and when', [askAbout('What should happen with the console.log and when?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under keep or remove', [askAbout('Should I keep or remove the console.log?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
@@ -652,6 +659,14 @@ test('a reported or denied should-be, an act on something next to a kept finding
     ['pronoun label under a question about a neighbor', [askAbout('What about the null check next to the console.log?', { label: 'Fix it', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
     ['keep labels under the question', [askAbout(logQuestion, keepIt, { label: 'Leave it', description: 'Change nothing' })], 'Nothing is committed.'],
     ['other object under the question', [askAbout(logQuestion, { label: 'Fix the null check', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
+    ['is to be kept', [], 'The console.log is to be kept.'],
+    ['is not to be', [], 'The console.log is not to be removed.'],
+    ['reviewer voice is to be', [], 'The reviewer said the console.log is to be removed.'],
+    ['mid-sentence inverted about a neighbor', [], 'Kept, but should the null check near the console.log be fixed?'],
+    ['mid-sentence inverted keep', [], 'Kept, but should the console.log be kept?'],
+    ['pronoun label under a two-finding question', [askAbout('What about the console.log and the null check?', { label: 'Fix it', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a two-finding question, kept second', [askAbout('What about the null check and the console.log?', { label: 'Fix it', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under an or question with an id', [askAbout('What about the console.log or F-2?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));

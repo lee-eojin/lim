@@ -205,8 +205,10 @@ const PUSH = String.raw`(?:\?|\bbefore (?:committing|you commit|the commit)\b)`;
 const NEAR = String.raw`(?:(?!\b(?:and|or|but|not)\b)[^;,]){0,20}?`;
 const GAP = String.raw`(?:(?!\b(?:nothing|no|not|none)\b)[^;,:?]){0,40}?`;
 const MODAL = 'should|shall|could|can|would|may|might|must';
-const DUE = String.raw`\b(?:${MODAL}|ought to|needs? to|has to)(?:\s+(?:still|also|always|easily|just|really))?\s+be\s+(?:${DONE})\b`;
+const DUE = String.raw`\b(?:${MODAL}|ought to|needs? to|has to|is to|are to)(?:\s+(?:still|also|always|easily|just|really))?\s+be\s+(?:${DONE})\b`;
 const OPENING = String.raw`(?:(?:and|but|so|then|also|still)[,\s]+)?`;
+const TURN = String.raw`(?:${LEAD}${OPENING}|[,;]\s*(?:and|but|so|then|also|still)[,\s]+)`;
+const OTHER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+[\w-]|[A-Z]+-\d+\b)`;
 const SUBJECT = String.raw`(?:(?:the|this|that|your)\s+)?(?:[\w-]+\s+)?`;
 const REACH = String.raw`(?:(?!\b(?:and|or|but|not|nothing|no|none)\b)[^;,:?"]){0,40}?`;
 const HOLD = String.raw`(?:(?!\b(?:and|or|but|not|while|whereas|though|although|unless|until|if|when|once|since|because)\b)[^;,]){0,20}?`;
@@ -230,8 +232,8 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${LEAD}(?:(?:and|or|so|then|also|maybe|still)\\s+)?(?=(?:${ACT})\\b)${GAP}${BESIDE}${anchor}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
     || new RegExp(`(?:\\b(?:would you (?:like|prefer)|do you (?:want|need))\\b|${LEAD}want\\b|${OFFER_CUE})${NEAR}${BESIDE}${anchor}${NEAR}\\b(?:${DONE})\\b`, 'i').test(segment)
     || new RegExp(`${LEAD}${OPENING}${SUBJECT}${anchor}${NEAR}${DUE}${CREDITED}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
-    || new RegExp(`${LEAD}${OPENING}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
-    || new RegExp(`${LEAD}${OPENING}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
+    || new RegExp(`${TURN}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
+    || new RegExp(`${TURN}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own);
 }
 
@@ -244,9 +246,11 @@ function optionActs(anchor, question) {
   if ([...segmentsOf(String(question?.header ?? '')), ...choices].some((text) => direct.test(text))) return true;
   const due = new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i');
   if (choices.some((text) => due.test(text))) return true;
-  const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(`${question?.header ?? ''}\n${question?.question ?? ''}`);
+  const asked = `${question?.header ?? ''}\n${question?.question ?? ''}`;
+  const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(asked);
+  const paired = new RegExp(`\\b(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${anchor}|${anchor}\\s*,?\\s*(?:and|or)\\s+${OTHER}`, 'i').test(asked);
   const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|[\\s.!]*$)`, 'i');
-  return named && choices.some((text) => pronoun.test(text));
+  return named && !paired && choices.some((text) => pronoun.test(text));
 }
 
 function restatedTitles(records) {
