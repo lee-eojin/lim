@@ -886,6 +886,7 @@ test('a quote on the next line joins a reviewer attribution only when the line b
     ['straight single quote', "The reviewer said no\n'My assessment: The console.log should be removed.'"],
     ['curly single quote', 'The reviewer said no\n‘My assessment: The console.log should be removed.’'],
     ['inverted quote after a completed reviewer line', 'The reviewer said it is minor\n“Kept; should we remove the console.log?”'],
+    ['offer with its quoted target on the next line', 'I can remove\n“console.log”'],
   ];
   const pass = [
     ['quote after a colon', 'The reviewer said:\n“The console.log should be removed.”'],
@@ -893,6 +894,7 @@ test('a quote on the next line joins a reviewer attribution only when the line b
     ['inverted quote after a comma', 'The reviewer asked,\n“Kept; should we remove the console.log?”'],
     ['inverted quote after a colon and trailing spaces', 'The reviewer asked:  \n“Kept; should we remove the console.log?”'],
     ['curly single quote after a colon, a blank line, and an indent', 'The reviewer asked:\n\n   ‘Kept; should we remove the console.log?’'],
+    ['nested quote inside an open reviewer quotation', 'The reviewer said: "The note reads\n\'The console.log should be removed.\'"'],
   ];
   for (const [want, rows] of [[false, fail], [true, pass]]) {
     for (const [name, result] of rows) {
