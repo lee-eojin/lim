@@ -132,7 +132,7 @@ BeingFixed(l, s) ==
 
 Init ==
   /\ loop = [awaiting |-> "none", round |-> 0, counts |-> <<>>, unattended |-> FALSE, stopReason |-> "none",
-             stoppedBy |-> "none", stopUnproven |-> FALSE, everKept |-> {}, run |-> 1,
+             stoppedBy |-> "none", stopUnproven |-> FALSE, everKept |-> {}, notKept |-> {}, run |-> 1,
              findings |-> [s \in Slots |-> Fresh]]
   /\ cmd = [name |-> "init"]
   /\ ledger = {}
@@ -152,7 +152,7 @@ StartNewRun ==
   /\ \E unattended \in BOOLEAN :
        /\ loop' = [loop EXCEPT !.awaiting = "review", !.round = 1, !.counts = <<>>, !.unattended = unattended,
                                !.stopReason = "none", !.stoppedBy = "none", !.stopUnproven = FALSE,
-                               !.everKept = {}, !.run = @ + 1, !.findings = [s \in Slots |-> Fresh]]
+                               !.everKept = {}, !.notKept = {}, !.run = @ + 1, !.findings = [s \in Slots |-> Fresh]]
        /\ cmd' = [name |-> "start", unattended |-> unattended, resume |-> FALSE, newRun |-> TRUE]
   /\ UNCHANGED ledger
 
@@ -178,11 +178,13 @@ Record ==
            ended == {s \in Slots : <<s, "check">> \in ledger} \ new
        IN \E shape \in {f \in [new -> Shapes] : \A s \in new, kd \in {"reviewer", "check"} :
                               <<s, kd>> \in ledger => (f[s] = "checkFix") = (kd = "check")},
-             regr \in IF InState(loop, "resolved") # {} /\ new # {} THEN BOOLEAN ELSE {FALSE} :
-            /\ loop' = AfterRecord(loop, res, new, shape, regr, ledger)
+             regr \in IF InState(loop, "resolved") # {} /\ new # {} THEN BOOLEAN ELSE {FALSE},
+             missed \in SUBSET {s \in new : <<s, "reviewer">> \in ledger} :
+            /\ loop' = [AfterRecord(loop, res, new, shape, regr, ledger \ {<<s, "reviewer">> : s \in missed})
+                        EXCEPT !.notKept = @ \cup missed]
             /\ ledger' = ledger \ {<<s, "check">> : s \in ended}
             /\ cmd' = [name |-> "record", round |-> loop.round, resolved |-> res,
-                       new |-> {<<s, shape[s]>> : s \in new}, regression |-> regr]
+                       new |-> {<<s, shape[s]>> : s \in new}, regression |-> regr, notKept |-> missed]
 
 \* next in loop.mjs. From the proof state it runs stopIfProven first; if the final checks send the loop back
 \* to fix, the same command goes on into the fix round. With proof still missing it throws and saves nothing.
@@ -219,7 +221,8 @@ DecideCommand ==
        /\ loop.findings[s].where \in {"open", "deferred"}
        /\ loop.findings[s].decision # choice
        /\ loop' = [loop EXCEPT !.findings[s].decision = choice,
-                               !.everKept = IF choice = "keep" THEN @ \cup {s} ELSE @]
+                               !.everKept = IF choice = "keep" THEN @ \cup {s} ELSE @,
+                               !.notKept = @ \ {s}]
        /\ cmd' = [name |-> "decide", slot |-> s, choice |-> choice]
        /\ ledger' = IF choice = "keep" THEN ledger \cup {<<s, loop.findings[s].kind>>}
                      ELSE ledger \ {<<s, loop.findings[s].kind>>}
@@ -255,8 +258,9 @@ DecideNextStopHasProof == loop.stoppedBy = "decideNext" /\ loop.stopReason \in {
 StopIfProvenStopHasProof == loop.stoppedBy = "stopIfProven" => ~loop.stopUnproven
 StopWaitingStopHasProof == loop.stoppedBy = "stopWaiting" => ~loop.stopUnproven
 GateNeedsProof == GateAllows(loop) => Unproven(loop) = {}
-LedgerKept == {s \in Slots : \E kd \in {"reviewer", "check"} : <<s, kd>> \in ledger}
-KeptNeverReoffered == \A s \in loop.everKept \cup LedgerKept : s \notin Pending(loop)
+LedgerKept(kind) == {s \in Slots : <<s, kind>> \in ledger}
+KeptNeverReoffered ==
+  \A s \in loop.everKept \cup LedgerKept("check") \cup (LedgerKept("reviewer") \ loop.notKept) : s \notin Pending(loop)
 
 \* A modeling check, not a property: decideNext gets round = Len(counts) from the table.
 RoundMatchesCounts == loop.awaiting = "review" => Len(loop.counts) + 1 = loop.round
