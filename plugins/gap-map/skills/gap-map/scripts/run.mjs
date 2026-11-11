@@ -5,7 +5,7 @@ import path from 'node:path';
 import { killGroup } from './_shared/kill-group.mjs';
 
 const DEFAULT_TIMEOUT_MS = 60 * 1000;
-const CLOSE_GRACE_MS = 2000;
+const PIPE_CLOSE_GRACE_AFTER_KILL_MS = 2000;
 
 const tidy = (text) => text.replace(/[ \t]+$/gm, '').trim();
 
@@ -68,7 +68,7 @@ export function runOnce(root, verifier, fixturePath) {
         child.stdout?.destroy();
         child.stderr?.destroy();
         finish(null);
-      }, CLOSE_GRACE_MS);
+      }, PIPE_CLOSE_GRACE_AFTER_KILL_MS);
     }, timeoutMs);
     child.stdout?.on('data', (chunk) => stdout.push(chunk));
     child.stderr?.on('data', (chunk) => stderr.push(chunk));

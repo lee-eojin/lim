@@ -186,6 +186,16 @@ test('the stream keeps every Bash command Claude tried and each permission denia
   ]);
 });
 
+test('a partial last line after a timeout is dropped from the stream', () => {
+  const lines = [
+    { type: 'assistant', message: { content: [{ type: 'text', text: 'ok' }] } },
+    { type: 'result', subtype: 'success', result: 'done' },
+  ];
+  const { events, result } = parseStream(`${lines.map((line) => JSON.stringify(line)).join('\n')}\n{"type":"assist`);
+  assert.deepEqual(events, lines);
+  assert.equal(result.result, 'done');
+});
+
 test('a run that never finished has no result but keeps what Claude tried', () => {
   const { events, result } = parseStream(JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 't', name: 'Bash', input: { command: 'node x.js' } }] } }));
   assert.equal(result, undefined);
