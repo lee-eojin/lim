@@ -226,8 +226,10 @@ const CREDITED = String.raw`(?![^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE}(?
 const INCLUDING = String.raw`,\s*(?:including|plus|and\s+also|as\s+well\s+as|along\s+with|together\s+with)\s+(?:(?:the|this|that|your)\s+)?`;
 const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+to\s+)?`;
 const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
-const ITEM = String.raw`(?<=^[\s>]*[*•–—-]\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?)`;
+const ITEM = String.raw`(?<=^[\s>]*(?:[*•–—-]|\d+[.)])\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?)`;
 const LISTED = String.raw`(?<=[\])(:"'\`*_•–—-]\s*|:\d+\s+)`;
+const LIST_PREFIX = /^[\s>]*(?:[*•–—-]|\d+[.)])\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?/;
+const KEPT_LISTING = /^[\s>#*_]*(?:kept as is(?:\s+at\s+your\s+request)?|[^\n]*\byou\s+kept\s+before\s+(?:was|were)\s+raised\s+again(?:,\s*including)?):[\s*_]*$/i;
 
 function offersToAct(anchor, segment, own = segment) {
   return new RegExp(`${OFFER_TO_ACT}(?:${BESIDE}|${INCLUDING})${anchor}`, 'i').test(segment)
@@ -241,7 +243,7 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own);
 }
 
-const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<=[.?!])${QUOTED}\s+`, 'i');
+const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+`, 'i');
 const segmentsOf = (prose) => prose.split(SENTENCE);
 
 function optionActs(anchor, question) {
@@ -269,15 +271,27 @@ function restatedTitles(records) {
 
 function actsOn(anchors, records, segments, questions) {
   const listed = restatedTitles(records);
-  const pairs = segments.map((segment) => [segment, listed ? segment.replace(listed, ' ') : segment]);
+  let underKept = false;
+  const pairs = segments.map((segment) => {
+    const prefix = segment.match(LIST_PREFIX)?.[0];
+    if (prefix === undefined) underKept = KEPT_LISTING.test(segment);
+    if (!listed) return [segment, segment];
+    if (prefix === undefined || underKept) return [segment, segment.replace(listed, ' ')];
+    const lead = segment.slice(prefix.length).match(/^[\s"'“‘\x60*_]*/)[0];
+    return [segment, prefix + lead + segment.slice(prefix.length + lead.length).replace(listed, ' ')];
+  });
   return anchors.some((anchor) => pairs.some(([segment, own]) => offersToAct(anchor, segment, own)) || questions.some((question) => optionActs(anchor, question)));
 }
+
+const DUE_SUBJECT = new RegExp(String.raw`^(?:(?:the|a|an|this|that|your)\s+)?(.+?)\s+${DUE}`, 'i');
 
 function keptAnchors(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim().replace(/[;,]+$/, ''));
   const files = records.map((item) => item.file ?? '').join('\n');
   const names = texts.flatMap((text) => text.match(DOTTED_NAME) ?? []).filter((name) => !files.includes(name));
-  return [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
+  const subjects = texts.map((text) => text.match(DUE_SUBJECT)?.[1] ?? '').filter((text) => text.length >= 3 && !/^(?:it|this|that|these|those|they|them)$/i.test(text));
+  const anchors = [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
+  return [...new Set([...anchors, ...subjects.map((text) => `(?<![\\w$])${escapeRegex(text).replace(/\s+/g, '\\s+')}(?![\\w$])(?!['’]s\\b)(?!(?:\\s+(?!(?:still|also|always|really|just|now|definitely)\\b)[\\w-]+)+\\s+${DUE})`)])];
 }
 
 function keepStep(session, id) {
