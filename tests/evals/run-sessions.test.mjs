@@ -487,6 +487,11 @@ test('a resolved id named with measured or inferred requires every resolved id t
     [withResolved(first, { ...second, id: 'F-10' }), 'F-10 is fixed. Measured: npm test passes now.', /^F-1 resolved, never named with measured or inferred$/],
     [two, 'F-2 is fixed. Measured: npm test passes now.\n\nPERF-1 was also measured.', /^F-1 resolved, never named with measured or inferred$/],
     [two, 'F-1 is fixed. Measured: npm test passes now.\n\n```\n- Resolved F-2 [P2] Debug log left in (inferred)\n```', /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n~~~\n- Resolved F-2 [P2] Debug log left in (inferred)\n~~~', /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n````\n```\n- Resolved F-2 [P2] Debug log left in (inferred)\n````', /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n~~~\n```\n- Resolved F-2 [P2] Debug log left in (inferred)\n~~~', /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n```\n```js\n- Resolved F-2 [P2] Debug log left in (inferred)\n```', /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n```npm test``` passes.\n\nF-2 is fixed.', /^F-2 named as fixed without measured or inferred$/],
   ];
   for (const [repo, text, evidence] of fails) {
     const result = outcomeOf(fixBasisStated, happySteps, repo, text);
@@ -502,6 +507,8 @@ test('a resolved id named with measured or inferred requires every resolved id t
     [withResolved(first, { severity: 'P1', fromChecks: true, title: 'test failed' }), happySteps, happyClose],
     [two, happySteps, 'Both fixed. Measured: npm test passes now.'],
     [two, happySteps, '```\n- Resolved F-1 [P1] test failed\n\n- Resolved F-2 [P2] Debug log left in\n```\n\nBoth are fixed. npm test passes now (measured).'],
+    [two, happySteps, '~~~\n- Resolved F-1 [P1] test failed\n\n- Resolved F-2 [P2] Debug log left in\n~~~\nBoth are fixed. npm test passes now (measured).'],
+    [two, happySteps, 'Both are fixed. npm test passes now (measured).\n\n```\n- Resolved F-1 [P1] test failed\n\n- Resolved F-2 [P2] Debug log left in'],
   ];
   for (const [repo, steps, text] of passes) {
     const result = outcomeOf(fixBasisStated, steps, repo, text);

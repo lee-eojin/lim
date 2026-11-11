@@ -322,6 +322,27 @@ export function findingBasisLabeled(session) {
   return { pass: true, evidence: writes.map((write) => path.basename(write.input.file_path)).join(', ') };
 }
 
+const FENCE_OPEN = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/;
+const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+
+function withoutFences(text) {
+  const kept = [];
+  let fence = null;
+  for (const line of text.split('\n')) {
+    if (fence) {
+      const close = line.match(FENCE_CLOSE)?.[1];
+      if (close && close[0] === fence[0] && close.length >= fence.length) {
+        fence = null;
+        kept.push('');
+      }
+      continue;
+    }
+    fence = line.match(FENCE_OPEN)?.[1] ?? null;
+    kept.push(fence ? '' : line);
+  }
+  return kept.join('\n');
+}
+
 export function fixBasisStated(session) {
   const claim = /\b(?:fixed|resolved)\b/i;
   const hedge = /\bshould (?:now )?(?:work|be (?:fixed|fine|resolved))\b|\bworks now\b/i;
@@ -329,7 +350,7 @@ export function fixBasisStated(session) {
   const texts = [...session.timeline.filter((item) => item.kind === 'text').map((item) => item.text), session.finalMessage ?? ''].map(String);
   const split = (text) => text.split(/\n\s*\n/).filter((paragraph) => paragraph.trim());
   const paragraphs = texts.flatMap(split);
-  const prose = texts.flatMap((text) => split(text.replace(/```[\s\S]*?```/g, '\n\n')));
+  const prose = texts.flatMap((text) => split(withoutFences(text)));
   const resolved = session.reviewState?.resolved ?? [];
   const needed = resolved.length > 0 || paragraphs.some((paragraph) => claim.test(paragraph) || hedge.test(paragraph));
   if (!needed) return { pass: true, evidence: 'no fix claimed' };
