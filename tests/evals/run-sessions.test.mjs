@@ -598,6 +598,8 @@ test('a bare, mid-sentence, or parenthetical should-be, a pronoun, description, 
     ['pronoun label under a question with and should', [askAbout('What about the console.log and should it go?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
     ['mid-sentence inverted after an unquoted voice', [], 'The reviewer said it is minor, but should the console.log be removed?'],
     ['mid-sentence inverted after a closed voice quote', [], 'The reviewer asked "why", but should the console.log be removed?'],
+    ['inverted after a semicolon', [], 'Kept; should we remove the console.log?'],
+    ['pronoun label under a question with and its', [askAbout('What about the console.log and its impact?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
@@ -678,6 +680,8 @@ test('a reported or denied should-be, an act on something next to a kept finding
     ['reviewer voice quotes a mid-sentence inverted', [], 'The reviewer asked, "Kept, but should the console.log be removed?"'],
     ['reviewer voice quotes a mid-sentence inverted we after a colon', [], 'The reviewer asked: "Kept, but should we remove the console.log?"'],
     ['reviewer voice quotes a mid-sentence do we', [], 'The reviewer asked, "Kept, but do we remove the console.log?"'],
+    ['reviewer voice quotes an inverted after a semicolon', [], 'The reviewer asked, "Kept; should we remove the console.log?"'],
+    ['inverted about a neighbor after a semicolon', [], 'Kept; should we fix the null check near the console.log?'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
