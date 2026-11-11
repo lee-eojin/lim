@@ -881,6 +881,8 @@ test('an option label or description that says a kept finding should be acted on
 
 test('a due title listed under a heading that is not a kept listing, or a due title with no code name restated or offered, fails the check, and both pass under a kept listing', () => {
   const flagTitle = { ...dueTitle, title: 'The debug flag should be removed' };
+  const cacheTitle = { ...dueTitle, title: 'The cache should be removed' };
+  const pronounTitle = { ...dueTitle, title: 'This should be removed' };
   const beforeOf = (item) => ({ ...keptBeforeRepo, reviewState: { kept: [{ ...keptBeforeLog, title: item.title }] } });
   const fail = [
     ['action list', dueTitle, 'Next actions:\n- The debug console.log should be removed'],
@@ -894,6 +896,10 @@ test('a due title listed under a heading that is not a kept listing, or a due ti
     ['no code name with another determiner', flagTitle, 'Kept, but this debug flag should be removed.'],
     ['no code name in an action list', flagTitle, 'Next actions:\n- The debug flag should be removed'],
     ['no code name in an action list with a lowered first letter', flagTitle, 'Next actions:\n- the debug flag should be removed'],
+    ['no code name in an ordered action list', flagTitle, 'Next actions:\n1) The debug flag should be removed'],
+    ['ordered action list with a dot', dueTitle, 'Next actions:\n2. The debug console.log should be removed'],
+    ['short subject mid-sentence', cacheTitle, 'Kept, but the cache should be removed.'],
+    ['short subject in own voice at the start', cacheTitle, 'Kept as is. The cache should be removed.'],
   ];
   const pass = [
     ['kept listing with a second item', dueTitle, 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The debug console.log should be removed\n- F-2 [P3] src/cache.js:1 Stale cache entry'],
@@ -905,6 +911,12 @@ test('a due title listed under a heading that is not a kept listing, or a due ti
     ['no code name reported by the reviewer', flagTitle, 'The reviewer said the debug flag should be removed, and it is kept.'],
     ['no code name kept', flagTitle, 'Kept the debug flag as is.'],
     ['no code name in brackets', flagTitle, 'The finding (The debug flag should be removed) stays as you asked.'],
+    ['no code name in an ordered kept listing', flagTitle, 'Kept as is at your request:\n1) F-1 [P4] src/slug.js:2 The debug flag should be removed'],
+    ['short subject kept', cacheTitle, 'Kept the cache as is.'],
+    ['short subject reported by the reviewer', cacheTitle, 'The reviewer said the cache should be removed, and it is kept.'],
+    ['short subject inside a longer word', cacheTitle, 'Kept, but cachedValue should be removed.'],
+    ['short subject in a kept listing', cacheTitle, 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The cache should be removed'],
+    ['pronoun subject does not anchor another sentence', pronounTitle, 'Kept as is. This line should be removed later.'],
   ];
   for (const [expected, rows] of [[false, fail], [true, pass]]) {
     for (const [name, item, result] of rows) {
