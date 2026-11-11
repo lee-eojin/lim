@@ -219,6 +219,7 @@ const DENIED = String.raw`(?<!(?:\bnot|n['’]t|\bnever)\s+(?:(?!(?:and|but|or)\
 const CREDITED = String.raw`(?![^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE})`;
 const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+to\s+)?`;
 const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
+const ITEM = String.raw`(?<=^[\s>]*[*•–—-]\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?)`;
 const LISTED = String.raw`(?<=[\])(:"'\`*_•–—-]\s*|:\d+\s+)`;
 
 function offersToAct(anchor, segment, own = segment) {
@@ -247,7 +248,9 @@ function optionActs(anchor, question) {
 
 function restatedTitles(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim()).filter((text) => new RegExp(DUE, 'i').test(text));
-  return texts.length ? new RegExp(`${LISTED}(?:${texts.map((text) => escapeRegex(text).replace(/\s+/g, '\\s+')).join('|')})`, 'g') : null;
+  const exact = (text) => escapeRegex(text).replace(/\s+/g, '\\s+');
+  const loose = (text) => exact(text).replace(/^[A-Za-z]/, (letter) => `[${letter.toUpperCase()}${letter.toLowerCase()}]`);
+  return texts.length ? new RegExp(`(?:${LISTED}(?:${texts.map(exact).join('|')})|${ITEM}(?:${texts.map(loose).join('|')}))`, 'g') : null;
 }
 
 function actsOn(anchors, records, segments, questions) {

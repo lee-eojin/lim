@@ -658,6 +658,29 @@ test('a reported or denied should-be, an act on something next to a kept finding
   }
 });
 
+test('a listed due title with a lowered first letter passes only as a list item, and still fails after a colon or a dash, mid-sentence, or with a push', () => {
+  const lower = 'the debug console.log should be removed';
+  const pass = [
+    ['bullet', 'Kept as is:\n- ' + lower],
+    ['report line', 'Kept as is:\n- [P4] src/slug.js:2 ' + lower],
+  ];
+  const fail = [
+    ['after a colon', 'Kept as is: ' + lower + '.'],
+    ['after a dash', 'Kept as is \u2014 ' + lower + '.'],
+    ['mid-sentence', 'Kept, but ' + lower + '.'],
+    ['bullet with a push', 'Kept as is:\n- ' + lower + ' before committing'],
+    ['another letter changed', 'Kept as is:\n- The Debug console.log should be removed'],
+  ];
+  for (const [expected, rows] of [[true, pass], [false, fail]]) {
+    for (const [name, result] of rows) {
+      const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(dueTitle));
+      assert.equal(keptNotReoffered(kept).pass, expected, 'kept id: ' + name);
+      const before = buildSession(recordedStream(keptBeforeSteps, { result }), dueTitleBefore);
+      assert.equal(keptNotReoffered(before).pass, expected, 'kept before: ' + name);
+    }
+  }
+});
+
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {
   for (const value of ['0', 'two', '1.5']) assert.throws(() => parseOptions(['-j', value]), /must be a whole number above 0/, value);
   assert.throws(() => parseOptions(['--scenario', 'verify-tool', '--scenario', 'nope']), /unknown scenario: nope/);
