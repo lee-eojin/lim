@@ -614,6 +614,14 @@ test('a bare, mid-sentence, or parenthetical should-be, a pronoun, description, 
     ['pronoun label under a question with or skip', [askAbout('Should we look at the console.log or skip ahead?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
     ['pronoun label under a question with and ship', [askAbout('Should we look at the console.log and ship?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
     ['pronoun label under a question with and merge', [askAbout('Should we look at the console.log and merge?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with or do nothing', [askAbout('Should we review console.log or do nothing?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and add tests', [askAbout('Should we look at the console.log and add tests?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and rerun review', [askAbout('Should we look at the console.log and rerun review?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and carry on', [askAbout('Should we look at the console.log and carry on?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and wrap up', [askAbout('Should we look at the console.log and wrap up?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and decide later', [askAbout('Should we look at the console.log and decide later?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and moving forward', [askAbout('What about the console.log and moving forward?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and send notes for it', [askAbout('Should we look at the console.log and send notes for it?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));

@@ -207,7 +207,7 @@ const GAP = String.raw`(?:(?!\b(?:nothing|no|not|none)\b)[^;,:?]){0,40}?`;
 const MODAL = 'should|shall|could|can|would|may|might|must';
 const DUE = String.raw`\b(?:${MODAL}|ought to|needs? to|has to|is to|are to)(?:\s+(?:still|also|always|easily|just|really))?\s+be\s+(?:${DONE})\b`;
 const OPENING = String.raw`(?:(?:and|but|so|then|also|still)[,\s]+)?`;
-const OTHER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+[\w-]|[A-Z]+-\d+\b|\x60[^\x60]|(?=[\w$]*(?:[._][\w$]|\())[a-z_$]|(?!(?:when|where|why|how|what|which|who|whether|if|then|so|not|now|later|it|its|their|i|we|you|keep|leave|commit|${ACT}|${MODAL}|move|go|proceed|continue|skip|ship|merge|[a-z]+ing)\b|[\w-]+\s+(?:it|this|that|them|these|those)\b)[a-z][\w-]*\s+[a-z][\w-]*\s*\?)`;
+const OTHER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+[\w-]|[A-Z]+-\d+\b|\x60[^\x60]|(?=[\w$]*(?:[._][\w$]|\())[a-z_$]|(?!(?:when|where|why|how|what|which|who|whether|if|then|so|not|now|later|it|its|their|i|we|you|keep|leave|commit|${ACT}|${MODAL}|move|go|proceed|continue|skip|ship|merge|do|add|rerun|[a-z]+ing)\b|[\w-]+\s+(?:it|this|that|them|these|those|on|up|later)\b)[a-z][\w-]*\s+[a-z][\w-]*\s*\?)`;
 const SUBJECT = String.raw`(?:(?:the|this|that|your)\s+)?(?:[\w-]+\s+)?`;
 const REACH = String.raw`(?:(?!\b(?:and|or|but|not|nothing|no|none)\b)[^;,:?"]){0,40}?`;
 const HOLD = String.raw`(?:(?!\b(?:and|or|but|not|while|whereas|though|although|unless|until|if|when|once|since|because)\b)[^;,]){0,20}?`;
