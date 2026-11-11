@@ -202,8 +202,7 @@ export function blankComments(text, comments) {
   return out + text.slice(last);
 }
 
-const isExcluded = (file) =>
-  EXCLUDED.some((rule) => (typeof rule === 'string' ? rule === file : rule.test(file)));
+const isExcluded = (file) => EXCLUDED.some((rule) => rule.test(file));
 
 export function scopedFiles(root) {
   const files = [];
