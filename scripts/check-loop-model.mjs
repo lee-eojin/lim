@@ -179,7 +179,9 @@ function unprovenSlots(loop) {
 }
 
 function reofferedSlots(loop, ledger = []) {
-  const kept = new Set([...(loop.everKept ?? []), ...ledger.map(([slot]) => slot)]);
+  const notKept = new Set(loop.notKept ?? []);
+  const ledgerKept = ledger.filter(([slot, kind]) => kind !== 'reviewer' || !notKept.has(slot)).map(([slot]) => slot);
+  const kept = new Set([...(loop.everKept ?? []), ...ledgerKept]);
   return findingsOf(loop).flatMap((finding, index) => (
     kept.has(index + 1) && ['open', 'deferred'].includes(finding.where) && finding.decision === 'none' ? [index + 1] : []));
 }
@@ -219,7 +221,9 @@ export function describeTrace(trace, invariant) {
       for (const [slot] of [...fixFirst, ...asks]) ids.set(slot, `F-${nextId++}`);
       const parts = [];
       if (resolved) parts.push(`resolved ${resolved}`);
-      if (reported.length) parts.push(`new ${[...fixFirst, ...asks].map(([slot, shape]) => `${id(slot)} (${SHAPES[shape]})`).join(', ')}`);
+      const notKept = new Set(cmd.notKept ?? []);
+      const reportedAs = ([slot, shape]) => `${id(slot)} (${SHAPES[shape]}${notKept.has(slot) ? ', kept in the ledger, but isKept does not match it' : ''})`;
+      if (reported.length) parts.push(`new ${[...fixFirst, ...asks].map(reportedAs).join(', ')}`);
       if (ledgerKept.length) parts.push(`${ledgerKept.map((slot) => `slot ${slot}`).join(', ')} again, which isKept matches to a keep in the ledger`);
       if (cmd.regression) parts.push('one new finding repeats a resolved one');
       text = `record round ${cmd.round} with ${parts.join('; ') || 'no findings and nothing resolved'}`;

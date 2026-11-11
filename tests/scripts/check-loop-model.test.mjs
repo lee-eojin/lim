@@ -82,6 +82,30 @@ test('a cross-run counterexample restarts the ids and names the finding the ledg
   ]);
 });
 
+test('a re-report that isKept does not match reads as new and leaves only the matched keep broken', () => {
+  const finding = (where) => ({
+    where, kind: where === 'unreported' ? 'none' : 'reviewer', route: where === 'unreported' ? 'none' : 'fix',
+    fixable: false, attempts: 0, decision: 'none', regression: 'none',
+  });
+  const loop = (where, extra) => ({
+    findings: [finding(where), finding(where)], unattended: false, stopReason: 'none', stoppedBy: 'none',
+    stopUnproven: false, everKept: [], run: 2, ...extra,
+  });
+  const ledger = [[1, 'reviewer'], [2, 'reviewer']];
+  const trace = [
+    { cmd: { name: 'start' }, loop: loop('unreported', { awaiting: 'review', round: 1, counts: [], notKept: [] }), ledger },
+    {
+      cmd: { name: 'record', round: 1, resolved: [], new: [[1, 'reviewerFix'], [2, 'reviewerFix']], regression: false, notKept: [1] },
+      loop: loop('open', { awaiting: 'fix', round: 1, counts: [2], notKept: [1] }),
+      ledger,
+    },
+  ];
+  assert.deepEqual(describeTrace(trace, 'KeptNeverReoffered'), [
+    '1. record round 1 with new F-1 (a P1 or P2 to fix, kept in the ledger, but isKept does not match it), F-2 (a P1 or P2 to fix). Now the loop waits for a fix.',
+    'Broken: a finding kept as F-2 was offered again (open or deferred with no decision).',
+  ]);
+});
+
 const javaMissing = spawnSync('java', ['-version']).status !== 0;
 const skipModelRun = (javaMissing && 'needs java') || (!existsSync(TLA_TOOLS.path) && 'needs .tools/tla2tools.jar, which node scripts/check-loop-model.mjs downloads')
   || (!beforeFix200() && 'needs commit c73ff1c~1 in the git history');
