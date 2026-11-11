@@ -305,7 +305,7 @@ Um commit é local e fácil de desfazer. Um push não é. O review-loop para no 
 
 ## Dados
 
-O estado, os diffs, os logs das verificações e um registro de decisões ficam em `.git/lim/review-loop/` dentro do seu repositório. O Claude grava cada revisão por um instante em `.lim-review/` na sua working tree; o git ignora essa pasta por meio de `.git/info/exclude`, e o review-loop apaga o arquivo depois de lê-lo. Para verificar uma regra, o review-loop grava o código de antes da correção em uma pasta temporária fora do seu repositório e depois a apaga. Para reiniciar, apague `.git/lim/review-loop/`.
+O estado, os diffs, os logs das verificações e um registro de decisões ficam em `.git/lim/review-loop/` dentro do seu repositório. O Claude grava cada revisão por um instante em `.lim-review/` na sua working tree; o git ignora essa pasta por meio de `.git/info/exclude`, e o review-loop apaga o arquivo depois de lê-lo. Para verificar uma regra, o review-loop grava o código de antes da correção em uma pasta temporária fora do seu repositório e depois a apaga. Para reiniciar, apague `.git/lim/review-loop/`. Um worktree vinculado guarda sua revisão em uma pasta e as configurações que compartilha com o repositório inteiro em outra; o [review-loop README](../../plugins/review-loop/README.md#data) mostra como encontrar e reiniciar cada uma.
 
 O review-loop não faz chamadas de rede próprias. O Claude e o revisor leem o diff, os achados e a saída das verificações como qualquer outro arquivo da sua sessão. Por isso, esse conteúdo vai para o provedor do modelo da mesma forma que o restante da sua sessão do Claude Code.
 
@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Depois, apague `.git/lim/review-loop/` em cada repositório onde você executou o review-loop, e a linha `.lim-review/` do `.git/info/exclude` dele.
+Depois, apague `.git/lim/review-loop/` em cada repositório onde você executou o review-loop, e a linha `.lim-review/` do `.git/info/exclude` dele. Um worktree vinculado também tem sua própria pasta; o [review-loop README](../../plugins/review-loop/README.md#data) mostra como encontrá-la.
 
 ## Deixe do seu jeito
 

@@ -305,7 +305,7 @@ Một commit nằm ở máy cục bộ và dễ hoàn tác. Một lần push th�
 
 ## Dữ liệu
 
-Trạng thái, diff, log của check và một sổ ghi quyết định nằm trong `.git/lim/review-loop/` bên trong repository của bạn. Claude ghi mỗi review vào `.lim-review/` trong working tree của bạn trong chốc lát; git bỏ qua thư mục này nhờ `.git/info/exclude`, và review-loop xóa file sau khi đọc. Để kiểm tra một quy tắc, review-loop ghi code từ trước bản sửa vào một thư mục tạm bên ngoài repository của bạn và xóa thư mục đó sau khi xong. Xóa `.git/lim/review-loop/` để đặt lại.
+Trạng thái, diff, log của check và một sổ ghi quyết định nằm trong `.git/lim/review-loop/` bên trong repository của bạn. Claude ghi mỗi review vào `.lim-review/` trong working tree của bạn trong chốc lát; git bỏ qua thư mục này nhờ `.git/info/exclude`, và review-loop xóa file sau khi đọc. Để kiểm tra một quy tắc, review-loop ghi code từ trước bản sửa vào một thư mục tạm bên ngoài repository của bạn và xóa thư mục đó sau khi xong. Xóa `.git/lim/review-loop/` để đặt lại. Một worktree liên kết lưu review của nó trong một thư mục và các thiết lập dùng chung với toàn bộ repository trong một thư mục khác; [review-loop README](../../plugins/review-loop/README.md#data) chỉ cách tìm và đặt lại từng thư mục.
 
 review-loop không tự thực hiện lệnh gọi mạng nào. Claude và reviewer đọc diff, các phát hiện và output của check giống như mọi file khác trong session của bạn. Vì vậy, nội dung đó được gửi đến nhà cung cấp mô hình theo cùng cách với phần còn lại của session Claude Code của bạn.
 
@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Sau đó, xóa `.git/lim/review-loop/` trong mỗi repository mà bạn đã chạy review-loop, cùng dòng `.lim-review/` trong `.git/info/exclude` của repository đó.
+Sau đó, xóa `.git/lim/review-loop/` trong mỗi repository mà bạn đã chạy review-loop, cùng dòng `.lim-review/` trong `.git/info/exclude` của repository đó. Một worktree liên kết cũng có thư mục riêng; [review-loop README](../../plugins/review-loop/README.md#data) chỉ cách tìm thư mục đó.
 
 ## Biến nó thành của bạn
 

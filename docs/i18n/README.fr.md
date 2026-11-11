@@ -305,7 +305,7 @@ Un commit est local et facile à annuler. Un push ne l'est pas. review-loop s'ar
 
 ## Données
 
-L'état, les diffs, les logs des vérifications et un registre des décisions se trouvent dans `.git/lim/review-loop/` à l'intérieur de votre dépôt. Claude écrit chaque revue un instant dans le dossier `.lim-review/` de votre working tree ; git ignore ce dossier grâce à `.git/info/exclude`, et review-loop supprime le fichier après l'avoir lu. Pour vérifier une règle, review-loop écrit le code d'avant la correction dans un dossier temporaire hors de votre dépôt, puis le supprime. Pour réinitialiser, supprimez `.git/lim/review-loop/`.
+L'état, les diffs, les logs des vérifications et un registre des décisions se trouvent dans `.git/lim/review-loop/` à l'intérieur de votre dépôt. Claude écrit chaque revue un instant dans le dossier `.lim-review/` de votre working tree ; git ignore ce dossier grâce à `.git/info/exclude`, et review-loop supprime le fichier après l'avoir lu. Pour vérifier une règle, review-loop écrit le code d'avant la correction dans un dossier temporaire hors de votre dépôt, puis le supprime. Pour réinitialiser, supprimez `.git/lim/review-loop/`. Un worktree lié garde sa revue dans un dossier et les réglages qu'il partage avec tout le dépôt dans un autre ; le [review-loop README](../../plugins/review-loop/README.md#data) montre comment trouver et réinitialiser chacun.
 
 review-loop ne fait aucun appel réseau par lui-même. Claude et le réviseur lisent le diff, les constats et la sortie des vérifications comme n'importe quel autre fichier de votre session. Ce contenu va donc au fournisseur du modèle de la même façon que le reste de votre session Claude Code.
 
@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Ensuite, supprimez `.git/lim/review-loop/` dans chaque dépôt où vous l'avez exécuté, ainsi que la ligne `.lim-review/` de son `.git/info/exclude`.
+Ensuite, supprimez `.git/lim/review-loop/` dans chaque dépôt où vous l'avez exécuté, ainsi que la ligne `.lim-review/` de son `.git/info/exclude`. Un worktree lié a aussi son propre dossier ; le [review-loop README](../../plugins/review-loop/README.md#data) montre comment le trouver.
 
 ## À votre façon
 
