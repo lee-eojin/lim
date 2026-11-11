@@ -933,6 +933,7 @@ test('a first-person change of speaker before a quote ends the reviewer attribut
     ['my question is', 'The reviewer said no; my question is: "Kept; should we remove the console.log?"'],
     ['my question was', 'The reviewer said no, my question was "Kept; should we remove the console.log?"'],
     ['my own question is after a short gap', 'The reviewer said no; my own question is: “Kept; should we remove the console.log?”'],
+    ['but my question is', 'The reviewer said no but my question is “Kept; should we remove the console.log?”'],
     ['so I ask after a long attribution', 'The reviewer asked about the finding in round one and so I ask, "Kept; should we remove the console.log?"'],
   ];
   const pass = [
@@ -943,6 +944,8 @@ test('a first-person change of speaker before a quote ends the reviewer attribut
     ['long attribution with a colon', 'The reviewer asked the following question about the finding: "Kept; should we remove the console.log?"'],
     ['long attribution with a comma', 'The reviewer asked the following question about the finding, “Kept; should we remove the console.log?”'],
     ['next-line quote after a colon', 'The reviewer asked:\n“Kept; should we remove the console.log?”'],
+    ['my question was inside the reviewer attribution', "The reviewer asked whether my question was 'Kept; should we remove the console.log?'"],
+    ['my question is inside the reviewer attribution', 'The reviewer said that my question is “Kept; should we remove the console.log?”'],
   ];
   for (const [want, rows] of [[false, fail], [true, pass]]) {
     for (const [name, result] of rows) {
