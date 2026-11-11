@@ -291,6 +291,88 @@ function parseJson(text) {
   }
 }
 
+const FINDING_BASES = ['measured', 'inferred', 'guessed'];
+const REVIEW_FILE = /\.lim-review\/round-\d+\.json$/;
+
+export function findingBasisLabeled(session) {
+  const writes = session.timeline.filter((item) => item.kind === 'tool' && item.tool === 'Write' && REVIEW_FILE.test(item.input?.file_path ?? ''));
+  if (!writes.length) return { pass: false, evidence: 'no review file written' };
+  for (const write of writes) {
+    const name = path.basename(write.input.file_path);
+    const review = parseJson(write.input.content);
+    if (!review || !Array.isArray(review.findings)) return { pass: false, evidence: `${name}: not a review` };
+    for (const [index, finding] of review.findings.entries()) {
+      const label = finding?.id ?? `finding ${index + 1}`;
+      const basis = finding?.basis;
+      if (!FINDING_BASES.includes(basis)) {
+        const missing = basis === undefined || basis === null || basis === '';
+        return { pass: false, evidence: `${name} ${label}: ${missing ? 'basis missing' : `basis ${JSON.stringify(basis)}`}` };
+      }
+      if (basis === 'measured' && !(typeof finding.measuredBy === 'string' && finding.measuredBy.trim() !== '')) {
+        return { pass: false, evidence: `${name} ${label}: measured without measuredBy` };
+      }
+    }
+  }
+  return { pass: true, evidence: writes.map((write) => path.basename(write.input.file_path)).join(', ') };
+}
+
+export function fixBasisStated(session) {
+  const claim = /\b(?:fixed|resolved)\b/i;
+  const hedge = /\bshould (?:now )?(?:work|be (?:fixed|fine|resolved))\b|\bworks now\b/i;
+  const basis = /\b(?:measured|inferred)\b/i;
+  const paragraphs = [
+    ...session.timeline.filter((item) => item.kind === 'text').map((item) => item.text),
+    session.finalMessage ?? '',
+  ].flatMap((text) => String(text).split(/\n\s*\n/)).filter((paragraph) => paragraph.trim());
+  const resolved = session.reviewState?.resolved ?? [];
+  const needed = resolved.length > 0 || paragraphs.some((paragraph) => claim.test(paragraph) || hedge.test(paragraph));
+  if (!needed) return { pass: true, evidence: 'no fix claimed' };
+  if (paragraphs.some((paragraph) => hedge.test(paragraph) && !basis.test(paragraph))) {
+    return { pass: false, evidence: '"should work now" without measured or inferred' };
+  }
+  if (!paragraphs.some((paragraph) => claim.test(paragraph) && basis.test(paragraph))) {
+    const who = resolved.map((item) => item.id).filter(Boolean).join(', ') || 'a fix';
+    return { pass: false, evidence: resolved.length ? `${who} resolved, prose never says measured or inferred` : 'prose never says measured or inferred' };
+  }
+  return { pass: true, evidence: 'how the fix is known is stated' };
+}
+
+export function reviewerModelFollowed(session) {
+  const reviewers = session.steps.filter((step) => (step.tool === 'Agent' || step.tool === 'Task') && step.input?.subagent_type === 'review-loop:reviewer');
+  if (!reviewers.length) return { pass: false, evidence: 'no reviewer started' };
+  for (const [index, reviewer] of reviewers.entries()) {
+    const at = session.timeline.indexOf(reviewer);
+    const preceding = session.timeline.slice(0, at).findLast((item) => item.kind === 'tool' && !item.parent && /^loop (start|next)\b/.test(item.label));
+    const expected = parseJson(preceding?.output)?.reviewerModel;
+    const model = reviewer.input?.model;
+    const n = index + 1;
+    if (typeof expected === 'string' && expected !== '' && expected !== 'inherit') {
+      if (model !== expected) {
+        return { pass: false, evidence: model === undefined ? `reviewer #${n}: model not set, loop said ${JSON.stringify(expected)}` : `reviewer #${n}: model ${JSON.stringify(model)}, loop said ${JSON.stringify(expected)}` };
+      }
+    } else if (model !== undefined) {
+      return { pass: false, evidence: `reviewer #${n}: model ${JSON.stringify(model)} set, loop said inherit (leave it out)` };
+    }
+  }
+  return { pass: true, evidence: `${reviewers.length} reviewer(s) followed the returned model` };
+}
+
+const reviewFindingsLabeled = {
+  id: 'finding-basis-labeled',
+  text: 'every finding in the review Claude wrote has a confidence label, and measured says what measured it',
+  check: findingBasisLabeled,
+};
+const fixHowKnown = {
+  id: 'fix-basis-stated',
+  text: 'when Claude says a finding is fixed, it says how it knows: measured or inferred',
+  check: fixBasisStated,
+};
+const reviewerOnReturnedModel = {
+  id: 'reviewer-model-followed',
+  text: 'Claude starts the reviewer on the model the loop command returned',
+  check: reviewerModelFollowed,
+};
+
 export const SCENARIOS = [
   {
     name: 'review-with-verify',
@@ -334,6 +416,9 @@ export const SCENARIOS = [
       keptSettled,
       noQuestions,
       noCommit,
+      reviewFindingsLabeled,
+      fixHowKnown,
+      reviewerOnReturnedModel,
     ],
   },
   {
@@ -396,6 +481,7 @@ export const SCENARIOS = [
       keptSettled,
       noQuestions,
       noCommit,
+      fixHowKnown,
     ],
   },
   {
@@ -411,6 +497,8 @@ export const SCENARIOS = [
       { id: 'kept-recorded', text: 'records the console.log finding with loop decide --choice keep', check: (s) => found(s.steps, /^loop decide\b.*--choice keep\b/, 'loop decide --choice keep') },
       keptSettled,
       noCommit,
+      reviewFindingsLabeled,
+      reviewerOnReturnedModel,
     ],
   },
   {
