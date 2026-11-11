@@ -133,6 +133,18 @@ test('a regex after if, while, for or with parentheses is not division', () => {
   assert.equal(count('if (a) /\\/\\//.test(b);'), 0);
 });
 
+test('a regex after for await parentheses is not division', () => {
+  assert.equal(count("for await (const x of y) /'/.test(x) /* real */ || /'/.test(z);"), 1);
+  assert.equal(count("for await (const x of f(y)) /'/.test(x) /* real */ || /'/.test(z);"), 1);
+  assert.equal(count("for /* a */ await /* b */ (a) /'/.test(b) /* real */ || /'/.test(c);"), 3);
+  assert.equal(count('for await (a) /\\/\\//.test(b);'), 0);
+  assert.equal(count("await (x) /'/.test(y) /* real */ || /'/.test(z);"), 0);
+  assert.equal(count('await (a) / 2 // c'), 1);
+  assert.equal(count('a.for await (b) / 2 // c'), 1);
+  assert.equal(count('for (await (a) / 2; ;) {} // c'), 1);
+  assert.equal(count('for each (a) / 2 // c'), 1);
+});
+
 test('a regex after a spread is not division', () => {
   assert.equal(count("f(.../'/.test(a) /* real */ || /'/.test(c));"), 1);
 });
