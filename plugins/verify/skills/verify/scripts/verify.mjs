@@ -35,16 +35,17 @@ const INTERPRETERS = ['node', 'python3'];
 const WINDOWS = process.platform === 'win32';
 const EXTENSIONS_SPAWN_STARTS_ON_WINDOWS = ['.com', '.exe'];
 const RUN_FORMS = 'a check runs only node or python3 with a script file in the repository, as ["node", "<script>", ...arguments] or ["python3", "<script>", ...arguments], or a script file in the repository whose first line is #!/usr/bin/env node, #!/usr/bin/env python3, #!/<path>/node, or #!/<path>/python3 with no option, as ["./bin/<tool>", ...arguments]';
-const SHEBANG = /^#!(\/usr\/bin\/env (node|python3)|(?:\/\S*)?\/(node|python3))\s*$/;
+const ALLOWED_SHEBANG = /^#!(\/usr\/bin\/env (node|python3)|(?:\/\S*)?\/(node|python3))\s*$/;
 const BINARY_PROBE_BYTES = 512;
 const FIRST_LINE_BYTES = 4096;
 const NOT_PROJECT_FOLDERS = ['node_modules', '.git', '.venv', 'venv', '__pycache__'];
 const NOT_PROJECT_TEXT = 'not a file in the repository outside node_modules, .git, .venv, venv, and __pycache__';
 const NODE_NAMES_NODE_ITSELF_IGNORES = new Set(['NODE_ENV']);
 const LOADER_PREFIXES = ['NODE_', 'PYTHON', 'LD_', 'DYLD_'];
-const PYTHON_ENVIRONMENT = { PYTHONDONTWRITEBYTECODE: '1' };
-const REMOVED_PYTHON_NAMES = ['PYTHONPATH', 'PYTHONSTARTUP', 'PYTHONHOME', 'PYTHONINSPECT', 'PYTHONSAFEPATH'];
+const NO_PYCACHE_ENVIRONMENT = { PYTHONDONTWRITEBYTECODE: '1' };
+const PYTHON_NAMES_CHANGING_WHAT_RUNS = ['PYTHONPATH', 'PYTHONSTARTUP', 'PYTHONHOME', 'PYTHONINSPECT', 'PYTHONSAFEPATH'];
 const ZIP_END_RECORD = Buffer.from('PK\x05\x06', 'latin1');
+const GIT_ADD_UNREADABLE_FILE = /^error: unable to index file /m;
 const LOADER_NAMES = new Set([
   'HOME', 'USERPROFILE', 'OPENSSL_CONF', 'BASH_ENV', 'ENV', 'BASHOPTS', 'SHELLOPTS', 'PS4', 'ZDOTDIR',
   'PYTHONSTARTUP', 'PYTHONPATH', 'PYTHONHOME', 'PERL5OPT', 'PERL5LIB', 'PERLLIB', 'RUBYOPT', 'RUBYLIB',
@@ -196,7 +197,7 @@ function firstBytes(target) {
   }
 }
 
-function readFirstBytes(target) {
+function firstBytesIfReadable(target) {
   try {
     return firstBytes(target);
   } catch {
@@ -208,13 +209,13 @@ const isBinary = (bytes) => bytes.subarray(0, BINARY_PROBE_BYTES).includes(0);
 
 function shebangOf(bytes) {
   const [firstLine] = bytes.toString('utf8').split('\n');
-  const match = SHEBANG.exec(firstLine);
+  const match = ALLOWED_SHEBANG.exec(firstLine);
   return { firstLine, ...(match && { interpreter: match[1], name: match[2] ?? match[3] }) };
 }
 
 function executableProblem(root, target) {
   if (!existsSync(target)) return null;
-  const bytes = readFirstBytes(target);
+  const bytes = firstBytesIfReadable(target);
   if (!bytes) return null;
   if (isBinary(bytes)) return 'a binary file, not a script that node or python3 runs';
   const { firstLine, interpreter, name } = shebangOf(bytes);
@@ -249,13 +250,13 @@ function nodeScriptProblem(root, script) {
   const target = path.resolve(root, script);
   if (!existsSync(target)) return null;
   if ([target, realpathSync.native(target)].some((file) => path.extname(file) === '.node')) return 'a compiled addon, not a script that node runs';
-  const bytes = readFirstBytes(target);
+  const bytes = firstBytesIfReadable(target);
   return bytes && isBinary(bytes) ? 'a binary file, not a script that node runs' : null;
 }
 
 function interpreterOf(root, run) {
   if (INTERPRETERS.includes(run[0])) return run[0];
-  const bytes = readFirstBytes(path.resolve(root, run[0]));
+  const bytes = firstBytesIfReadable(path.resolve(root, run[0]));
   return bytes ? shebangOf(bytes).name ?? null : null;
 }
 
@@ -305,7 +306,7 @@ export function compareRunFiles(left, right) {
   return leftSequence - rightSequence;
 }
 
-const MATCHER = `const { parentPort } = require('node:worker_threads');
+const MATCH_WORKER_SOURCE = `const { parentPort } = require('node:worker_threads');
 parentPort.on('message', ({ texts, tests, shared, port }) => {
   const state = new Int32Array(shared);
   const errors = {};
@@ -323,32 +324,34 @@ parentPort.on('message', ({ texts, tests, shared, port }) => {
   Atomics.notify(state, 0);
 });`;
 
-let matcher;
+let matchWorker;
 
-function matchAll(tests, deadline) {
+function matchAllOnWorker(tests, deadline) {
   if (!tests.length) return [];
   const texts = [...new Set(tests.map(([, text]) => text))];
   const shared = new SharedArrayBuffer(4 * (tests.length + 1));
   const state = new Int32Array(shared);
-  if (!matcher) {
-    const worker = new Worker(MATCHER, { eval: true }).on('error', () => {
-      if (matcher === worker) matcher = undefined;
+  if (!matchWorker) {
+    const worker = new Worker(MATCH_WORKER_SOURCE, { eval: true }).on('error', () => {
+      if (matchWorker === worker) matchWorker = undefined;
     });
     worker.unref();
-    matcher = worker;
+    matchWorker = worker;
   }
   const { port1, port2 } = new MessageChannel();
-  matcher.postMessage({ texts, tests: tests.map(([pattern, text]) => [pattern, texts.indexOf(text)]), shared, port: port2 }, [port2]);
+  matchWorker.postMessage({ texts, tests: tests.map(([pattern, text]) => [pattern, texts.indexOf(text)]), shared, port: port2 }, [port2]);
   Atomics.wait(state, 0, 0, Math.max(0, deadline - Date.now()));
   const finished = Atomics.load(state, 0) === 1;
   if (!finished) {
-    matcher.terminate();
-    matcher = undefined;
+    matchWorker.terminate();
+    matchWorker = undefined;
   }
   const errors = (finished && receiveMessageOnPort(port1)?.message) || {};
   port1.close();
   return tests.map((_, position) => [undefined, false, true, { error: errors[position] }][Atomics.load(state, position + 1)]);
 }
+
+const ranOutOfTime = (result) => result === undefined;
 
 const matchLimitOf = (timeoutMs, deadline) => Math.max(0, Math.min(timeoutMs, MATCH_LIMIT_MS, deadline - Date.now()));
 
@@ -361,7 +364,7 @@ export function satisfies(rule, text) {
 }
 
 function satisfiesAll(pairs, deadline) {
-  const matched = matchAll(pairs.filter(([rule]) => 'matches' in rule).map(([rule, text]) => [rule.matches, text]), deadline).values();
+  const matched = matchAllOnWorker(pairs.filter(([rule]) => 'matches' in rule).map(([rule, text]) => [rule.matches, text]), deadline).values();
   return pairs.map(([rule, text]) => ('matches' in rule ? matched.next().value : satisfies(rule, text)));
 }
 
@@ -394,7 +397,7 @@ function unknownKeys(value, allowed, where) {
   return Object.keys(value).filter((key) => !allowed.includes(key)).map((key) => `${where} has an unknown key ${quote(key)}`);
 }
 
-function ruleProblems(rule, where, inputs, candidates, allowed = MATCHERS) {
+function ruleProblems(rule, where, inputs, rulesToProbe, allowed = MATCHERS) {
   if (!isObject(rule)) return [`${where} must be an object with one of ${MATCHERS.join(', ')}`];
   const problems = unknownKeys(rule, allowed, where);
   const kinds = MATCHERS.filter((matcher) => matcher in rule);
@@ -408,19 +411,19 @@ function ruleProblems(rule, where, inputs, candidates, allowed = MATCHERS) {
       return [...problems, `${where}.matches is not a valid regular expression: ${error.message}`];
     }
   }
-  candidates.push({ where, kind, rule: { [kind]: rule[kind] }, inputs });
+  rulesToProbe.push({ where, kind, rule: { [kind]: rule[kind] }, inputs });
   return problems;
 }
 
-function weakRuleProblems(candidates, limitMs) {
-  const tried = candidates.map((candidate) => ({ ...candidate, probes: [...PROBES, ...candidate.inputs] }));
+function weakRuleProblems(rulesToProbe, limitMs) {
+  const tried = rulesToProbe.map((candidate) => ({ ...candidate, probes: [...PROBES, ...candidate.inputs] }));
   const results = satisfiesAll(tried.flatMap(({ rule, probes }) => probes.map(([, probe]) => [rule, probe])), Date.now() + limitMs).values();
   return tried.flatMap(({ where, kind, rule, probes }) => {
     const satisfied = probes.map(() => results.next().value);
     const weak = probes.find(([, probe], position) => satisfied[position] === true || (position >= PROBES.length && satisfiesIgnoringWhitespace(rule, probe)));
     if (weak) return [`${where}.${kind} ${quote(rule[kind])} is also satisfied by ${weak[0]}, so the check cannot fail`];
     const failed = satisfied.find((result) => result?.error);
-    const untried = failed ? `: ${failed.error}` : satisfied.includes(undefined) ? ` ${within(limitMs, 'checking the map')}` : null;
+    const untried = failed ? `: ${failed.error}` : satisfied.some(ranOutOfTime) ? ` ${within(limitMs, 'checking the map')}` : null;
     return untried ? [`${where}.${kind} ${quote(rule[kind])} could not be tried against the run's inputs${untried}, so verify cannot tell whether the check can fail`] : [];
   });
 }
@@ -516,12 +519,12 @@ function entryProblems(entry, index, root, seen, { defaultTimeoutMs, ids, deadli
     ...stdinProbes(entry, root),
   ];
   const named = runIsList ? argumentFiles(root, entry).filter((file) => !file.problem) : [];
-  const candidates = [];
-  const inputsFor = (own) => [...inputs, ...named.filter((file) => file.path !== own).map((file) => [file.label, file.text])];
+  const rulesToProbe = [];
+  const inputsExceptOwnFile = (own) => [...inputs, ...named.filter((file) => file.path !== own).map((file) => [file.label, file.text])];
   for (const stream of ['stdout', 'stderr']) {
     rulesOf(expect[stream]).forEach((rule, position, rules) => {
       const label = rules.length > 1 || Array.isArray(expect[stream]) ? `${where}.expect.${stream}[${position}]` : `${where}.expect.${stream}`;
-      problems.push(...ruleProblems(rule, label, inputsFor(null), candidates));
+      problems.push(...ruleProblems(rule, label, inputsExceptOwnFile(null), rulesToProbe));
     });
   }
   if (expect.files !== undefined) {
@@ -539,7 +542,7 @@ function entryProblems(entry, index, root, seen, { defaultTimeoutMs, ids, deadli
           problems.push(`${label} needs one of ${MATCHERS.join(', ')}, because a file that was written does not show the feature's result`);
         } else {
           const own = pathProblem ? null : rootRelative(root, path.resolve(root, file.path));
-          problems.push(...ruleProblems(file, label, inputsFor(own), candidates, FILE_KEYS));
+          problems.push(...ruleProblems(file, label, inputsExceptOwnFile(own), rulesToProbe, FILE_KEYS));
         }
       });
     }
@@ -547,7 +550,7 @@ function entryProblems(entry, index, root, seen, { defaultTimeoutMs, ids, deadli
   const expectsOutput = ['stdout', 'stderr'].some((stream) => rulesOf(expect[stream]).length) || expect.files?.length;
   if (!expectsOutput) problems.push(`${where}.expect needs stdout, stderr, or files, because an exit code alone does not show the feature's result`);
   if (ids && !ids.includes(entry.id)) return problems;
-  return [...problems, ...weakRuleProblems(candidates, matchLimitOf(timeoutIsValid ? entry.timeoutMs : defaultTimeoutMs, deadline))];
+  return [...problems, ...weakRuleProblems(rulesToProbe, matchLimitOf(timeoutIsValid ? entry.timeoutMs : defaultTimeoutMs, deadline))];
 }
 
 export function validateMap(map, root, { defaultTimeoutMs = DEFAULT_TIMEOUT_MS, ids = null, deadline = Date.now() + MAP_CHECK_BUDGET_MS } = {}) {
@@ -641,9 +644,9 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
     const env = { ...process.env, CI: '1', NO_COLOR: '1', FORCE_COLOR: '0', ...extraEnv };
     if (!WINDOWS && env.PATH !== undefined) env.PATH = absolutePathEntries(env.PATH).join(path.delimiter);
     if (interpreterOf(root, run) === 'python3') {
-      const removed = (variable) => REMOVED_PYTHON_NAMES.includes(WINDOWS ? variable.toUpperCase() : variable);
+      const removed = (variable) => PYTHON_NAMES_CHANGING_WHAT_RUNS.includes(WINDOWS ? variable.toUpperCase() : variable);
       for (const variable of Object.keys(env).filter(removed)) delete env[variable];
-      Object.assign(env, PYTHON_ENVIRONMENT);
+      Object.assign(env, NO_PYCACHE_ENVIRONMENT);
     }
     const child = spawn(program, args, {
       cwd,
@@ -722,7 +725,7 @@ export function judge(entry, outcome, files = [], limitMs = Infinity, startingTe
     }
     const [subject, rule, text] = finding;
     const satisfied = results.next().value;
-    if (satisfied === undefined) {
+    if (ranOutOfTime(satisfied)) {
       notJudged.push(slowPattern
         ? `${subject} was not judged: matching ${quote(slowPattern)} ran out of time first`
         : `${subject} was not judged: matching ${quote(rule.matches)} did not finish ${within(limitMs, 'this run')}`);
@@ -790,7 +793,7 @@ function notRunReasons(root, entry, stdin, watched, limitMs) {
   }
   satisfiesAll(probes.map(({ rule, text }) => [rule, text]), Date.now() + limitMs).forEach((satisfied, position) => {
     const { source, label, rule, text, satisfiedReason, reformattedReason } = probes[position];
-    if (satisfied === undefined || satisfied.error) {
+    if (ranOutOfTime(satisfied) || satisfied.error) {
       const untried = satisfied?.error ? `: ${satisfied.error}` : ` ${within(limitMs, 'this run')}`;
       reasons.push(`${source} could not be matched against ${label} (${describeRule(rule)})${untried}, so verify cannot tell whether the check can fail`);
     } else if (satisfied) reasons.push(satisfiedReason);
@@ -954,7 +957,7 @@ function workingTree(repository) {
     try {
       git(['add', '-A'], repository.root, { ...env, LC_ALL: 'C' });
     } catch (error) {
-      if (/^error: unable to index file /m.test(error.stderr)) return null;
+      if (GIT_ADD_UNREADABLE_FILE.test(error.stderr)) return null;
       throw error;
     }
     git(['rm', '-r', '--cached', '--ignore-unmatch', '-q', '--', REVIEW_FOLDER], repository.root, env);
