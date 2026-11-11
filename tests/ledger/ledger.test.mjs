@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { lineCount, within } from '../../plugins/ledger/skills/ledger/scripts/ledger.mjs';
+import { temporaryFolder } from '../temp-folders.mjs';
 
 const script = fileURLToPath(new URL('../../plugins/ledger/skills/ledger/scripts/ledger.mjs', import.meta.url));
 
 function workspace(ledger, files = {}) {
-  const dir = mkdtempSync(path.join(tmpdir(), 'ledger-'));
+  const dir = temporaryFolder('ledger-');
   const all = {
     'src/cache.js': 'export function evict(entry) {\n  if (entry.dead) return true;\n  return false;\n}\n',
     'src/server.js': 'import { evict } from "./cache.js";\nexport const port = 8080;\n',
@@ -240,7 +241,7 @@ test('a contradiction across two questions marks both contradicted', () => {
 });
 
 test('a search does not follow links and does not crash on a dangling one', { skip: process.platform === 'win32' && 'symbolic links need extra rights on Windows' }, () => {
-  const outside = mkdtempSync(path.join(tmpdir(), 'ledger-outside-'));
+  const outside = temporaryFolder('ledger-outside-');
   writeFileSync(path.join(outside, 'proof.js'), 'EXTERNAL_PROOF\n');
   const dir = workspace({ claims: [{ id: 'c.x', question: 'q.dead-only', statement: 's', kind: 'observed', evidence: [{ search: 'EXTERNAL_PROOF', scope: 'src', hits: 1 }] }] });
   symlinkSync(path.join(outside, 'proof.js'), path.join(dir, 'src', 'external.js'));
