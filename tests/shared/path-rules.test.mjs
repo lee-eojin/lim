@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import * as gapMap from '../../plugins/gap-map/skills/gap-map/scripts/gapmap.mjs';
 import * as ledger from '../../plugins/ledger/skills/ledger/scripts/ledger.mjs';
+import { temporaryFolder } from '../temp-folders.mjs';
 
 function tree() {
-  const root = mkdtempSync(path.join(tmpdir(), 'shared-rules-'));
+  const root = temporaryFolder('shared-rules-');
   for (const [file, text] of Object.entries({ 'a.md': 'one\ntwo\nthree\n', 'src/x.js': 'needle needle\n', 'src/y.js': 'needle\n', 'empty.txt': '' })) {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     writeFileSync(path.join(root, file), text);
