@@ -242,7 +242,8 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own);
 }
 
-const segmentsOf = (prose) => prose.split(/\n\s*(?=[^\s"“])|(?<=[.?!])\s+/);
+const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“])|(?<=[.?!])${QUOTED}\s+`, 'i');
+const segmentsOf = (prose) => prose.split(SENTENCE);
 
 function optionActs(anchor, question) {
   const options = Array.isArray(question?.options) ? question.options : [];
@@ -253,7 +254,8 @@ function optionActs(anchor, question) {
   if (choices.some((text) => due.test(text))) return true;
   const asked = `${question?.header ?? ''}\n${question?.question ?? ''}`;
   const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(asked);
-  const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${anchor}|${anchor}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|${ONE}\\s*\\?)|${TOPIC}${SUBJECT}${anchor}\\s*,?\\s*(?:and|or)\\s+${BARE}\\s*\\?`, 'i').test(asked);
+  const code = `\\x60?${anchor}\\x60?`;
+  const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|${ONE}\\s*\\?)|${TOPIC}${SUBJECT}${code}\\s*,?\\s*(?:and|or)\\s+${BARE}\\s*\\?`, 'i').test(asked);
   const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|[\\s.!]*$)`, 'i');
   return named && !paired && choices.some((text) => pronoun.test(text));
 }

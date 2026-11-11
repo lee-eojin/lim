@@ -654,6 +654,12 @@ test('a bare, mid-sentence, or parenthetical should-be, a pronoun, description, 
     ['inverted in a quote after a blank line and a line with no reviewer voice', [], 'Nothing else is open\n\n“Kept; should we remove the console.log?”'],
     ['inverted in an indented quote after a line with no reviewer voice', [], 'Nothing else is open\n  “Kept; should we remove the console.log?”'],
     ['inverted on an indented line after a blank line', [], 'Kept as is\n\n   Should we remove the console.log?'],
+    ['pronoun label under a question with only the kept name in backticks', [askAbout('What about `console.log`?', { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['inverted in a second sentence after an unquoted reviewer voice', [], 'The reviewer said it was kept. However, should we remove the console.log?'],
+    ['inverted at the start of the second sentence of a quote with no reviewer voice', [], 'My question is: "It was kept. Should we remove the console.log?"'],
+    ['inverted at the start of the second sentence of a curly quote with no reviewer voice', [], 'My question is: “It was kept. Should we remove the console.log?”'],
+    ['inverted at the start of a sentence after a reviewer quote closes', [], 'The reviewer asked "Was it kept?" and left. Should we remove the console.log?'],
+    ['inverted at the start of a sentence after a curly reviewer quote closes', [], 'The reviewer asked “Was it kept?” and left. Should we remove the console.log?'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
@@ -766,6 +772,11 @@ test('a reported or denied should-be, an act on something next to a kept finding
     ['reviewer voice quotes an inverted after a blank line with carriage returns', [], 'The reviewer asked:\r\n\r\n“Kept; should we remove the console.log?”'],
     ['pronoun label under a verb-led question with an underscored name and more text', [askAbout('Should we look at the console.log and null_check first?', { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
     ['pronoun label under a verb-led question with an id and no preposition, kept second', [askAbout('Should we review F-2 or the console.log?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a two-finding question with the kept name in backticks', [askAbout('What about `console.log` and the null check?', { label: 'Fix it', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a two-finding question with the kept name in backticks, kept second', [askAbout('What about the null check and `console.log`?', { label: 'Fix it', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
+    ['reviewer voice quotes an inverted in its second sentence', [], 'The reviewer asked: "It was kept. However, should we remove the console.log?"'],
+    ['reviewer voice quotes an inverted in its second sentence in curly quotes', [], 'The reviewer asked: “It was kept. However, should we remove the console.log?”'],
+    ['pronoun label under a what about question with the kept name in backticks and a bare two-word finding', [askAbout('What about `console.log` and null check?', { label: 'Fix it', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
