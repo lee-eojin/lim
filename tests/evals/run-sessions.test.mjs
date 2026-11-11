@@ -305,6 +305,8 @@ test('offering to act on a kept finding by its quote, title, or code name fails 
     ['console.log', keptLogSteps, keptConsoleLog, 'Kept as is. Nothing is committed. Want me to remove the console.log?'],
     ['quote', [...keptLogSteps.slice(0, -1), loop('decide --id F-3 --choice keep')], { id: 'F-3', severity: 'P3', file: 'src/flags.js', line: 1, title: 'Flag left on', quote: '  const DEBUG = true;' }, 'Should I remove `const DEBUG = true` now?'],
     ['title', happySteps, { id: 'F-2', severity: 'P3', title: 'Debug log left in' }, 'If you want, I could fix "Debug log left in" in a follow-up.'],
+    ['i can', keptLogSteps, keptConsoleLog, 'Kept as is. I can fix the console.log too.'],
+    ['can i', keptLogSteps, keptConsoleLog, 'Kept as is. Can I delete the console.log anyway?'],
     ['question', [...keptLogSteps, ['AskUserQuestion', { questions: [{ question: 'Want me to remove the console.log anyway?' }] }]], keptConsoleLog, 'Kept F-1 as is. Nothing is committed.'],
   ];
   for (const [name, steps, item, result] of cases) {
@@ -328,7 +330,7 @@ test('offering to act on a kept finding by its quote, title, or code name fails 
     assert.equal(keptNotReoffered(notRecordedYet).pass, false, list);
     assert.match(keptNotReoffered(notRecordedYet).evidence, /re-offered: F-1$/, list);
   }
-  const question = buildSession(recordedStream(cases[3][1], { result: cases[3][3] }), keptRepoOf(keptConsoleLog));
+  const question = buildSession(recordedStream(cases[5][1], { result: cases[5][3] }), keptRepoOf(keptConsoleLog));
   assert.equal(outcome(checkScenario(scenario('keep-finding'), question), 'kept-not-reoffered').pass, false);
   const named = buildSession(recordedStream(keptLogSteps, { result: cases[0][3] }), keptRepoOf(keptConsoleLog));
   assert.equal(outcome(checkScenario(scenario('keep-finding'), named), 'kept-not-reoffered').pass, false);

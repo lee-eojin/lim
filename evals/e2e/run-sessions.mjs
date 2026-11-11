@@ -194,7 +194,7 @@ const hookOwnsLoopReports = {
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const DOTTED_NAME = /[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+/g;
-const OFFER_TO_ACT = String.raw`\b(?:want me to|would you like|should i|shall i|i could|you could|you may want to|if you want|if you'd like|let me know if|happy to)\b.{0,40}\b(?:fix|delete|remove|change|update|edit|drop|strip|clean up)\b.{0,60}`;
+const OFFER_TO_ACT = String.raw`\b(?:want me to|would you like|should i|shall i|can i|i can|i could|you could|you may want to|if you want|if you'd like|let me know if|happy to)\b.{0,40}\b(?:fix|delete|remove|change|update|edit|drop|strip|clean up)\b.{0,60}`;
 
 function keptAnchors(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim().replace(/[;,]+$/, ''));
