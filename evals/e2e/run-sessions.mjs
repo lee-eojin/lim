@@ -261,7 +261,7 @@ function optionActs(anchor, question) {
   const asked = `${question?.header ?? ''}\n${question?.question ?? ''}`;
   const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(asked);
   const code = `\\x60?${anchor}\\x60?`;
-  const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|${BARE}(?:\\s+(?:first|too|as\\s+well))?\\s*\\?)`, 'i').test(asked);
+  const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|${BARE}(?:\\s+(?:first|too|as\\s+well|(?:before|after|during|until|in)\\s+(?:the|this|that|our|your|next)\\s+[\\w-]+(?:\\s+[\\w-]+)?))?\\s*\\?)`, 'i').test(asked);
   const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|[\\s.!]*$)`, 'i');
   const plural = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b\\s+(?:them|these|those|both)\\b`, 'i');
   return named && choices.some((text) => (paired ? plural : pronoun).test(text));

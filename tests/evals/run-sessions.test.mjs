@@ -962,6 +962,37 @@ test('a first-person change of speaker before a quote ends the reviewer attribut
   }
 });
 
+test('a bare second finding pairs with the kept name when a closed time or scope tail follows it', () => {
+  const ask = (question) => [askAbout(question, { label: 'Fix it', description: 'Line 2' }, keepIt)];
+  const pass = [
+    ['before the release', 'Should we review the console.log and null check before the release?'],
+    ['after the merge', 'Should we look at the console.log and deadlock after the merge?'],
+    ['in the next round', 'Should we review the console.log and null check in the next round?'],
+    ['until the release', 'Should we review the console.log or null check until the release?'],
+    ['during this review', 'Should we look at the console.log and null check during this review?'],
+    ['after that merge', 'Should we review the console.log and null check after that merge?'],
+    ['in our next round', 'Should we review the console.log and null check in our next round?'],
+    ['before your release', 'Should we review the console.log and null check before your release?'],
+    ['before next release', 'Should we review the console.log and null check before next release?'],
+  ];
+  const fail = [
+    ['a verb-led tail before the release', 'Should we review the console.log and run tests before the release?'],
+    ['a verb-led tail with for the team', 'Should we look at the console.log and send notes for the team?'],
+    ['a pronoun after the tail word', 'Should we look at the console.log and send notes for it?'],
+    ['a tail with no article', 'Should we review the console.log and null check before release?'],
+    ['a tail with an indefinite article', 'Should we review the console.log and null check before a release?'],
+    ['a tail with three words after the article', 'Should we review the console.log and null check before the big final release?'],
+  ];
+  for (const [want, rows] of [[true, pass], [false, fail]]) {
+    for (const [name, question] of rows) {
+      const kept = buildSession(recordedStream([...keptLogSteps, ...ask(question)], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream([...keptBeforeSteps, ...ask(question)], { result: 'Nothing is committed.' }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+});
+
 test('an and-too offer after a neighbor fails, a reviewer credit with a time tail or a rescue word before a verb about the kept finding passes, and every neighbor word reads like near', () => {
   const words = ['beside', 'alongside', 'around', 'above', 'below', 'after', 'before', 'behind', 'under'];
   const fail = [
