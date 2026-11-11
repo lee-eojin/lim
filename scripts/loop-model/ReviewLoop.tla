@@ -60,6 +60,10 @@ StopIfProven(l) ==
                                                         ELSE l.findings[s]]]
                 : blamed \in (SUBSET tested) \ {{}}}
 
+LedgerAfterFinalChecks(l) ==
+  IF l.awaiting # "proof" \/ Unproven(l) # {} THEN {ledger}
+  ELSE {ledger \ passed : passed \in SUBSET {pair \in ledger : pair[2] = "check"}}
+
 \* makeUnattended in loop.mjs, with finishFixing when a fix round has nothing left to fix: decideNext with no open
 \* finding holds for proof while a resolved finding lacks it, else stops as waiting or clean.
 MakeUnattended(l) ==
@@ -168,7 +172,7 @@ StartResume ==
        IN /\ l2 # loop
           /\ loop' = l2
           /\ cmd' = [name |-> "start", unattended |-> unattended, resume |-> TRUE]
-  /\ UNCHANGED ledger
+  /\ ledger' \in LedgerAfterFinalChecks(loop)
 
 \* record in loop.mjs (recordReview). Slots are reported in order, so new is the next k unreported slots.
 \* A ledger-kept check that this record does not introduce as a new failing check leaves the ledger,
@@ -192,7 +196,7 @@ Record ==
 \* next in loop.mjs. From the proof state it runs stopIfProven first; if the final checks send the loop back
 \* to fix, the same command goes on into the fix round. With proof still missing it throws and saves nothing.
 NextCommand ==
-  /\ UNCHANGED ledger
+  /\ ledger' \in LedgerAfterFinalChecks(loop)
   /\ \/ /\ loop.awaiting = "fix"
         /\ \E l2 \in FixRound(loop) : loop' = l2 /\ cmd' = [name |-> "next"]
      \/ /\ loop.awaiting = "proof"
@@ -203,19 +207,20 @@ NextCommand ==
 \* outcome "test" is a draft that fails on the code before the fix (caught), "missed" is one that does not.
 \* A finding decided as a rule records a rule draft instead, which leaves its regression proof as it was.
 RuleCommand ==
-  /\ UNCHANGED ledger
-  /\ \E s \in Slots :
-       /\ s \in Decidable(loop) \cup InState(loop, "resolved")
-       /\ IF loop.findings[s].decision = "rule"
-          THEN \E l2 \in StopIfProven(loop) \ {loop} :
+  \E s \in Slots :
+    /\ s \in Decidable(loop) \cup InState(loop, "resolved")
+    /\ IF loop.findings[s].decision = "rule"
+       THEN /\ \E l2 \in StopIfProven(loop) \ {loop} :
                  loop' = l2 /\ cmd' = [name |-> "rule", slot |-> s, outcome |-> "ruleDraft"]
-          ELSE /\ BeingFixed(loop, s)
-               /\ \E outcome \in {"noTest", "test", "missed"} :
-                    LET l1 == [loop EXCEPT !.findings[s].regression = IF outcome = "missed" THEN "none" ELSE outcome]
-                    IN \E l2 \in StopIfProven(l1) :
-                         /\ l2 # loop
-                         /\ loop' = l2
-                         /\ cmd' = [name |-> "rule", slot |-> s, outcome |-> outcome]
+            /\ ledger' \in LedgerAfterFinalChecks(loop)
+       ELSE /\ BeingFixed(loop, s)
+            /\ \E outcome \in {"noTest", "test", "missed"} :
+                 LET l1 == [loop EXCEPT !.findings[s].regression = IF outcome = "missed" THEN "none" ELSE outcome]
+                 IN \E l2 \in StopIfProven(l1), after \in LedgerAfterFinalChecks(l1) :
+                      /\ <<l2, after>> # <<loop, ledger>>
+                      /\ loop' = l2
+                      /\ ledger' = after
+                      /\ cmd' = [name |-> "rule", slot |-> s, outcome |-> outcome]
 
 \* decide in loop.mjs. It does not look at awaiting, so it can run in any state.
 DecideCommand ==
