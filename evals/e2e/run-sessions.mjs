@@ -209,19 +209,52 @@ const DUE = String.raw`\b(?:${MODAL}|ought to|needs? to|has to)(?:\s+(?:still|al
 const OPENING = String.raw`(?:(?:and|but|so|then|also|still)[,\s]+)?`;
 const SUBJECT = String.raw`(?:(?:the|this|that|your)\s+)?(?:[\w-]+\s+)?`;
 const REACH = String.raw`(?:(?!\b(?:and|or|but|not|nothing|no|none)\b)[^;,:?"]){0,40}?`;
+const HOLD = String.raw`(?:(?!\b(?:and|or|but|not|while|whereas|though|although|unless|until|if|when|once|since|because)\b)[^;,]){0,20}?`;
+const MARK = String.raw`[\s*_>•-]*`;
+const BESIDE = String.raw`(?<!\b(?:near|next\s+to|beside|alongside|around|above|below|after|before|behind|under)\s+(?:(?:the|this|that|your|a|an)\s+)?(?:[\w-]+\s+)?)`;
+const SAID = 'said|says|noted|notes|flagged|flags|suggested|suggests|recommended|recommends|found|thought|thinks|wrote|reported|reports|asked|wanted|wants|raised|mentioned|argued';
+const VOICE = String.raw`\b(?:(?:reviewer|review|finding|report)\s+(?:(?:also|had|has)\s+)?(?:${SAID})|you\s+(?:said|answered|noted|wrote|mentioned)|(?:according\s+to|per)\s+(?:the\s+|your\s+)?(?:reviewer|review|finding|report)|reviewer['’]s\s+[\w-]+)\b`;
+const REPORTED = String.raw`(?<!${VOICE}(?:(?!\bbut\b)[^;])*)`;
+const DENIED = String.raw`(?<!(?:\bnot|n['’]t|\bnever)\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
+const CREDITED = String.raw`(?![^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE})`;
+const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+to\s+)?`;
+const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
+const LISTED = String.raw`(?<=[\])(:"'\`*_•–—-]\s*|:\d+\s+)`;
 
-function offersToAct(anchor, segment) {
+function offersToAct(anchor, segment, own = segment) {
   return new RegExp(`${OFFER_TO_ACT}${anchor}`, 'i').test(segment)
     || new RegExp(`${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
     || new RegExp(`${OFFER_CUE}[^;]{0,20}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
     || new RegExp(`${LEAD}(?:(?:and|or|so|then|also|maybe|still)\\s+)?(?=(?:${ACT})\\b)${GAP}${anchor}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
     || new RegExp(`(?:\\b(?:would you (?:like|prefer)|do you (?:want|need))\\b|${LEAD}want\\b|${OFFER_CUE})${NEAR}${anchor}${NEAR}\\b(?:${DONE})\\b`, 'i').test(segment)
     || new RegExp(`${LEAD}${OPENING}${SUBJECT}${anchor}${NEAR}${DUE}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
-    || new RegExp(`${LEAD}${OPENING}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we)\\s+(?=(?:${ACT})\\b)${REACH}${anchor})`, 'i').test(segment)
-    || new RegExp(`"label":"[\\s*_>•-]*(?=(?:${ACT})\\b)${REACH}${anchor}`, 'i').test(segment);
+    || new RegExp(`${LEAD}${OPENING}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
+    || new RegExp(`${LEAD}${OPENING}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
+    || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own);
 }
 
 const segmentsOf = (prose) => prose.split(/\n+|(?<=[.?!])\s+/);
+
+function optionActs(anchor, question) {
+  const options = Array.isArray(question?.options) ? question.options : [];
+  const choices = options.flatMap((option) => [option?.label, option?.description]).flatMap((text) => segmentsOf(String(text ?? '')));
+  const direct = new RegExp(`^${MARK}${AGREE}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor}`, 'i');
+  if ([...segmentsOf(String(question?.header ?? '')), ...choices].some((text) => direct.test(text))) return true;
+  const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(`${question?.header ?? ''}\n${question?.question ?? ''}`);
+  const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|[\\s.!]*$)`, 'i');
+  return named && choices.some((text) => pronoun.test(text));
+}
+
+function restatedTitles(records) {
+  const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim()).filter((text) => new RegExp(DUE, 'i').test(text));
+  return texts.length ? new RegExp(`${LISTED}(?:${texts.map((text) => escapeRegex(text).replace(/\s+/g, '\\s+')).join('|')})`, 'g') : null;
+}
+
+function actsOn(anchors, records, segments, questions) {
+  const listed = restatedTitles(records);
+  const pairs = segments.map((segment) => [segment, listed ? segment.replace(listed, ' ') : segment]);
+  return anchors.some((anchor) => pairs.some(([segment, own]) => offersToAct(anchor, segment, own)) || questions.some((question) => optionActs(anchor, question)));
+}
 
 function keptAnchors(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim().replace(/[;,]+$/, ''));
@@ -230,11 +263,21 @@ function keptAnchors(records) {
   return [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
 }
 
-function proseAfterKeep(session, id) {
+function keepStep(session, id) {
   const keepOf = new RegExp(`--id[= ]${escapeRegex(id)}(?:\\s|$)`);
-  const keepAt = session.timeline.findLastIndex((item) => item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label) && keepOf.test(item.label));
+  return session.timeline.findLastIndex((item) => item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label) && keepOf.test(item.label));
+}
+
+function proseAfterKeep(session, id) {
+  const keepAt = keepStep(session, id);
   if (keepAt === -1) return session.finalMessage ?? '';
   return proseFrom(session, keepAt + 1);
+}
+
+function questionsFrom(session, start) {
+  return session.timeline.slice(start)
+    .filter((item) => item.kind === 'tool' && !item.parent && item.tool === 'AskUserQuestion')
+    .flatMap((item) => (Array.isArray(item.input?.questions) ? item.input.questions : []));
 }
 
 function proseFrom(session, start) {
@@ -268,12 +311,15 @@ export function keptNotReoffered(session) {
     const offer = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
     const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
     if (offer.test(prose) && !listedKeep.test(prose)) return true;
-    const anchors = [...keptAnchors(keptRecords.filter((item) => item.id === id)), `\\b${escapeRegex(id)}\\b`];
-    const segments = segmentsOf(proseAfterKeep(session, id));
-    return anchors.some((anchor) => segments.some((segment) => offersToAct(anchor, segment)));
+    const records = keptRecords.filter((item) => item.id === id);
+    const anchors = [...keptAnchors(records), `\\b${escapeRegex(id)}\\b`];
+    const keepAt = keepStep(session, id);
+    const questions = keepAt === -1 ? [] : questionsFrom(session, keepAt + 1);
+    return actsOn(anchors, records, segmentsOf(proseAfterKeep(session, id)), questions);
   });
   const sessionSegments = segmentsOf(proseFrom(session, 0));
-  const reofferedBefore = keptBefore.filter((item) => keptAnchors([item]).some((anchor) => sessionSegments.some((segment) => offersToAct(anchor, segment))));
+  const sessionQuestions = questionsFrom(session, 0);
+  const reofferedBefore = keptBefore.filter((item) => actsOn(keptAnchors([item]), [item], sessionSegments, sessionQuestions));
   const named = (items) => items.map((item) => `"${item.title}"`);
   const failed = [...reoffered, ...named(reofferedBefore)];
   return {
