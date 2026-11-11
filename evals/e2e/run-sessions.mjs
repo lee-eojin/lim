@@ -196,7 +196,24 @@ const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const DOTTED_NAME = /[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+/g;
 const OFFER_TO_ACT = String.raw`\b(?:want me to|would you like|should i|shall i|can i|i can(?!['’]t)|i could|you could|you may want to|if you want|if you'd like|let me know if|happy to)\b.{0,40}\b(?:fix|delete|remove|change|update|edit|drop|strip|clean up)\b[^;,]{0,60}`;
 const OFFER_CUE = String.raw`\b(?:if you(?:['’]d| would)? (?:like|prefer|want)|let me know|just say the word)\b`;
-const PASSIVE_ACT = String.raw`\b(?:could|can|may|might)(?:\s+(?:still|also|always|easily|just))?\s+be\s+(?:fixed|deleted|removed|changed|updated|edited|dropped|stripped|cleaned up)\b`;
+const PASSIVE_ACT = String.raw`\b(?:could|can|may|might|should|would)(?:\s+(?:still|also|always|easily|just))?\s+be\s+(?:fixed|deleted|removed|changed|updated|edited|dropped|stripped|cleaned up)\b`;
+
+const ACT = 'fix|delete|remove|change|update|edit|drop|strip|clean up';
+const DONE = 'fixed|deleted|removed|changed|updated|edited|dropped|stripped|cleaned up';
+const LEAD = String.raw`(?:^|[:\[]")[\s*_>•-]*`;
+const PUSH = String.raw`(?:\?|\bbefore (?:committing|you commit|the commit)\b)`;
+const NEAR = String.raw`(?:(?!\b(?:and|or|but|not)\b)[^;,]){0,20}?`;
+const GAP = String.raw`(?:(?!\b(?:nothing|no|not|none)\b)[^;,:?]){0,40}?`;
+
+function offersToAct(anchor, segment) {
+  return new RegExp(`${OFFER_TO_ACT}${anchor}`, 'i').test(segment)
+    || new RegExp(`${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
+    || new RegExp(`${OFFER_CUE}[^;]{0,20}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
+    || new RegExp(`${LEAD}(?:(?:and|or|so|then|also|maybe|still)\\s+)?(?=(?:${ACT})\\b)${GAP}${anchor}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
+    || new RegExp(`(?:\\b(?:would you (?:like|prefer)|do you (?:want|need))\\b|${LEAD}want\\b|${OFFER_CUE})${NEAR}${anchor}${NEAR}\\b(?:${DONE})\\b`, 'i').test(segment);
+}
+
+const segmentsOf = (prose) => prose.split(/\n+|(?<=[.?!])\s+/);
 
 function keptAnchors(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim().replace(/[;,]+$/, ''));
@@ -209,7 +226,11 @@ function proseAfterKeep(session, id) {
   const keepOf = new RegExp(`--id[= ]${escapeRegex(id)}(?:\\s|$)`);
   const keepAt = session.timeline.findLastIndex((item) => item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label) && keepOf.test(item.label));
   if (keepAt === -1) return session.finalMessage ?? '';
-  const after = session.timeline.slice(keepAt + 1).flatMap((item) => {
+  return proseFrom(session, keepAt + 1);
+}
+
+function proseFrom(session, start) {
+  const after = session.timeline.slice(start).flatMap((item) => {
     if (item.kind === 'text') return [item.text];
     if (item.kind === 'tool' && !item.parent && item.tool === 'AskUserQuestion') return [JSON.stringify(item.input ?? {})];
     return [];
@@ -224,7 +245,8 @@ export function keptNotReoffered(session) {
     ...['open', 'cards', 'deferred'].flatMap((list) => session.reviewState?.[list] ?? []).filter((item) => item.id && item.decision === 'keep'),
   ];
   const keptIds = [...new Set(keptRecords.map((item) => item.id))];
-  if (!keptIds.length) return { pass: true, evidence: 'no kept findings' };
+  const keptBefore = [...new Map((session.reviewState?.kept ?? []).filter((item) => !item.id && item.title).map((item) => [item.fingerprint ?? item.title, item])).values()];
+  if (!keptIds.length && !keptBefore.length) return { pass: true, evidence: 'no kept findings' };
   const askText = session.steps
     .filter((step) => step.tool === 'AskUserQuestion')
     .map((step) => JSON.stringify(step.input ?? {}))
@@ -239,16 +261,16 @@ export function keptNotReoffered(session) {
     const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
     if (offer.test(prose) && !listedKeep.test(prose)) return true;
     const anchors = [...keptAnchors(keptRecords.filter((item) => item.id === id)), `\\b${escapeRegex(id)}\\b`];
-    const segments = proseAfterKeep(session, id).split(/\n+|(?<=[.?!])\s+/);
-    return anchors.some((anchor) => segments.some((segment) => (
-      new RegExp(`${OFFER_TO_ACT}${anchor}`, 'i').test(segment)
-      || new RegExp(`${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
-      || new RegExp(`${OFFER_CUE}[^;]{0,20}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
-    )));
+    const segments = segmentsOf(proseAfterKeep(session, id));
+    return anchors.some((anchor) => segments.some((segment) => offersToAct(anchor, segment)));
   });
+  const sessionSegments = segmentsOf(proseFrom(session, 0));
+  const reofferedBefore = keptBefore.filter((item) => keptAnchors([item]).some((anchor) => sessionSegments.some((segment) => offersToAct(anchor, segment))));
+  const named = (items) => items.map((item) => `"${item.title}"`);
+  const failed = [...reoffered, ...named(reofferedBefore)];
   return {
-    pass: reoffered.length === 0,
-    evidence: reoffered.length ? `re-offered: ${reoffered.join(', ')}` : `kept settled: ${keptIds.join(', ')}`,
+    pass: failed.length === 0,
+    evidence: failed.length ? `re-offered: ${failed.join(', ')}` : `kept settled: ${[...keptIds, ...named(keptBefore)].join(', ')}`,
   };
 }
 

@@ -42,9 +42,18 @@ different model, which sees the two answers in random order, to pick the clearer
                           --trigger-prompts (evals/clear-explain/triggers-held-out.json)
   --max-turns <n>         turns per trigger run (default: 6)
   --calibrate <file>      take every answer stored in a results file, make a deliberately worse
-                          copy with a preamble, the answer moved to the end, sentences joined, and
-                          vague words, and judge each pair in both orders to show whether the
-                          judge and the script prefer the original; no new answers
+                          copy, and judge each pair in both orders to show whether the judge and
+                          the script prefer the original; no new answers
+  --defect <kind>         worse copy for --calibrate (repeatable, default: stacked); each kind
+                          costs two judge calls per stored answer it changes:
+                            stacked             a preamble, the answer moved to the end, sentences
+                                                joined, and vague words
+                            answer-moved        only the opening paragraph moved to the end
+                            joined-sentences    only the sentences of each prose paragraph joined
+                            removed-definition  one definition removed, written by hand in
+                                                calibration-variants.json
+                            factual-error       one fact made false, written by hand in
+                                                calibration-variants.json
 `;
 
 export function parseRunnerArgs(args, { options, modes, modeOf, counts, allowPositionals = false }) {
@@ -61,7 +70,7 @@ export function parseRunnerArgs(args, { options, modes, modeOf, counts, allowPos
 
 const MODES = {
   '--rescore': ['rescore', 'out'],
-  '--calibrate': ['calibrate', 'judge-model', 'concurrency', 'out', 'timeout'],
+  '--calibrate': ['calibrate', 'defect', 'judge-model', 'concurrency', 'out', 'timeout'],
   '--rejudge': ['rejudge', 'judge-model', 'concurrency', 'out', 'timeout'],
   '--held-out': ['held-out', 'triggers', 'model', 'concurrency', 'label', 'out', 'timeout', 'max-turns'],
   '--triggers': ['triggers', 'questions', 'question', 'trigger-prompts', 'model', 'concurrency', 'label', 'out', 'timeout', 'max-turns'],
@@ -69,7 +78,7 @@ const MODES = {
 };
 
 export function parseOptions(args) {
-  return parseRunnerArgs(args, {
+  const parsed = parseRunnerArgs(args, {
     options: {
       questions: { type: 'string', default: path.join(here, 'questions.json') },
       question: { type: 'string', multiple: true },
@@ -82,6 +91,7 @@ export function parseOptions(args) {
       rescore: { type: 'string' },
       rejudge: { type: 'string' },
       calibrate: { type: 'string' },
+      defect: { type: 'string', multiple: true },
       triggers: { type: 'boolean', default: false },
       'trigger-prompts': { type: 'string', default: path.join(here, 'triggers.json') },
       'max-turns': { type: 'string', default: '6' },
@@ -92,6 +102,16 @@ export function parseOptions(args) {
     modeOf: (values) => ['--rescore', '--rejudge', '--calibrate', '--held-out', '--triggers'].find((mode) => values[mode.slice(2)]) ?? 'a judged run',
     counts: ['concurrency', 'timeout', 'max-turns'],
   });
+  return { ...parsed, values: { ...parsed.values, defect: selectDefects(parsed.values.defect) } };
+}
+
+export const DEFECTS = ['stacked', 'answer-moved', 'joined-sentences', 'removed-definition', 'factual-error'];
+const HAND_WRITTEN = ['removed-definition', 'factual-error'];
+
+export function selectDefects(names) {
+  const unknown = (names ?? []).filter((name) => !DEFECTS.includes(name));
+  if (unknown.length) throw new Error(`unknown defect: ${unknown.join(', ')}; the kinds are ${DEFECTS.join(', ')}`);
+  return names?.length ? [...new Set(names)] : ['stacked'];
 }
 
 export function selectQuestions(questions, ids) {
@@ -131,26 +151,91 @@ const GLUE = { en: ', and ', ko: ' 그리고 ' };
 
 const isFence = (line) => /^\s*(?:```|~~~)/.test(line);
 
-export function degrade(text, lang) {
-  const language = lang === 'ko' ? 'ko' : 'en';
-  const blocks = [];
+const languageOf = (lang) => (lang === 'ko' ? 'ko' : 'en');
+
+export function paragraphs(text) {
   let inFence = false;
-  let firstProse = -1;
-  for (const paragraph of text.trim().split(/\n{2,}/)) {
+  return text.trim().split(/\n{2,}/).map((paragraph) => {
     const fenceLines = paragraph.split('\n').filter(isFence).length;
-    const prose = !inFence && fenceLines === 0 && !BLOCK_START.test(paragraph.trim());
+    const code = inFence || fenceLines > 0;
+    const prose = !code && !BLOCK_START.test(paragraph.trim());
     if (fenceLines % 2 === 1) inFence = !inFence;
-    if (!prose) {
-      blocks.push(paragraph);
-      continue;
-    }
-    const sentences = paragraph.replace(/\s*\n\s*/g, ' ').split(/(?<=[.!?])\s+/).map((sentence) => sentence.replace(/[.!?]$/, ''));
-    const hedge = HEDGES[language][blocks.length % HEDGES[language].length];
-    if (firstProse === -1) firstProse = blocks.length;
-    blocks.push(`${hedge}${sentences.join(GLUE[language])}.`);
-  }
-  const moved = firstProse === -1 ? blocks : [...blocks.slice(0, firstProse), ...blocks.slice(firstProse + 1), blocks[firstProse]];
-  return [PREAMBLES[language], ...moved].join('\n\n');
+    return { paragraph, code, prose, plainProse: prose && paragraph.split('\n').every((line) => !BLOCK_START.test(line.trim())) };
+  });
+}
+
+const sentencesOf = (paragraph) => paragraph.replace(/\s*\n\s*/g, ' ').split(/(?<=[.!?])\s+/);
+
+const moveToEnd = (blocks, index) => (index === -1 ? blocks : [...blocks.slice(0, index), ...blocks.slice(index + 1), blocks[index]]);
+
+export function degrade(text, lang) {
+  const language = languageOf(lang);
+  const parts = paragraphs(text);
+  const blocks = parts.map(({ paragraph, prose }, index) => {
+    if (!prose) return paragraph;
+    const sentences = sentencesOf(paragraph).map((sentence) => sentence.replace(/[.!?]$/, ''));
+    return `${HEDGES[language][index % HEDGES[language].length]}${sentences.join(GLUE[language])}.`;
+  });
+  return [PREAMBLES[language], ...moveToEnd(blocks, parts.findIndex(({ prose }) => prose))].join('\n\n');
+}
+
+export function moveAnswer(text) {
+  const parts = paragraphs(text);
+  return moveToEnd(parts.map(({ paragraph }) => paragraph), parts.findIndex(({ prose }) => prose)).join('\n\n');
+}
+
+export function joinSentences(text, lang) {
+  const glue = GLUE[languageOf(lang)];
+  return paragraphs(text).map(({ paragraph, plainProse }) => {
+    const sentences = sentencesOf(paragraph);
+    if (!plainProse || sentences.length < 2) return paragraph;
+    return sentences.map((sentence, index) => (index < sentences.length - 1 ? sentence.replace(/[.!?]$/, '') : sentence)).join(glue);
+  }).join('\n\n');
+}
+
+export function applyEdit(text, { find, replace }, label) {
+  const count = text.split(find).length - 1;
+  if (count === 0) throw new Error(`${label}: anchor not found`);
+  if (count > 1) throw new Error(`${label}: anchor occurs ${count} times`);
+  return text.replace(find, () => replace);
+}
+
+const VARIANT_KEYS = {
+  'removed-definition': ['id', 'arm', 'defect', 'term', 'find'],
+  'factual-error': ['id', 'arm', 'defect', 'find', 'replace', 'truth'],
+  none: ['id', 'arm', 'defect', 'none'],
+};
+
+export function loadVariants(data) {
+  const seen = new Set();
+  return (data?.variants ?? []).map((entry, index) => {
+    const label = `variant ${index} (${entry.id} ${entry.arm} ${entry.defect})`;
+    if (!HAND_WRITTEN.includes(entry.defect)) throw new Error(`${label}: defect must be one of ${HAND_WRITTEN.join(', ')}`);
+    const keys = VARIANT_KEYS['none' in entry ? 'none' : entry.defect];
+    const extra = Object.keys(entry).filter((key) => !keys.includes(key));
+    const missing = keys.filter((key) => typeof entry[key] !== 'string' || !entry[key]);
+    if (extra.length || missing.length) throw new Error(`${label}: needs exactly ${keys.join(', ')} as text`);
+    if (entry.defect === 'factual-error' && entry.find === entry.replace) throw new Error(`${label}: replace equals find`);
+    const key = `${entry.id} ${entry.arm} ${entry.defect}`;
+    if (seen.has(key)) throw new Error(`${label}: written twice`);
+    seen.add(key);
+    return entry;
+  });
+}
+
+export function worseCopy(defect, text, lang, variants = [], { id, arm } = {}) {
+  const copy = (() => {
+    if (defect === 'stacked') return degrade(text, lang);
+    if (defect === 'answer-moved') return moveAnswer(text);
+    if (defect === 'joined-sentences') return joinSentences(text, lang);
+    const label = `${id} ${arm} ${defect}`;
+    const variant = variants.find((entry) => entry.id === id && entry.arm === arm && entry.defect === defect);
+    if (!variant) throw new Error(`${label}: no hand-written variant in calibration-variants.json`);
+    if ('none' in variant) return text;
+    return applyEdit(text, { find: variant.find, replace: variant.replace ?? '' }, label);
+  })();
+  const rebuilt = defect === 'answer-moved' || defect === 'joined-sentences' ? paragraphs(text).map(({ paragraph }) => paragraph).join('\n\n') : text;
+  return copy === text || copy === rebuilt ? null : copy;
 }
 
 export function redact(text) {
@@ -502,41 +587,84 @@ export async function rejudge(results, options, judgeRun = judge) {
 export async function calibrate(results, options, judgeRun = judge) {
   requireAnswers(results, '--calibrate');
   const started = Date.now();
-  const pairs = results.items.flatMap((item) => ARMS.filter((arm) => item.answers[arm]?.answer !== undefined).map((arm) => {
+  const defects = options.defects ?? ['stacked'];
+  const unchanged = [];
+  const pairs = results.items.flatMap((item) => ARMS.filter((arm) => item.answers[arm]?.answer !== undefined).flatMap((arm) => defects.flatMap((defect) => {
     const good = item.answers[arm].answer;
-    const bad = degrade(good, item.lang);
-    return { id: item.id, lang: item.lang, question: item.question, source: arm, answers: { good: { answer: good, score: scoreAnswer(good) }, bad: { answer: bad, score: scoreAnswer(bad) } } };
-  }));
+    const bad = worseCopy(defect, good, item.lang, options.variants, { id: item.id, arm });
+    if (bad === null) {
+      unchanged.push({ id: item.id, source: arm, defect });
+      return [];
+    }
+    return [{ id: item.id, lang: item.lang, question: item.question, source: arm, defect, answers: { good: { answer: good, score: scoreAnswer(good) }, bad: { answer: bad, score: scoreAnswer(bad) } } }];
+  })));
   await pool(pairs.flatMap((pair) => [['good', 'bad'], ['bad', 'good']].map((order) => async () => {
     const verdict = await judgeRun(pair, pair.answers, options, order);
     pair[order[0] === 'good' ? 'judgeGoodFirst' : 'judgeBadFirst'] = verdict;
-    options.log?.(`${pair.id} ${pair.source} ${order.join(' then ')}: ${verdict.error ? `error (${verdict.error})` : verdict.winner}`);
+    options.log?.(`${pair.id} ${pair.source} ${pair.defect} ${order.join(' then ')}: ${verdict.error ? `error (${verdict.error})` : verdict.winner}`);
   })), options.concurrency ?? 4);
   return {
     date: new Date().toISOString(),
     source: { date: results.date, model: results.model, skill: results.skill },
     judgeModel: options.judgeModel,
     claudeVersion: options.claudeVersion,
+    defects,
     elapsedSeconds: Math.round((Date.now() - started) / 1000),
-    summary: summarizeCalibration(pairs),
+    summary: summarizeCalibration(pairs, unchanged),
+    unchanged,
     pairs,
   };
 }
 
-export function summarizeCalibration(pairs) {
+function scriptSummary(pairs) {
+  const score = (pair, side) => pair.answers[side].score;
+  return {
+    fewerIssuesPer1000: pairs.filter((pair) => score(pair, 'good').issuesPer1000 < score(pair, 'bad').issuesPer1000).length,
+    goodOpensWithAnswer: pairs.filter((pair) => score(pair, 'good').opensWithAnswer).length,
+    badOpensWithAnswer: pairs.filter((pair) => score(pair, 'bad').opensWithAnswer).length,
+    goodIssuesPer1000: mean(pairs.map((pair) => score(pair, 'good').issuesPer1000)),
+    badIssuesPer1000: mean(pairs.map((pair) => score(pair, 'bad').issuesPer1000)),
+  };
+}
+
+export function summarizeDefect(pairs, unchanged = []) {
   const judged = pairs.filter((pair) => pair.judgeGoodFirst?.winner && pair.judgeBadFirst?.winner);
   const runs = pairs.flatMap((pair) => [pair.judgeGoodFirst, pair.judgeBadFirst]).filter(Boolean);
   const both = (winner) => judged.filter((pair) => pair.judgeGoodFirst.winner === winner && pair.judgeBadFirst.winner === winner).length;
-  const score = (pair, side) => pair.answers[side].score;
   return {
     pairs: pairs.length,
-    script: {
-      fewerIssuesPer1000: pairs.filter((pair) => score(pair, 'good').issuesPer1000 < score(pair, 'bad').issuesPer1000).length,
-      goodOpensWithAnswer: pairs.filter((pair) => score(pair, 'good').opensWithAnswer).length,
-      badOpensWithAnswer: pairs.filter((pair) => score(pair, 'bad').opensWithAnswer).length,
-      goodIssuesPer1000: mean(pairs.map((pair) => score(pair, 'good').issuesPer1000)),
-      badIssuesPer1000: mean(pairs.map((pair) => score(pair, 'bad').issuesPer1000)),
-    },
+    unchanged: unchanged.length,
+    judged: judged.length,
+    goodBothOrders: both('good'),
+    badBothOrders: both('bad'),
+    split: judged.length - both('good') - both('bad'),
+    goodWhenGoodFirst: pairs.filter((pair) => pair.judgeGoodFirst?.winner === 'good').length,
+    goodWhenBadFirst: pairs.filter((pair) => pair.judgeBadFirst?.winner === 'good').length,
+    badFactualError: runs.filter((run) => run.factualError?.bad === true).length,
+    goodFactualError: runs.filter((run) => run.factualError?.good === true).length,
+    badFactualErrorBothOrders: pairs.filter((pair) => pair.judgeGoodFirst?.factualError?.bad === true && pair.judgeBadFirst?.factualError?.bad === true).length,
+    verdicts: runs.filter((run) => run.winner).length,
+    errors: runs.filter((run) => run.error).length + pairs.length * 2 - runs.length,
+    script: scriptSummary(pairs),
+  };
+}
+
+export function summarizeCalibration(pairs, unchanged = []) {
+  const kindOf = (entry) => entry.defect ?? 'stacked';
+  const kinds = DEFECTS.filter((kind) => [...pairs, ...unchanged].some((entry) => kindOf(entry) === kind));
+  return {
+    ...summarizeAllDefects(pairs),
+    defects: Object.fromEntries(kinds.map((kind) => [kind, summarizeDefect(pairs.filter((pair) => kindOf(pair) === kind), unchanged.filter((entry) => kindOf(entry) === kind))])),
+  };
+}
+
+function summarizeAllDefects(pairs) {
+  const judged = pairs.filter((pair) => pair.judgeGoodFirst?.winner && pair.judgeBadFirst?.winner);
+  const runs = pairs.flatMap((pair) => [pair.judgeGoodFirst, pair.judgeBadFirst]).filter(Boolean);
+  const both = (winner) => judged.filter((pair) => pair.judgeGoodFirst.winner === winner && pair.judgeBadFirst.winner === winner).length;
+  return {
+    pairs: pairs.length,
+    script: scriptSummary(pairs),
     judge: {
       judged: judged.length,
       goodBothOrders: both('good'),
@@ -558,6 +686,12 @@ function calibrationReport(results, out) {
     `(${summary.script.goodIssuesPer1000} against ${summary.script.badIssuesPer1000}); opens with the answer ${summary.script.goodOpensWithAnswer} against ${summary.script.badOpensWithAnswer}\n`);
   process.stdout.write(`judge: original in both orders ${summary.judge.goodBothOrders}, worse copy in both orders ${summary.judge.badBothOrders}, ` +
     `changed with the order ${summary.judge.split}, of ${summary.judge.judged}; answer first ${summary.judge.goodAnswerFirst} against ${summary.judge.badAnswerFirst} of ${summary.judge.verdicts} verdicts\n`);
+  for (const [kind, entry] of Object.entries(summary.defects)) {
+    process.stdout.write(`${kind}: original in both orders ${entry.goodBothOrders}, worse copy in both orders ${entry.badBothOrders}, ` +
+      `changed with the order ${entry.split}, of ${entry.judged}; original picked shown first ${entry.goodWhenGoodFirst}, shown second ${entry.goodWhenBadFirst}; ` +
+      `worse copy flagged as a factual error ${entry.badFactualError}, original ${entry.goodFactualError}, of ${entry.verdicts} verdicts; ` +
+      `script: fewer issues per 1000 characters for the original in ${entry.script.fewerIssuesPer1000} of ${entry.pairs}, opens with the answer ${entry.script.goodOpensWithAnswer} against ${entry.script.badOpensWithAnswer}; ${entry.unchanged} answers unchanged\n`);
+  }
   process.stdout.write(`cost: $${summary.costUsd}; errors: ${summary.errors}\nresults: ${out}\n`);
 }
 
@@ -649,7 +783,11 @@ async function main() {
   }
   if (values.calibrate) {
     const source = path.resolve(values.calibrate);
+    const defects = values.defect;
+    const variants = defects.some((defect) => HAND_WRITTEN.includes(defect)) ? loadVariants(JSON.parse(readFileSync(path.join(here, 'calibration-variants.json'), 'utf8'))) : [];
     const results = await calibrate(JSON.parse(readFileSync(source, 'utf8')), {
+      defects,
+      variants,
       judgeModel: values['judge-model'],
       timeout: Number(values.timeout),
       concurrency: Number(values.concurrency),

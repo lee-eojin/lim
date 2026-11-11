@@ -1,0 +1,355 @@
+{
+  "source": "results/2026-10-27-opus-after.json",
+  "variants": [
+    {
+      "id": "en-closure",
+      "arm": "with",
+      "defect": "removed-definition",
+      "none": "the secondary term is explained only by an example, not a definition, so no definition can be removed"
+    },
+    {
+      "id": "en-closure",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "Every function in JavaScript is a closure.",
+      "replace": "Only arrow functions in JavaScript are closures.",
+      "truth": "Every JavaScript function closes over the scope where it was created, not only arrow functions."
+    },
+    {
+      "id": "en-closure",
+      "arm": "without",
+      "defect": "removed-definition",
+      "none": "the only definition is of the term the question asks about, so removing it would take out the answer, not a definition of another term"
+    },
+    {
+      "id": "en-closure",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "the same function-scoped `i`",
+      "replace": "the same block-scoped `i`",
+      "truth": "`var` is function-scoped; `let` is the block-scoped one."
+    },
+    {
+      "id": "en-effect-twice",
+      "arm": "with",
+      "defect": "removed-definition",
+      "term": "Strict Mode",
+      "find": "Strict Mode is a development-only wrapper that runs extra checks on the components inside it. "
+    },
+    {
+      "id": "en-effect-twice",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "Only the second one calls `setUser`.",
+      "replace": "Only the first one calls `setUser`.",
+      "truth": "The first request is aborted, so only the second one calls setUser."
+    },
+    {
+      "id": "en-effect-twice",
+      "arm": "without",
+      "defect": "removed-definition",
+      "term": "cleanup function",
+      "find": " that undoes whatever the effect did"
+    },
+    {
+      "id": "en-effect-twice",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "In React 18 and later",
+      "replace": "In React 16 and later",
+      "truth": "Strict Mode started running Effects twice on mount in React 18."
+    },
+    {
+      "id": "en-cors",
+      "arm": "with",
+      "defect": "removed-definition",
+      "term": "preflight",
+      "find": " This first request is called a preflight."
+    },
+    {
+      "id": "en-cors",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "the header `Origin: http://localhost:5173`",
+      "replace": "the header `Origin: http://localhost:8080`",
+      "truth": "The browser sends the origin of the page, which is port 5173."
+    },
+    {
+      "id": "en-cors",
+      "arm": "without",
+      "defect": "removed-definition",
+      "term": "origin",
+      "find": "An origin is scheme + host + port, so a different port is enough to make it a different origin. "
+    },
+    {
+      "id": "en-cors",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "CORS middleware has to run before auth and routing",
+      "replace": "CORS middleware has to run after auth and routing",
+      "truth": "CORS middleware must run before auth, or the preflight is rejected."
+    },
+    {
+      "id": "en-merge-rebase",
+      "arm": "with",
+      "defect": "removed-definition",
+      "term": "merge commit",
+      "find": " A merge commit is a commit with two parents, and it joins the two lines of history:"
+    },
+    {
+      "id": "en-merge-rebase",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "one at a time, on top of F:",
+      "replace": "one at a time, on top of B:",
+      "truth": "git rebase main replays the commits on the tip of main, which is F."
+    },
+    {
+      "id": "en-merge-rebase",
+      "arm": "without",
+      "defect": "removed-definition",
+      "term": "merge commit",
+      "find": " that ties the two branch histories together"
+    },
+    {
+      "id": "en-merge-rebase",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "A merge makes you resolve them only once.",
+      "replace": "A merge makes you resolve them once for every commit too.",
+      "truth": "A merge resolves all conflicts once, in the merge commit."
+    },
+    {
+      "id": "en-await-loop",
+      "arm": "with",
+      "defect": "removed-definition",
+      "none": "no sentence defines a term other than the one the question asks about, so one removal would only take out the answer itself"
+    },
+    {
+      "id": "en-await-loop",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "use `Promise.allSettled` in place of",
+      "replace": "use `Promise.race` in place of",
+      "truth": "Promise.race settles with the first promise only; Promise.allSettled gives every outcome."
+    },
+    {
+      "id": "en-await-loop",
+      "arm": "without",
+      "defect": "removed-definition",
+      "term": "promise",
+      "find": " A promise represents work that's already running."
+    },
+    {
+      "id": "en-await-loop",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "`Promise.all` rejects as soon as **any** promise rejects.",
+      "replace": "`Promise.all` rejects only after **every** promise rejects.",
+      "truth": "Promise.all rejects as soon as the first promise rejects."
+    },
+    {
+      "id": "en-auth",
+      "arm": "with",
+      "defect": "removed-definition",
+      "term": "OAuth 2.0",
+      "find": "It is an authorization framework: it lets an app access a resource for you. "
+    },
+    {
+      "id": "en-auth",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "authentication layer on top of OAuth 2.0",
+      "replace": "authentication layer on top of SAML",
+      "truth": "OpenID Connect is built on OAuth 2.0, not on SAML."
+    },
+    {
+      "id": "en-auth",
+      "arm": "without",
+      "defect": "removed-definition",
+      "term": "broken access control",
+      "find": ", where a user is logged in but can reach other users' data (e.g. changing `/orders/123` to `/orders/124`)"
+    },
+    {
+      "id": "en-auth",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "It's the top item in the OWASP Top 10.",
+      "replace": "It's not in the OWASP Top 10.",
+      "truth": "Broken Access Control is A01, the first item of the OWASP Top 10 2021."
+    },
+    {
+      "id": "ko-event-loop",
+      "arm": "with",
+      "defect": "removed-definition",
+      "term": "task queue",
+      "find": "**task queue**는 실행을 기다리는 callback이 줄 서는 곳이다. "
+    },
+    {
+      "id": "ko-event-loop",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "출력 순서는 `A`, `D`, `C`, `B`다.",
+      "replace": "출력 순서는 `A`, `C`, `D`, `B`다.",
+      "truth": "The synchronous D is logged before the microtask C."
+    },
+    {
+      "id": "ko-event-loop",
+      "arm": "without",
+      "defect": "removed-definition",
+      "term": "call stack",
+      "find": "지금 실행 중인 함수들이 쌓이는 곳이에요. "
+    },
+    {
+      "id": "ko-event-loop",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "**태스크 큐보다 우선순위가 높아요.**",
+      "replace": "**태스크 큐보다 우선순위가 낮아요.**",
+      "truth": "The microtask queue is emptied before the next task runs, so it comes first, not last."
+    },
+    {
+      "id": "ko-memo",
+      "arm": "with",
+      "defect": "removed-definition",
+      "term": "React.memo",
+      "find": "`React.memo`는 props가 바뀌었는지 비교해서 리렌더링을 건너뛰는 함수예요. "
+    },
+    {
+      "id": "ko-memo",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "의존성 배열은 Hook의 두 번째 인자로",
+      "replace": "의존성 배열은 Hook의 첫 번째 인자로",
+      "truth": "The dependency array is the second argument of useMemo and useCallback."
+    },
+    {
+      "id": "ko-memo",
+      "arm": "without",
+      "defect": "removed-definition",
+      "none": "no sentence defines a term other than the one the question asks about, so one removal would only take out the answer itself"
+    },
+    {
+      "id": "ko-memo",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "값을 기억하려면 `useMemo`, 함수를 기억하려면 `useCallback`",
+      "replace": "값을 기억하려면 `useCallback`, 함수를 기억하려면 `useMemo`",
+      "truth": "useMemo keeps a computed value and useCallback keeps the function."
+    },
+    {
+      "id": "ko-isolation",
+      "arm": "with",
+      "defect": "removed-definition",
+      "term": "MVCC",
+      "find": " MVCC(Multi-Version Concurrency Control)는 한 행의 여러 버전을 보관해서, 각 트랜잭션이 자기 시작 시점의 버전을 읽게 하는 방식입니다."
+    },
+    {
+      "id": "ko-isolation",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "PostgreSQL과 Oracle의 기본값은 Read Committed이고",
+      "replace": "PostgreSQL과 Oracle의 기본값은 Serializable이고",
+      "truth": "The default isolation level of PostgreSQL and Oracle is Read Committed."
+    },
+    {
+      "id": "ko-isolation",
+      "arm": "without",
+      "defect": "removed-definition",
+      "none": "the term the only removable definition names is explained again elsewhere in the answer, so removing it would leave the term defined"
+    },
+    {
+      "id": "ko-isolation",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "MySQL InnoDB는 REPEATABLE READ입니다",
+      "replace": "MySQL InnoDB는 READ UNCOMMITTED입니다",
+      "truth": "The default isolation level of MySQL InnoDB is REPEATABLE READ."
+    },
+    {
+      "id": "ko-unknown",
+      "arm": "with",
+      "defect": "removed-definition",
+      "none": "the definition opens a paragraph whose next sentence depends on it, so removing it in one in-line edit would leave a second defect"
+    },
+    {
+      "id": "ko-unknown",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "`useUnknownInCatchVariables` 옵션 때문에",
+      "replace": "`noImplicitAny` 옵션 때문에",
+      "truth": "The catch variable is unknown because of useUnknownInCatchVariables, not noImplicitAny."
+    },
+    {
+      "id": "ko-unknown",
+      "arm": "without",
+      "defect": "removed-definition",
+      "none": "no sentence defines a term other than the one the question asks about, so one removal would only take out the answer itself"
+    },
+    {
+      "id": "ko-unknown",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "`catch`의 `e`가 기본적으로 `unknown`이에요",
+      "replace": "`catch`의 `e`가 기본적으로 `never`예요",
+      "truth": "Under strict the catch variable is unknown, not never."
+    },
+    {
+      "id": "ko-401-403",
+      "arm": "with",
+      "defect": "removed-definition",
+      "term": "인증",
+      "find": "authentication(인증)은 서버가 요청한 사람이 누구인지 확인하는 단계입니다. "
+    },
+    {
+      "id": "ko-401-403",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "403 응답에는 이 헤더가 필요하지 않습니다.",
+      "replace": "403 응답에도 이 헤더를 반드시 넣어야 합니다.",
+      "truth": "RFC 9110 requires WWW-Authenticate only on a 401 response."
+    },
+    {
+      "id": "ko-401-403",
+      "arm": "without",
+      "defect": "removed-definition",
+      "none": "no sentence defines a term other than the one the question asks about, so one removal would only take out the answer itself"
+    },
+    {
+      "id": "ko-401-403",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "`WWW-Authenticate` 헤더를 포함해야 함",
+      "replace": "`Retry-After` 헤더를 포함해야 함",
+      "truth": "A 401 response must carry WWW-Authenticate, not Retry-After."
+    },
+    {
+      "id": "ko-key",
+      "arm": "with",
+      "defect": "removed-definition",
+      "none": "the only definition names a process the answer does not mention again, so removing it leaves no term without its definition"
+    },
+    {
+      "id": "ko-key",
+      "arm": "with",
+      "defect": "factual-error",
+      "find": "개발 모드에서 콘솔에 경고를 출력해요",
+      "replace": "콘솔에 아무 경고도 출력하지 않아요",
+      "truth": "React warns in development when list items have no key."
+    },
+    {
+      "id": "ko-key",
+      "arm": "without",
+      "defect": "removed-definition",
+      "none": "the term the only removable definition names is explained again elsewhere in the answer, so removing it would leave the term defined"
+    },
+    {
+      "id": "ko-key",
+      "arm": "without",
+      "defect": "factual-error",
+      "find": "바뀐 부분만 실제 DOM에 반영합니다",
+      "replace": "실제 DOM 전체를 매번 새로 만듭니다",
+      "truth": "React applies only the changed parts to the DOM."
+    }
+  ]
+}
