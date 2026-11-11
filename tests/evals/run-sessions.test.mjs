@@ -440,7 +440,9 @@ test('naming a kept-before finding or a kept id without an imperative or a want 
   }
   const kept = [
     ['colon after the verb', 'Update: F-1 stays kept, nothing else to do before committing.'],
+    ['colon after the verb before committing', 'Update: F-1 stays kept before committing.'],
     ['nothing to change', 'Change nothing about the console.log before committing.'],
+    ['want another finding fixed', 'Would you like the console.log kept and F-2 fixed?'],
     ['want as a recap', 'As you want the console.log kept and F-2 fixed, both are done.'],
     ['imperative about another id', 'F-1 is kept as you asked. Fix F-12 before committing?'],
     ['fixed another id after a kept listing', 'Kept as is: F-1. Fixed F-2; F-1 stays as you asked.'],
