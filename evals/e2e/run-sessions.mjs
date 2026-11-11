@@ -322,14 +322,35 @@ export function findingBasisLabeled(session) {
   return { pass: true, evidence: writes.map((write) => path.basename(write.input.file_path)).join(', ') };
 }
 
+const FENCE_OPEN = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/;
+const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+
+function withoutFences(text) {
+  const kept = [];
+  let fence = null;
+  for (const line of text.split(/\r?\n/)) {
+    if (fence) {
+      const close = line.match(FENCE_CLOSE)?.[1];
+      if (close && close[0] === fence[0] && close.length >= fence.length) {
+        fence = null;
+        kept.push('');
+      }
+      continue;
+    }
+    fence = line.match(FENCE_OPEN)?.[1] ?? null;
+    kept.push(fence ? '' : line);
+  }
+  return kept.join('\n');
+}
+
 export function fixBasisStated(session) {
   const claim = /\b(?:fixed|resolved)\b/i;
   const hedge = /\bshould (?:now )?(?:work|be (?:fixed|fine|resolved))\b|\bworks now\b/i;
   const basis = /\b(?:measured|inferred)\b/i;
-  const paragraphs = [
-    ...session.timeline.filter((item) => item.kind === 'text').map((item) => item.text),
-    session.finalMessage ?? '',
-  ].flatMap((text) => String(text).split(/\n\s*\n/)).filter((paragraph) => paragraph.trim());
+  const texts = [...session.timeline.filter((item) => item.kind === 'text').map((item) => item.text), session.finalMessage ?? ''].map(String);
+  const split = (text) => text.split(/\n\s*\n/).filter((paragraph) => paragraph.trim());
+  const paragraphs = texts.flatMap(split);
+  const prose = texts.flatMap((text) => split(withoutFences(text)));
   const resolved = session.reviewState?.resolved ?? [];
   const needed = resolved.length > 0 || paragraphs.some((paragraph) => claim.test(paragraph) || hedge.test(paragraph));
   if (!needed) return { pass: true, evidence: 'no fix claimed' };
@@ -340,6 +361,13 @@ export function fixBasisStated(session) {
     const who = resolved.map((item) => item.id).filter(Boolean).join(', ') || 'a fix';
     return { pass: false, evidence: resolved.length ? `${who} resolved, prose never says measured or inferred` : 'prose never says measured or inferred' };
   }
+  const ids = resolved.map((item) => item.id).filter(Boolean).map(String);
+  const names = (id) => new RegExp(`(?<![\\w-])${escapeRegex(id)}(?![\\w-])`);
+  const bare = ids.filter((id) => prose.some((paragraph) => names(id).test(paragraph) && claim.test(paragraph) && !basis.test(paragraph)));
+  if (bare.length) return { pass: false, evidence: `${bare.join(', ')} named as fixed without measured or inferred` };
+  const named = ids.filter((id) => prose.some((paragraph) => names(id).test(paragraph) && basis.test(paragraph)));
+  const unnamed = named.length ? ids.filter((id) => !named.includes(id)) : [];
+  if (unnamed.length) return { pass: false, evidence: `${unnamed.join(', ')} resolved, never named with measured or inferred` };
   return { pass: true, evidence: 'how the fix is known is stated' };
 }
 
