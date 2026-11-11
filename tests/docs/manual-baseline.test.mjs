@@ -30,6 +30,8 @@ test('the manual comparison with an old commit has its three steps in order: clo
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
   assert.match(text, /git clone --quiet \. "\$old"/);
   assert.match(text, /checkout --quiet --detach <commit>/);
+  assert.match(text, /git diff --stat <commit> -- evals\//);
+  assert.match(text, /git status --short --untracked-files=all -- evals\//);
   assert.match(text, /There is no `--baseline` option/);
 });
 
