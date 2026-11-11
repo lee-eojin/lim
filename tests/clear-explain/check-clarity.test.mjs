@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { checkText, formatReport, LIMITS, sentenceSize } from '../../plugins/clear-explain/skills/clear-explain/scripts/check-clarity.mjs';
@@ -27,6 +28,12 @@ test('an em dash and a middle dot are must-fix findings with their line numbers'
 test('the two characters are found inside code blocks too', () => {
   const found = findingsOf(`Text.\n\n\`\`\`js\nconst label = 'a ${MIDDLE_DOT} b';\n\`\`\`\n`, 'forbidden-character');
   assert.deepEqual(found.map((finding) => finding.line), [4]);
+});
+
+test('the script holds neither character it reports', () => {
+  const text = readFileSync(script, 'utf8');
+  assert.ok(!text.includes(EM_DASH));
+  assert.ok(!text.includes(MIDDLE_DOT));
 });
 
 test('English vague words are found with their line numbers', () => {

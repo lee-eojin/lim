@@ -187,7 +187,7 @@ function ignoredPaths(repo) {
   }
 }
 
-export function prepareCase(caseDir, expected) {
+export function prepareBlindCase(caseDir, expected) {
   const sourceRepo = path.join(caseDir, expected.root ?? 'repo');
   const diffFile = path.join(caseDir, expected.diff ?? 'change.diff');
   const projectName = projectNameOf(sourceRepo).replace(/[^\w.-]/g, '-');
@@ -273,7 +273,7 @@ const linesIn = (workDir) => (file) => {
 export async function runOne({ name, caseDir, expected, agent, options }) {
   let prepared;
   try {
-    prepared = prepareCase(caseDir, expected);
+    prepared = prepareBlindCase(caseDir, expected);
   } catch (error) {
     return { case: name, result: 'error', error: `could not prepare the case: ${String(error.stderr || error.message).trim().slice(0, 500)}` };
   }
@@ -354,7 +354,7 @@ export function rescoreRuns(runs, casesDir) {
       if (!run.review) return run;
       const caseDir = path.join(casesDir, run.case);
       const expected = JSON.parse(readFileSync(path.join(caseDir, 'expected.json'), 'utf8'));
-      if (!workDirs.has(run.case)) workDirs.set(run.case, prepareCase(caseDir, expected).workDir);
+      if (!workDirs.has(run.case)) workDirs.set(run.case, prepareBlindCase(caseDir, expected).workDir);
       return { ...run, ...scoreCase(expected, run.review, linesIn(workDirs.get(run.case))) };
     });
   } finally {

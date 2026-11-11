@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
-  answerArgs, calibrate, compareJudgePasses, degrade, scoreAnswer, heldOutRequests, judgePrompt, opensWithAnswer, parseJudgeOutput, parseOptions, parseStream, redact, rejudge, rescore, selectQuestions,
-  serialize, skillVersion, summarize, summarizeTriggers, swapOrder, triggerArgs, triggerRequests, unblind,
+  answerArgs, calibrate, compareJudgePasses, degrade, scoreAnswer, heldOutRequests, judgePrompt, opensWithProseParagraph, parseJudgeOutput, parseOptions, parseStream, redact, rejudge, rescore, selectQuestions,
+  jsonWithoutForbiddenCharacters, skillVersion, summarize, summarizeTriggers, swapOrder, triggerArgs, triggerRequests, unblind,
 } from '../../evals/clear-explain/run-explain.mjs';
 
 const questionsFile = fileURLToPath(new URL('../../evals/clear-explain/questions.json', import.meta.url));
@@ -34,14 +34,14 @@ test('the trigger set has fixes and lookups and coding tasks in English and Kore
 });
 
 test('an answer opens with the answer only when its first line is prose without a preamble', () => {
-  assert.equal(opensWithAnswer('A closure is a function that keeps its outer variables.\n\n## More'), true);
-  assert.equal(opensWithAnswer('**Short answer:** it runs twice because of Strict Mode.'), true);
-  assert.equal(opensWithAnswer('\n## Closures\n\nA closure is...'), false);
-  assert.equal(opensWithAnswer('- first point'), false);
-  assert.equal(opensWithAnswer('| a | b |'), false);
-  assert.equal(opensWithAnswer('```js\ncode\n```'), false);
-  assert.equal(opensWithAnswer('Great question! A closure is...'), false);
-  assert.equal(opensWithAnswer('좋은 질문이에요. 이벤트 루프는...'), false);
+  assert.equal(opensWithProseParagraph('A closure is a function that keeps its outer variables.\n\n## More'), true);
+  assert.equal(opensWithProseParagraph('**Short answer:** it runs twice because of Strict Mode.'), true);
+  assert.equal(opensWithProseParagraph('\n## Closures\n\nA closure is...'), false);
+  assert.equal(opensWithProseParagraph('- first point'), false);
+  assert.equal(opensWithProseParagraph('| a | b |'), false);
+  assert.equal(opensWithProseParagraph('```js\ncode\n```'), false);
+  assert.equal(opensWithProseParagraph('Great question! A closure is...'), false);
+  assert.equal(opensWithProseParagraph('좋은 질문이에요. 이벤트 루프는...'), false);
 });
 
 test('both arms run with no user settings and only the with arm loads the plugin', () => {
@@ -196,7 +196,7 @@ test('the comparison counts both passes for the skill, both for the baseline, an
 
 test('saved results write the two characters as JSON escapes that read back as the same text', () => {
   const answer = `A ${MIDDLE_DOT} B ${EM_DASH} C`;
-  const text = serialize({ items: [{ answers: { with: { answer } } }] });
+  const text = jsonWithoutForbiddenCharacters({ items: [{ answers: { with: { answer } } }] });
   assert.ok(!text.includes(MIDDLE_DOT));
   assert.ok(!text.includes(EM_DASH));
   assert.equal(JSON.parse(text).items[0].answers.with.answer, answer);
@@ -262,7 +262,7 @@ test('the worse copy of every stored answer opens with a preamble and scores mor
     for (const arm of ['with', 'without']) {
       const good = entry.answers[arm].answer;
       const bad = degrade(good, entry.lang);
-      assert.equal(opensWithAnswer(bad), false, `${entry.id} ${arm}`);
+      assert.equal(opensWithProseParagraph(bad), false, `${entry.id} ${arm}`);
       assert.ok(scoreAnswer(bad).issuesPer1000 > scoreAnswer(good).issuesPer1000, `${entry.id} ${arm}`);
       for (const block of good.match(/```[\s\S]*?```/g) ?? []) assert.ok(bad.includes(block), `${entry.id} ${arm} keeps its code`);
     }
