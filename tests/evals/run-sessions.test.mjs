@@ -879,6 +879,36 @@ test('an option label or description that says a kept finding should be acted on
   }
 });
 
+test('an id offer made only before the keep passes the check, and the same offer with no recorded keep step or again after the keep fails', () => {
+  const before = keptLogSteps.slice(0, -1);
+  const keep = loop('decide --id F-1 --choice keep');
+  const settled = 'Kept F-1 as is.';
+  const pass = [
+    ['remove question before the keep', [...before, 'Remove F-1 before committing?', keep]],
+    ['could fix before the keep', [...before, 'You could fix F-1 before committing.', keep]],
+    ['question tool before the keep', [...before, ['AskUserQuestion', { questions: [{ question: 'Fix F-1 before committing?' }] }], keep]],
+  ];
+  for (const [name, steps] of pass) {
+    const session = buildSession(recordedStream(steps, { result: settled }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, true, name);
+    assert.equal(outcome(checkScenario(scenario('keep-finding'), session), 'kept-not-reoffered').pass, true, name);
+  }
+  const fail = [
+    ['no keep step', [...before, 'Remove F-1 before committing?']],
+    ['no keep step question tool', [...before, ['AskUserQuestion', { questions: [{ question: 'Fix F-1 before committing?' }] }]]],
+    ['keep step for another id', [...before, 'Remove F-1 before committing?', loop('decide --id F-12 --choice keep')]],
+    ['offer before and after the keep', [...before, 'Remove F-1 before committing?', keep, 'Remove F-1 before committing?']],
+    ['id offer right after the keep', [...before, keep, 'Change F-1 later if needed.'], 'Nothing is committed.'],
+    ['kept listing only before the keep', [...before, 'Kept as is: F-1.', keep, 'Change F-1 later if needed.'], 'Nothing is committed.'],
+    ['no keep step, closing message says kept', [...before, 'Remove F-1 before committing?'], 'That one stays kept.'],
+  ];
+  for (const [name, steps, result = settled] of fail) {
+    const session = buildSession(recordedStream(steps, { result }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, false, name);
+    assert.match(keptNotReoffered(session).evidence, /re-offered: F-1/, name);
+  }
+});
+
 test('a due title listed under a heading that is not a kept listing, or a due title with no code name restated or offered, fails the check, and both pass under a kept listing', () => {
   const flagTitle = { ...dueTitle, title: 'The debug flag should be removed' };
   const cacheTitle = { ...dueTitle, title: 'The cache should be removed' };

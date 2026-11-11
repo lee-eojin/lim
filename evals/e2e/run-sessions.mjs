@@ -341,10 +341,11 @@ export function keptNotReoffered(session) {
   const reoffered = keptIds.filter((id) => {
     const offer = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
     const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
-    if (offer.test(prose) && !listedKeep.test(prose)) return true;
+    const keepAt = keepStep(session, id);
+    const legacy = keepAt === -1 ? prose : proseFrom(session, keepAt + 1);
+    if (offer.test(legacy) && !listedKeep.test(legacy)) return true;
     const records = keptRecords.filter((item) => item.id === id);
     const anchors = [...keptAnchors(records), `\\b${escapeRegex(id)}\\b`];
-    const keepAt = keepStep(session, id);
     const questions = keepAt === -1 ? [] : questionsFrom(session, keepAt + 1);
     return actsOn(anchors, records, segmentsOf(proseAfterKeep(session, id)), questions);
   });
