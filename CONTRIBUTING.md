@@ -95,7 +95,7 @@ git diff --stat <commit> -- evals/review-loop/detection evals/review-loop/detect
 git status --short --untracked-files=all -- evals/review-loop/detection evals/review-loop/detection-hard evals/verify/projects evals/verify/cases.json
 ```
 
-2. Run the same small set of cases from the clone and from your checkout of `main`, one right after the other, on the same day and with the same Claude Code. Pick the cases that moved and a few that did not. Leave out a case the `git diff` or `git status` above lists, because its fixture differs between the clone and your checkout, committed or not. Give both runs the same options. Write the results outside the repository with `--out`, because `node --test` reads every file in `evals/review-loop/results/`.
+2. Run the same small set of cases from the clone and from your checkout of `main`, one right after the other, on the same day and with the same Claude Code. Pick the cases that moved and a few that did not. Leave out a case the `git diff` or `git status` above lists, because its fixture differs between the clone and your checkout, committed or not. For verify, a listed project folder under `evals/verify/projects/` rules out every case of that project in `cases.json`, and a listed `cases.json` means reading `git diff <commit> -- evals/verify/cases.json` and leaving out the entries it changes. Give both runs the same options. Write the results outside the repository with `--out`, because `node --test` reads every file in `evals/review-loop/results/`.
 
 ```bash
 (cd "$old" && node evals/review-loop/run-detection.mjs --case page-range --case price-sort --runs 3 -j 4 --out "$out/detection-old.json")
