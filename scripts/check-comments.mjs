@@ -133,7 +133,7 @@ export function findComments(text) {
       const word = text.slice(i, WORD.lastIndex);
       const dotted = afterDot;
       regexAllowed = !dotted && EXPRESSION_KEYWORDS.has(word);
-      regexAfterParen = !dotted && PAREN_REGEX_KEYWORDS.has(word);
+      regexAfterParen = !dotted && (PAREN_REGEX_KEYWORDS.has(word) || (word === 'await' && regexAfterParen));
       afterDot = false;
       i = WORD.lastIndex;
     } else if ((c === '+' || c === '-') && next === c) {
