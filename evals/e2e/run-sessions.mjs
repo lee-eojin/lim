@@ -241,6 +241,8 @@ function optionActs(anchor, question) {
   const choices = options.flatMap((option) => [option?.label, option?.description]).flatMap((text) => segmentsOf(String(text ?? '')));
   const direct = new RegExp(`^${MARK}${AGREE}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor}`, 'i');
   if ([...segmentsOf(String(question?.header ?? '')), ...choices].some((text) => direct.test(text))) return true;
+  const due = new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i');
+  if (choices.some((text) => due.test(text))) return true;
   const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(`${question?.header ?? ''}\n${question?.question ?? ''}`);
   const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|[\\s.!]*$)`, 'i');
   return named && choices.some((text) => pronoun.test(text));

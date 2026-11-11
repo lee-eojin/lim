@@ -681,6 +681,29 @@ test('a listed due title with a lowered first letter passes only as a list item,
   }
 });
 
+test('an option label or description that says a kept finding should be acted on fails the check under any question, and a reported one or one about a neighbor passes', () => {
+  const fail = [
+    ['label repeats the title', { label: dueTitle.title, description: 'Line 2' }],
+    ['description repeats the title', { label: 'Proceed', description: dueTitle.title }],
+    ['label with a lowered first letter', { label: 'the debug console.log should be removed', description: 'Line 2' }],
+    ['label by code name', { label: 'The console.log should be removed', description: 'Line 2' }],
+    ['description second sentence', { label: 'Proceed', description: 'Go ahead. The console.log should be removed' }],
+  ];
+  const pass = [
+    ['reviewer voice description', { label: 'Proceed', description: 'The reviewer said the console.log should be removed' }],
+    ['label about a neighbor', { label: 'The null check near the console.log should be fixed', description: 'Line 9' }],
+    ['label keeps', { label: 'The console.log should be kept', description: 'No change' }],
+  ];
+  for (const [expected, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, option] of rows) {
+      const kept = buildSession(recordedStream([...keptLogSteps, askAbout('What next?', option, keepIt)], { result: 'Nothing is committed.' }), keptRepoOf(dueTitle));
+      assert.equal(keptNotReoffered(kept).pass, expected, 'kept id: ' + name);
+      const before = buildSession(recordedStream([...keptBeforeSteps, askAbout('What next?', option, keepIt)], { result: 'Nothing is committed.' }), dueTitleBefore);
+      assert.equal(keptNotReoffered(before).pass, expected, 'kept before: ' + name);
+    }
+  }
+});
+
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {
   for (const value of ['0', 'two', '1.5']) assert.throws(() => parseOptions(['-j', value]), /must be a whole number above 0/, value);
   assert.throws(() => parseOptions(['--scenario', 'verify-tool', '--scenario', 'nope']), /unknown scenario: nope/);
