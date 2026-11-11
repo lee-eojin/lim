@@ -887,9 +887,10 @@ test('an id offer made only before the keep passes the check, and the same offer
     ['remove question before the keep', [...before, 'Remove F-1 before committing?', keep]],
     ['could fix before the keep', [...before, 'You could fix F-1 before committing.', keep]],
     ['question tool before the keep', [...before, ['AskUserQuestion', { questions: [{ question: 'Fix F-1 before committing?' }] }], keep]],
+    ['no keep step, kept listing in the closing message', [...before, 'Remove F-1 before committing?'], 'Kept as is: F-1.'],
   ];
-  for (const [name, steps] of pass) {
-    const session = buildSession(recordedStream(steps, { result: settled }), keptRepoOf(keptConsoleLog));
+  for (const [name, steps, result = settled] of pass) {
+    const session = buildSession(recordedStream(steps, { result }), keptRepoOf(keptConsoleLog));
     assert.equal(keptNotReoffered(session).pass, true, name);
     assert.equal(outcome(checkScenario(scenario('keep-finding'), session), 'kept-not-reoffered').pass, true, name);
   }
@@ -901,9 +902,13 @@ test('an id offer made only before the keep passes the check, and the same offer
     ['id offer right after the keep', [...before, keep, 'Change F-1 later if needed.'], 'Nothing is committed.'],
     ['kept listing only before the keep', [...before, 'Kept as is: F-1.', keep, 'Change F-1 later if needed.'], 'Nothing is committed.'],
     ['no keep step, closing message says kept', [...before, 'Remove F-1 before committing?'], 'That one stays kept.'],
+    ['kept summary in a later message', [...before, keep, 'Change F-1 later if needed.']],
+    ['kept summary in an earlier message after the keep', [...before, keep, 'Kept as is: F-1.', 'Change F-1 later if needed.'], 'Nothing is committed.'],
+    ['offer before a denied keep attempt after the keep', [...before, keep, 'Change F-1 later if needed.', keep], 'Nothing is committed.', [6]],
+    ['offer before the only keep attempt, denied', [...before, 'Remove F-1 before committing?', keep], settled, [5]],
   ];
-  for (const [name, steps, result = settled] of fail) {
-    const session = buildSession(recordedStream(steps, { result }), keptRepoOf(keptConsoleLog));
+  for (const [name, steps, result = settled, denied = []] of fail) {
+    const session = buildSession(recordedStream(steps, { result, denied }), keptRepoOf(keptConsoleLog));
     assert.equal(keptNotReoffered(session).pass, false, name);
     assert.match(keptNotReoffered(session).evidence, /re-offered: F-1/, name);
   }

@@ -296,7 +296,7 @@ function keptAnchors(records) {
 
 function keepStep(session, id) {
   const keepOf = new RegExp(`--id[= ]${escapeRegex(id)}(?:\\s|$)`);
-  return session.timeline.findLastIndex((item) => item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label) && keepOf.test(item.label));
+  return session.timeline.findLastIndex((item) => item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label) && keepOf.test(item.label) && !item.isError);
 }
 
 function proseAfterKeep(session, id) {
@@ -311,13 +311,17 @@ function questionsFrom(session, start) {
     .flatMap((item) => (Array.isArray(item.input?.questions) ? item.input.questions : []));
 }
 
-function proseFrom(session, start) {
+function messagesFrom(session, start) {
   const after = session.timeline.slice(start).flatMap((item) => {
     if (item.kind === 'text') return [item.text];
     if (item.kind === 'tool' && !item.parent && item.tool === 'AskUserQuestion') return [JSON.stringify(item.input ?? {})];
     return [];
   });
-  return [...after, session.finalMessage ?? ''].join('\n');
+  return [...after, session.finalMessage ?? ''];
+}
+
+function proseFrom(session, start) {
+  return messagesFrom(session, start).join('\n');
 }
 
 export function keptNotReoffered(session) {
@@ -342,8 +346,8 @@ export function keptNotReoffered(session) {
     const offer = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
     const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
     const keepAt = keepStep(session, id);
-    const legacy = keepAt === -1 ? prose : proseFrom(session, keepAt + 1);
-    if (offer.test(legacy) && !listedKeep.test(legacy)) return true;
+    const legacy = keepAt === -1 ? [prose] : messagesFrom(session, keepAt + 1);
+    if (legacy.some((text) => offer.test(text) && !listedKeep.test(text))) return true;
     const records = keptRecords.filter((item) => item.id === id);
     const anchors = [...keptAnchors(records), `\\b${escapeRegex(id)}\\b`];
     const questions = keepAt === -1 ? [] : questionsFrom(session, keepAt + 1);
