@@ -15,7 +15,7 @@ const CHECKS_FOLDER = 'verify-checks';
 const REVIEW_FOLDER = '.lim-review';
 const DEFAULT_TIMEOUT_MS = 30 * 1000;
 const MAX_TIMEOUT_MS = 10 * 60 * 1000;
-const RUN_BUDGET_MS = 9 * 60 * 1000;
+const RUN_BUDGET_UNDER_BASH_TIMEOUT_MS = 9 * 60 * 1000;
 const MAP_CHECK_BUDGET_MS = 30 * 1000;
 const MATCH_LIMIT_MS = 2000;
 const KEPT_RUNS = 20;
@@ -23,7 +23,7 @@ const MAX_LINK_HOPS = 40;
 const CAPTURE_LIMIT = 1024 * 1024;
 const EXCERPT_HEAD = 1000;
 const EXCERPT_TAIL = 3000;
-const CLOSE_GRACE_MS = 2000;
+const PIPE_CLOSE_GRACE_AFTER_KILL_MS = 2000;
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const MATCHERS = ['includes', 'matches', 'equals'];
 const ENTRY_KEYS = ['id', 'feature', 'run', 'stdin', 'env', 'cwd', 'timeoutMs', 'expect'];
@@ -33,13 +33,14 @@ const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const SAFE_ARGUMENT = /^[\w@%+=:,./-]+$/;
 const INTERPRETERS = ['node', 'python3'];
 const WINDOWS = process.platform === 'win32';
+const EXTENSIONS_SPAWN_STARTS_ON_WINDOWS = ['.com', '.exe'];
 const RUN_FORMS = 'a check runs only node or python3 with a script file in the repository, as ["node", "<script>", ...arguments] or ["python3", "<script>", ...arguments], or a script file in the repository whose first line is #!/usr/bin/env node, #!/usr/bin/env python3, #!/<path>/node, or #!/<path>/python3 with no option, as ["./bin/<tool>", ...arguments]';
 const SHEBANG = /^#!(\/usr\/bin\/env (node|python3)|(?:\/\S*)?\/(node|python3))\s*$/;
 const BINARY_PROBE_BYTES = 512;
 const FIRST_LINE_BYTES = 4096;
 const NOT_PROJECT_FOLDERS = ['node_modules', '.git', '.venv', 'venv', '__pycache__'];
 const NOT_PROJECT_TEXT = 'not a file in the repository outside node_modules, .git, .venv, venv, and __pycache__';
-const ALLOWED_NODE_NAMES = new Set(['NODE_ENV']);
+const NODE_NAMES_NODE_ITSELF_IGNORES = new Set(['NODE_ENV']);
 const LOADER_PREFIXES = ['NODE_', 'PYTHON', 'LD_', 'DYLD_'];
 const PYTHON_ENVIRONMENT = { PYTHONDONTWRITEBYTECODE: '1' };
 const REMOVED_PYTHON_NAMES = ['PYTHONPATH', 'PYTHONSTARTUP', 'PYTHONHOME', 'PYTHONINSPECT', 'PYTHONSAFEPATH'];
@@ -133,7 +134,7 @@ const hasEntry = (target) => {
   }
 };
 
-function realPathOf(target, hops = 0) {
+function realPathOnceWritten(target, hops = 0) {
   let existing = target;
   while (!hasEntry(existing)) existing = path.dirname(existing);
   const rest = path.relative(existing, target);
@@ -142,7 +143,7 @@ function realPathOf(target, hops = 0) {
   } catch {
     if (hops >= MAX_LINK_HOPS || !lstatSync(existing).isSymbolicLink()) return null;
     try {
-      return realPathOf(path.join(path.resolve(realpathSync.native(path.dirname(existing)), readlinkSync(existing)), rest), hops + 1);
+      return realPathOnceWritten(path.join(path.resolve(realpathSync.native(path.dirname(existing)), readlinkSync(existing)), rest), hops + 1);
     } catch {
       return null;
     }
@@ -155,7 +156,7 @@ function rootPathProblem(root, relative, { file = true } = {}) {
   const target = path.resolve(root, relative);
   const inside = insideOf(root, target);
   if (inside === null) return `${quote(relative)} resolves to ${target}, outside the repository; paths in an entry are relative to the repository root`;
-  const real = realPathOf(target);
+  const real = realPathOnceWritten(target);
   if (real === null || insideOf(realpathSync.native(root), real) === null) {
     return `${quote(relative)} resolves to ${target}, a link to ${real ?? 'a missing file'}, outside the repository; paths in an entry are relative to the repository root`;
   }
@@ -276,7 +277,7 @@ export function runProblem(run, root) {
 export function envProblem(name) {
   const upperName = name.toUpperCase();
   if (upperName === 'PATH') return 'cannot set PATH, so the program that runs is the one the map names';
-  if (ALLOWED_NODE_NAMES.has(upperName)) return null;
+  if (NODE_NAMES_NODE_ITSELF_IGNORES.has(upperName)) return null;
   if (LOADER_NAMES.has(upperName) || LOADER_PREFIXES.some((prefix) => upperName.startsWith(prefix))) {
     return `cannot set ${name}, which changes how a program loads or runs code`;
   }
@@ -593,7 +594,7 @@ function hashOf(target) {
   return state.exists ? state.hash.slice(0, 12) : null;
 }
 
-const isFile = (target) => {
+const existsAndIsNotFolder = (target) => {
   try {
     return !lstatSync(target).isDirectory();
   } catch {
@@ -613,9 +614,9 @@ const isExecutable = (target) => {
 const absolutePathEntries = (value) => (value ?? '').split(path.delimiter).filter((entry) => path.isAbsolute(entry));
 
 function installedProgram(name) {
-  const candidates = WINDOWS ? ['.com', '.exe'].map((extension) => name + extension) : [name];
+  const candidates = WINDOWS ? EXTENSIONS_SPAWN_STARTS_ON_WINDOWS.map((extension) => name + extension) : [name];
   for (const folder of absolutePathEntries(process.env.PATH)) {
-    const found = candidates.map((candidate) => path.join(folder, candidate)).find(WINDOWS ? isFile : isExecutable);
+    const found = candidates.map((candidate) => path.join(folder, candidate)).find(WINDOWS ? existsAndIsNotFolder : isExecutable);
     if (found) return found;
   }
   return null;
@@ -679,7 +680,7 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
         child.stdout.destroy();
         child.stderr.destroy();
         finish({ exitCode: null, signal: 'SIGKILL' });
-      }, CLOSE_GRACE_MS).unref();
+      }, PIPE_CLOSE_GRACE_AFTER_KILL_MS).unref();
     }, timeoutMs);
     child.on('error', (error) => finish({
       exitCode: null, signal: null, startError: error.code === 'ENOENT' ? `${quote(WINDOWS ? program : run[0])} was not found (ENOENT)` : error.message,
@@ -1058,7 +1059,7 @@ const countsOf = (checks) => ({
 async function run(cwd, options) {
   const defaultTimeoutMs = defaultTimeoutOf(process.env.LIM_VERIFY_TIMEOUT_MS);
   const repository = openRepository(cwd);
-  const deadline = Date.now() + RUN_BUDGET_MS;
+  const deadline = Date.now() + RUN_BUDGET_UNDER_BASH_TIMEOUT_MS;
   const ids = options.id === undefined ? null : [options.id].flat().map(String);
   const { map, mapPath, hash } = loadMap(repository, options.map, { defaultTimeoutMs, ids, deadline: Math.min(deadline, Date.now() + MAP_CHECK_BUDGET_MS) });
   const unknown = (ids ?? []).filter((id) => !map.features.some((entry) => entry.id === id));
