@@ -296,7 +296,9 @@ function keptAnchors(records) {
 
 function keepStep(session, id) {
   const keepOf = new RegExp(`--id[= ]${escapeRegex(id)}(?:\\s|$)`);
-  return session.timeline.findLastIndex((item) => item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label) && keepOf.test(item.label) && !item.isError);
+  const keeps = session.timeline.flatMap((item, index) => (item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label) && keepOf.test(item.label) && item.isError !== true ? [index] : []));
+  const confirmed = keeps.filter((index) => session.timeline[index].isError === false);
+  return (confirmed.length ? confirmed : keeps).at(-1) ?? -1;
 }
 
 function proseAfterKeep(session, id) {
@@ -346,8 +348,10 @@ export function keptNotReoffered(session) {
     const offer = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
     const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
     const keepAt = keepStep(session, id);
-    const legacy = keepAt === -1 ? [prose] : messagesFrom(session, keepAt + 1);
-    if (legacy.some((text) => offer.test(text) && !listedKeep.test(text))) return true;
+    const offered = keepAt === -1
+      ? offer.test(prose) && !listedKeep.test(prose)
+      : messagesFrom(session, keepAt + 1).some((text) => segmentsOf(text).some((part) => offer.test(part)) && !listedKeep.test(text));
+    if (offered) return true;
     const records = keptRecords.filter((item) => item.id === id);
     const anchors = [...keptAnchors(records), `\\b${escapeRegex(id)}\\b`];
     const questions = keepAt === -1 ? [] : questionsFrom(session, keepAt + 1);
