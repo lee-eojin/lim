@@ -600,6 +600,16 @@ test('a bare, mid-sentence, or parenthetical should-be, a pronoun, description, 
     ['mid-sentence inverted after a closed voice quote', [], 'The reviewer asked "why", but should the console.log be removed?'],
     ['inverted after a semicolon', [], 'Kept; should we remove the console.log?'],
     ['pronoun label under a question with and its', [askAbout('What about the console.log and its impact?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['mid-sentence inverted after a closed single voice quote', [], "The reviewer asked 'why', but should the console.log be removed?"],
+    ['inverted after a possessive that is not a voice quote', [], "According to the reviewer's note; should we remove the console.log?"],
+    ['pronoun label under a question with and moving on', [askAbout('What about the console.log and moving on?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and move on', [askAbout('Should we look at the console.log and move on?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and go ahead', [askAbout('Should we look at the console.log and go ahead?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and proceed', [askAbout('Should we look at the console.log and proceed?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with or continue', [askAbout('Should we look at the console.log or continue?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with or skip', [askAbout('Should we look at the console.log or skip ahead?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and ship', [askAbout('Should we look at the console.log and ship?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with and merge', [askAbout('Should we look at the console.log and merge?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
@@ -682,6 +692,10 @@ test('a reported or denied should-be, an act on something next to a kept finding
     ['reviewer voice quotes a mid-sentence do we', [], 'The reviewer asked, "Kept, but do we remove the console.log?"'],
     ['reviewer voice quotes an inverted after a semicolon', [], 'The reviewer asked, "Kept; should we remove the console.log?"'],
     ['inverted about a neighbor after a semicolon', [], 'Kept; should we fix the null check near the console.log?'],
+    ['reviewer voice quotes an inverted after a semicolon in single quotes', [], "The reviewer asked, 'Kept; should we remove the console.log?'"],
+    ['reviewer voice quotes an inverted after a semicolon in curly single quotes', [], 'The reviewer asked, ‘Kept; should we remove the console.log?’'],
+    ['reviewer voice quotes an apostrophe before the semicolon', [], "The reviewer asked, 'It's kept; shouldn't we remove the console.log?'"],
+    ['reviewer possessive voice quotes in single quotes', [], "The reviewer's note: 'Kept; should we remove the console.log?'"],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
