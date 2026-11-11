@@ -482,8 +482,8 @@ function isGradleSubproject(folder, repositoryRoot) {
 }
 
 function listedModules(pom) {
-  const active = pom.replace(/<!--[\s\S]*?-->/g, '').replace(/<profiles>[\s\S]*?<\/profiles>/g, '');
-  return [...active.matchAll(/<module>\s*([^<]+?)\s*<\/module>/g)].map(([, module]) => module);
+  const outsideCommentsAndProfiles = pom.replace(/<!--[\s\S]*?-->/g, '').replace(/<profiles>[\s\S]*?<\/profiles>/g, '');
+  return [...outsideCommentsAndProfiles.matchAll(/<module>\s*([^<]+?)\s*<\/module>/g)].map(([, module]) => module);
 }
 
 function isMavenModule(folder, repositoryRoot) {
@@ -628,16 +628,16 @@ function checkedFolders(root, files, recheckedFiles = []) {
 }
 
 function selectChecks(root, files, recheckedFiles = []) {
-  const projects = projectsToCheck(root, files, recheckedFiles);
+  const changedFirst = projectsToCheck(root, files, recheckedFiles);
   const seen = new Set();
-  const checks = ['', ...projects.slice(0, MAX_PROJECTS)].flatMap((folder) => detectFolderChecks(root, folder)).filter((check) => {
+  const checks = ['', ...changedFirst.slice(0, MAX_PROJECTS)].flatMap((folder) => detectFolderChecks(root, folder)).filter((check) => {
     if (!check.command) return true;
     const key = `${realpathSync.native(path.join(root, check.folder ?? ''))}\0${check.command.join(' ')}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
-  return { checks, leftOut: projects.slice(MAX_PROJECTS) };
+  return { checks, leftOut: changedFirst.slice(MAX_PROJECTS) };
 }
 
 export function missingProgram(command, stderr) {
@@ -662,7 +662,7 @@ function runCheck(root, check, timeout) {
 
 const CMD_SPECIAL = /([()\][%!^"`<>&|;, *?])/g;
 
-const isFile = (target) => {
+const existsAndIsNotFolder = (target) => {
   try {
     return !lstatSync(target).isDirectory();
   } catch {
@@ -675,7 +675,7 @@ function windowsProgram(program, cwd) {
   const names = extensions.includes(path.extname(program).toLowerCase()) ? [program] : extensions.map((extension) => program + extension);
   const folders = /[\\/]/.test(program) ? [cwd] : (process.env.PATH ?? '').split(path.delimiter).filter((folder) => path.isAbsolute(folder));
   for (const folder of folders) {
-    const found = names.map((name) => path.resolve(folder, name)).find(isFile);
+    const found = names.map((name) => path.resolve(folder, name)).find(existsAndIsNotFolder);
     if (found) return found;
   }
   return null;
@@ -912,14 +912,14 @@ function snapshotTree(repository) {
 }
 
 function stagedTree(repository) {
-  const index = repository.file(`staged-${process.pid}-${randomUUID()}.index`);
+  const ownIndex = repository.file(`staged-${process.pid}-${randomUUID()}.index`);
   try {
-    if (!copyRealIndex(repository, index)) return EMPTY_TREE;
-    return git(['write-tree'], { cwd: repository.root, env: { ...process.env, GIT_INDEX_FILE: index }, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (!copyRealIndex(repository, ownIndex)) return EMPTY_TREE;
+    return git(['write-tree'], { cwd: repository.root, env: { ...process.env, GIT_INDEX_FILE: ownIndex }, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   } catch {
     return null;
   } finally {
-    rmSync(index, { force: true });
+    rmSync(ownIndex, { force: true });
   }
 }
 
@@ -1995,7 +1995,7 @@ function arithmeticEnd(command, start) {
 
 function scanShell(command) {
   const segments = [];
-  let pending = [];
+  let heredocsAwaitingBody = [];
   let words = [];
   let word = '';
   let started = false;
@@ -2063,16 +2063,16 @@ function scanShell(command) {
     } else if (';&|\n()'.includes(char)) {
       if ('()'.includes(char)) grouped = true;
       endSegment();
-      if (char === '\n' && pending.length) {
-        index = pending.reduce((end, start) => heredocEnd(command, end + 1, start), index) - 1;
-        pending = [];
+      if (char === '\n' && heredocsAwaitingBody.length) {
+        index = heredocsAwaitingBody.reduce((end, start) => heredocEnd(command, end + 1, start), index) - 1;
+        heredocsAwaitingBody = [];
       }
     } else if (/\s/.test(char)) {
       endWord();
     } else if (char === '<' && next === '<' && command[index + 2] !== '<') {
       endWord();
       const start = readHeredocStart(command, index + 2);
-      pending.push(start);
+      heredocsAwaitingBody.push(start);
       index = start.end - 1;
     } else if (char === '<' && next === '<') {
       word += '<<<';
@@ -2094,11 +2094,11 @@ function limitLocations(locations) {
   return unique.length > MAX_LOCATIONS ? [...unique.slice(0, MAX_LOCATIONS - 1), null] : unique;
 }
 
-const fromShell = (target) => (WINDOWS ? target.replace(/^\/([A-Za-z])(?=\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`) : target);
+const fromGitBashPath = (target) => (WINDOWS ? target.replace(/^\/([A-Za-z])(?=\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`) : target);
 
 function resolveDirectory(base, target) {
   if (target === '-') return null;
-  const expanded = fromShell(target.replace(/^(?:~|\$HOME|\$\{HOME\})(?=\/|$)/, process.env.HOME || homedir()));
+  const expanded = fromGitBashPath(target.replace(/^(?:~|\$HOME|\$\{HOME\})(?=\/|$)/, process.env.HOME || homedir()));
   if (/[$`*?]/.test(expanded)) return null;
   if (path.isAbsolute(expanded)) return path.resolve(expanded);
   return base === null ? null : path.resolve(base, expanded);
@@ -2107,13 +2107,13 @@ function resolveDirectory(base, target) {
 const SHELL_KEYWORDS = new Set(['if', 'then', 'else', 'elif', 'do', 'while', 'until', '!', '{', 'time', 'function']);
 const DIRECTORY_COMMANDS = new Set(['cd', 'pushd', 'popd']);
 const INERT_COMMANDS = new Set(['echo', 'printf', 'cat', 'grep', 'rg', 'man', 'gh']);
-const RUNS_PROGRAM = { man: /^(?:-[A-Za-z]*[PH]|--pager|--html)/, rg: /^--pre(?:=|$)/ };
-const GH_COMMANDS = new Set(['pr', 'issue', 'repo', 'release', 'api', 'run', 'workflow', 'search', 'browse', 'gist', 'label', 'status', 'project']);
+const OPTIONS_THAT_RUN_PROGRAM = { man: /^(?:-[A-Za-z]*[PH]|--pager|--html)/, rg: /^--pre(?:=|$)/ };
+const GH_BUILT_IN_COMMANDS = new Set(['pr', 'issue', 'repo', 'release', 'api', 'run', 'workflow', 'search', 'browse', 'gist', 'label', 'status', 'project']);
 
 function isInert([program, ...args]) {
   if (!INERT_COMMANDS.has(program)) return false;
-  if (program === 'gh') return GH_COMMANDS.has(args[0]);
-  return !args.some((arg) => RUNS_PROGRAM[program]?.test(arg));
+  if (program === 'gh') return GH_BUILT_IN_COMMANDS.has(args[0]);
+  return !args.some((arg) => OPTIONS_THAT_RUN_PROGRAM[program]?.test(arg));
 }
 
 function commandStart(words) {
@@ -2261,12 +2261,12 @@ function readPlainCommand(command, cwd) {
   let location = cwd;
   for (const [program, ...words] of steps) {
     if (program === 'cd' && words.length === 1 && !words[0].startsWith('-')) {
-      location = path.resolve(location, fromShell(words[0]));
+      location = path.resolve(location, fromGitBashPath(words[0]));
       continue;
     }
     if (program !== 'git') return null;
     const pointed = words[0] === '-C';
-    const directory = pointed ? path.resolve(location, fromShell(words[1] ?? '')) : location;
+    const directory = pointed ? path.resolve(location, fromGitBashPath(words[1] ?? '')) : location;
     const [subcommand, ...args] = pointed ? words.slice(2) : words;
     if (!subcommand || subcommand.startsWith('-')) return null;
     invocations.push({ subcommand, args, directories: [directory], globals: [] });
@@ -2400,15 +2400,15 @@ function reviewVerdict(repository, gateSettings, stagedInCommand) {
 const SAFE_GIT_SUBCOMMANDS = new Set(['add', 'commit', 'status', 'diff', 'log', 'show']);
 
 function writesFile(arg) {
-  const name = /^--([^=]+)/.exec(arg)?.[1];
-  return Boolean(name) && name.length > 1 && 'output'.startsWith(name);
+  const longOptionPrefix = /^--([^=]+)/.exec(arg)?.[1];
+  return Boolean(longOptionPrefix) && longOptionPrefix.length > 1 && 'output'.startsWith(longOptionPrefix);
 }
 
 const approvable = ({ subcommand, globals, args }) => SAFE_GIT_SUBCOMMANDS.has(subcommand) && !globals.length && !args.some(writesFile);
 const GIT_WORD = /(?<![\w.-])git(?![\w-])/;
 const GATED_WORD = /(?<![\w./-])(?:commit|push)(?![\w./-])/;
 const GIT_AND_FOLLOWING_WORDS = /(?<![\w.-])(["']?)git\1(?![\w-])((?:[ \t]+[^\s;&|()<>`]+)*)/g;
-const GIT_COMMANDS = new Set([
+const GIT_COMMANDS_NEVER_ALIASED = new Set([
   'add', 'am', 'apply', 'archive', 'bisect', 'blame', 'branch', 'cat-file', 'checkout', 'cherry-pick', 'clean', 'clone',
   'commit', 'config', 'describe', 'diff', 'fetch', 'for-each-ref', 'format-patch', 'gc', 'grep', 'help', 'init', 'log',
   'ls-files', 'ls-remote', 'ls-tree', 'merge', 'merge-base', 'mv', 'notes', 'pull', 'push', 'rebase', 'reflog', 'remote',
@@ -2422,14 +2422,14 @@ function inGatedRepository(folder) {
 }
 
 function aliasCandidates(command) {
-  const unquoted = command.replace(/["']/g, ' ');
-  const names = [...unquoted.matchAll(GIT_AND_FOLLOWING_WORDS)].map(([, , following]) => {
+  const quotesAsSpaces = command.replace(/["']/g, ' ');
+  const names = [...quotesAsSpaces.matchAll(GIT_AND_FOLLOWING_WORDS)].map(([, , following]) => {
     const words = following.trim().split(/\s+/);
     let index = 0;
     while (words[index]?.startsWith('-')) index += GLOBAL_OPTIONS_WITH_VALUE.has(words[index]) ? 2 : 1;
     return words[index];
   });
-  return [...new Set(names)].filter((name) => /^[\w-]+$/.test(name ?? '') && !GIT_COMMANDS.has(name));
+  return [...new Set(names)].filter((name) => /^[\w-]+$/.test(name ?? '') && !GIT_COMMANDS_NEVER_ALIASED.has(name));
 }
 
 function runsGatedAlias(name, folder) {
@@ -2543,8 +2543,8 @@ function resolveInvocation(invocation) {
   return expandAlias(invocation, (name) => aliasOf(directory, name));
 }
 
-const ADD_ALL_LETTERS = new Set(['A', 'v']);
-const ADD_ALL_OPTIONS = new Set(['--all', '--verbose', '--ignore-errors', '--sparse']);
+const SNAPSHOT_SAFE_ADD_LETTERS = new Set(['A', 'v']);
+const SNAPSHOT_SAFE_ADD_OPTIONS = new Set(['--all', '--verbose', '--ignore-errors', '--sparse']);
 
 function isFolder(location, folder) {
   try {
@@ -2569,10 +2569,10 @@ function addStaging(args, directory, root) {
     if ((name && 'dry-run'.startsWith(name)) || letters.includes('n')) return null;
     if (name !== null) {
       all ||= arg === '--all';
-      onlyAllOptions &&= ADD_ALL_OPTIONS.has(arg) || arg.startsWith('--chmod=');
+      onlyAllOptions &&= SNAPSHOT_SAFE_ADD_OPTIONS.has(arg) || arg.startsWith('--chmod=');
     } else if (letters.length) {
       all ||= letters.includes('A');
-      onlyAllOptions &&= letters.every((letter) => ADD_ALL_LETTERS.has(letter));
+      onlyAllOptions &&= letters.every((letter) => SNAPSHOT_SAFE_ADD_LETTERS.has(letter));
     } else paths.push(arg);
   }
   const wholeRepository = paths.length ? paths.every((pathspec) => isFolder(path.resolve(directory, pathspec), root)) : all;
@@ -2581,7 +2581,7 @@ function addStaging(args, directory, root) {
 
 function gateVerdicts(invocations, sessionFolders) {
   const verdicts = [];
-  const skipped = new Set();
+  const skipUsedIn = new Set();
   const stagedInCommand = new Map();
   for (const invocation of invocations) {
     if (invocation.subcommand === 'add') {
@@ -2617,8 +2617,8 @@ function gateVerdicts(invocations, sessionFolders) {
       checkedRepositories.add(repository.root);
       const gateSettings = readGate(repository);
       if (!gateSettings.enabled) continue;
-      const skipOnce = invocation.subcommand === 'commit' && gateSettings.skipOnce && !ambiguous && !skipped.has(repository.root);
-      if (skipOnce) skipped.add(repository.root);
+      const skipOnce = invocation.subcommand === 'commit' && gateSettings.skipOnce && !ambiguous && !skipUsedIn.has(repository.root);
+      if (skipOnce) skipUsedIn.add(repository.root);
       const result = invocation.subcommand === 'push'
         ? pushVerdict(invocation)
         : commitVerdict(repository, invocation, { ...gateSettings, skipOnce }, stagedInCommand.get(repository.root));
