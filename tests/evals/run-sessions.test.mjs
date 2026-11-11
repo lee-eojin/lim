@@ -509,6 +509,7 @@ test('a resolved id named with measured or inferred requires every resolved id t
     [two, happySteps, '```\n- Resolved F-1 [P1] test failed\n\n- Resolved F-2 [P2] Debug log left in\n```\n\nBoth are fixed. npm test passes now (measured).'],
     [two, happySteps, '~~~\n- Resolved F-1 [P1] test failed\n\n- Resolved F-2 [P2] Debug log left in\n~~~\nBoth are fixed. npm test passes now (measured).'],
     [two, happySteps, 'Both are fixed. npm test passes now (measured).\n\n```\n- Resolved F-1 [P1] test failed\n\n- Resolved F-2 [P2] Debug log left in'],
+    [two, happySteps, 'F-1 is fixed. Measured: npm test passes now.\r\n\r\n```\r\n- Resolved F-1 [P1] Cents lose their leading zero\r\n```\r\n\r\nF-2 is fixed. Inferred: I read the new code.'],
   ];
   for (const [repo, steps, text] of passes) {
     const result = outcomeOf(fixBasisStated, steps, repo, text);

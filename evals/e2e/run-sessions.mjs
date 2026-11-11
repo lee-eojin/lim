@@ -328,7 +328,7 @@ const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 function withoutFences(text) {
   const kept = [];
   let fence = null;
-  for (const line of text.split('\n')) {
+  for (const line of text.split(/\r?\n/)) {
     if (fence) {
       const close = line.match(FENCE_CLOSE)?.[1];
       if (close && close[0] === fence[0] && close.length >= fence.length) {
