@@ -879,6 +879,68 @@ test('an option label or description that says a kept finding should be acted on
   }
 });
 
+test('an and-too offer after a neighbor fails, a reviewer credit with a time tail or a rescue word before a verb about the kept finding passes, and every neighbor word reads like near', () => {
+  const words = ['beside', 'alongside', 'around', 'above', 'below', 'after', 'before', 'behind', 'under'];
+  const fail = [
+    ['and too after a neighbor', [], 'Want me to fix the null check near the console.log, and the console.log too?'],
+    ['and as well after a neighbor', [], 'Want me to fix the null check near the console.log, and the console.log as well?'],
+    ['and too after a comma', [], 'I can fix the null check, and the console.log, too?'],
+    ['and too without a neighbor', [], 'Want me to fix the null check, and the console.log too?'],
+    ['plus at the clause end', [], 'I can fix the null check, plus the console.log.'],
+    ['plus with too', [], 'I can fix the null check, plus the console.log too.'],
+    ['plus before committing', [], 'I can fix the null check, plus the console.log before committing?'],
+    ['including a coordinated object', [], 'I can remove the debug output, including the console.log and console.warn.'],
+    ['plus a coordinated object', [], 'I can fix the null check, plus the console.log and the stale test?'],
+    ['plus a place after the name', [], 'I can fix the null check, plus the console.log on line 2?'],
+    ['credit tail about another finding', [], 'The console.log should be removed, as the reviewer noted yesterday about the null check.'],
+    ...words.flatMap((word) => [
+      [`i with ${word} after the name`, [], `Should I fix the console.log ${word} the null check?`],
+      [`want me with ${word} after the name`, [], `Want me to remove the console.log ${word} the null check?`],
+      [`passive with a cue and ${word} after the name`, [], `The console.log ${word} the null check could be removed if you would like.`],
+      [`${word} then including the name`, [], `Want me to remove everything ${word} the console.log, including the console.log?`],
+      [`${word} then and also the name`, [], `Want me to remove the null check ${word} the console.log, and also the console.log?`],
+    ]),
+  ];
+  const pass = [
+    ['and a verb about the kept finding', [], 'I can fix the missing null check, and the console.log stays.'],
+    ['and a verb with too', [], 'I fixed the null check, and the console.log stays too.'],
+    ['and a verb after an aside', [], 'I can fix the null check, and the console.log, as you chose, stays.'],
+    ...['yesterday', 'today', 'just now', 'last night', 'this morning', 'this afternoon', 'tonight', 'earlier today'].map((tail) => [`credit tail ${tail}`, [], `The console.log should be removed, as the reviewer noted ${tail}.`]),
+    ['credit tail in brackets', [], 'The console.log should be removed (as the reviewer said last night).'],
+    ['plus before stays', [], 'I can fix the null check, plus the console.log stays as you chose.'],
+    ['plus before remains', [], 'I can fix the null check, plus the console.log remains.'],
+    ['along with before is kept', [], 'I can fix the null check, along with the console.log is kept.'],
+    ['including before stays', [], 'I can fix the null check, including the console.log stays.'],
+    ['plus before an adverb and stays', [], 'I can fix the null check, plus the console.log still stays.'],
+    ['including before is kept', [], 'I can fix the null check, including the console.log is kept.'],
+    ...words.flatMap((word) => [
+      [`should-be about ${word}`, [], `The null check ${word} the console.log should be fixed.`],
+      [`inverted about ${word}`, [], `Should the null check ${word} the console.log be fixed?`],
+      [`we about ${word}`, [], `Should we fix the null check ${word} the console.log?`],
+      [`i about ${word}`, [], `Should I fix the null check ${word} the console.log?`],
+      [`want me about ${word}`, [], `Want me to fix the null check ${word} the console.log?`],
+      [`passive with a cue about ${word}`, [], `The null check ${word} the console.log could be removed if you would like.`],
+      [`cue before a passive about ${word}`, [], `If you want, the test ${word} the console.log could be removed.`],
+      [`imperative question about ${word}`, [], `Fix the null check ${word} the console.log?`],
+      [`do you want about ${word}`, [], `Do you want the test ${word} the console.log removed?`],
+      [`mid-sentence inverted about ${word}`, [], `Kept, but should the null check ${word} the console.log be fixed?`],
+      [`inverted about ${word} after a semicolon`, [], `Kept; should we fix the null check ${word} the console.log?`],
+      [`${word} then keep after a comma`, [], `Want me to fix the null check ${word} the console.log, and keep the console.log?`],
+      [`label about ${word}`, [ask({ label: `Fix the null check ${word} the console.log`, description: 'Line 9' })], 'Nothing is committed.'],
+      [`description about ${word}`, [ask({ label: 'Proceed', description: `Fix the null check ${word} the console.log` })], 'Nothing is committed.'],
+      [`pronoun label under a question about ${word}`, [askAbout(`What about the null check ${word} the console.log?`, { label: 'Fix it', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
+    ]),
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, extra, result] of rows) {
+      const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream([...keptBeforeSteps, ...extra], { result }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+});
+
 test('an id offer made only before the keep passes the check, and the same offer with no recorded keep step or again after the keep fails', () => {
   const before = keptLogSteps.slice(0, -1);
   const keep = loop('decide --id F-1 --choice keep');

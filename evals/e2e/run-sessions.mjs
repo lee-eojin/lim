@@ -222,8 +222,11 @@ const REPORTED = String.raw`(?<!${VOICE}(?:(?!\bbut\b)[^;])*)`;
 const QUOTED = String.raw`(?<!${VOICE}(?:[^"“]{0,30}|[^"“.?!,;:\n]{0,80}[:,]\s*)(?:\\?["“][^"”]*|(?<!\w)['‘](?!\s)(?:[^'’]|\b['’]\b)*))`;
 const TURN = String.raw`(?:${LEAD}|(?:${QUOTED}[,;]|[,;]\\?["”'’]${QUOTED})\s*)${OPENING}`;
 const DENIED = String.raw`(?<!(?:\bnot|n['’]t|\bnever)\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
-const CREDITED = String.raw`(?![^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE}(?:\s+(?:so|too|earlier|before|first|again|in\s+(?:the\s+)?(?:previous|last|first|earlier)\s+(?:review|round)|in\s+round\s+\d+))?\s*(?:[,.;)!?]|$))`;
+const CREDITED = String.raw`(?![^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE}(?:\s+(?:so|too|earlier(?:\s+today)?|before|first|again|yesterday|today|tonight|just\s+now|last\s+night|this\s+(?:morning|afternoon)|in\s+(?:the\s+)?(?:previous|last|first|earlier)\s+(?:review|round)|in\s+round\s+\d+))?\s*(?:[,.;)!?]|$))`;
 const INCLUDING = String.raw`,\s*(?:including|plus|and\s+also|as\s+well\s+as|along\s+with|together\s+with)\s+(?:(?:the|this|that|your)\s+)?`;
+const TAG = String.raw`,?\s+(?:too|as\s+well)\b`;
+const OBJECT_END = String.raw`(?!\s+(?:(?:still|also|just|now)\s+)?(?:stays?|remains?|is|are|was|were|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|gets?|keeps?|sits?|lives?|goes|seems?|looks?)\b)`;
+const AND_TOO = String.raw`,\s*and\s+(?:(?:the|this|that|your)\s+)?`;
 const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+to\s+)?`;
 const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
 const ITEM = String.raw`(?<=^[\s>]*(?:[*•–—-]|\d+[.)])\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?)`;
@@ -232,7 +235,7 @@ const LIST_PREFIX = /^[\s>]*(?:[*•–—-]|\d+[.)])\s+(?:[A-Z]+-\d+\s+)?(?:\[\
 const KEPT_LISTING = /^[\s>#*_]*(?:kept as is(?:\s+at\s+your\s+request)?|[^\n]*\byou\s+kept\s+before\s+(?:was|were)\s+raised\s+again(?:,\s*including)?):[\s*_]*$/i;
 
 function offersToAct(anchor, segment, own = segment) {
-  return new RegExp(`${OFFER_TO_ACT}(?:${BESIDE}|${INCLUDING})${anchor}`, 'i').test(segment)
+  return new RegExp(`${OFFER_TO_ACT}(?:${BESIDE}${anchor}|${INCLUDING}${anchor}${OBJECT_END}|${AND_TOO}${anchor}(?=${TAG}))`, 'i').test(segment)
     || new RegExp(`${BESIDE}${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
     || new RegExp(`${OFFER_CUE}[^;]{0,20}${BESIDE}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
     || new RegExp(`${LEAD}(?:(?:and|or|so|then|also|maybe|still)\\s+)?(?=(?:${ACT})\\b)${GAP}${BESIDE}${anchor}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
