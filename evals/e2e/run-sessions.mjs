@@ -223,12 +223,12 @@ const ITEM = String.raw`(?<=^[\s>]*[*•–—-]\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\
 const LISTED = String.raw`(?<=[\])(:"'\`*_•–—-]\s*|:\d+\s+)`;
 
 function offersToAct(anchor, segment, own = segment) {
-  return new RegExp(`${OFFER_TO_ACT}${anchor}`, 'i').test(segment)
-    || new RegExp(`${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
-    || new RegExp(`${OFFER_CUE}[^;]{0,20}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
-    || new RegExp(`${LEAD}(?:(?:and|or|so|then|also|maybe|still)\\s+)?(?=(?:${ACT})\\b)${GAP}${anchor}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
-    || new RegExp(`(?:\\b(?:would you (?:like|prefer)|do you (?:want|need))\\b|${LEAD}want\\b|${OFFER_CUE})${NEAR}${anchor}${NEAR}\\b(?:${DONE})\\b`, 'i').test(segment)
-    || new RegExp(`${LEAD}${OPENING}${SUBJECT}${anchor}${NEAR}${DUE}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
+  return new RegExp(`${OFFER_TO_ACT}${BESIDE}${anchor}`, 'i').test(segment)
+    || new RegExp(`${BESIDE}${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
+    || new RegExp(`${OFFER_CUE}[^;]{0,20}${BESIDE}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
+    || new RegExp(`${LEAD}(?:(?:and|or|so|then|also|maybe|still)\\s+)?(?=(?:${ACT})\\b)${GAP}${BESIDE}${anchor}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
+    || new RegExp(`(?:\\b(?:would you (?:like|prefer)|do you (?:want|need))\\b|${LEAD}want\\b|${OFFER_CUE})${NEAR}${BESIDE}${anchor}${NEAR}\\b(?:${DONE})\\b`, 'i').test(segment)
+    || new RegExp(`${LEAD}${OPENING}${SUBJECT}${anchor}${NEAR}${DUE}${CREDITED}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
     || new RegExp(`${LEAD}${OPENING}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${LEAD}${OPENING}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own);
