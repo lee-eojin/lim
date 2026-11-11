@@ -920,6 +920,48 @@ test('a quote on the next line joins a reviewer attribution only when the line b
   }
 });
 
+test('a first-person change of speaker before a quote ends the reviewer attribution', () => {
+  const fail = [
+    ['but I ask with a colon', 'The reviewer said no, but I ask: "Kept; should we remove the console.log?"'],
+    ['but I ask with curly quotes', 'The reviewer said no, but I ask: “Kept; should we remove the console.log?”'],
+    ['but I ask with straight single quotes', "The reviewer said no, but I ask: 'Kept; should we remove the console.log?'"],
+    ['but I asked without a colon', 'The reviewer said no, but I asked "Kept; should we remove the console.log?"'],
+    ['so I ask', 'The reviewer said no, so I ask: "Kept; should we remove the console.log?"'],
+    ['so I asked with curly single quotes', 'The reviewer said no, so I asked: ‘Kept; should we remove the console.log?’'],
+    ['and I ask', 'The reviewer said no, and I ask "Kept; should we remove the console.log?"'],
+    ['then I ask', 'The reviewer said no, then I ask: “Kept; should we remove the console.log?”'],
+    ['my question is', 'The reviewer said no; my question is: "Kept; should we remove the console.log?"'],
+    ['my question was', 'The reviewer said no, my question was "Kept; should we remove the console.log?"'],
+    ['my own question is after a short gap', 'The reviewer said no; my own question is: “Kept; should we remove the console.log?”'],
+    ['but my question is', 'The reviewer said no but my question is “Kept; should we remove the console.log?”'],
+    ['I ask after a semicolon', 'The reviewer said no; I ask: "Kept; should we remove the console.log?"'],
+    ['I asked after a comma', 'The reviewer said no, I asked “Kept; should we remove the console.log?”'],
+    ['I ask after an em dash', 'The reviewer said no — I ask: "Kept; should we remove the console.log?"'],
+    ['I ask after an en dash', 'The reviewer said no – I ask “Kept; should we remove the console.log?”'],
+    ['so I ask after a long attribution', 'The reviewer asked about the finding in round one and so I ask, "Kept; should we remove the console.log?"'],
+  ];
+  const pass = [
+    ['reviewer asked with a colon', 'The reviewer asked: "Kept, but should we remove the console.log?"'],
+    ['reviewer asked us once', 'The reviewer asked us once "Kept; should we remove the console.log?"'],
+    ['reviewer contrasting with a bare but', 'The reviewer said no, but asked: "Kept; should we remove the console.log?"'],
+    ['reviewer contrasting with but only once', 'The reviewer asked, but only once: “Kept; should we remove the console.log?”'],
+    ['long attribution with a colon', 'The reviewer asked the following question about the finding: "Kept; should we remove the console.log?"'],
+    ['long attribution with a comma', 'The reviewer asked the following question about the finding, “Kept; should we remove the console.log?”'],
+    ['next-line quote after a colon', 'The reviewer asked:\n“Kept; should we remove the console.log?”'],
+    ['my question was inside the reviewer attribution', "The reviewer asked whether my question was 'Kept; should we remove the console.log?'"],
+    ['I asked inside the reviewer attribution', 'The reviewer said that I asked “Kept; should we remove the console.log?”'],
+    ['my question is inside the reviewer attribution', 'The reviewer said that my question is “Kept; should we remove the console.log?”'],
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, result] of rows) {
+      const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+});
+
 test('an and-too offer after a neighbor fails, a reviewer credit with a time tail or a rescue word before a verb about the kept finding passes, and every neighbor word reads like near', () => {
   const words = ['beside', 'alongside', 'around', 'above', 'below', 'after', 'before', 'behind', 'under'];
   const fail = [

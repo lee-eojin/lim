@@ -219,7 +219,8 @@ const BESIDE = String.raw`(?<!\b(?:near|next\s+to|beside|alongside|around|above|
 const SAID = 'said|says|noted|notes|flagged|flags|suggested|suggests|recommended|recommends|found|thought|thinks|wrote|reported|reports|asked|wanted|wants|raised|mentioned|argued';
 const VOICE = String.raw`\b(?:(?:reviewer|review|finding|report)\s+(?:(?:also|had|has)\s+)?(?:${SAID})|you\s+(?:said|answered|noted|wrote|mentioned)|(?:according\s+to|per)\s+(?:the\s+|your\s+)?(?:reviewer|review|finding|report)|reviewer['’]s\s+[\w-]+)\b`;
 const REPORTED = String.raw`(?<!${VOICE}(?:(?!\bbut\b)[^;])*)`;
-const QUOTED = String.raw`(?<!${VOICE}(?:[^"“]{0,30}|[^"“.?!,;:\n]{0,80}[:,]\s*)(?:\\?["“][^"”]*|(?<!\w)['‘](?!\s)(?:[^'’]|\b['’]\b)*))`;
+const SPEAKER_CHANGE = String.raw`(?<=[,;:.!?—–]\s*|\b(?:but|so|and|then)\s+)(?:i\s+ask(?:ed)?|my\s+(?:own\s+)?question\s+(?:is|was))\b`;
+const QUOTED = String.raw`(?<!${VOICE}(?:(?:(?!${SPEAKER_CHANGE})[^"“]){0,30}|(?:(?!${SPEAKER_CHANGE})[^"“.?!,;:\n]){0,80}[:,]\s*)(?:\\?["“][^"”]*|(?<!\w)['‘](?!\s)(?:[^'’]|\b['’]\b)*))`;
 const TURN = String.raw`(?:${LEAD}|(?:${QUOTED}[,;]|[,;]\\?["”'’]${QUOTED})\s*)${OPENING}`;
 const DENIED = String.raw`(?<!(?:\bnot|n['’]t|\bnever)\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
 const CREDITED = String.raw`(?![^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE}(?:\s+(?:so|too|earlier(?:\s+today)?|before|first|again|yesterday|today|tonight|just\s+now|last\s+night|this\s+(?:morning|afternoon)|in\s+(?:the\s+)?(?:previous|last|first|earlier)\s+(?:review|round)|in\s+round\s+\d+))?\s*(?:[,.;)!?]|$))`;
