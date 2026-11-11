@@ -219,6 +219,7 @@ export function keptNotReoffered(session) {
   const keptRecords = [
     ...ledgerEvents(session, 'decision').filter((entry) => entry.choice === 'keep' && entry.id),
     ...(session.reviewState?.kept ?? []).filter((item) => item.id),
+    ...['open', 'cards', 'deferred'].flatMap((list) => session.reviewState?.[list] ?? []).filter((item) => item.id && item.decision === 'keep'),
   ];
   const keptIds = [...new Set(keptRecords.map((item) => item.id))];
   if (!keptIds.length) return { pass: true, evidence: 'no kept findings' };

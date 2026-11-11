@@ -319,6 +319,15 @@ test('offering to act on a kept finding by its quote, title, or code name fails 
   });
   assert.equal(keptNotReoffered(twoKeeps).pass, false);
   assert.match(keptNotReoffered(twoKeeps).evidence, /re-offered: F-1$/);
+  const decidedOnly = { ...keptConsoleLog, title: 'Debug output left in', decision: 'keep' };
+  for (const list of ['open', 'cards', 'deferred']) {
+    const notRecordedYet = buildSession(recordedStream(keptLogSteps, { result: cases[0][3] }), {
+      ...keptRepoOf({ ...decidedOnly, quote: undefined }),
+      reviewState: { [list]: [decidedOnly, { ...decidedOnly, id: 'F-9', decision: undefined, title: 'Other', quote: 'console.warn(x)' }], kept: [] },
+    });
+    assert.equal(keptNotReoffered(notRecordedYet).pass, false, list);
+    assert.match(keptNotReoffered(notRecordedYet).evidence, /re-offered: F-1$/, list);
+  }
   const question = buildSession(recordedStream(cases[3][1], { result: cases[3][3] }), keptRepoOf(keptConsoleLog));
   assert.equal(outcome(checkScenario(scenario('keep-finding'), question), 'kept-not-reoffered').pass, false);
   const named = buildSession(recordedStream(keptLogSteps, { result: cases[0][3] }), keptRepoOf(keptConsoleLog));
