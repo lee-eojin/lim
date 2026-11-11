@@ -628,6 +628,12 @@ test('a bare, mid-sentence, or parenthetical should-be, a pronoun, description, 
     ['pronoun label under a second sentence that opens with and', [askAbout('What next. And the console.log?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
     ['pronoun label under a question with and the reason for keeping it', [askAbout('What about the console.log and the reason for keeping it?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
     ['pronoun label under a question with and the tests for it', [askAbout('What about the console.log and the tests for it?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with bare words away from an opener before the kept name', [askAbout('Did you see tests pass and the console.log?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question with an -ing phrase before the kept name', [askAbout('What about shipping now and the console.log?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['inverted after a voice quote that closes after the comma', [], 'The reviewer said "Kept," but should we remove the console.log?'],
+    ['inverted after a single voice quote that closes after the comma', [], "The reviewer said 'Kept,' but should we remove the console.log?"],
+    ['inverted after a curly voice quote that closes after the comma', [], 'The reviewer said “Kept,” but should we remove the console.log?'],
+    ['question step inverted after a voice quote that closes after the comma', [['AskUserQuestion', { questions: [{ question: 'The reviewer said "Kept," but should we remove the console.log?' }] }]], 'Nothing is committed.'],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
@@ -721,6 +727,8 @@ test('a reported or denied should-be, an act on something next to a kept finding
     ['reviewer voice quotes an inverted after the question and a colon', [], 'The reviewer asked the question: "Kept; should we remove the console.log?"'],
     ['pronoun label under an or question with an id, kept second', [askAbout('What about F-2 or the console.log?', { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
     ['pronoun label under a two-finding question with a dotted name, kept second', [askAbout('What about cache.get and the console.log?', { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a two-finding question without a determiner, kept second', [askAbout('What about null check and the console.log?', { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['reviewer voice quotes an inverted after a quote that closes inside it', [], "The reviewer asked, \"You said 'kept,' but should we remove the console.log?\""],
   ];
   for (const [name, extra, result] of shapes) {
     const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
