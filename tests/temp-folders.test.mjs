@@ -50,7 +50,7 @@ for (const [title, file, pattern] of runsLeavingNothing) {
       encoding: 'utf8', env: { ...base, TMPDIR: temporary, TMP: temporary, TEMP: temporary },
     });
     assert.equal(run.status, 0, run.stdout + run.stderr);
-    assert.match(run.stdout, /^# pass [1-9]\d*$/m);
+    assert.ok(run.stdout.split('\n').some((line) => /^\s+ok \d+ - /.test(line) && line.includes(pattern)), run.stdout);
     assert.match(run.stdout, /^# fail 0$/m);
     assert.deepEqual(readdirSync(temporary).filter((name) => name !== 'node-compile-cache'), []);
   });
