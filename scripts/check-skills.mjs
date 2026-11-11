@@ -33,6 +33,14 @@ function frontmatterName(text) {
   return name;
 }
 
+function skillFoldersOrNone(base) {
+  try {
+    return readdirSync(path.join(root, base, 'skills'), { withFileTypes: true }).filter((entry) => entry.isDirectory());
+  } catch {
+    return [];
+  }
+}
+
 let count = 0;
 try {
   for (const plugin of readdirSync(path.join(root, 'plugins'), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
@@ -48,10 +56,7 @@ try {
       report(manifestFile, error.message);
     }
     const expected = `${base}/skills/${plugin.name}/SKILL.md`;
-    let directories = [];
-    try {
-      directories = readdirSync(path.join(root, base, 'skills'), { withFileTypes: true }).filter((entry) => entry.isDirectory());
-    } catch {}
+    const directories = skillFoldersOrNone(base);
     if (!directories.some((entry) => entry.name === plugin.name)) report(expected, 'missing entry skill directory');
     for (const directory of directories) {
       const file = `${base}/skills/${directory.name}/SKILL.md`;
