@@ -195,6 +195,8 @@ const hookOwnsLoopReports = {
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const DOTTED_NAME = /[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+/g;
 const OFFER_TO_ACT = String.raw`\b(?:want me to|would you like|should i|shall i|can i|i can(?!['’]t)|i could|you could|you may want to|if you want|if you'd like|let me know if|happy to)\b.{0,40}\b(?:fix|delete|remove|change|update|edit|drop|strip|clean up)\b[^;,]{0,60}`;
+const OFFER_CUE = String.raw`\b(?:if you(?:['’]d| would)? (?:like|prefer|want)|let me know|just say the word)\b`;
+const PASSIVE_ACT = String.raw`\b(?:could|can|may|might)(?:\s+(?:still|also|always|easily|just))?\s+be\s+(?:fixed|deleted|removed|changed|updated|edited|dropped|stripped|cleaned up)\b`;
 
 function keptAnchors(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim().replace(/[;,]+$/, ''));
@@ -236,9 +238,13 @@ export function keptNotReoffered(session) {
     const offer = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
     const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
     if (offer.test(prose) && !listedKeep.test(prose)) return true;
-    const anchors = keptAnchors(keptRecords.filter((item) => item.id === id));
+    const anchors = [...keptAnchors(keptRecords.filter((item) => item.id === id)), `\\b${escapeRegex(id)}\\b`];
     const segments = proseAfterKeep(session, id).split(/\n+|(?<=[.?!])\s+/);
-    return anchors.some((anchor) => segments.some((segment) => new RegExp(`${OFFER_TO_ACT}${anchor}`, 'i').test(segment)));
+    return anchors.some((anchor) => segments.some((segment) => (
+      new RegExp(`${OFFER_TO_ACT}${anchor}`, 'i').test(segment)
+      || new RegExp(`${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
+      || new RegExp(`${OFFER_CUE}[^;]{0,20}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
+    )));
   });
   return {
     pass: reoffered.length === 0,

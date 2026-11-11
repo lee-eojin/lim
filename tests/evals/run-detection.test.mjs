@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { casesDirFor, compareResults, locationsOf, parseAgentFile, parseOptions, parseReviewerOutput, pool, prepareCase, rescoreResults, rescoreRuns, runOne, scoreCase, serializeResults, summarize } from '../../evals/review-loop/run-detection.mjs';
+import { casesDirFor, compareResults, locationsOf, parseAgentFile, parseOptions, parseReviewerOutput, pool, prepareBlindCase, rescoreResults, rescoreRuns, runOne, scoreCase, serializeResults, summarize } from '../../evals/review-loop/run-detection.mjs';
 
 const evalsDir = fileURLToPath(new URL('../../evals/review-loop/', import.meta.url));
 const casesDir = path.join(evalsDir, 'detection');
@@ -119,7 +119,7 @@ for (const { folder, dir, names, minBugs, minClean } of caseSets) test(`${folder
       kinds.clean += 1;
       assert.deepEqual(expected.forbid, [{ severity: ['P1', 'P2'] }], `${name} forbids any P1 or P2`);
     }
-    const { workDir, diffPath } = prepareCase(path.join(dir, name), expected);
+    const { workDir, diffPath } = prepareBlindCase(path.join(dir, name), expected);
     try {
       if (!expected.seeded) continue;
       const added = addedLines(readFileSync(diffPath, 'utf8'));
@@ -256,7 +256,7 @@ test('the round diff does not depend on the git config of the person running it'
   });
   let workDir;
   try {
-    const prepared = prepareCase(path.join(casesDir, 'request-timeout'), readExpected('request-timeout'));
+    const prepared = prepareBlindCase(path.join(casesDir, 'request-timeout'), readExpected('request-timeout'));
     workDir = prepared.workDir;
     const diff = readFileSync(prepared.diffPath, 'utf8');
     assert.match(diff, /^diff --git a\/src\/export\.js b\/src\/export\.js$/m);
@@ -264,6 +264,19 @@ test('the round diff does not depend on the git config of the person running it'
   } finally {
     process.env = saved;
     if (workDir) rmSync(workDir, { recursive: true, force: true });
+  }
+});
+
+test('the reviewer\'s copy sits under the plain project name in the system temp folder with the diff where review-loop keeps it', () => {
+  const { workDir, diffPath } = prepareBlindCase(path.join(casesDir, 'request-timeout'), readExpected('request-timeout'));
+  try {
+    assert.equal(path.dirname(workDir), realpathSync(tmpdir()));
+    assert.match(path.basename(workDir), /^reports-worker-/);
+    assert.doesNotMatch(workDir, /lim|eval|detection|case|fixture/i);
+    assert.equal(diffPath, path.join(workDir, '.git/lim/review-loop/round-1.diff'));
+    assert.ok(existsSync(diffPath));
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
   }
 });
 
@@ -350,7 +363,7 @@ test('a case copy leaves out files git ignores, such as build output from runnin
     mkdirSync(path.dirname(buildOutput), { recursive: true });
     writeFileSync(buildOutput, `${dir}/repo/src/frame.rs\n`);
   }
-  const { workDir } = prepareCase(dir, readCase(path.join(evalsDir, 'detection-languages'), 'message-frames'));
+  const { workDir } = prepareBlindCase(dir, readCase(path.join(evalsDir, 'detection-languages'), 'message-frames'));
   try {
     assert.ok(existsSync(path.join(workDir, 'src', 'frame.rs')), 'tracked files are copied');
     assert.ok(!existsSync(path.join(workDir, 'target')), 'target/ is not copied');

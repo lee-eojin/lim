@@ -343,6 +343,24 @@ test('offering to act on a kept finding by its quote, title, or code name fails 
   assert.equal(outcome(checkScenario(scenario('keep-finding'), named), 'kept-not-reoffered').pass, false);
 });
 
+test('an id offer after a kept listing and a passive or reversed re-offer fail the check', () => {
+  const cases = [
+    ['id after listing', keptLogSteps, 'F-1 is kept as you asked. You could fix F-1 before committing.'],
+    ['id after listing in an earlier step', [...keptLogSteps, 'F-1 (Remove the debug console.log) is kept as you asked.'], 'You could fix F-1 before committing.'],
+    ['id offer in the same sentence as the listing', keptLogSteps, 'F-1 is kept, but I can still fix F-1 if you want.'],
+    ['passive', keptLogSteps, 'Kept as is. The console.log could still be removed if you would like.'],
+    ['passive with the id', keptLogSteps, 'Kept as is. F-1 can be fixed later, just let me know.'],
+    ['cue before the name', keptLogSteps, 'Kept as is. If you would like, the console.log could still be removed.'],
+  ];
+  for (const [name, steps, result] of cases) {
+    const session = buildSession(recordedStream(steps, { result }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, false, name);
+    assert.match(keptNotReoffered(session).evidence, /re-offered: F-1/, name);
+  }
+  const passive = buildSession(recordedStream(keptLogSteps, { result: 'Kept as is. The console.log could still be removed if you would like.' }), keptRepoOf(keptConsoleLog));
+  assert.equal(outcome(checkScenario(scenario('keep-finding'), passive), 'kept-not-reoffered').pass, false);
+});
+
 test('naming a kept finding without offering to act on it after the keep passes the check', () => {
   const cases = [
     ['listed as kept', keptLogSteps, 'Kept as is at your request:\n- F-1 [P4] Remove the debug console.log\nNothing else to fix.'],
@@ -353,6 +371,14 @@ test('naming a kept finding without offering to act on it after the keep passes 
     ['refusal', keptLogSteps, "I can't fix the console.log because you chose to keep it."],
     ['offer in another clause', keptLogSteps, 'I can fix the missing null check; the console.log stays.'],
     ['offer before a comma', keptLogSteps, 'I can fix the missing null check, and the console.log stays.'],
+    ['id of another finding', keptLogSteps, 'F-1 is kept as you asked. Want me to fix F-12 instead?'],
+    ['reviewer voice without a cue', keptLogSteps, 'The reviewer said the console.log could be removed, and you chose to keep it.'],
+    ['cue after a semicolon', keptLogSteps, 'As the reviewer noted, the console.log could be removed; let me know if you want anything else.'],
+    ['passive about another finding after a comma', keptLogSteps, 'The console.log stays, and the null check could be fixed if you would like.'],
+    ['kept as the participle', keptLogSteps, 'The console.log can be kept as is if you would like.'],
+    ['could not be', keptLogSteps, 'The console.log could not be removed if you want the trace kept.'],
+    ['passive about another finding', keptLogSteps, 'Kept F-1 as is. The missing null check could still be fixed if you would like.'],
+    ['passive before the keep', [...keptLogSteps.slice(0, -1), 'The console.log could be removed if you would like, or kept.', keptLogSteps.at(-1)], 'Kept F-1 as is. Nothing is committed.'],
   ];
   for (const [name, steps, result] of cases) {
     const session = buildSession(recordedStream(steps, { result }), keptRepoOf(keptConsoleLog));
