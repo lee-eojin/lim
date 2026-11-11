@@ -4,7 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
-- Changed: The README, the guide, and the skill now say to use the folder `git rev-parse --absolute-git-dir` prints when `.git` is a file with no linked worktree, as in a submodule or with `git init --separate-git-dir`. They also say that after the shared folder is deleted, an older settings file in a linked worktree's folder is the setting in use again. (#408)
+- Changed: The README, the guide, and the skill now say to use the folder `git rev-parse --absolute-git-dir` prints when `.git` is a file in the main checkout, as in a submodule or with `git init --separate-git-dir`. They also say that after the shared folder is deleted, an older settings file in a linked worktree's folder is the setting in use again. (#408)
 - Changed: The README now says `git gc` can remove unreferenced snapshot blobs only once they are older than git's prune grace period, which is two weeks by default and set by `gc.pruneExpire`. (#406)
 - Changed: The README, the guide, and the skill now say where a linked worktree keeps its review, how to find both folders with `git rev-parse`, and that deleting the shared folder removes the gate, delegation, the other settings, and the finding-kind history for every worktree. They also say to keep settings files an older version left in a worktree's folder, and that a full reset also deletes each linked worktree's folder. (#361)
 - Fixed: A kept failing check is identified by folder and command, and that keep ends once the check passes once. A different failure from the same command while it stays red is still not offered again. (#297)
