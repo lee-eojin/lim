@@ -524,13 +524,18 @@ function filesEndingWith(folder, extensions) {
   }
 }
 
+function isBuiltByParentSolution(folder, repositoryRoot) {
+  return ancestorsOf(folder, repositoryRoot).some((parent) => filesEndingWith(parent, DOTNET_SOLUTION_EXTENSIONS).length);
+}
+
 function dotnetChecks(folder, repositoryRoot = folder) {
   const solutions = filesEndingWith(folder, DOTNET_SOLUTION_EXTENSIONS);
   const projects = filesEndingWith(folder, DOTNET_PROJECT_EXTENSIONS);
-  if (solutions.length) return [{ name: 'test', command: ['dotnet', 'test', ...(solutions.length + projects.length > 1 ? [solutions[0]] : [])] }];
-  if (!projects.length) return [];
-  if (ancestorsOf(folder, repositoryRoot).some((parent) => filesEndingWith(parent, DOTNET_SOLUTION_EXTENSIONS).length)) return [];
-  return [{ name: 'test', command: ['dotnet', 'test', ...(projects.length > 1 ? [projects[0]] : [])] }];
+  const needsTarget = solutions.length + projects.length > 1;
+  const dotnetTest = (files) => [{ name: 'test', command: ['dotnet', 'test', ...(needsTarget ? [files[0]] : [])] }];
+  if (solutions.length) return dotnetTest(solutions);
+  if (!projects.length || isBuiltByParentSolution(folder, repositoryRoot)) return [];
+  return dotnetTest(projects);
 }
 
 function existsHereOrAbove(folder, repositoryRoot, file) {
@@ -540,11 +545,12 @@ function existsHereOrAbove(folder, repositoryRoot, file) {
 function rubyChecks(folder, repositoryRoot = folder) {
   const has = (file) => existsSync(path.join(folder, file));
   const hasFolder = (name) => has(name) && statSync(path.join(folder, name)).isDirectory();
+  const hasRubySpecFolder = () => hasFolder('spec') && (has('Gemfile') || has('Rakefile'));
   const viaBundler = existsHereOrAbove(folder, repositoryRoot, 'Gemfile');
   const tool = (...command) => (viaBundler ? ['bundle', 'exec', ...command] : command);
   const checks = [];
   if (has('.rubocop.yml')) checks.push({ name: 'lint', command: tool('rubocop') });
-  if (has('.rspec') || (hasFolder('spec') && (has('Gemfile') || has('Rakefile')))) checks.push({ name: 'test', command: tool('rspec') });
+  if (has('.rspec') || hasRubySpecFolder()) checks.push({ name: 'test', command: tool('rspec') });
   else if (has('Rakefile') && hasFolder('test')) checks.push({ name: 'test', command: tool('rake', 'test') });
   return checks;
 }
@@ -661,6 +667,7 @@ function runCheck(root, check, timeout) {
 }
 
 const CMD_SPECIAL = /([()\][%!^"`<>&|;, *?])/g;
+const escapeForCmd = (text) => text.replace(CMD_SPECIAL, '^$1');
 
 const existsAndIsNotFolder = (target) => {
   try {
@@ -670,10 +677,12 @@ const existsAndIsNotFolder = (target) => {
   }
 };
 
+const pathFoldersOnly = () => (process.env.PATH ?? '').split(path.delimiter).filter((folder) => path.isAbsolute(folder));
+
 function windowsProgram(program, cwd) {
   const extensions = (process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD').toLowerCase().split(';').filter(Boolean);
   const names = extensions.includes(path.extname(program).toLowerCase()) ? [program] : extensions.map((extension) => program + extension);
-  const folders = /[\\/]/.test(program) ? [cwd] : (process.env.PATH ?? '').split(path.delimiter).filter((folder) => path.isAbsolute(folder));
+  const folders = /[\\/]/.test(program) ? [cwd] : pathFoldersOnly();
   for (const folder of folders) {
     const found = names.map((name) => path.resolve(folder, name)).find(existsAndIsNotFolder);
     if (found) return found;
@@ -681,14 +690,16 @@ function windowsProgram(program, cwd) {
   return null;
 }
 
-const cmdArgument = (argument) => `"${argument.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, '$1$1')}"`.replace(CMD_SPECIAL, '^$1');
+const cmdArgument = (argument) => escapeForCmd(`"${argument.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, '$1$1')}"`);
+
+const runsThroughCmdExe = (program) => /\.(?:cmd|bat)$/i.test(program);
 
 function launchOf(command, cwd) {
   if (!WINDOWS) return { file: command[0], args: command.slice(1) };
   const program = windowsProgram(command[0], cwd);
   if (!program) return null;
-  if (!/\.(?:cmd|bat)$/i.test(program)) return { file: program, args: command.slice(1) };
-  const line = [program.replace(CMD_SPECIAL, '^$1'), ...command.slice(1).map(cmdArgument)].join(' ');
+  if (!runsThroughCmdExe(program)) return { file: program, args: command.slice(1) };
+  const line = [escapeForCmd(program), ...command.slice(1).map(cmdArgument)].join(' ');
   return { file: process.env.ComSpec || path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'cmd.exe'), args: ['/d', '/s', '/c', `"${line}"`], windowsVerbatimArguments: true };
 }
 
@@ -815,9 +826,11 @@ function git(args, options = {}) {
   });
 }
 
+const nativePath = (gitOutput) => path.resolve(gitOutput.trim());
+
 function openRepository(cwd, { create = true } = {}) {
-  const root = path.resolve(git(['rev-parse', '--show-toplevel'], { cwd }).trim());
-  const gitDir = path.resolve(git(['rev-parse', '--absolute-git-dir'], { cwd }).trim());
+  const root = nativePath(git(['rev-parse', '--show-toplevel'], { cwd }));
+  const gitDir = nativePath(git(['rev-parse', '--absolute-git-dir'], { cwd }));
   const stateDir = path.join(gitDir, 'lim', 'review-loop');
   const sharedDir = path.join(commonGitDir(gitDir), 'lim', 'review-loop');
   if (create) {
@@ -883,7 +896,8 @@ function commitLandedSince(root, skip) {
   const entries = headReflog(root);
   const newer = entries.length - skip.reflog.count;
   if (newer < 0 || (skip.reflog.count > 0 && entries[newer] !== skip.reflog.newest)) return true;
-  if (entries.length === 0) return headCommit(root) !== skip.head;
+  const reflogOff = entries.length === 0;
+  if (reflogOff) return headCommit(root) !== skip.head;
   return entries.slice(0, newer).some((entry) => entry.split('\t')[2]?.startsWith('commit'));
 }
 
@@ -932,10 +946,14 @@ function excludeReviewFolder(repository) {
   appendFileSync(excludePath, `${current && !current.endsWith('\n') ? '\n' : ''}${line}\n`);
 }
 
+function clearFileForWriteTool(file) {
+  rmSync(file, { force: true });
+}
+
 function reviewPathFor(repository, round) {
   excludeReviewFolder(repository);
   const file = path.join(repository.root, REVIEW_FOLDER, `round-${round}.json`);
-  rmSync(file, { force: true });
+  clearFileForWriteTool(file);
   return file;
 }
 
@@ -2137,12 +2155,15 @@ function directoryTarget([name, ...operands]) {
   return operands[0];
 }
 
+const folderAroundGitDir = (folder) => (folder && path.basename(folder) === '.git' ? path.dirname(folder) : folder);
+const BLOCKS_APPROVAL = null;
+
 function pointedLocations(targets, directories) {
   const folders = targets.flatMap((target) => directories.map((base) => {
     const folder = base === null ? null : resolveDirectory(base, target);
-    return folder && path.basename(folder) === '.git' ? path.dirname(folder) : folder;
+    return folderAroundGitDir(folder);
   }));
-  return limitLocations([...folders, null]);
+  return limitLocations([...folders, BLOCKS_APPROVAL]);
 }
 
 function readGitWords(words, gitIndex, locations) {
@@ -2167,6 +2188,12 @@ function readGitWords(words, gitIndex, locations) {
   return words[index] ? { subcommand: words[index], args: words.slice(index + 1), directories, globals } : null;
 }
 
+function skipAssignments(words, start) {
+  let index = start;
+  while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index] ?? '')) index += 1;
+  return index;
+}
+
 function readCommand(command, cwd) {
   const invocations = [];
   let locations = [cwd];
@@ -2182,7 +2209,7 @@ function readCommand(command, cwd) {
       locations.forEach((location) => folders.add(location));
       continue;
     }
-    while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[index] ?? '')) index += 1;
+    index = skipAssignments(words, index);
     const invocation = path.basename(words[index] ?? '') === 'git' ? readGitWords(words, index, locations) : null;
     if (invocation) {
       invocations.push(invocation);
@@ -2200,6 +2227,7 @@ const PLAIN_GAP = /[ \t]+|&&|;|\n/y;
 const PLAIN_TEXT = /[\w./:=@%+,^~-]+/y;
 const SINGLE_QUOTED = /'[^']*'/y;
 const ANSI_C_QUOTED = /\$'(?:[^'\\]|\\['\\])*'/y;
+const EXPANDS_AT_WORD_START = '~=';
 
 function readDoubleQuoted(command, start) {
   let text = '';
@@ -2240,7 +2268,7 @@ function plainSteps(command) {
       if (!/^[ \t]/.test(gap)) steps.push([]);
       continue;
     }
-    if (word === null && '~='.includes(command[index])) return null;
+    if (word === null && EXPANDS_AT_WORD_START.includes(command[index])) return null;
     const quoted = command[index] === '"' ? readDoubleQuoted(command, index) : null;
     if (quoted) index = quoted.end;
     const piece = quoted?.text
@@ -2317,29 +2345,30 @@ function commitsIndex(args) {
   let all = false;
   let include = false;
   let paths = false;
-  let valueNext = false;
+  let nextMayBeValue = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === '--') {
       paths ||= index + 1 < args.length;
       break;
     }
-    const wasValue = valueNext;
-    valueNext = false;
+    const mayBeValue = nextMayBeValue;
+    nextMayBeValue = false;
     if (arg === '--all') all = true;
     else if (arg === '--include') include = true;
     else if (arg.startsWith('--pathspec-from-file')) paths = true;
-    else if (arg.startsWith('--')) valueNext = !arg.includes('=');
+    else if (arg.startsWith('--')) nextMayBeValue = !arg.includes('=');
     else if (/^-[A-Za-z]/.test(arg)) {
       for (const letter of arg.slice(1)) {
         if (REQUIRED_VALUE_LETTERS.has(letter) || ATTACHED_VALUE_LETTERS.has(letter)) break;
         if (letter === 'a') all = true;
         if (letter === 'i') include = true;
       }
-      valueNext = readCluster(arg).takesNextWord;
-    } else if (!wasValue) paths = true;
+      nextMayBeValue = readCluster(arg).takesNextWord;
+    } else if (!mayBeValue) paths = true;
   }
-  return !all && (include || !paths);
+  const takesWorkingFiles = all || (paths && !include);
+  return !takesWorkingFiles;
 }
 
 function commitVerdict(repository, { args }, gateSettings, stagedInCommand = 'none') {
@@ -2437,12 +2466,14 @@ function runsGatedAlias(name, folder) {
   return GATED_SUBCOMMANDS.includes(expanded.subcommand) || Boolean(expanded.shellAlias);
 }
 
-function unreadVerdict(command, folders) {
-  if (!GIT_WORD.test(command)) return null;
-  const namesGated = GATED_WORD.test(command);
-  const aliases = namesGated ? [] : aliasCandidates(command);
+const onlyPrintsText = (command) => plainSteps(command)?.every((step) => step[0] === 'cd' || isInert(step));
+
+function unreadVerdict(rawCommand, folders) {
+  if (!GIT_WORD.test(rawCommand)) return null;
+  const namesGated = GATED_WORD.test(rawCommand);
+  const aliases = namesGated ? [] : aliasCandidates(rawCommand);
   if (!namesGated && !aliases.length) return null;
-  if (plainSteps(command)?.every((step) => step[0] === 'cd' || isInert(step))) return null;
+  if (onlyPrintsText(rawCommand)) return null;
   const gated = [...new Set(folders)].filter(inGatedRepository);
   if (!gated.length) return null;
   if (!namesGated && !gated.some((folder) => aliases.some((name) => runsGatedAlias(name, folder)))) return null;
@@ -2468,7 +2499,8 @@ export function gateDecision({ cwd, command, projectDir }) {
   const read = readCommand(text, cwd);
   const invocations = (plain ?? read.invocations).map(resolveInvocation);
   const strictest = gateVerdicts(invocations, sessionFolders)[0] ?? null;
-  if (plain && invocations.every(approvable)) return strictest;
+  const canSkipPermissionPrompt = plain && invocations.every(approvable);
+  if (canSkipPermissionPrompt) return strictest;
   if (!strictest) return unreadVerdict(text, [...sessionFolders, ...read.folders]);
   if (strictest.decision !== 'allow') return strictest;
   return verdict('ask', `${strictest.reason} The command does more than plain git add, commit, status, diff, log, or show and cd steps, so review-loop does not approve it on its own.`);
