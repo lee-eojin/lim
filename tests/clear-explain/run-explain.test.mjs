@@ -343,6 +343,12 @@ test('the joined-sentences copy keeps every paragraph in place and changes only 
   assert.deepEqual(unchanged, ['ko-memo without', 'ko-401-403 without']);
 });
 
+test('a transform that only rebuilds the paragraph breaks counts as no change', () => {
+  assert.equal(worseCopy('answer-moved', 'Short.\n', 'en'), null);
+  assert.equal(worseCopy('joined-sentences', 'One.\n\n\nTwo.\n', 'en'), null);
+  assert.equal(worseCopy('factual-error', 'One two.\n', 'en', [{ id: 'a', arm: 'with', defect: 'factual-error', find: 'two', replace: 'six', truth: 't' }], { id: 'a', arm: 'with' }), 'One six.\n');
+});
+
 test('joined sentences keep the last end mark and leave a lead line followed by a list as it is', () => {
   const text = 'A closure keeps its variables. It is a function.\n\nIt has uses:\n- one. two.\n\n```js\nconst a = 1. b;\n```';
   assert.equal(joinSentences(text, 'en'), 'A closure keeps its variables, and It is a function.\n\nIt has uses:\n- one. two.\n\n```js\nconst a = 1. b;\n```');
@@ -386,7 +392,7 @@ test('each hand-written variant is one bounded edit of one stored answer, and an
     }
   }
   assert.deepEqual(none, ['en-closure with removed-definition', 'en-closure without removed-definition', 'en-await-loop with removed-definition',
-    'ko-memo without removed-definition', 'ko-isolation without removed-definition', 'ko-unknown without removed-definition',
+    'ko-memo without removed-definition', 'ko-isolation without removed-definition', 'ko-unknown with removed-definition', 'ko-unknown without removed-definition',
     'ko-401-403 without removed-definition', 'ko-key with removed-definition', 'ko-key without removed-definition']);
 });
 
@@ -450,7 +456,15 @@ test('calibration reports each defect in both orders on a stubbed judge and skip
     pairs: 1, unchanged: 1, judged: 1, goodBothOrders: 0, badBothOrders: 0, split: 0, goodWhenGoodFirst: 0, goodWhenBadFirst: 0,
     badFactualError: 0, goodFactualError: 0, badFactualErrorBothOrders: 0, verdicts: 2, errors: 0, ...fields,
   });
-  assert.deepEqual(results.summary.defects, {
+  const withoutScript = Object.fromEntries(Object.entries(results.summary.defects).map(([kind, { script, ...rest }]) => [kind, rest]));
+  results.pairs.forEach((pair) => {
+    const { script } = results.summary.defects[pair.defect];
+    assert.equal(script.goodIssuesPer1000, scoreAnswer(pair.answers.good.answer).issuesPer1000, pair.defect);
+    assert.equal(script.badIssuesPer1000, scoreAnswer(pair.answers.bad.answer).issuesPer1000, pair.defect);
+    assert.equal(script.badOpensWithAnswer, Number(scoreAnswer(pair.answers.bad.answer).opensWithAnswer), pair.defect);
+  });
+  assert.equal(results.summary.defects['answer-moved'].script.badOpensWithAnswer, 0);
+  assert.deepEqual(withoutScript, {
     'answer-moved': counts({ split: 1, goodWhenGoodFirst: 1 }),
     'joined-sentences': counts({ goodBothOrders: 1, goodWhenGoodFirst: 1, goodWhenBadFirst: 1 }),
     'factual-error': counts({ split: 1, goodWhenGoodFirst: 1, badFactualError: 2, goodFactualError: 1, badFactualErrorBothOrders: 1 }),

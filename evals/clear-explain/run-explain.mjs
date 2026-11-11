@@ -234,7 +234,8 @@ export function worseCopy(defect, text, lang, variants = [], { id, arm } = {}) {
     if ('none' in variant) return text;
     return applyEdit(text, { find: variant.find, replace: variant.replace ?? '' }, label);
   })();
-  return copy === text ? null : copy;
+  const rebuilt = defect === 'answer-moved' || defect === 'joined-sentences' ? paragraphs(text).map(({ paragraph }) => paragraph).join('\n\n') : text;
+  return copy === text || copy === rebuilt ? null : copy;
 }
 
 export function redact(text) {
@@ -615,6 +616,17 @@ export async function calibrate(results, options, judgeRun = judge) {
   };
 }
 
+function scriptSummary(pairs) {
+  const score = (pair, side) => pair.answers[side].score;
+  return {
+    fewerIssuesPer1000: pairs.filter((pair) => score(pair, 'good').issuesPer1000 < score(pair, 'bad').issuesPer1000).length,
+    goodOpensWithAnswer: pairs.filter((pair) => score(pair, 'good').opensWithAnswer).length,
+    badOpensWithAnswer: pairs.filter((pair) => score(pair, 'bad').opensWithAnswer).length,
+    goodIssuesPer1000: mean(pairs.map((pair) => score(pair, 'good').issuesPer1000)),
+    badIssuesPer1000: mean(pairs.map((pair) => score(pair, 'bad').issuesPer1000)),
+  };
+}
+
 export function summarizeDefect(pairs, unchanged = []) {
   const judged = pairs.filter((pair) => pair.judgeGoodFirst?.winner && pair.judgeBadFirst?.winner);
   const runs = pairs.flatMap((pair) => [pair.judgeGoodFirst, pair.judgeBadFirst]).filter(Boolean);
@@ -633,6 +645,7 @@ export function summarizeDefect(pairs, unchanged = []) {
     badFactualErrorBothOrders: pairs.filter((pair) => pair.judgeGoodFirst?.factualError?.bad === true && pair.judgeBadFirst?.factualError?.bad === true).length,
     verdicts: runs.filter((run) => run.winner).length,
     errors: runs.filter((run) => run.error).length + pairs.length * 2 - runs.length,
+    script: scriptSummary(pairs),
   };
 }
 
@@ -649,16 +662,9 @@ function summarizeAllDefects(pairs) {
   const judged = pairs.filter((pair) => pair.judgeGoodFirst?.winner && pair.judgeBadFirst?.winner);
   const runs = pairs.flatMap((pair) => [pair.judgeGoodFirst, pair.judgeBadFirst]).filter(Boolean);
   const both = (winner) => judged.filter((pair) => pair.judgeGoodFirst.winner === winner && pair.judgeBadFirst.winner === winner).length;
-  const score = (pair, side) => pair.answers[side].score;
   return {
     pairs: pairs.length,
-    script: {
-      fewerIssuesPer1000: pairs.filter((pair) => score(pair, 'good').issuesPer1000 < score(pair, 'bad').issuesPer1000).length,
-      goodOpensWithAnswer: pairs.filter((pair) => score(pair, 'good').opensWithAnswer).length,
-      badOpensWithAnswer: pairs.filter((pair) => score(pair, 'bad').opensWithAnswer).length,
-      goodIssuesPer1000: mean(pairs.map((pair) => score(pair, 'good').issuesPer1000)),
-      badIssuesPer1000: mean(pairs.map((pair) => score(pair, 'bad').issuesPer1000)),
-    },
+    script: scriptSummary(pairs),
     judge: {
       judged: judged.length,
       goodBothOrders: both('good'),
@@ -683,7 +689,8 @@ function calibrationReport(results, out) {
   for (const [kind, entry] of Object.entries(summary.defects)) {
     process.stdout.write(`${kind}: original in both orders ${entry.goodBothOrders}, worse copy in both orders ${entry.badBothOrders}, ` +
       `changed with the order ${entry.split}, of ${entry.judged}; original picked shown first ${entry.goodWhenGoodFirst}, shown second ${entry.goodWhenBadFirst}; ` +
-      `worse copy flagged as a factual error ${entry.badFactualError}, original ${entry.goodFactualError}, of ${entry.verdicts} verdicts; ${entry.unchanged} answers unchanged\n`);
+      `worse copy flagged as a factual error ${entry.badFactualError}, original ${entry.goodFactualError}, of ${entry.verdicts} verdicts; ` +
+      `script: fewer issues per 1000 characters for the original in ${entry.script.fewerIssuesPer1000} of ${entry.pairs}, opens with the answer ${entry.script.goodOpensWithAnswer} against ${entry.script.badOpensWithAnswer}; ${entry.unchanged} answers unchanged\n`);
   }
   process.stdout.write(`cost: $${summary.costUsd}; errors: ${summary.errors}\nresults: ${out}\n`);
 }

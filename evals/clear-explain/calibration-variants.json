@@ -270,8 +270,7 @@
       "id": "ko-unknown",
       "arm": "with",
       "defect": "removed-definition",
-      "term": "좁히기",
-      "find": "타입 좁히기(narrowing)는 `typeof`, `instanceof`, 사용자 정의 type guard 같은 검사로 값의 타입을 더 구체적인 타입으로 확정하는 일입니다. "
+      "none": "the definition opens a paragraph whose next sentence depends on it, so removing it in one in-line edit would leave a second defect"
     },
     {
       "id": "ko-unknown",
