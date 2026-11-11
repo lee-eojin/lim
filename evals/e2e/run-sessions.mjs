@@ -277,7 +277,8 @@ function actsOn(anchors, records, segments, questions) {
     if (prefix === undefined) underKept = KEPT_LISTING.test(segment);
     if (!listed) return [segment, segment];
     if (prefix === undefined || underKept) return [segment, segment.replace(listed, ' ')];
-    return [segment, prefix + segment.slice(prefix.length).replace(listed, ' ')];
+    const lead = segment.slice(prefix.length).match(/^[\s"'“‘\x60*_]*/)[0];
+    return [segment, prefix + lead + segment.slice(prefix.length + lead.length).replace(listed, ' ')];
   });
   return anchors.some((anchor) => pairs.some(([segment, own]) => offersToAct(anchor, segment, own)) || questions.some((question) => optionActs(anchor, question)));
 }
@@ -290,7 +291,7 @@ function keptAnchors(records) {
   const names = texts.flatMap((text) => text.match(DOTTED_NAME) ?? []).filter((name) => !files.includes(name));
   const subjects = texts.map((text) => text.match(DUE_SUBJECT)?.[1] ?? '').filter((text) => text.length >= 3 && !/^(?:it|this|that|these|those|they|them)$/i.test(text));
   const anchors = [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
-  return [...new Set([...anchors, ...subjects.map((text) => `(?<![\\w$])${escapeRegex(text).replace(/\s+/g, '\\s+')}(?![\\w$])(?!(?:\\s+(?!(?:still|also|always|really|just|now)\\b)[\\w-]+)+\\s+${DUE})`)])];
+  return [...new Set([...anchors, ...subjects.map((text) => `(?<![\\w$])${escapeRegex(text).replace(/\s+/g, '\\s+')}(?![\\w$])(?!['’]s\\b)(?!(?:\\s+(?!(?:still|also|always|really|just|now|definitely)\\b)[\\w-]+)+\\s+${DUE})`)])];
 }
 
 function keepStep(session, id) {
