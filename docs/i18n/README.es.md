@@ -305,7 +305,7 @@ Un commit es local y fácil de deshacer. Un push no. review-loop se detiene en e
 
 ## Datos
 
-El estado, los diffs, los logs de las comprobaciones y un registro de decisiones se guardan en `.git/lim/review-loop/` dentro de tu repositorio. Claude escribe cada revisión por un momento en `.lim-review/` dentro de tu working tree; git ignora esa carpeta mediante `.git/info/exclude`, y review-loop elimina el archivo después de leerlo. Para comprobar una regla, review-loop escribe el código de antes de la corrección en una carpeta temporal fuera de tu repositorio y después la elimina. Para reiniciar, elimina `.git/lim/review-loop/`. Un worktree vinculado guarda su revisión en una carpeta y la configuración que comparte con todo el repositorio en otra; el [review-loop README](../../plugins/review-loop/README.md#data) muestra cómo encontrar y reiniciar cada una.
+El estado, los diffs, los logs de las comprobaciones y un registro de decisiones se guardan en `.git/lim/review-loop/` dentro de tu repositorio. Claude escribe cada revisión por un momento en `.lim-review/` dentro de tu working tree; git ignora esa carpeta mediante `.git/info/exclude`, y review-loop elimina el archivo después de leerlo. Para comprobar una regla, review-loop escribe el código de antes de la corrección en una carpeta temporal fuera de tu repositorio y después la elimina. Para reiniciar, elimina `.git/lim/review-loop/`. En un submódulo, o en un repositorio creado con `git init --separate-git-dir`, `.git` es un archivo y esa ruta no existe. Un worktree vinculado guarda su revisión en una carpeta y la configuración que comparte con todo el repositorio en otra. El [review-loop README](../../plugins/review-loop/README.md#data) muestra cómo encontrar y reiniciar las carpetas en ambos casos.
 
 review-loop no hace llamadas de red propias. Claude y el revisor leen el diff, los hallazgos y la salida de las comprobaciones como cualquier otro archivo de tu sesión. Por eso ese contenido llega al proveedor del modelo de la misma forma que el resto de tu sesión de Claude Code.
 
@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Después, elimina `.git/lim/review-loop/` en cada repositorio donde lo ejecutaste, y la línea `.lim-review/` de su `.git/info/exclude`. Un worktree vinculado también tiene su propia carpeta; el [review-loop README](../../plugins/review-loop/README.md#data) muestra cómo encontrarla.
+Después, elimina `.git/lim/review-loop/` en cada repositorio donde lo ejecutaste, y la línea `.lim-review/` de su `.git/info/exclude`. En un submódulo, o en un repositorio creado con `git init --separate-git-dir`, `.git` es un archivo y esas rutas no existen. Un worktree vinculado también tiene su propia carpeta. El [review-loop README](../../plugins/review-loop/README.md#data) muestra cómo encontrar la carpeta en ambos casos.
 
 ## Hazlo tuyo
 

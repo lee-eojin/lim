@@ -303,7 +303,7 @@ A commit is local and easy to undo. A push is not. review-loop stops at the comm
 
 ## Data
 
-State, diffs, check logs, and a decision ledger live in `.git/lim/review-loop/` inside your repository. Claude writes each review to `.lim-review/` in your working tree for a moment; git ignores that folder through `.git/info/exclude`, and review-loop deletes the file after reading it. To check a rule, review-loop writes the code from before the fix to a temporary folder outside your repository and deletes it afterwards. Delete `.git/lim/review-loop/` to reset. A linked worktree keeps its review in one folder and the settings it shares with the whole repository in another; the [review-loop README](plugins/review-loop/README.md#data) shows how to find and reset each.
+State, diffs, check logs, and a decision ledger live in `.git/lim/review-loop/` inside your repository. Claude writes each review to `.lim-review/` in your working tree for a moment; git ignores that folder through `.git/info/exclude`, and review-loop deletes the file after reading it. To check a rule, review-loop writes the code from before the fix to a temporary folder outside your repository and deletes it afterwards. Delete `.git/lim/review-loop/` to reset. In a submodule, or a repository made with `git init --separate-git-dir`, `.git` is a file and that path does not exist. A linked worktree keeps its review in one folder and the settings it shares with the whole repository in another. The [review-loop README](plugins/review-loop/README.md#data) shows how to find and reset the folders in both cases.
 
 review-loop makes no network calls of its own. Claude and the reviewer read the diff, the findings, and the check output like any other file in your session, so that content goes to the model provider in the same way as the rest of your Claude Code session.
 
@@ -340,7 +340,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Then delete `.git/lim/review-loop/` in each repository where you ran it, and the `.lim-review/` line in its `.git/info/exclude`. A linked worktree also has its own folder; the [review-loop README](plugins/review-loop/README.md#data) shows how to find it.
+Then delete `.git/lim/review-loop/` in each repository where you ran it, and the `.lim-review/` line in its `.git/info/exclude`. In a submodule, or a repository made with `git init --separate-git-dir`, `.git` is a file and those paths do not exist. A linked worktree also has its own folder. The [review-loop README](plugins/review-loop/README.md#data) shows how to find the folder in both cases.
 
 ## Make it yours
 

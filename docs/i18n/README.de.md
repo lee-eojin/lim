@@ -305,7 +305,7 @@ Ein Commit ist lokal und leicht rückgängig zu machen. Ein Push nicht. review-l
 
 ## Daten
 
-Zustand, Diffs, Check-Logs und ein Entscheidungsprotokoll liegen in `.git/lim/review-loop/` in deinem Repository. Claude schreibt jedes Review für einen Moment in `.lim-review/` in deinem Working Tree; git ignoriert diesen Ordner über `.git/info/exclude`, und review-loop löscht die Datei, nachdem es sie gelesen hat. Um eine Regel zu prüfen, schreibt review-loop den Code von vor dem Fix in einen temporären Ordner außerhalb deines Repositorys und löscht ihn danach. Lösche `.git/lim/review-loop/`, um alles zurückzusetzen. Ein verknüpfter Worktree speichert sein Review in einem Ordner und die Einstellungen, die er mit dem ganzen Repository teilt, in einem anderen; die [review-loop README](../../plugins/review-loop/README.md#data) zeigt, wie du beide findest und zurücksetzt.
+Zustand, Diffs, Check-Logs und ein Entscheidungsprotokoll liegen in `.git/lim/review-loop/` in deinem Repository. Claude schreibt jedes Review für einen Moment in `.lim-review/` in deinem Working Tree; git ignoriert diesen Ordner über `.git/info/exclude`, und review-loop löscht die Datei, nachdem es sie gelesen hat. Um eine Regel zu prüfen, schreibt review-loop den Code von vor dem Fix in einen temporären Ordner außerhalb deines Repositorys und löscht ihn danach. Lösche `.git/lim/review-loop/`, um alles zurückzusetzen. In einem Submodul oder in einem Repository, das mit `git init --separate-git-dir` erstellt wurde, ist `.git` eine Datei, und diesen Pfad gibt es nicht. Ein verknüpfter Worktree speichert sein Review in einem Ordner und die Einstellungen, die er mit dem ganzen Repository teilt, in einem anderen. Die [review-loop README](../../plugins/review-loop/README.md#data) zeigt für beide Fälle, wie du die Ordner findest und zurücksetzt.
 
 review-loop sendet selbst keine Netzwerkanfragen. Claude und der Reviewer lesen den Diff, die Findings und die Check-Ausgabe wie jede andere Datei in deiner Session. Darum geht dieser Inhalt auf dieselbe Weise an den Modellanbieter wie der Rest deiner Claude-Code-Session.
 
@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Lösche danach `.git/lim/review-loop/` in jedem Repository, in dem du review-loop ausgeführt hast, und die Zeile `.lim-review/` in seiner `.git/info/exclude`. Ein verknüpfter Worktree hat außerdem einen eigenen Ordner; die [review-loop README](../../plugins/review-loop/README.md#data) zeigt, wie du ihn findest.
+Lösche danach `.git/lim/review-loop/` in jedem Repository, in dem du review-loop ausgeführt hast, und die Zeile `.lim-review/` in seiner `.git/info/exclude`. In einem Submodul oder in einem Repository, das mit `git init --separate-git-dir` erstellt wurde, ist `.git` eine Datei, und diese Pfade gibt es nicht. Ein verknüpfter Worktree hat außerdem einen eigenen Ordner. Die [review-loop README](../../plugins/review-loop/README.md#data) zeigt für beide Fälle, wie du den Ordner findest.
 
 ## Mach es zu deinem
 

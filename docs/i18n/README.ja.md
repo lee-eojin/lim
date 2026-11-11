@@ -305,7 +305,7 @@ review-loopは、LIM自身のpull requestの多くをレビューしてきまし
 
 ## データ
 
-状態、diff、チェックのログ、判断の記録(decision ledger)は、リポジトリ内の`.git/lim/review-loop/`に保存されます。Claudeは各レビューを作業ツリーの`.lim-review/`に一時的に書き込みます。gitは`.git/info/exclude`によってこのフォルダーを無視し、review-loopはファイルを読み込んだ後に削除します。ルールを確認するとき、review-loopは修正前のコードをリポジトリ外の一時フォルダーに書き込み、終わったら削除します。リセットするには、`.git/lim/review-loop/`を削除します。リンクされたworktreeでは、レビューは1つのフォルダーに、リポジトリ全体で共有する設定は別のフォルダーに保存されます。それぞれの場所とリセットの方法は[review-loop README](../../plugins/review-loop/README.md#data)にあります。
+状態、diff、チェックのログ、判断の記録(decision ledger)は、リポジトリ内の`.git/lim/review-loop/`に保存されます。Claudeは各レビューを作業ツリーの`.lim-review/`に一時的に書き込みます。gitは`.git/info/exclude`によってこのフォルダーを無視し、review-loopはファイルを読み込んだ後に削除します。ルールを確認するとき、review-loopは修正前のコードをリポジトリ外の一時フォルダーに書き込み、終わったら削除します。リセットするには、`.git/lim/review-loop/`を削除します。サブモジュール、または`git init --separate-git-dir`で作ったリポジトリでは、`.git`はファイルなので、このパスはありません。リンクされたworktreeでは、レビューは1つのフォルダーに、リポジトリ全体で共有する設定は別のフォルダーに保存されます。どちらの場合も、フォルダーの場所とリセットの方法は[review-loop README](../../plugins/review-loop/README.md#data)にあります。
 
 review-loop自体はネットワーク通信を行いません。Claudeとレビュアーは、diff、指摘、チェックの出力を、セッション内の他のファイルと同じように読みます。そのため、これらの内容は、Claude Codeセッションの他の内容と同じように、モデルの提供元に送信されます。
 
@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-その後、review-loopを実行した各リポジトリで`.git/lim/review-loop/`と、`.git/info/exclude`の`.lim-review/`の行を削除します。リンクされたworktreeには、そのworktree専用のフォルダーもあります。場所の調べ方は[review-loop README](../../plugins/review-loop/README.md#data)にあります。
+その後、review-loopを実行した各リポジトリで`.git/lim/review-loop/`と、`.git/info/exclude`の`.lim-review/`の行を削除します。サブモジュール、または`git init --separate-git-dir`で作ったリポジトリでは、`.git`はファイルなので、これらのパスはありません。リンクされたworktreeには、そのworktree専用のフォルダーもあります。どちらの場合も、フォルダーの場所の調べ方は[review-loop README](../../plugins/review-loop/README.md#data)にあります。
 
 ## 自分のものにする
 

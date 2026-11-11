@@ -305,7 +305,7 @@ Commit bersifat lokal dan mudah dibatalkan. Push tidak. review-loop berhenti di 
 
 ## Data
 
-State, diff, log pemeriksaan, dan catatan keputusan disimpan di `.git/lim/review-loop/` di dalam repository milikmu. Claude menulis setiap review ke `.lim-review/` di working tree milikmu untuk sesaat; git mengabaikan folder itu melalui `.git/info/exclude`, dan review-loop menghapus file tersebut setelah membacanya. Untuk memeriksa aturan, review-loop menulis kode dari sebelum perbaikan ke folder sementara di luar repository milikmu, lalu menghapusnya setelah selesai. Hapus `.git/lim/review-loop/` untuk mengatur ulang. Worktree yang tertaut menyimpan review-nya di satu folder dan pengaturan yang dibagi dengan seluruh repository di folder lain; [review-loop README](../../plugins/review-loop/README.md#data) menjelaskan cara menemukan dan mengatur ulang masing-masing.
+State, diff, log pemeriksaan, dan catatan keputusan disimpan di `.git/lim/review-loop/` di dalam repository milikmu. Claude menulis setiap review ke `.lim-review/` di working tree milikmu untuk sesaat; git mengabaikan folder itu melalui `.git/info/exclude`, dan review-loop menghapus file tersebut setelah membacanya. Untuk memeriksa aturan, review-loop menulis kode dari sebelum perbaikan ke folder sementara di luar repository milikmu, lalu menghapusnya setelah selesai. Hapus `.git/lim/review-loop/` untuk mengatur ulang. Di submodule, atau di repository yang dibuat dengan `git init --separate-git-dir`, `.git` adalah file sehingga path itu tidak ada. Worktree yang tertaut menyimpan review-nya di satu folder dan pengaturan yang dibagi dengan seluruh repository di folder lain. [review-loop README](../../plugins/review-loop/README.md#data) menjelaskan cara menemukan dan mengatur ulang folder untuk kedua kasus itu.
 
 review-loop tidak melakukan panggilan jaringan sendiri. Claude dan reviewer membaca diff, temuan, dan output pemeriksaan seperti file lain di sesimu. Karena itu, konten tersebut dikirim ke penyedia model dengan cara yang sama seperti bagian lain dari sesi Claude Code milikmu.
 
@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-Lalu hapus `.git/lim/review-loop/` di setiap repository tempat kamu menjalankan review-loop, beserta baris `.lim-review/` di `.git/info/exclude` miliknya. Worktree yang tertaut juga punya folder sendiri; [review-loop README](../../plugins/review-loop/README.md#data) menjelaskan cara menemukannya.
+Lalu hapus `.git/lim/review-loop/` di setiap repository tempat kamu menjalankan review-loop, beserta baris `.lim-review/` di `.git/info/exclude` miliknya. Di submodule, atau di repository yang dibuat dengan `git init --separate-git-dir`, `.git` adalah file sehingga path-path itu tidak ada. Worktree yang tertaut juga punya folder sendiri. [review-loop README](../../plugins/review-loop/README.md#data) menjelaskan cara menemukan folder untuk kedua kasus itu.
 
 ## Jadikan milikmu
 

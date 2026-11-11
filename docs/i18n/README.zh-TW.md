@@ -305,7 +305,7 @@ review-loop 已經審查過 LIM 自己的許多 pull request。[#8](https://gith
 
 ## 資料
 
-狀態、diff、檢查日誌和決策紀錄存放在你的儲存庫內的 `.git/lim/review-loop/` 資料夾中。Claude 會把每次審查短暫寫入工作目錄中的 `.lim-review/`；git 透過 `.git/info/exclude` 忽略這個資料夾，review-loop 讀取後會刪除該檔案。為了檢查規則，review-loop 會把修正之前的程式碼寫入儲存庫之外的暫存資料夾，並在之後刪除它。如果要重設，請刪除 `.git/lim/review-loop/`。連結的 worktree 把審查存放在一個資料夾中，把與整個儲存庫共用的設定存放在另一個資料夾中；[review-loop README](../../plugins/review-loop/README.md#data) 說明了如何找到並重設每一個。
+狀態、diff、檢查日誌和決策紀錄存放在你的儲存庫內的 `.git/lim/review-loop/` 資料夾中。Claude 會把每次審查短暫寫入工作目錄中的 `.lim-review/`；git 透過 `.git/info/exclude` 忽略這個資料夾，review-loop 讀取後會刪除該檔案。為了檢查規則，review-loop 會把修正之前的程式碼寫入儲存庫之外的暫存資料夾，並在之後刪除它。如果要重設，請刪除 `.git/lim/review-loop/`。在子模組中，或在用 `git init --separate-git-dir` 建立的儲存庫中，`.git` 是一個檔案，這個路徑不存在。連結的 worktree 把審查存放在一個資料夾中，把與整個儲存庫共用的設定存放在另一個資料夾中。[review-loop README](../../plugins/review-loop/README.md#data) 說明了這兩種情況下如何找到並重設資料夾。
 
 review-loop 本身不會發出任何網路請求。Claude 和審查者讀取 diff、發現項目和檢查輸出的方式，與讀取你工作階段中其他檔案的方式相同。因此，這些內容會和你的 Claude Code 工作階段的其餘內容一樣傳送給模型供應商。
 
@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-接著，在每個執行過 review-loop 的儲存庫中刪除 `.git/lim/review-loop/`，以及 `.git/info/exclude` 中的 `.lim-review/` 這一行。連結的 worktree 也有自己的資料夾；[review-loop README](../../plugins/review-loop/README.md#data) 說明了如何找到它。
+接著，在每個執行過 review-loop 的儲存庫中刪除 `.git/lim/review-loop/`，以及 `.git/info/exclude` 中的 `.lim-review/` 這一行。在子模組中，或在用 `git init --separate-git-dir` 建立的儲存庫中，`.git` 是一個檔案，這些路徑不存在。連結的 worktree 也有自己的資料夾。[review-loop README](../../plugins/review-loop/README.md#data) 說明了這兩種情況下如何找到資料夾。
 
 ## 打造你自己的版本
 

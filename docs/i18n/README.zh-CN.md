@@ -305,7 +305,7 @@ review-loop 已经审查过 LIM 自己的许多 pull request。[#8](https://gith
 
 ## 数据
 
-状态、diff、检查日志和决策记录存放在你的仓库内的 `.git/lim/review-loop/` 目录中。Claude 会把每次审查短暂写入工作区中的 `.lim-review/`；git 通过 `.git/info/exclude` 忽略这个目录，review-loop 读取后会删除该文件。为了检查规则，review-loop 会把修复之前的代码写入仓库之外的临时目录，并在之后删除它。如果要重置，请删除 `.git/lim/review-loop/`。链接的 worktree 把审查存放在一个目录中，把与整个仓库共享的设置存放在另一个目录中；[review-loop README](../../plugins/review-loop/README.md#data) 说明了如何找到并重置每一个。
+状态、diff、检查日志和决策记录存放在你的仓库内的 `.git/lim/review-loop/` 目录中。Claude 会把每次审查短暂写入工作区中的 `.lim-review/`；git 通过 `.git/info/exclude` 忽略这个目录，review-loop 读取后会删除该文件。为了检查规则，review-loop 会把修复之前的代码写入仓库之外的临时目录，并在之后删除它。如果要重置，请删除 `.git/lim/review-loop/`。在子模块中，或在用 `git init --separate-git-dir` 创建的仓库中，`.git` 是一个文件，这个路径不存在。链接的 worktree 把审查存放在一个目录中，把与整个仓库共享的设置存放在另一个目录中。[review-loop README](../../plugins/review-loop/README.md#data) 说明了这两种情况下如何找到并重置目录。
 
 review-loop 本身不发起任何网络请求。Claude 和审查者读取 diff、发现项和检查输出的方式，与读取你会话中其他文件的方式相同。因此，这些内容会和你的 Claude Code 会话的其余内容一样发送给模型提供方。
 
@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-然后，在每个运行过 review-loop 的仓库中删除 `.git/lim/review-loop/`，以及 `.git/info/exclude` 中的 `.lim-review/` 这一行。链接的 worktree 还有自己的目录；[review-loop README](../../plugins/review-loop/README.md#data) 说明了如何找到它。
+然后，在每个运行过 review-loop 的仓库中删除 `.git/lim/review-loop/`，以及 `.git/info/exclude` 中的 `.lim-review/` 这一行。在子模块中，或在用 `git init --separate-git-dir` 创建的仓库中，`.git` 是一个文件，这些路径不存在。链接的 worktree 还有自己的目录。[review-loop README](../../plugins/review-loop/README.md#data) 说明了这两种情况下如何找到目录。
 
 ## 打造你自己的版本
 
