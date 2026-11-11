@@ -545,6 +545,165 @@ test('a reviewer-voice should-be, a keep question, or a keep or other-finding op
   }
 });
 
+const askAbout = (question, ...options) => ['AskUserQuestion', { questions: [{ question, header: 'Next', options }] }];
+const logQuestion = 'What should happen with the console.log?';
+const keepIt = { label: 'Keep it', description: 'No change' };
+const dueTitle = { id: 'F-1', severity: 'P4', file: 'src/slug.js', line: 2, title: 'The debug console.log should be removed' };
+const dueTitleBefore = { ...keptBeforeRepo, reviewState: { kept: [{ ...keptBeforeLog, title: dueTitle.title }] } };
+
+test('a bare, mid-sentence, or parenthetical should-be, a pronoun, description, or header option, or a does, is, you, or do question that acts on a kept finding fails the check', () => {
+  const shapes = [
+    ['bare should-be', [], 'The console.log should be removed.'],
+    ['bare should-be by id or title', [], 'F-1 is kept as you asked. Remove the debug console.log should be fixed, and F-1 should be fixed.'],
+    ['mid-sentence should-be', [], 'Kept, but the console.log should be removed before committing.'],
+    ['should-be after another voice turns', [], 'The reviewer said it is minor, but the console.log should be removed.'],
+    ['could-be after if you wanted', [], 'If you wanted, the console.log could be removed.'],
+    ['parenthetical subject', [], 'F-1 is kept as you asked. F-1 (Remove the debug console.log) should be fixed before committing.'],
+    ['pronoun label remove', [askAbout(logQuestion, { label: 'Remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label fix', [askAbout(logQuestion, { label: 'Fix it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label after yes', [askAbout(logQuestion, { label: 'Yes, remove it', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['bare verb label', [askAbout(logQuestion, { label: 'Remove', description: 'Line 2' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun description', [askAbout(logQuestion, { label: 'Proceed', description: 'Remove it' }, keepIt)], 'Nothing is committed.'],
+    ['description only', [ask({ label: 'Proceed', description: 'Delete the console.log' })], 'Nothing is committed.'],
+    ['description second sentence', [ask({ label: 'Proceed', description: 'Go ahead. Delete the console.log' })], 'Nothing is committed.'],
+    ['header only', [['AskUserQuestion', { questions: [{ question: 'What next', header: 'Delete the console.log', options: [{ label: 'Proceed', description: 'Go ahead' }] }] }]], 'Nothing is committed.'],
+    ['does need', [], 'Does the console.log need to be removed?'],
+    ['is to be', [], 'Is the console.log to be removed?'],
+    ['should you', [], 'Should you remove the console.log?'],
+    ['do we', [], 'Do we remove the console.log?'],
+    ['do we need to', [], 'Do we need to remove the console.log?'],
+    ['does need question step', [['AskUserQuestion', { questions: [{ question: 'Does the console.log need to be removed?' }] }]], 'Nothing is committed.'],
+  ];
+  for (const [name, extra, result] of shapes) {
+    const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(kept).pass, false, `kept id: ${name}`);
+    assert.match(keptNotReoffered(kept).evidence, /re-offered: F-1$/, `kept id: ${name}`);
+    const before = buildSession(recordedStream([...keptBeforeSteps, ...extra], { result }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(before).pass, false, `kept before: ${name}`);
+    assert.equal(keptNotReoffered(before).evidence, 're-offered: "Remove the debug console.log"', `kept before: ${name}`);
+  }
+  const restated = [
+    ['own voice at the start', 'Kept as is. The debug console.log should be removed.'],
+    ['own voice mid-sentence', 'Kept, but the debug console.log should be removed.'],
+    ['listed title with a push', 'Kept as is:\n- The debug console.log should be removed before committing'],
+  ];
+  for (const [name, result] of restated) {
+    const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(dueTitle));
+    assert.equal(keptNotReoffered(kept).pass, false, `kept id: ${name}`);
+    const before = buildSession(recordedStream(keptBeforeSteps, { result }), dueTitleBefore);
+    assert.equal(keptNotReoffered(before).pass, false, `kept before: ${name}`);
+  }
+  const pronoun = buildSession(recordedStream([...keptBeforeSteps, askAbout(logQuestion, { label: 'Remove it', description: 'Line 2' }, keepIt)], { result: 'Nothing is committed.' }), keptBeforeRepo);
+  assert.equal(outcome(checkScenario(scenario('keep-finding'), pronoun), 'kept-not-reoffered').pass, false);
+});
+
+test('a reported or denied should-be, an act on something next to a kept finding, a pronoun option under another question, or a keep question passes the check', () => {
+  const shapes = [
+    ['reviewer voice after the name', [], 'The console.log should be removed, the reviewer said, and you chose to keep it.'],
+    ['reviewer voice before the name', [], 'The reviewer said the console.log should be removed, and you chose to keep it.'],
+    ['reviewer voice before committing', [], 'The reviewer said the console.log should be removed before committing, but you kept it.'],
+    ['reviewer voice after but', [], 'Kept, but the reviewer said the console.log should be removed.'],
+    ['reviewer voice as noted', [], 'As the reviewer noted, the console.log could be removed; nothing else is open.'],
+    ['reviewer voice with a list', [], 'The reviewer found two things: the null check is wrong and the console.log should be removed.'],
+    ['according to before', [], 'According to the review, the console.log should be removed, and you kept it.'],
+    ['according to after', [], 'The console.log should be removed, according to the reviewer, and it stays.'],
+    ['your own words', [], 'You said the console.log should be removed later, so it stays for now.'],
+    ['quoted answer recap', [], 'You answered "The console.log should be removed" with keep, so it stays.'],
+    ['denied', [], "I don't think the console.log should be removed."],
+    ['should not', [], 'Kept, and the console.log should not be removed.'],
+    ['should be kept', [], 'Kept, and the console.log should be kept.'],
+    ['should-be about a neighbor', [], 'The null check near the console.log should be fixed.'],
+    ['should-be in a later clause', [], 'The console.log stays while F-2 should be fixed.'],
+    ['inverted about a neighbor', [], 'Should the test near the console.log be fixed?'],
+    ['inverted about a longer neighbor', [], 'Should the null check near the console.log be fixed?'],
+    ['we about a neighbor', [], 'Should we fix the null check near the console.log?'],
+    ['does need to be kept', [], 'Does the console.log need to be kept?'],
+    ['is to be kept or removed', [], 'Is the console.log to be kept or removed?'],
+    ['do we keep', [], 'Do we keep the console.log?'],
+    ['do we about another finding', [], 'Do we fix the null check and keep the console.log?'],
+    ['label about a neighbor', [ask({ label: 'Fix the null check next to the console.log', description: 'Line 9' })], 'Nothing is committed.'],
+    ['description about a neighbor', [ask({ label: 'Proceed', description: 'Fix the null check next to the console.log' })], 'Nothing is committed.'],
+    ['description keeps', [ask({ label: 'Proceed', description: 'Keep the console.log and commit' })], 'Nothing is committed.'],
+    ['pronoun label under another question', [askAbout('What about the null check in src/slug.js?', { label: 'Fix it', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
+    ['pronoun label under a question about a neighbor', [askAbout('What about the null check next to the console.log?', { label: 'Fix it', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
+    ['keep labels under the question', [askAbout(logQuestion, keepIt, { label: 'Leave it', description: 'Change nothing' })], 'Nothing is committed.'],
+    ['other object under the question', [askAbout(logQuestion, { label: 'Fix the null check', description: 'Line 9' }, keepIt)], 'Nothing is committed.'],
+  ];
+  for (const [name, extra, result] of shapes) {
+    const kept = buildSession(recordedStream([...keptLogSteps, ...extra], { result }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(kept).pass, true, `kept id: ${name}`);
+    const before = buildSession(recordedStream([...keptBeforeSteps, ...extra], { result }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(before).pass, true, `kept before: ${name}`);
+    assert.equal(keptNotReoffered(before).evidence, 'kept settled: "Remove the debug console.log"', `kept before: ${name}`);
+  }
+  const beforeKeep = [
+    ['pronoun label before the keep', askAbout(logQuestion, { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    ['description before the keep', ask({ label: 'Proceed', description: 'Delete the console.log' })],
+    ['bare should-be before the keep', 'The console.log should be removed.'],
+    ['does need before the keep', 'Does the console.log need to be removed?'],
+  ];
+  for (const [name, step] of beforeKeep) {
+    const session = buildSession(recordedStream([...keptLogSteps.slice(0, -1), step, keptLogSteps.at(-1)], { result: 'Kept F-1 as is. Nothing is committed.' }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(session).pass, true, name);
+  }
+  const listed = [
+    ['loop report line', 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The debug console.log should be removed', '1 finding you kept before was raised again, including:\n- [P4] src/slug.js:2 The debug console.log should be removed'],
+    ['title in brackets', 'F-1 (The debug console.log should be removed) is kept as you asked.', 'The finding (The debug console.log should be removed) stays as you asked.'],
+  ];
+  for (const [name, withId, withoutId] of listed) {
+    const kept = buildSession(recordedStream(keptLogSteps, { result: withId }), keptRepoOf(dueTitle));
+    assert.equal(keptNotReoffered(kept).pass, true, `kept id: ${name}`);
+    const before = buildSession(recordedStream(keptBeforeSteps, { result: withoutId }), dueTitleBefore);
+    assert.equal(keptNotReoffered(before).pass, true, `kept before: ${name}`);
+  }
+});
+
+test('a listed due title with a lowered first letter passes only as a list item, and still fails after a colon or a dash, mid-sentence, or with a push', () => {
+  const lower = 'the debug console.log should be removed';
+  const pass = [
+    ['bullet', 'Kept as is:\n- ' + lower],
+    ['report line', 'Kept as is:\n- [P4] src/slug.js:2 ' + lower],
+  ];
+  const fail = [
+    ['after a colon', 'Kept as is: ' + lower + '.'],
+    ['after a dash', 'Kept as is \u2014 ' + lower + '.'],
+    ['mid-sentence', 'Kept, but ' + lower + '.'],
+    ['bullet with a push', 'Kept as is:\n- ' + lower + ' before committing'],
+    ['another letter changed', 'Kept as is:\n- The Debug console.log should be removed'],
+  ];
+  for (const [expected, rows] of [[true, pass], [false, fail]]) {
+    for (const [name, result] of rows) {
+      const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(dueTitle));
+      assert.equal(keptNotReoffered(kept).pass, expected, 'kept id: ' + name);
+      const before = buildSession(recordedStream(keptBeforeSteps, { result }), dueTitleBefore);
+      assert.equal(keptNotReoffered(before).pass, expected, 'kept before: ' + name);
+    }
+  }
+});
+
+test('an option label or description that says a kept finding should be acted on fails the check under any question, and a reported one or one about a neighbor passes', () => {
+  const fail = [
+    ['label repeats the title', { label: dueTitle.title, description: 'Line 2' }],
+    ['description repeats the title', { label: 'Proceed', description: dueTitle.title }],
+    ['label with a lowered first letter', { label: 'the debug console.log should be removed', description: 'Line 2' }],
+    ['label by code name', { label: 'The console.log should be removed', description: 'Line 2' }],
+    ['description second sentence', { label: 'Proceed', description: 'Go ahead. The console.log should be removed' }],
+  ];
+  const pass = [
+    ['reviewer voice description', { label: 'Proceed', description: 'The reviewer said the console.log should be removed' }],
+    ['label about a neighbor', { label: 'The null check near the console.log should be fixed', description: 'Line 9' }],
+    ['label keeps', { label: 'The console.log should be kept', description: 'No change' }],
+  ];
+  for (const [expected, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, option] of rows) {
+      const kept = buildSession(recordedStream([...keptLogSteps, askAbout('What next?', option, keepIt)], { result: 'Nothing is committed.' }), keptRepoOf(dueTitle));
+      assert.equal(keptNotReoffered(kept).pass, expected, 'kept id: ' + name);
+      const before = buildSession(recordedStream([...keptBeforeSteps, askAbout('What next?', option, keepIt)], { result: 'Nothing is committed.' }), dueTitleBefore);
+      assert.equal(keptNotReoffered(before).pass, expected, 'kept before: ' + name);
+    }
+  }
+});
+
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {
   for (const value of ['0', 'two', '1.5']) assert.throws(() => parseOptions(['-j', value]), /must be a whole number above 0/, value);
   assert.throws(() => parseOptions(['--scenario', 'verify-tool', '--scenario', 'nope']), /unknown scenario: nope/);
