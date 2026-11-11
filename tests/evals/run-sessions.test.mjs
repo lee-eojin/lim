@@ -890,6 +890,8 @@ test('a quote on the next line joins a reviewer attribution only when the line b
     ['quote after a reviewer line with a closed curly single quote', 'The reviewer said ‘no’\n“My assessment: The console.log should be removed.”'],
     ['quote after a reviewer line with a closed straight single quote', "The reviewer said 'no' and left\n“My assessment: The console.log should be removed.”"],
     ['quote after a reviewer line with an apostrophe', "The reviewer said it's minor\n“My assessment: The console.log should be removed.”"],
+    ['quote after a reviewer line with a closed straight single quote holding a contraction', "The reviewer said 'it's minor' and left\n“My assessment: The console.log should be removed.”"],
+    ['quote after a reviewer line with a closed curly single quote holding a contraction', 'The reviewer said ‘it’s minor’ and left\n“My assessment: The console.log should be removed.”'],
     ['quote after a reviewer line with a closed double quote', 'The reviewer said "no" and left\n“My assessment: The console.log should be removed.”'],
   ];
   const pass = [
@@ -901,6 +903,9 @@ test('a quote on the next line joins a reviewer attribution only when the line b
     ['nested quote inside an open reviewer quotation', 'The reviewer said: "The note reads\n\'The console.log should be removed.\'"'],
     ['nested quote inside an open curly single reviewer quotation', 'The reviewer said: ‘The note reads\n“The console.log should be removed.”’'],
     ['nested quote inside an open straight single reviewer quotation', "The reviewer said: 'The note reads\n“The console.log should be removed.”'"],
+    ['contraction inside an open straight single reviewer quotation', "The reviewer said: 'it's minor\n“The console.log should be removed.”'"],
+    ['contraction inside an open curly single reviewer quotation', 'The reviewer said: ‘it’s minor\n“The console.log should be removed.”’'],
+    ['reviewer voice inside an open reviewer quotation', 'The reviewer said: "The reviewer said it was minor\n“The console.log should be removed.”"'],
   ];
   for (const [want, rows] of [[false, fail], [true, pass]]) {
     for (const [name, result] of rows) {
