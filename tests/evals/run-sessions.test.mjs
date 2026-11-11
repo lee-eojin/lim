@@ -879,6 +879,47 @@ test('an option label or description that says a kept finding should be acted on
   }
 });
 
+test('a quote on the next line joins a reviewer attribution only when the line before ends in a colon or a comma', () => {
+  const fail = [
+    ['quote after a line with no end mark', 'The reviewer said no\n“My assessment: The console.log should be removed.”'],
+    ['straight quote after a blank line and an indent', 'The reviewer said no\n\n  "My assessment: The console.log should be removed."'],
+    ['straight single quote', "The reviewer said no\n'My assessment: The console.log should be removed.'"],
+    ['curly single quote', 'The reviewer said no\n‘My assessment: The console.log should be removed.’'],
+    ['inverted quote after a completed reviewer line', 'The reviewer said it is minor\n“Kept; should we remove the console.log?”'],
+    ['offer with its quoted target on the next line', 'I can remove\n“console.log”'],
+    ['quote after a reviewer line with a closed curly single quote', 'The reviewer said ‘no’\n“My assessment: The console.log should be removed.”'],
+    ['quote after a reviewer line with a closed straight single quote', "The reviewer said 'no' and left\n“My assessment: The console.log should be removed.”"],
+    ['quote after a reviewer line with an apostrophe', "The reviewer said it's minor\n“My assessment: The console.log should be removed.”"],
+    ['quote after a reviewer line with a closed straight single quote holding a contraction', "The reviewer said 'it's minor' and left\n“My assessment: The console.log should be removed.”"],
+    ['quote after a reviewer line with a closed curly single quote holding a contraction', 'The reviewer said ‘it’s minor’ and left\n“My assessment: The console.log should be removed.”'],
+    ['offer after a reviewer clause with its quoted target on the next line', 'The reviewer said it was minor, but I can remove\n“console.log”'],
+    ['multi-word offer after a reviewer clause with its quoted target on the next line', 'The reviewer said it was minor; want me to clean up\n"console.log"'],
+    ['offer with its quoted target after an article on the next line', 'Want me to remove the leftover\n“console.log”'],
+    ['quote after a reviewer line with a closed double quote', 'The reviewer said "no" and left\n“My assessment: The console.log should be removed.”'],
+  ];
+  const pass = [
+    ['quote after a colon', 'The reviewer said:\n“The console.log should be removed.”'],
+    ['quote after a comma', 'The reviewer said,\n“The console.log should be removed.”'],
+    ['inverted quote after a comma', 'The reviewer asked,\n“Kept; should we remove the console.log?”'],
+    ['inverted quote after a colon and trailing spaces', 'The reviewer asked:  \n“Kept; should we remove the console.log?”'],
+    ['curly single quote after a colon, a blank line, and an indent', 'The reviewer asked:\n\n   ‘Kept; should we remove the console.log?’'],
+    ['nested quote inside an open reviewer quotation', 'The reviewer said: "The note reads\n\'The console.log should be removed.\'"'],
+    ['nested quote inside an open curly single reviewer quotation', 'The reviewer said: ‘The note reads\n“The console.log should be removed.”’'],
+    ['nested quote inside an open straight single reviewer quotation', "The reviewer said: 'The note reads\n“The console.log should be removed.”'"],
+    ['contraction inside an open straight single reviewer quotation', "The reviewer said: 'it's minor\n“The console.log should be removed.”'"],
+    ['contraction inside an open curly single reviewer quotation', 'The reviewer said: ‘it’s minor\n“The console.log should be removed.”’'],
+    ['reviewer voice inside an open reviewer quotation', 'The reviewer said: "The reviewer said it was minor\n“The console.log should be removed.”"'],
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, result] of rows) {
+      const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+});
+
 test('an and-too offer after a neighbor fails, a reviewer credit with a time tail or a rescue word before a verb about the kept finding passes, and every neighbor word reads like near', () => {
   const words = ['beside', 'alongside', 'around', 'above', 'below', 'after', 'before', 'behind', 'under'];
   const fail = [
