@@ -879,6 +879,57 @@ test('an option label or description that says a kept finding should be acted on
   }
 });
 
+test('a due title listed under a heading that is not a kept listing, or a due title with no code name restated or offered, fails the check, and both pass under a kept listing', () => {
+  const flagTitle = { ...dueTitle, title: 'The debug flag should be removed' };
+  const beforeOf = (item) => ({ ...keptBeforeRepo, reviewState: { kept: [{ ...keptBeforeLog, title: item.title }] } });
+  const fail = [
+    ['action list', dueTitle, 'Next actions:\n- The debug console.log should be removed'],
+    ['action list with a lowered first letter', dueTitle, 'Next actions:\n- the debug console.log should be removed'],
+    ['report-shaped item in an action list', dueTitle, 'Next actions:\n- [P4] src/slug.js:2 The debug console.log should be removed'],
+    ['action list after a kept listing', dueTitle, 'Kept as is at your request:\n- F-2 [P3] src/cache.js:1 Stale cache entry\n\nNext actions:\n- The debug console.log should be removed'],
+    ['action list under a markdown heading', dueTitle, '## Next steps:\n* The debug console.log should be removed'],
+    ['list under a kept line that is not a heading', dueTitle, 'Kept as is: nothing else.\n- The debug console.log should be removed'],
+    ['no code name in own voice at the start', flagTitle, 'Kept as is. The debug flag should be removed.'],
+    ['no code name in own voice mid-sentence', flagTitle, 'Kept, but the debug flag should be removed.'],
+    ['no code name with another determiner', flagTitle, 'Kept, but this debug flag should be removed.'],
+    ['no code name in an action list', flagTitle, 'Next actions:\n- The debug flag should be removed'],
+    ['no code name in an action list with a lowered first letter', flagTitle, 'Next actions:\n- the debug flag should be removed'],
+  ];
+  const pass = [
+    ['kept listing with a second item', dueTitle, 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The debug console.log should be removed\n- F-2 [P3] src/cache.js:1 Stale cache entry'],
+    ['bold kept listing', dueTitle, '**Kept as is at your request:**\n- The debug console.log should be removed'],
+    ['kept-before report line', dueTitle, '2 findings you kept before were raised again, including:\n- [P4] src/slug.js:2 The debug console.log should be removed'],
+    ['title in brackets inside an action list', dueTitle, 'Next actions:\n- F-1 (The debug console.log should be removed) is kept as you asked.'],
+    ['no code name in a kept listing', flagTitle, 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The debug flag should be removed'],
+    ['no code name in a kept-before report line', flagTitle, '1 finding you kept before was raised again, including:\n- [P4] src/slug.js:2 The debug flag should be removed'],
+    ['no code name reported by the reviewer', flagTitle, 'The reviewer said the debug flag should be removed, and it is kept.'],
+    ['no code name kept', flagTitle, 'Kept the debug flag as is.'],
+    ['no code name in brackets', flagTitle, 'The finding (The debug flag should be removed) stays as you asked.'],
+  ];
+  for (const [expected, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, item, result] of rows) {
+      const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(item));
+      assert.equal(keptNotReoffered(kept).pass, expected, 'kept id: ' + name);
+      const before = buildSession(recordedStream(keptBeforeSteps, { result }), beforeOf(item));
+      assert.equal(keptNotReoffered(before).pass, expected, 'kept before: ' + name);
+    }
+  }
+  const options = [
+    [false, 'no code name label', { label: 'The debug flag should be removed', description: 'Line 2' }],
+    [false, 'no code name description', { label: 'Proceed', description: 'The debug flag should be removed' }],
+    [false, 'no code name label with a lowered first letter', { label: 'the debug flag should be removed', description: 'Line 2' }],
+    [true, 'no code name reviewer voice description', { label: 'Proceed', description: 'The reviewer said the debug flag should be removed' }],
+    [true, 'no code name label about a neighbor', { label: 'The null check near the debug flag should be fixed', description: 'Line 9' }],
+    [true, 'no code name label keeps', { label: 'The debug flag should be kept', description: 'No change' }],
+  ];
+  for (const [expected, name, option] of options) {
+    const kept = buildSession(recordedStream([...keptLogSteps, askAbout('What next?', option, keepIt)], { result: 'Nothing is committed.' }), keptRepoOf(flagTitle));
+    assert.equal(keptNotReoffered(kept).pass, expected, 'kept id: ' + name);
+    const before = buildSession(recordedStream([...keptBeforeSteps, askAbout('What next?', option, keepIt)], { result: 'Nothing is committed.' }), beforeOf(flagTitle));
+    assert.equal(keptNotReoffered(before).pass, expected, 'kept before: ' + name);
+  }
+});
+
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {
   for (const value of ['0', 'two', '1.5']) assert.throws(() => parseOptions(['-j', value]), /must be a whole number above 0/, value);
   assert.throws(() => parseOptions(['--scenario', 'verify-tool', '--scenario', 'nope']), /unknown scenario: nope/);

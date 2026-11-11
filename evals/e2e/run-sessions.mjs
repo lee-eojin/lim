@@ -228,6 +228,8 @@ const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+
 const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
 const ITEM = String.raw`(?<=^[\s>]*[*•–—-]\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?)`;
 const LISTED = String.raw`(?<=[\])(:"'\`*_•–—-]\s*|:\d+\s+)`;
+const LIST_PREFIX = /^[\s>]*[*•–—-]\s+(?:[A-Z]+-\d+\s+)?(?:\[\w+\]\s+)?(?:\S+:\d+\s+)?/;
+const KEPT_LISTING = /^[\s>#*_]*(?:kept as is\b[^\n]*|[^\n]*\byou\s+kept\s+before\b[^\n]*):[\s*_]*$/i;
 
 function offersToAct(anchor, segment, own = segment) {
   return new RegExp(`${OFFER_TO_ACT}(?:${BESIDE}|${INCLUDING})${anchor}`, 'i').test(segment)
@@ -269,15 +271,25 @@ function restatedTitles(records) {
 
 function actsOn(anchors, records, segments, questions) {
   const listed = restatedTitles(records);
-  const pairs = segments.map((segment) => [segment, listed ? segment.replace(listed, ' ') : segment]);
+  let underKept = false;
+  const pairs = segments.map((segment) => {
+    const prefix = segment.match(LIST_PREFIX)?.[0];
+    if (prefix === undefined) underKept = KEPT_LISTING.test(segment);
+    if (!listed) return [segment, segment];
+    if (prefix === undefined || underKept) return [segment, segment.replace(listed, ' ')];
+    return [segment, prefix + segment.slice(prefix.length).replace(listed, ' ')];
+  });
   return anchors.some((anchor) => pairs.some(([segment, own]) => offersToAct(anchor, segment, own)) || questions.some((question) => optionActs(anchor, question)));
 }
+
+const DUE_SUBJECT = new RegExp(String.raw`^(?:(?:the|a|an|this|that|your)\s+)?(.+?)\s+${DUE}`, 'i');
 
 function keptAnchors(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim().replace(/[;,]+$/, ''));
   const files = records.map((item) => item.file ?? '').join('\n');
   const names = texts.flatMap((text) => text.match(DOTTED_NAME) ?? []).filter((name) => !files.includes(name));
-  return [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
+  const subjects = texts.map((text) => text.match(DUE_SUBJECT)?.[1] ?? '').filter(Boolean);
+  return [...new Set([...texts, ...names, ...subjects])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
 }
 
 function keepStep(session, id) {
