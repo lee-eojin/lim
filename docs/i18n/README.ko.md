@@ -305,7 +305,7 @@ review-loop는 LIM 자체의 pull request를 많이 리뷰해 왔습니다. [#8]
 
 ## 데이터
 
-상태, diff, 검사 로그, 결정 기록(decision ledger)은 저장소 안의 `.git/lim/review-loop/`에 저장됩니다. Claude는 각 리뷰를 작업 트리의 `.lim-review/`에 잠깐 씁니다. git은 `.git/info/exclude`로 이 폴더를 무시하고, review-loop는 파일을 읽은 뒤 삭제합니다. 규칙을 확인할 때 review-loop는 수정 전 코드를 저장소 밖의 임시 폴더에 쓰고, 확인이 끝나면 삭제합니다. 초기화하려면 `.git/lim/review-loop/`를 삭제합니다. 연결된 worktree는 리뷰를 한 폴더에, 저장소 전체와 공유하는 설정을 다른 폴더에 저장합니다. 각 폴더를 찾고 초기화하는 방법은 [review-loop README](../../plugins/review-loop/README.md#data)에 있습니다.
+상태, diff, 검사 로그, 결정 기록(decision ledger)은 저장소 안의 `.git/lim/review-loop/`에 저장됩니다. Claude는 각 리뷰를 작업 트리의 `.lim-review/`에 잠깐 씁니다. git은 `.git/info/exclude`로 이 폴더를 무시하고, review-loop는 파일을 읽은 뒤 삭제합니다. 규칙을 확인할 때 review-loop는 수정 전 코드를 저장소 밖의 임시 폴더에 쓰고, 확인이 끝나면 삭제합니다. 초기화하려면 `.git/lim/review-loop/`를 삭제합니다. submodule이나 `git init --separate-git-dir`로 만든 저장소에서는 `.git`이 파일이어서 이 경로가 없습니다. 연결된 worktree는 리뷰를 한 폴더에, 저장소 전체와 공유하는 설정을 다른 폴더에 저장합니다. 두 경우 모두 폴더를 찾고 초기화하는 방법은 [review-loop README](../../plugins/review-loop/README.md#data)에 있습니다.
 
 review-loop는 자체적으로 네트워크 요청을 보내지 않습니다. Claude와 리뷰어는 diff, 지적 사항, 검사 출력을 세션의 다른 파일과 같은 방식으로 읽습니다. 그래서 이 내용은 Claude Code 세션의 나머지 내용과 같은 방식으로 모델 제공자에게 전달됩니다.
 
@@ -342,7 +342,7 @@ claude plugin uninstall review-loop@lim
 claude plugin marketplace remove lim
 ```
 
-그다음 review-loop를 실행한 각 저장소에서 `.git/lim/review-loop/`와 `.git/info/exclude`의 `.lim-review/` 줄을 삭제합니다. 연결된 worktree에는 그 worktree만의 폴더도 있습니다. 찾는 방법은 [review-loop README](../../plugins/review-loop/README.md#data)에 있습니다.
+그다음 review-loop를 실행한 각 저장소에서 `.git/lim/review-loop/`와 `.git/info/exclude`의 `.lim-review/` 줄을 삭제합니다. submodule이나 `git init --separate-git-dir`로 만든 저장소에서는 `.git`이 파일이어서 이 경로들이 없습니다. 연결된 worktree에는 그 worktree만의 폴더도 있습니다. 두 경우 모두 폴더를 찾는 방법은 [review-loop README](../../plugins/review-loop/README.md#data)에 있습니다. `git rev-parse --git-path info/exclude`는 exclude 파일의 경로를 출력합니다.
 
 ## 내 것으로 만들기
 
