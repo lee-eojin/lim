@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
-  chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync,
+  chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { definitionOf, judge, satisfies, validateMap } from '../../plugins/verify/skills/verify/scripts/verify.mjs';
+import { removeFolder, temporaryFolder } from '../temp-folders.mjs';
 
 const script = fileURLToPath(new URL('../../plugins/verify/skills/verify/scripts/verify.mjs', import.meta.url));
 const windows = process.platform === 'win32';
@@ -62,7 +62,7 @@ const upper = {
 };
 
 function createRepository(features, extraFiles = {}) {
-  const root = mkdtempSync(path.join(tmpdir(), 'verify-'));
+  const root = temporaryFolder('verify-');
   execFileSync('git', ['init', '-q'], { cwd: root });
   const files = { 'cli.js': cli, ...extraFiles };
   if (features !== undefined) files['verify.features.json'] = typeof features === 'string' ? features : JSON.stringify({ features });
@@ -405,7 +405,7 @@ describe('malformed map', () => {
   });
 
   test('outside a git repository the script says why it needs one', () => {
-    const folder = mkdtempSync(path.join(tmpdir(), 'verify-plain-'));
+    const folder = temporaryFolder('verify-plain-');
     const result = spawnSync('node', [script, 'run'], { cwd: folder, encoding: 'utf8', env: { ...process.env, GIT_CEILING_DIRECTORIES: path.dirname(folder) } });
     assert.equal(result.status, 2);
     assert.match(result.stderr, /verify needs a git repository/);
@@ -413,7 +413,7 @@ describe('malformed map', () => {
 });
 
 describe('checks that cannot fail are refused', () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'verify-validate-'));
+  const root = temporaryFolder('verify-validate-');
   const problemsFor = (entry) => validateMap({ features: [{ ...upper, ...entry }] }, root);
 
   test('a pattern that matches empty output is refused', () => {
@@ -601,7 +601,7 @@ describe('checks that cannot fail are refused', () => {
 });
 
 describe('only the project\'s own scripts and executables run', () => {
-  const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-forms-')));
+  const root = realpathSync.native(temporaryFolder('verify-forms-'));
   for (const file of ['bin/tool', 'node_modules/.bin/eslint', 'node_modules/eslint/bin/eslint.js', '.git/hooks/check.js']) {
     mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
     writeFileSync(path.join(root, file), '#!/usr/bin/env node\n', { mode: 0o755 });
@@ -681,9 +681,10 @@ describe('only the project\'s own scripts and executables run', () => {
     }
   });
 
-  test('a copy of the node binary in the repository is refused as a program', () => {
+  test('a copy of the node binary in the repository is refused as a program', (t) => {
     const entry = { ...upper, id: 'copied-node', run: ['verify-checks/n', '-e', "console.log('abc'.toUpperCase())"] };
     const copied = createRepository([entry]);
+    t.after(() => removeFolder(copied));
     mkdirSync(path.join(copied, 'verify-checks'));
     copyFileSync(process.execPath, path.join(copied, 'verify-checks/n'));
     const result = verify(copied, 'run');
@@ -802,7 +803,7 @@ describe('python3 scripts', () => {
   });
 
   test('a library helper in verify-checks/ adds the repository root itself and cannot import from an inherited PYTHONPATH', () => {
-    const decoy = mkdtempSync(path.join(tmpdir(), 'verify-decoy-'));
+    const decoy = temporaryFolder('verify-decoy-');
     mkdirSync(path.join(decoy, 'shelf'));
     writeFileSync(path.join(decoy, 'shelf', '__init__.py'), '');
     writeFileSync(path.join(decoy, 'shelf', 'stock.py'), 'def restock(levels, minimum):\n    return ["bolts", "washers"]\n');
@@ -889,7 +890,7 @@ describe('python3 scripts', () => {
   });
 
   describe('refusals', () => {
-    const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-python-')));
+    const root = realpathSync.native(temporaryFolder('verify-python-'));
     const files = {
       'tools/greet.py': greet, '.venv/bin/greet.py': greet, 'venv/lib/greet.py': greet, 'tools/__pycache__/greet.py': greet,
       'bin/absolute': '#!/usr/bin/python3\nprint(1)\n', 'bin/elsewhere': '#!/opt/python/bin/python3 \t\nprint(1)\n',
@@ -1004,7 +1005,7 @@ describe('paths in an entry are read from the repository root', () => {
   });
 
   test('a path that leaves the repository is refused with the path it resolves to', () => {
-    const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-paths-')));
+    const root = realpathSync.native(temporaryFolder('verify-paths-'));
     mkdirSync(path.join(root, 'app'));
     writeFileSync(path.join(root, 'cli.js'), cli);
     const outside = (name) => path.join(path.dirname(root), name);
@@ -1023,7 +1024,7 @@ describe('paths in an entry are read from the repository root', () => {
   });
 
   test('a cwd or file path that leaves the repository through a symbolic link is refused before anything runs', () => {
-    const outside = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-outside-')));
+    const outside = realpathSync.native(temporaryFolder('verify-outside-'));
     const save = {
       id: 'save', feature: 'Saves a value to a file in the folder it runs in', cwd: 'linked', run: ['node', 'cli.js', 'save', 'abc'],
       expect: { exitCode: 0, files: [{ path: 'linked/saved.txt', includes: 'saved abc' }, { path: 'linked/new/saved.txt', includes: 'saved abc' }] },
@@ -1042,7 +1043,7 @@ describe('paths in an entry are read from the repository root', () => {
   });
 
   test('a link to a file that does not exist yet is followed to where it points', () => {
-    const outside = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-outside-')));
+    const outside = realpathSync.native(temporaryFolder('verify-outside-'));
     const latest = {
       id: 'latest', feature: 'Writes the newest result where latest.txt points', run: ['node', 'writer.js'],
       expect: { exitCode: 0, files: [{ path: 'latest.txt', equals: 'written' }] },
@@ -1071,7 +1072,7 @@ describe('paths in an entry are read from the repository root', () => {
   });
 
   test('a link that an earlier check makes is checked again before a later check runs or its files are read', () => {
-    const outside = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'verify-outside-')));
+    const outside = realpathSync.native(temporaryFolder('verify-outside-'));
     const link = `const fs = require('node:fs');
 fs.rmSync('folder', { recursive: true });
 fs.symlinkSync(${JSON.stringify(outside)}, 'folder', 'junction');
@@ -1483,7 +1484,7 @@ describe('tree', () => {
   const save = { ...upper, id: 'save', run: ['node', 'cli.js', 'save', 'abc'], expect: { exitCode: 0, files: [{ path: 'saved.txt', equals: 'saved abc' }] } };
 
   function treeOf(root) {
-    const index = path.join(mkdtempSync(path.join(tmpdir(), 'verify-index-')), 'index');
+    const index = path.join(temporaryFolder('verify-index-'), 'index');
     const env = { ...process.env, GIT_INDEX_FILE: index };
     execFileSync('git', ['add', '-A'], { cwd: root, env });
     execFileSync('git', ['rm', '-r', '--cached', '--ignore-unmatch', '-q', '--', '.lim-review'], { cwd: root, env });
