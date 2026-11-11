@@ -203,8 +203,9 @@ function keptAnchors(records) {
   return [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
 }
 
-function proseAfterKeep(session) {
-  const keepAt = session.timeline.findLastIndex((item) => item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label));
+function proseAfterKeep(session, id) {
+  const keepOf = new RegExp(`--id[= ]${escapeRegex(id)}(?:\\s|$)`);
+  const keepAt = session.timeline.findLastIndex((item) => item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label) && keepOf.test(item.label));
   if (keepAt === -1) return session.finalMessage ?? '';
   const after = session.timeline.slice(keepAt + 1).flatMap((item) => {
     if (item.kind === 'text') return [item.text];
@@ -230,12 +231,12 @@ export function keptNotReoffered(session) {
     ...session.timeline.filter((item) => item.kind === 'text').map((item) => item.text),
     askText,
   ].join('\n');
-  const segments = proseAfterKeep(session).split(/\n+|(?<=[.?!])\s+/);
   const reoffered = keptIds.filter((id) => {
     const offer = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
     const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
     if (offer.test(prose) && !listedKeep.test(prose)) return true;
     const anchors = keptAnchors(keptRecords.filter((item) => item.id === id));
+    const segments = proseAfterKeep(session, id).split(/\n+|(?<=[.?!])\s+/);
     return anchors.some((anchor) => segments.some((segment) => new RegExp(`${OFFER_TO_ACT}${anchor}`, 'i').test(segment)));
   });
   return {

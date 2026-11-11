@@ -312,6 +312,13 @@ test('offering to act on a kept finding by its quote, title, or code name fails 
     assert.equal(keptNotReoffered(session).pass, false, name);
     assert.match(keptNotReoffered(session).evidence, new RegExp(`re-offered: ${item.id}`), name);
   }
+  const second = { id: 'F-2', severity: 'P3', file: 'src/slug.js', line: 4, title: 'Trailing hyphen kept', quote: "    .replace(/^-+|-+$/g, '');" };
+  const twoKeeps = buildSession(recordedStream([...keptLogSteps, 'Want me to remove the console.log?', loop('decide --id F-2 --choice keep')], { result: 'Both are kept.' }), {
+    ...keptRepoOf(keptConsoleLog),
+    reviewState: { kept: [keptConsoleLog, second] },
+  });
+  assert.equal(keptNotReoffered(twoKeeps).pass, false);
+  assert.match(keptNotReoffered(twoKeeps).evidence, /re-offered: F-1$/);
   const question = buildSession(recordedStream(cases[3][1], { result: cases[3][3] }), keptRepoOf(keptConsoleLog));
   assert.equal(outcome(checkScenario(scenario('keep-finding'), question), 'kept-not-reoffered').pass, false);
   const named = buildSession(recordedStream(keptLogSteps, { result: cases[0][3] }), keptRepoOf(keptConsoleLog));
