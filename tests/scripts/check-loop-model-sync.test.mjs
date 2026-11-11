@@ -231,6 +231,44 @@ test('a stale pin from the history of origin/main passes when only uncovered cod
   assert.match(result.stdout, /no covered name touched/);
 });
 
+test('a pin reached on origin/main only through a merge side branch passes when only uncovered code changed', (t) => {
+  const { cwd, git, write, commitLoop } = fixture(t);
+  git('checkout', '-q', '-b', 'side');
+  const side = commitLoop(mid);
+  commitLoop(loop);
+  git('checkout', '-q', 'main');
+  write('other.txt', 'main side\n');
+  git('add', '-A');
+  git('commit', '-q', '-m', 'unrelated');
+  git('merge', '-q', '--no-ff', '-m', 'merge side', 'side');
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+  git('checkout', '-q', '-b', 'edit');
+  write(skillPath, skill(side.slice(0, 7)));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'pin the side blob');
+  commitLoop(late);
+  const result = run(cwd);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /no covered name touched/);
+});
+
+test('a pin to a blob of another file on origin/main fails', (t) => {
+  const { cwd, git, write, commitLoop } = fixture(t);
+  write('other.mjs', mid);
+  git('add', '-A');
+  git('commit', '-q', '-m', 'other file');
+  const other = git('rev-parse', 'HEAD:other.mjs');
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+  git('checkout', '-q', '-b', 'edit');
+  write(skillPath, skill(other.slice(0, 7)));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'pin the other blob');
+  commitLoop(late);
+  const result = run(cwd);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr, notOnMain);
+});
+
 test('a pin that is not at HEAD exits 2 and names the ref when origin/main is missing', (t) => {
   const { cwd, git, commitLoop } = fixture(t);
   git('update-ref', '-d', 'refs/remotes/origin/main');

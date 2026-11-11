@@ -43,5 +43,5 @@ Guidance for AI agents working in this repository. Humans are welcome to read it
 | No blocked words, no invalid JSON | `scripts/check.sh` (blocked words only with `LIM_DENYLIST` or `LIM_DENYLIST_FILE`; in CI a missing list fails the check, except on pull requests from forks) |
 | Translations keep the English README's headings, numbers, and links | `node scripts/check-i18n.mjs` |
 | An evidence report has REVISION, REPRO, RUN, PROOF, LIMITS, and a known verdict | `node scripts/check-evidence-report.mjs <file>`, required by `.claude/skills/prove-it/SKILL.md` |
-| A function the review-loop model covers does not change past the skill's sync blob, and the sync blob is the loop.mjs at HEAD or a blob on origin/main | `node scripts/check-loop-model-sync.mjs`; `tests/scripts/check-loop-model-sync.test.mjs` runs it on this repository, except in a shallow clone |
+| A function the review-loop model covers does not change past the skill's sync blob, and the sync blob is the loop.mjs at HEAD or a loop.mjs blob on origin/main | `node scripts/check-loop-model-sync.mjs`; `tests/scripts/check-loop-model-sync.test.mjs` runs it on this repository, except in a shallow clone |
 | A pull request merges only after the `check` and `windows` CI jobs pass; the `macos` job is not required | The `main` ruleset's required status checks |

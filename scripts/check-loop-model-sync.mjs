@@ -75,7 +75,7 @@ function isOnBase(sync, blob) {
   if (git('rev-parse', '--verify', '--quiet', `${BASE}^{commit}`).status !== 0) {
     stop(`Cannot check that Sync blob ${sync} is on origin/main: ${BASE} is not in this repository. Fetch it (git fetch origin main:${BASE}) and run again.`);
   }
-  const objects = git('rev-list', '--objects', BASE);
+  const objects = git('rev-list', '--objects', '--full-history', BASE, '--', LOOP);
   if (objects.status !== 0) stop(`git rev-list failed: ${objects.stderr.trim()}`);
   return objects.stdout.split('\n').some((line) => line.startsWith(`${blob} `));
 }
