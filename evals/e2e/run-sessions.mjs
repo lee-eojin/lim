@@ -207,11 +207,10 @@ const GAP = String.raw`(?:(?!\b(?:nothing|no|not|none)\b)[^;,:?]){0,40}?`;
 const MODAL = 'should|shall|could|can|would|may|might|must';
 const DUE = String.raw`\b(?:${MODAL}|ought to|needs? to|has to|is to|are to)(?:\s+(?:still|also|always|easily|just|really))?\s+be\s+(?:${DONE})\b`;
 const OPENING = String.raw`(?:(?:and|but|so|then|also|still)[,\s]+)?`;
-const ONE = String.raw`(?!(?:when|where|why|how|what|which|who|whether|if|then|so|not|now|later|it|its|their|i|we|you|keep|leave|commit|${ACT}|${MODAL}|move|go|proceed|continue|skip|ship|merge|do|add|rerun|decide|push|[a-z]+ing)\b|[\w-]+\s+(?:it|this|that|them|these|those|on|up|later)\b)[a-z][\w-]*`;
+const ONE = String.raw`(?!(?:when|where|why|how|what|which|who|whether|if|then|so|not|now|later|it|its|their|i|we|you|keep|leave|commit|${ACT}|${MODAL}|move|go|proceed|continue|skip|ship|merge|do|add|rerun|run|decide|push|[a-z]+ing)\b|[\w-]+\s+(?:it|this|that|them|these|those|on|up|later)\b)[a-z][\w-]*`;
 const BARE = String.raw`${ONE}(?:\s+[a-z][\w-]*)?`;
 const OTHER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?!(?:[\w-]+\s+){0,2}(?:it|this|that|them|these|those)\b)[^\s?;,]+(?:\s+[^\s?;,]+){0,2}\s*\?|[A-Z]+-\d+\b|\x60[^\x60]|(?=[\w$]*(?:[._][\w$]|\())[a-z_$])`;
 const FORMER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?:[\w-]+\s+){0,2}[\w-]+|[A-Z]+-\d+|[._\x60(][\w$\x60)]+|(?<=\b(?:about|with|for)\s+)${BARE}|(?<=\bat\s+)${ONE})`;
-const TOPIC = String.raw`\b(?:(?:what|how)\s+about|what\s+should\s+happen\s+with)\s+`;
 const SUBJECT = String.raw`(?:(?:the|this|that|your)\s+)?(?:[\w-]+\s+)?`;
 const REACH = String.raw`(?:(?!\b(?:and|or|but|not|nothing|no|none)\b)[^;,:?"]){0,40}?`;
 const HOLD = String.raw`(?:(?!\b(?:and|or|but|not|while|whereas|though|although|unless|until|if|when|once|since|because)\b)[^;,]){0,20}?`;
@@ -220,7 +219,7 @@ const BESIDE = String.raw`(?<!\b(?:near|next\s+to|beside|alongside|around|above|
 const SAID = 'said|says|noted|notes|flagged|flags|suggested|suggests|recommended|recommends|found|thought|thinks|wrote|reported|reports|asked|wanted|wants|raised|mentioned|argued';
 const VOICE = String.raw`\b(?:(?:reviewer|review|finding|report)\s+(?:(?:also|had|has)\s+)?(?:${SAID})|you\s+(?:said|answered|noted|wrote|mentioned)|(?:according\s+to|per)\s+(?:the\s+|your\s+)?(?:reviewer|review|finding|report)|reviewer['’]s\s+[\w-]+)\b`;
 const REPORTED = String.raw`(?<!${VOICE}(?:(?!\bbut\b)[^;])*)`;
-const QUOTED = String.raw`(?<!${VOICE}[^"“]{0,30}(?:\\?["“][^"”]*|(?<!\w)['‘](?!\s)(?:[^'’]|\b['’]\b)*))`;
+const QUOTED = String.raw`(?<!${VOICE}(?:[^"“]{0,30}|[^"“.?!,;:\n]{0,80}[:,]\s*)(?:\\?["“][^"”]*|(?<!\w)['‘](?!\s)(?:[^'’]|\b['’]\b)*))`;
 const TURN = String.raw`(?:${LEAD}|(?:${QUOTED}[,;]|[,;]\\?["”'’]${QUOTED})\s*)${OPENING}`;
 const DENIED = String.raw`(?<!(?:\bnot|n['’]t|\bnever)\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
 const CREDITED = String.raw`(?![^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE}(?:\s+(?:so|too|earlier|before|first|again|in\s+(?:the\s+)?(?:previous|last|first|earlier)\s+(?:review|round)|in\s+round\s+\d+))?\s*(?:[,.;)!?]|$))`;
@@ -242,7 +241,7 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own);
 }
 
-const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“])|(?<=[.?!])${QUOTED}\s+`, 'i');
+const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<=[.?!])${QUOTED}\s+`, 'i');
 const segmentsOf = (prose) => prose.split(SENTENCE);
 
 function optionActs(anchor, question) {
@@ -255,9 +254,10 @@ function optionActs(anchor, question) {
   const asked = `${question?.header ?? ''}\n${question?.question ?? ''}`;
   const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(asked);
   const code = `\\x60?${anchor}\\x60?`;
-  const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|${ONE}\\s*\\?)|${TOPIC}${SUBJECT}${code}\\s*,?\\s*(?:and|or)\\s+${BARE}\\s*\\?`, 'i').test(asked);
+  const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|${BARE}(?:\\s+(?:first|too|as\\s+well))?\\s*\\?)`, 'i').test(asked);
   const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|[\\s.!]*$)`, 'i');
-  return named && !paired && choices.some((text) => pronoun.test(text));
+  const plural = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b\\s+(?:them|these|those|both)\\b`, 'i');
+  return named && choices.some((text) => (paired ? plural : pronoun).test(text));
 }
 
 function restatedTitles(records) {
