@@ -97,10 +97,10 @@ git diff --stat <commit> HEAD -- evals/review-loop/detection evals/review-loop/d
 2. Run the same small set of cases from the clone and from your checkout of `main`, one right after the other, on the same day and with the same Claude Code. Pick the cases that moved and a few that did not. Leave out a case the `git diff` above lists, because its fixture differs between the two commits. Give both runs the same options. Write the results outside the repository with `--out`, because `node --test` reads every file in `evals/review-loop/results/`.
 
 ```bash
-(cd "$old" && node evals/review-loop/run-detection.mjs --case duration-format --case page-range --runs 3 -j 4 --out "$out/detection-old.json")
-node evals/review-loop/run-detection.mjs --case duration-format --case page-range --runs 3 -j 4 --out "$out/detection-new.json"
-(cd "$old" && node evals/verify/run-benchmark.mjs --case jot-working --case jot-broken -j 2 --out "$out/verify-old.json")
-node evals/verify/run-benchmark.mjs --case jot-working --case jot-broken -j 2 --out "$out/verify-new.json"
+(cd "$old" && node evals/review-loop/run-detection.mjs --case page-range --case price-sort --runs 3 -j 4 --out "$out/detection-old.json")
+node evals/review-loop/run-detection.mjs --case page-range --case price-sort --runs 3 -j 4 --out "$out/detection-new.json"
+(cd "$old" && node evals/verify/run-benchmark.mjs --case tally-working --case tally-broken -j 2 --out "$out/verify-old.json")
+node evals/verify/run-benchmark.mjs --case tally-working --case tally-broken -j 2 --out "$out/verify-new.json"
 ```
 
 3. Compare. For the detection benchmark, use the runner on `main`, which calls no model. The verify runner has no `--compare`, so compare the table and the summary lines the two runs print; each results file keeps them under `summary` and `runs`.
