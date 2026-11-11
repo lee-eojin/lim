@@ -5,8 +5,7 @@
       "id": "en-closure",
       "arm": "with",
       "defect": "removed-definition",
-      "term": "private state",
-      "find": " (like `count` above, which no outside code can reach)"
+      "none": "the secondary term is explained only by an example, not a definition, so no definition can be removed"
     },
     {
       "id": "en-closure",
@@ -20,8 +19,7 @@
       "id": "en-closure",
       "arm": "without",
       "defect": "removed-definition",
-      "term": "closure",
-      "find": " plus the variables from the scope where it was created"
+      "none": "the only definition is of the term the question asks about, so removing it would take out the answer, not a definition of another term"
     },
     {
       "id": "en-closure",
@@ -258,8 +256,7 @@
       "id": "ko-isolation",
       "arm": "without",
       "defect": "removed-definition",
-      "term": "격리 수준",
-      "find": "동시에 실행되는 트랜잭션이 서로에게 얼마나 보이게 할지를 정하는 규칙입니다. "
+      "none": "the term the only removable definition names is explained again elsewhere in the answer, so removing it would leave the term defined"
     },
     {
       "id": "ko-isolation",
@@ -345,8 +342,7 @@
       "id": "ko-key",
       "arm": "without",
       "defect": "removed-definition",
-      "term": "key",
-      "find": " 이때 이전 리스트의 어느 항목이 새 리스트의 어느 항목과 같은지 판단하는 기준이 key입니다."
+      "none": "the term the only removable definition names is explained again elsewhere in the answer, so removing it would leave the term defined"
     },
     {
       "id": "ko-key",

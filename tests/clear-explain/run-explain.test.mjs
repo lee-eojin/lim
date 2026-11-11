@@ -385,8 +385,9 @@ test('each hand-written variant is one bounded edit of one stored answer, and an
       }
     }
   }
-  assert.deepEqual(none, ['en-await-loop with removed-definition', 'ko-memo without removed-definition', 'ko-unknown without removed-definition',
-    'ko-401-403 without removed-definition', 'ko-key with removed-definition']);
+  assert.deepEqual(none, ['en-closure with removed-definition', 'en-closure without removed-definition', 'en-await-loop with removed-definition',
+    'ko-memo without removed-definition', 'ko-isolation without removed-definition', 'ko-unknown without removed-definition',
+    'ko-401-403 without removed-definition', 'ko-key with removed-definition', 'ko-key without removed-definition']);
 });
 
 test('a hand-written edit refuses an anchor that is missing or repeated and names the answer and the defect', () => {
