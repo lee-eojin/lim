@@ -247,7 +247,7 @@ function offersToAct(anchor, segment, own = segment) {
 }
 
 const UNQUOTED = String.raw`(?:[^"“‘'\n]|(?<=\w)')*(?:(?:["“][^"”\n]*["”]|‘(?:[^’\n]|’(?=\w))*’(?!\w)|(?<!\w)'(?:[^'\n]|'(?=\w))*'(?!\w))(?:[^"“‘'\n]|(?<=\w)')*)*`;
-const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<=(?:^|\n)${UNQUOTED}${VOICE}${UNQUOTED})(?<![:,]\s*)\n\s*(?=["“'‘])|(?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+`, 'i');
+const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<=(?:^|\n)${UNQUOTED}${VOICE}${UNQUOTED})(?<![:,]\s*)(?<!\b(?:${ACT})\s*)\n\s*(?=["“'‘])|(?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+`, 'i');
 const segmentsOf = (prose) => prose.split(SENTENCE);
 
 function optionActs(anchor, question) {

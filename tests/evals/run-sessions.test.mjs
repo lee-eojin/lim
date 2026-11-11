@@ -892,6 +892,9 @@ test('a quote on the next line joins a reviewer attribution only when the line b
     ['quote after a reviewer line with an apostrophe', "The reviewer said it's minor\n“My assessment: The console.log should be removed.”"],
     ['quote after a reviewer line with a closed straight single quote holding a contraction', "The reviewer said 'it's minor' and left\n“My assessment: The console.log should be removed.”"],
     ['quote after a reviewer line with a closed curly single quote holding a contraction', 'The reviewer said ‘it’s minor’ and left\n“My assessment: The console.log should be removed.”'],
+    ['offer after a reviewer clause with its quoted target on the next line', 'The reviewer said it was minor, but I can remove\n“console.log”'],
+    ['multi-word offer after a reviewer clause with its quoted target on the next line', 'The reviewer said it was minor; want me to clean up\n"console.log"'],
+    ['offer with its quoted target after an article on the next line', 'Want me to remove the leftover\n“console.log”'],
     ['quote after a reviewer line with a closed double quote', 'The reviewer said "no" and left\n“My assessment: The console.log should be removed.”'],
   ];
   const pass = [
