@@ -80,6 +80,45 @@ Compare the two results files with `--compare <before> <after>`, which calls no 
 
 For a change to `SKILL.md`, also do the manual B05 and B31 run in [`evals/review-loop/manual-behaviors.md`](evals/review-loop/manual-behaviors.md) and report the result.
 
+### When a benchmark result moves and nothing here changed
+
+A benchmark result can move when no file here changed, because the model or the Claude Code behind the same name changed. The results file cannot show this: its `model` field was `claude-opus-5-5` before and after the shift of 2026-11-05. There is no `--baseline` option. Compare with an old commit by hand, in three steps. The runs use your Claude account and cost real tokens, so keep the set small.
+
+1. Make a temporary clone at the old commit, a commit on `main` from when the saved numbers were made.
+
+```bash
+old=$(mktemp -d)
+out=$(mktemp -d)
+git clone --quiet . "$old"
+git -C "$old" checkout --quiet --detach <commit>
+git diff --stat <commit> HEAD -- evals/review-loop/detection evals/review-loop/detection-hard evals/verify/projects evals/verify/cases.json
+```
+
+2. Run the same small set of cases from the clone and from your checkout of `main`, one right after the other, on the same day and with the same Claude Code. Pick the cases that moved and a few that did not. Leave out a case the `git diff` above lists, because its fixture differs between the two commits. Give both runs the same options. Write the results outside the repository with `--out`, because `node --test` reads every file in `evals/review-loop/results/`.
+
+```bash
+(cd "$old" && node evals/review-loop/run-detection.mjs --case duration-format --case page-range --runs 3 -j 4 --out "$out/detection-old.json")
+node evals/review-loop/run-detection.mjs --case duration-format --case page-range --runs 3 -j 4 --out "$out/detection-new.json"
+(cd "$old" && node evals/verify/run-benchmark.mjs --case jot-working --case jot-broken -j 2 --out "$out/verify-old.json")
+node evals/verify/run-benchmark.mjs --case jot-working --case jot-broken -j 2 --out "$out/verify-new.json"
+```
+
+3. Compare. For the detection benchmark, use the runner on `main`, which calls no model. The verify runner has no `--compare`, so compare the table and the summary lines the two runs print; each results file keeps them under `summary` and `runs`.
+
+```bash
+node evals/review-loop/run-detection.mjs --compare "$out/detection-old.json" "$out/detection-new.json"
+```
+
+The clone runs its own runner, reviewer, skill, and cases, so an old runner may lack an option that `main` has. Run the old runner with `--help` first. If it lacks an option, leave that option out of both runs. The verify runner runs each case once, so run both commands again with new `--out` files to repeat it.
+
+How to read the result:
+
+- The old commit and `main` both differ from the saved numbers in the same way: the cause is outside this repository. Record the runs as dated records and keep the baselines.
+- Only `main` differs: a change between the two commits is the cause. Repeat the steps with a commit in between.
+- A few cases cannot show a small change, so treat a difference in one run as noise.
+
+Check that both results files have the same `claudeVersion` and `model`. Put the commit, the commands, and the output in the issue or pull request, then remove the two folders with `rm -rf "$old" "$out"`.
+
 ## Commit messages
 
 Use `<type>: <summary>` with one of `feat`, `fix`, `refactor`, `test`, `docs`, `chore`.
