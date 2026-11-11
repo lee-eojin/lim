@@ -246,7 +246,7 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own);
 }
 
-const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+`, 'i');
+const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<![:,]\s*)\n\s*(?=["“'‘])|(?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+`, 'i');
 const segmentsOf = (prose) => prose.split(SENTENCE);
 
 function optionActs(anchor, question) {
