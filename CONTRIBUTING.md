@@ -35,7 +35,7 @@ All four must pass. CI runs `node scripts/check-loop-model.mjs` (Linux), `node -
 
 When you record a claim that something works, write it as an evidence report and run `node scripts/check-evidence-report.mjs <file>`; `.claude/skills/prove-it/SKILL.md` describes the fields. `node --test` covers this script's tests.
 
-`node --test` also runs `scripts/check-loop-model-sync.mjs` on this repository, except in a shallow clone such as the Windows CI job. It fails when a function the review-loop model covers changed after the sync blob in `.claude/skills/check-loop-model/SKILL.md`.
+`node --test` also runs `scripts/check-loop-model-sync.mjs` on this repository, except in a shallow clone such as the Windows CI job. It fails when a function the review-loop model covers changed after the sync blob in `.claude/skills/check-loop-model/SKILL.md`. It also fails when the sync blob is neither the `loop.mjs` blob at HEAD nor a blob on `origin/main`, because a squash merge drops any other blob.
 
 `node --test` also runs `scripts/check-comments.mjs`. It fails when a `.mjs` file under `plugins/`, `scripts/`, `evals/`, `shared/`, or `tests/` has a comment. Its `EXCLUDED` constant skips only fixture paths: `repo/` folders under `evals/`, `fixtures/` folders, and `node_modules/`.
 

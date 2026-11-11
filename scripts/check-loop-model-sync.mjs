@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const LOOP = 'plugins/review-loop/skills/review-loop/scripts/loop.mjs';
 const SKILL = '.claude/skills/check-loop-model/SKILL.md';
+const BASE = 'refs/remotes/origin/main';
 const HUNK = /^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@ ?(.*)$/;
 const HEADER_NAME = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\s*\*?\s*|(?:const|let|var)\s+)?([\w$]+)/;
 const DEFINITIONS = [
@@ -61,10 +62,22 @@ function touchedNames(diff) {
   return [...names];
 }
 
+function isShallow() {
+  return git('rev-parse', '--is-shallow-repository').stdout.trim() === 'true';
+}
+
 function missingBlob(sync) {
-  const shallow = git('rev-parse', '--is-shallow-repository').stdout.trim() === 'true';
-  if (shallow) stop(`Sync blob ${sync} is not in this shallow clone. Fetch full history (git fetch --unshallow) and run again.`);
+  if (isShallow()) stop(`Sync blob ${sync} is not in this shallow clone. Fetch full history (git fetch --unshallow) and run again.`);
   stop(`Sync blob ${sync} is not in this repository. Set it in ${SKILL} to the loop.mjs blob the model was confirmed against: git rev-parse HEAD:${LOOP}`);
+}
+
+function isOnBase(sync, blob) {
+  if (git('rev-parse', '--verify', '--quiet', `${BASE}^{commit}`).status !== 0) {
+    stop(`Cannot check that Sync blob ${sync} is on origin/main: ${BASE} is not in this repository. Fetch it (git fetch origin main:${BASE}) and run again.`);
+  }
+  const objects = git('rev-list', '--objects', BASE);
+  if (objects.status !== 0) stop(`git rev-list failed: ${objects.stderr.trim()}`);
+  return objects.stdout.split('\n').some((line) => line.startsWith(`${blob} `));
 }
 
 const { sync, covered } = readSkill();
@@ -72,7 +85,15 @@ const resolved = git('rev-parse', '--verify', '--quiet', `${sync}^{blob}`);
 if (resolved.status !== 0) missingBlob(sync);
 const head = git('rev-parse', '--verify', '--quiet', `HEAD:${LOOP}`);
 if (head.status !== 0) stop(`${LOOP} is not in HEAD.`);
-const diff = git('--no-pager', 'diff', '--unified=0', '--no-color', '--no-ext-diff', resolved.stdout.trim(), head.stdout.trim());
+const pinned = resolved.stdout.trim();
+const current = head.stdout.trim();
+if (pinned !== current && !isOnBase(sync, pinned)) {
+  if (isShallow()) stop(`Cannot tell whether Sync blob ${sync} is on origin/main in this shallow clone. Fetch full history (git fetch --unshallow) and run again.`);
+  console.error(`Sync blob ${sync} is neither the loop.mjs blob at HEAD nor a loop.mjs blob on origin/main. A squash merge keeps only the final files, so this blob would be gone from main and this check would fail there.`);
+  console.error(`Set it in ${SKILL} to the blob at HEAD once the model is confirmed against it (git rev-parse --short HEAD:${LOOP}), or to a blob on origin/main (git rev-parse --short origin/main:${LOOP}). On a pull request, update the branch from main first.`);
+  process.exit(1);
+}
+const diff = git('--no-pager', 'diff', '--unified=0', '--no-color', '--no-ext-diff', pinned, current);
 if (diff.status !== 0) stop(`git diff failed: ${diff.stderr.trim()}`);
 
 if (!diff.stdout.trim()) {

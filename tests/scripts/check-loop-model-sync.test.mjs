@@ -51,6 +51,7 @@ function fixture(t) {
   write(skillPath, skill(sync.slice(0, 7)));
   git('add', '-A');
   git('commit', '-q', '-m', 'pin');
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
   return { cwd, git, write, commitLoop, sync };
 }
 
@@ -173,6 +174,91 @@ test('a covered edit pinned on its branch still passes in a fresh clone after a 
   const result = run(clone);
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /no covered loop\.mjs drift/);
+});
+
+const mid = loop.replace("return 'old';", "return 'mid';");
+const late = loop.replace("return 'old';", "return 'new';");
+const notOnMain = /neither the loop\.mjs blob at HEAD nor a loop\.mjs blob on origin\/main/;
+
+test('a pin to an intermediate branch blob fails before the squash, and main would lose the blob without this check', (t) => {
+  const { cwd, git, write, commitLoop } = fixture(t);
+  git('checkout', '-q', '-b', 'edit');
+  const intermediate = commitLoop(mid);
+  write(skillPath, skill(intermediate.slice(0, 7)));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'pin the intermediate blob');
+  commitLoop(late);
+  const before = run(cwd);
+  assert.equal(before.status, 1, before.stdout);
+  assert.match(before.stderr, notOnMain);
+  assert.match(before.stderr, new RegExp(`git rev-parse --short HEAD:${loopPath}`));
+  assert.doesNotMatch(before.stderr, /unshallow/);
+  assert.doesNotMatch(before.stderr, /not in this repository/);
+  git('checkout', '-q', 'main');
+  git('merge', '-q', '--squash', 'edit');
+  git('commit', '-q', '-m', 'squash');
+  git('branch', '-q', '-D', 'edit');
+  const clone = mkdtempSync(path.join(tmpdir(), 'loop-sync-clone-'));
+  t.after(() => rmSync(clone, { recursive: true, force: true }));
+  execFileSync('git', ['clone', '-q', '--no-local', cwd, clone]);
+  const after = run(clone);
+  assert.equal(after.status, 2, after.stdout);
+  assert.match(after.stderr, /not in this repository/);
+});
+
+test('a pin to the loop.mjs blob at HEAD passes before that blob reaches origin/main', (t) => {
+  const { cwd, git, write, commitLoop } = fixture(t);
+  git('checkout', '-q', '-b', 'edit');
+  const edited = commitLoop(loop.replace('  return first + second', '  return second + first'));
+  write(skillPath, skill(edited.slice(0, 7)));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'move the pin');
+  assert.ok(!git('rev-list', '--objects', 'refs/remotes/origin/main').split('\n').some((line) => line.startsWith(`${edited} `)));
+  const result = run(cwd);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /no covered loop\.mjs drift/);
+});
+
+test('a stale pin from the history of origin/main passes when only uncovered code changed', (t) => {
+  const { cwd, git, commitLoop, sync } = fixture(t);
+  commitLoop(mid);
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+  git('checkout', '-q', '-b', 'edit');
+  commitLoop(late);
+  assert.notEqual(git('rev-parse', 'refs/remotes/origin/main:' + loopPath), sync);
+  const result = run(cwd);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /no covered name touched/);
+});
+
+test('a pin that is not at HEAD exits 2 and names the ref when origin/main is missing', (t) => {
+  const { cwd, git, commitLoop } = fixture(t);
+  git('update-ref', '-d', 'refs/remotes/origin/main');
+  commitLoop(late);
+  const result = run(cwd);
+  assert.equal(result.status, 2, result.stdout);
+  assert.match(result.stderr, /refs\/remotes\/origin\/main is not in this repository/);
+  assert.doesNotMatch(result.stderr, /neither/);
+});
+
+test('a pin equal to the loop.mjs blob at HEAD passes with no origin/main', (t) => {
+  const { cwd, git } = fixture(t);
+  git('update-ref', '-d', 'refs/remotes/origin/main');
+  const result = run(cwd);
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test('a shallow clone that cannot see the pin on origin/main exits 2 and says to fetch full history', (t) => {
+  const { cwd, git, commitLoop } = fixture(t);
+  git('branch', 'feat');
+  commitLoop(late);
+  const shallow = mkdtempSync(path.join(tmpdir(), 'loop-sync-shallow-'));
+  t.after(() => rmSync(shallow, { recursive: true, force: true }));
+  execFileSync('git', ['clone', '-q', '--depth', '1', '--no-single-branch', pathToFileURL(cwd).href, shallow]);
+  const result = run(shallow);
+  assert.equal(result.status, 2, result.stdout);
+  assert.match(result.stderr, /Cannot tell whether/);
+  assert.match(result.stderr, /unshallow/);
 });
 
 for (const [label, content, message] of [
