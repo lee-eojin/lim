@@ -49,3 +49,13 @@ jobs:
         run: node --test
       - name: Lint
         run: npm run lint
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify tests
+        run: node --test tests/verify/verify.test.mjs

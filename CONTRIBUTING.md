@@ -59,7 +59,7 @@ A few tests check behavior that exists only on Windows or only on a file system 
 How they are proven:
 
 - The `windows` CI job runs `node --test` on `windows-latest` for every pull request. It runs all three tests above, because NTFS ignores letter case. Open the job log and find each test name in an `ok` line with no `# SKIP`.
-- To check the letter-case test on macOS, run `node --test tests/verify/verify.test.mjs` on an APFS volume that ignores letter case, which is the default. The test must show `ok` with no `# SKIP`. No CI job runs on macOS.
+- The `macos` CI job runs `node --test tests/verify/verify.test.mjs` on `macos-latest` for every pull request. It runs the letter-case test, because APFS ignores letter case by default. It runs only this file, and the Windows tests still skip there. Open the job log and find the test name in an `ok` line with no `# SKIP`. The job is not a required check, so a pull request can merge while it fails.
 
 When you add a test that skips on some systems, give the skip a reason, add the test to this table, and say in the pull request which run showed it pass.
 
