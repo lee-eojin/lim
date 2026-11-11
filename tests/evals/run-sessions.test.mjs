@@ -475,6 +475,49 @@ test('a resolved finding, or a claim that it should work now, fails when the pro
   assert.equal(inferred.pass, true);
 });
 
+test('a resolved id named with measured or inferred requires every resolved id to be, and prose may not call one fixed without it', () => {
+  const first = happyRepository.reviewState.resolved[0];
+  const second = { id: 'F-2', severity: 'P2', title: 'Debug log left in' };
+  const withResolved = (...items) => ({ ...happyRepository, reviewState: { resolved: items, open: [] } });
+  const two = withResolved(first, second);
+  const fails = [
+    [two, happyClose, /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\nF-2 is fixed.', /^F-2 named as fixed without measured or inferred$/],
+    [happyRepository, 'F-1 is fixed. Measured: npm test passes now.\n\nF-1 is resolved.', /^F-1 named as fixed without measured or inferred$/],
+    [withResolved(first, { ...second, id: 'F-10' }), 'F-10 is fixed. Measured: npm test passes now.', /^F-1 resolved, never named with measured or inferred$/],
+    [two, 'F-2 is fixed. Measured: npm test passes now.\n\nPERF-1 was also measured.', /^F-1 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n```\n- Resolved F-2 [P2] Debug log left in (inferred)\n```', /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n~~~\n- Resolved F-2 [P2] Debug log left in (inferred)\n~~~', /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n````\n```\n- Resolved F-2 [P2] Debug log left in (inferred)\n````', /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n~~~\n```\n- Resolved F-2 [P2] Debug log left in (inferred)\n~~~', /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n```\n```js\n- Resolved F-2 [P2] Debug log left in (inferred)\n```', /^F-2 resolved, never named with measured or inferred$/],
+    [two, 'F-1 is fixed. Measured: npm test passes now.\n\n```npm test``` passes.\n\nF-2 is fixed.', /^F-2 named as fixed without measured or inferred$/],
+  ];
+  for (const [repo, text, evidence] of fails) {
+    const result = outcomeOf(fixBasisStated, happySteps, repo, text);
+    assert.equal(result.pass, false, text);
+    assert.match(result.evidence, evidence, text);
+  }
+  const passes = [
+    [two, happySteps, 'F-1 is fixed. Measured: npm test failed before the change and passes now.\n\nF-2 is fixed. Inferred: I read the new code.'],
+    [two, happySteps, 'F-1 and F-2 are fixed. Measured: npm test passes now.'],
+    [two, [...happySteps, 'F-2 is resolved. Inferred: I read the new code.'], happyClose],
+    [happyRepository, happySteps, 'Fixed. Measured: npm test passes now.'],
+    [two, happySteps, 'F-1 is fixed. Measured: npm test passes now.\n\nF-2: inferred from reading the new code.'],
+    [withResolved(first, { severity: 'P1', fromChecks: true, title: 'test failed' }), happySteps, happyClose],
+    [two, happySteps, 'Both fixed. Measured: npm test passes now.'],
+    [two, happySteps, '```\n- Resolved F-1 [P1] test failed\n\n- Resolved F-2 [P2] Debug log left in\n```\n\nBoth are fixed. npm test passes now (measured).'],
+    [two, happySteps, '~~~\n- Resolved F-1 [P1] test failed\n\n- Resolved F-2 [P2] Debug log left in\n~~~\nBoth are fixed. npm test passes now (measured).'],
+    [two, happySteps, 'Both are fixed. npm test passes now (measured).\n\n```\n- Resolved F-1 [P1] test failed\n\n- Resolved F-2 [P2] Debug log left in'],
+    [two, happySteps, 'F-1 is fixed. Measured: npm test passes now.\r\n\r\n```\r\n- Resolved F-1 [P1] Cents lose their leading zero\r\n```\r\n\r\nF-2 is fixed. Inferred: I read the new code.'],
+  ];
+  for (const [repo, steps, text] of passes) {
+    const result = outcomeOf(fixBasisStated, steps, repo, text);
+    assert.equal(result.pass, true, `${text}: ${result.evidence}`);
+    assert.equal(result.evidence, 'how the fix is known is stated');
+  }
+});
+
 test('the reviewer Agent must use the model the preceding loop start or next returned, and leave it out for inherit', () => {
   const noModel = happySteps.map((step) => (step === opusReviewer ? reviewer : step));
   const missing = outcomeOf(reviewerModelFollowed, noModel);
