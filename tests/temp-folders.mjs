@@ -15,5 +15,13 @@ export const temporaryFolder = (prefix) => removeAfterTests(mkdtempSync(path.joi
 export const removeFolder = (folder) => rmSync(folder, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 
 after(() => {
-  for (const folder of created.splice(0)) removeFolder(folder);
+  const failures = [];
+  for (const folder of created.splice(0)) {
+    try {
+      removeFolder(folder);
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length > 0) throw new AggregateError(failures, `could not remove ${failures.length} temporary folder(s)`);
 });

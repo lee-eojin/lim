@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { chmodSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { temporaryFolder } from './temp-folders.mjs';
 
 const testsFolder = fileURLToPath(new URL('.', import.meta.url));
+const helper = pathToFileURL(path.join(testsFolder, 'temp-folders.mjs')).href;
+const cannotLockFolders = { skip: (process.platform === 'win32' || process.getuid?.() === 0) && 'needs POSIX permissions and a user that is not root' };
 
 const removeOwnFolders = [
   'evals/run-detection.test.mjs',
@@ -55,3 +57,31 @@ for (const [title, file, pattern] of runsLeavingNothing) {
     assert.deepEqual(readdirSync(temporary).filter((name) => name !== 'node-compile-cache'), []);
   });
 }
+
+test('a folder that cannot be removed does not stop the removal of the folders after it, and the file fails', cannotLockFolders, () => {
+  const temporary = temporaryFolder('temp-folders-');
+  const locked = path.join(temporary, 'locked');
+  const testFile = path.join(temporary, 'locks.test.mjs');
+  writeFileSync(testFile, [
+    "import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';",
+    "import path from 'node:path';",
+    "import { test } from 'node:test';",
+    `import { removeAfterTests, temporaryFolder } from ${JSON.stringify(helper)};`,
+    `const locked = removeAfterTests(${JSON.stringify(locked)});`,
+    "test('makes a locked folder, then another folder', () => {",
+    "  mkdirSync(path.join(locked, 'inner'), { recursive: true });",
+    "  writeFileSync(path.join(locked, 'inner', 'file.txt'), 'x');",
+    "  chmodSync(path.join(locked, 'inner'), 0o555);",
+    "  temporaryFolder('later-');",
+    '});',
+    '',
+  ].join('\n'));
+  const { NODE_TEST_CONTEXT, ...base } = process.env;
+  const run = spawnSync(process.execPath, ['--test', '--test-reporter=tap', testFile], {
+    encoding: 'utf8', env: { ...base, TMPDIR: temporary, TMP: temporary, TEMP: temporary },
+  });
+  chmodSync(path.join(locked, 'inner'), 0o755);
+  assert.notEqual(run.status, 0, run.stdout + run.stderr);
+  assert.match(run.stdout + run.stderr, /could not remove 1 temporary folder/);
+  assert.deepEqual(readdirSync(temporary).filter((name) => name !== 'node-compile-cache').sort(), ['locked', 'locks.test.mjs']);
+});
