@@ -157,5 +157,7 @@ If the JSON is still not valid after Claude asks the reviewer once to fix the fo
 ```
 
 > **Pitfall:** deleting `.git/lim/review-loop/` resets everything for the repository: the review, the decisions, the gate, and delegation. To redo only the review, ask Claude to start it over as above; that runs `loop start --fresh` and keeps the gate and delegation settings.
+>
+> In a linked worktree, `.git` is a file, so that folder is not there. Run `git rev-parse --absolute-git-dir` and delete `lim/review-loop` inside the folder it prints: that resets this worktree's review and decisions and keeps the gate and delegation. `git rev-parse --git-common-dir` prints the folder whose `lim/review-loop` holds the gate, delegation, and the other settings for every worktree, the history of finding kinds, and the main checkout's own review. Delete that one only when you want to reset the whole repository.
 
 Next: [Checks in other languages and subfolders](06-other-languages.md).
