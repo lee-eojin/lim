@@ -103,7 +103,7 @@ export function selectQuestions(questions, ids) {
 const PREAMBLE = /^(?:great question|good question|sure\b|certainly\b|let me\b|let's\b|i'll\b|here(?:'s| is) (?:a|an|the) (?:explanation|overview|breakdown)|좋은 질문|설명해 ?드릴게요|설명해 ?드리겠습니다|알겠습니다)/i;
 const BLOCK_START = /^(?:#|\||```|~~~|>|[-*+]\s|\d+[.)]\s)/;
 
-export function opensWithAnswer(text) {
+export function opensWithProseParagraph(text) {
   const first = text.split('\n').map((line) => line.trim()).find(Boolean);
   if (!first || BLOCK_START.test(first)) return false;
   const withoutLabel = first.replace(/^\*\*[^*]{1,40}\*\*:?\s*/, '');
@@ -118,7 +118,7 @@ export function scoreAnswer(text) {
     issuesPer1000: summary.issuesPer1000,
     longSentences: summary.longSentences,
     mustFix: summary.fix,
-    opensWithAnswer: opensWithAnswer(text),
+    opensWithAnswer: opensWithProseParagraph(text),
   };
 }
 
@@ -605,7 +605,7 @@ function report(results, out) {
   process.stdout.write(`results: ${out}\n`);
 }
 
-export function serialize(results) {
+export function jsonWithoutForbiddenCharacters(results) {
   return `${JSON.stringify(results, null, 2)}\n`.replace(/[\u2014\u00b7]/g, (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
 }
 
@@ -628,7 +628,7 @@ async function main() {
     const source = path.resolve(values.rescore);
     const results = rescore(JSON.parse(readFileSync(source, 'utf8')));
     const out = values.out ? path.resolve(values.out) : source;
-    writeFileSync(out, serialize(results));
+    writeFileSync(out, jsonWithoutForbiddenCharacters(results));
     report(results, out);
     return;
   }
@@ -643,7 +643,7 @@ async function main() {
       log: (line) => process.stderr.write(`${line}\n`),
     });
     const out = values.out ? path.resolve(values.out) : source;
-    writeFileSync(out, serialize(results));
+    writeFileSync(out, jsonWithoutForbiddenCharacters(results));
     rejudgeReport(results, out);
     return;
   }
@@ -658,7 +658,7 @@ async function main() {
     });
     const out = values.out ? path.resolve(values.out) : defaultOut(values['judge-model'], 'calibration');
     mkdirSync(path.dirname(out), { recursive: true });
-    writeFileSync(out, serialize(results));
+    writeFileSync(out, jsonWithoutForbiddenCharacters(results));
     calibrationReport(results, out);
     return;
   }
@@ -693,7 +693,7 @@ async function main() {
     };
     const out = values.out ? path.resolve(values.out) : defaultOut(values.model, values.label ?? (heldOut ? 'held-out-triggers' : 'triggers'));
     mkdirSync(path.dirname(out), { recursive: true });
-    writeFileSync(out, serialize(results));
+    writeFileSync(out, jsonWithoutForbiddenCharacters(results));
     triggerReport(results, out);
     return;
   }
@@ -728,7 +728,7 @@ async function main() {
   };
   const out = values.out ? path.resolve(values.out) : defaultOut(values.model, values.label);
   mkdirSync(path.dirname(out), { recursive: true });
-  writeFileSync(out, serialize(results));
+  writeFileSync(out, jsonWithoutForbiddenCharacters(results));
   report(results, out);
 }
 

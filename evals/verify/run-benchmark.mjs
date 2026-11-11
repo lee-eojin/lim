@@ -139,14 +139,19 @@ function runClaude({ cwd, model, timeoutSeconds }) {
   });
 }
 
+function eventIfComplete(line) {
+  try {
+    return [JSON.parse(line)];
+  } catch {
+    return [];
+  }
+}
+
 export function parseStream(text) {
   const events = [];
   for (const line of text.split('\n')) {
     if (!line.trim()) continue;
-    try {
-      events.push(JSON.parse(line));
-    } catch {
-    }
+    events.push(...eventIfComplete(line));
   }
   return { events, result: events.findLast((event) => event.type === 'result') };
 }
@@ -212,6 +217,8 @@ export const untrackedFiles = (workDir) => git(workDir, 'ls-files', '--others', 
 
 const applyEdit = (text, { old_string: before, new_string: after, replace_all: all }) => (all ? text.split(before).join(after) : text.replace(before, () => after));
 
+const USE_FILE_ON_DISK = null;
+
 export function writtenContents(events) {
   const contents = new Map();
   for (const event of events) {
@@ -221,7 +228,7 @@ export function writtenContents(events) {
       const { file_path: file, content, edits } = block.input;
       const before = contents.get(file);
       if (block.name === 'Write') contents.set(file, content);
-      else if (typeof before !== 'string') contents.set(file, null);
+      else if (typeof before !== 'string') contents.set(file, USE_FILE_ON_DISK);
       else contents.set(file, (edits ?? [block.input]).reduce(applyEdit, before));
     }
   }
@@ -232,7 +239,7 @@ export function copyFixtures(fromDir, toDir, filesWritten, contents = new Map())
   const written = new Map(filesWritten.map((file) => {
     const target = path.resolve(fromDir, file);
     const relative = path.relative(fromDir, existsSync(target) ? realpathSync(target) : target);
-    return [relative.split(path.sep).join('/'), contents.get(file) ?? null];
+    return [relative.split(path.sep).join('/'), contents.get(file) ?? USE_FILE_ON_DISK];
   }));
   const fixtures = untrackedFiles(fromDir).filter((file) => written.has(file));
   for (const file of fixtures) {
