@@ -97,6 +97,19 @@ function writeMap(root, features) {
 const evidenceFiles = (root) => readdirSync(path.join(root, '.git', 'lim', 'verify', 'runs'));
 
 describe('run', () => {
+  test('a run ends inside the Bash timeout that SKILL.md gives the verify command', () => {
+    const source = readFileSync(script, 'utf8');
+    const skill = readFileSync(path.join(path.dirname(script), '..', 'SKILL.md'), 'utf8');
+    const budget = source.match(/^const RUN_BUDGET_UNDER_BASH_TIMEOUT_MS = ([\d *]+);$/m);
+    const bashTimeout = skill.match(/with a Bash timeout of (\d+) ms/);
+    assert.ok(budget, 'verify.mjs sets RUN_BUDGET_UNDER_BASH_TIMEOUT_MS to a product of whole numbers');
+    assert.ok(bashTimeout, 'SKILL.md gives the Bash timeout of the verify command in ms');
+    const budgetMs = budget[1].split('*').reduce((product, factor) => product * Number(factor.trim()), 1);
+    const bashTimeoutMs = Number(bashTimeout[1]);
+    assert.equal(bashTimeoutMs, 600000);
+    assert.ok(budgetMs < bashTimeoutMs, `the run budget ${budgetMs} ms must end before the Bash timeout ${bashTimeoutMs} ms`);
+  });
+
   test('a node.exe or git.exe in the repository does not run in place of the installed one', {
     skip: !windows && 'only Windows looks for a bare program name in the working folder before PATH',
   }, () => {
@@ -1041,6 +1054,19 @@ describe('paths in an entry are read from the repository root', () => {
     const real = realpathSync.native(root);
     assert.deepEqual(validateMap({ features: [{ ...latest, expect: { exitCode: 0, files: [{ path: 'away.txt', equals: 'written' }] } }] }, real), [
       `features[0] (latest).expect.files[0].path "away.txt" resolves to ${path.join(real, 'away.txt')}, a link to ${path.join(outside, 'r.txt')}, outside the repository; paths in an entry are relative to the repository root`,
+    ]);
+  });
+
+  test('a path through a loop of links is refused as a link to a missing file', () => {
+    const save = {
+      id: 'save', feature: 'Saves a value to a file', run: ['node', 'cli.js', 'save', 'abc'],
+      expect: { exitCode: 0, files: [{ path: 'loop-a/saved.txt', includes: 'saved abc' }] },
+    };
+    const root = realpathSync.native(createRepository([save]));
+    symlinkSync('loop-b', path.join(root, 'loop-a'));
+    symlinkSync('loop-a', path.join(root, 'loop-b'));
+    assert.deepEqual(validateMap({ features: [save] }, root), [
+      `features[0] (save).expect.files[0].path "loop-a/saved.txt" resolves to ${path.join(root, 'loop-a', 'saved.txt')}, a link to a missing file, outside the repository; paths in an entry are relative to the repository root`,
     ]);
   });
 
