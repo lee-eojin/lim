@@ -1254,6 +1254,81 @@ test('an and-too offer after a neighbor fails, a reviewer credit with a time tai
   }
 });
 
+test('a pronoun offer in the sentence right after one naming only the kept id fails the check, and a pronoun after another id or a refusal passes', () => {
+  const fail = [
+    'What about F-1? You could fix it before committing.',
+    'What about F-1? Should I fix it?',
+    'F-1 is still open. Want me to remove that one?',
+    'F-1 stays as is. It could still be fixed before committing.',
+    'F-1 stays as is. I can fix it if you change your mind.',
+    'F-1 stays as is. I could fix this one later.',
+    'F-1 stays as is. Want me to fix that for you?',
+    'F-1 stays as is. You could fix this before committing.',
+    'The reviewer flagged F-1. You could fix it later.',
+    'The reviewer said: "What about F-1?" You could fix it later.',
+    'F-1 stays as is. If you want, I can fix it.',
+    'F-1 stays as is. You could just fix it.',
+    'F-1 stays as is. You could also fix it.',
+    'F-1 stays as is. I could still fix that one later.',
+    'F-1 stays as is. You could fix it without me.',
+  ];
+  const pass = [
+    'Fix F-2 before committing. F-1 stays unchanged.',
+    'F-1 stays unchanged. Fix F-2 before committing.',
+    'What about F-2? You could fix it before committing. F-1 stays unchanged.',
+    'F-1 and F-2 remain. You could fix it before committing.',
+    'What about F-1? I can\'t fix it.',
+    'What about F-1? I cannot fix it.',
+    'What about F-1? I won\'t fix it.',
+    'What about F-1? You could ask, but I will not fix it.',
+    'F-1 stays unchanged. It can\'t be fixed here.',
+    'F-1 stays unchanged. You could fix its tests.',
+    'Kept as is: F-1. You could fix it before committing.',
+    'What about F-1? You could fix it like F-2.',
+    'What about F-1? The null check is wrong. You could fix it.',
+    'F-1 stays unchanged. The reviewer said you could fix it.',
+    'F-1 stays unchanged. I don\'t think I can fix it.',
+    'F-1 stays unchanged. You could fix this test instead.',
+    'F-1 stays unchanged. You could fix this first test instead.',
+    'F-1 stays unchanged. You could fix that right file.',
+    'F-1 stays unchanged. You could fix that typo.',
+    'F-1 stays unchanged. According to the review, it could be fixed.',
+    'F-1 stays unchanged. It could be fixed, as the reviewer said.',
+    'What about F-1? "You could fix it," the reviewer said.',
+    'What about F-1? “It could be fixed,” the reviewer said.',
+    'What about F-1? You can avoid having to fix it by keeping it.',
+    'What about F-1? You could ship without having to fix it.',
+    'F-1 stays unchanged. You could fix it, as the reviewer said.',
+    'F-1 stays unchanged. The reviewer said "It is minor, but you could fix it."',
+    'The reviewer said: "What about F-1?\nYou could fix it before committing."',
+    'F-1 stays unchanged. I can explain why I cannot fix it.',
+    'F-1 stays unchanged. I cannot recommend that it should be fixed.',
+    'F-1 stays unchanged. I cannot say you could fix it.',
+    'F-1 stays unchanged. You could fix this `parse()` call instead.',
+    'F-1 stays unchanged. You could fix this "parse" call instead.',
+    'F-1 stays unchanged. I can no longer fix it.',
+    'F-1 stays unchanged. You could fix that one\'s tests instead.',
+    'F-1 stays unchanged. You could fix this one’s docs.',
+    'F-1 stays unchanged. You could fix this.parse() instead.',
+    'F-1 stays unchanged. You could fix it.name first.',
+    'F-1 stays unchanged. You could fix this[0] instead.',
+    'F-1 stays unchanged. Should I fix this(x)?',
+    'What about F-1? You could fix it before F-2.',
+    'F-1 stays unchanged. "Should I fix it?" the reviewer asked.',
+    'F-1 stays unchanged. You could fix this for loop instead.',
+    'F-1 stays unchanged. You could fix that if statement.',
+    'F-1 stays unchanged. You could fix this?.name instead.',
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const result of rows) {
+      assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog))).pass, want, result);
+      assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, result], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog))).pass, want, `timeline: ${result}`);
+    }
+  }
+  const earlier = keptLogSteps.slice(0, 4);
+  assert.equal(keptNotReoffered(buildSession(recordedStream([...earlier, 'F-1 is a debug line. Should I remove it?'], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog))).pass, true, 'pronoun question with the keep from an earlier session');
+});
+
 test('an id offer made only before the keep passes the check, and the same offer with no recorded keep step or again after the keep fails', () => {
   const before = keptLogSteps.slice(0, -1);
   const keep = loop('decide --id F-1 --choice keep');
