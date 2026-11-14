@@ -1054,6 +1054,8 @@ test('a plural option under a two-finding question acts on both findings unless 
     ['all three', 'Fix all three'],
     ['all before a noun without s', 'Fix all children'],
     ['all before a mass noun', 'Fix all code'],
+    ['all with a hyphenated modifier', 'Fix all first-party tests'],
+    ['all with a possessive time', "Fix all this week's tests"],
     ['all this before a noun', 'Fix all this code'],
     ['all that before a noun', 'Fix all that output'],
     ['all your before a noun', 'Fix all your tests'],
