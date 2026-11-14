@@ -962,6 +962,121 @@ test('a first-person change of speaker before a quote ends the reviewer attribut
   }
 });
 
+test('a plural option under a two-finding question acts on both findings unless a noun follows the plural word', () => {
+  const question = 'What about the console.log and the null check?';
+  const fail = [
+    ['all', 'Fix all'],
+    ['everything', 'Fix everything'],
+    ['the two', 'Fix the two'],
+    ['all of them', 'Fix all of them'],
+    ['all with a finding word', 'Fix all findings'],
+    ['the two with a finding word', 'Fix the two findings'],
+    ['all of these with a finding word', 'Fix all of these findings'],
+    ['all after an agreement', 'Yes, fix all'],
+    ['all with a full stop', 'Remove all.'],
+    ['all with an adverb', 'Fix all now'],
+    ['everything then a next step', 'Fix everything, then push'],
+    ['both nowadays', 'Fix both nowadays'],
+    ['both indoors', 'Fix both indoors'],
+    ['both upstairs', 'Fix both upstairs'],
+    ['both whereas', 'Fix both whereas the docs wait'],
+    ['both overseas', 'Fix both overseas'],
+    ['both thanks', 'Fix both thanks'],
+    ['both cheers', 'Fix both cheers'],
+    ['both pls', 'Fix both pls'],
+    ['both yours', 'Fix both yours'],
+    ['them ours', 'Fix them ours'],
+    ['both hers', 'Fix both hers'],
+    ['both theirs', 'Fix both theirs'],
+    ['both his', 'Fix both his'],
+    ['both its', 'Fix both its'],
+    ['all with an issue word', 'Fix all issues'],
+    ['all first', 'Fix all first'],
+    ['all then a next step', 'Fix all then push'],
+    ['all too', 'Fix all too'],
+    ['all again', 'Fix all again'],
+    ['all always', 'Fix all always'],
+    ['all afterwards', 'Fix all afterwards'],
+    ['all as well', 'Fix all as well'],
+    ['both with a finding word', 'Fix both findings'],
+    ['both then perhaps', 'Fix both perhaps'],
+    ['both with an adverb', 'Fix both now'],
+    ['both with a finding word', 'Fix both issues'],
+    ['them both', 'Fix them both'],
+    ['these two', 'Fix these two'],
+    ['both then a next step', 'Fix both, then commit'],
+    ['both with a bug word', 'Fix both bugs'],
+    ['both with a thing word', 'Fix both things'],
+    ['both plus another name', 'Fix both plus the tests'],
+    ['both then always', 'Fix both always'],
+    ['them then afterwards', 'Fix them afterwards'],
+    ['all then perhaps', 'Fix all perhaps'],
+    ['both then sometimes', 'Fix both sometimes'],
+    ['both then regardless', 'Fix both regardless'],
+    ['both this time', 'Fix both this time'],
+    ['all this round', 'Fix all this round'],
+    ['all this time', 'Fix all this time'],
+    ['all this week', 'Fix all this week'],
+    ['all that way', 'Fix all that way'],
+    ['both this week', 'Fix both this week'],
+    ['both that way', 'Fix both that way'],
+    ['both this morning', 'Fix both this morning'],
+    ['both that before a noun', 'Fix both that output'],
+    ['both then besides', 'Fix both besides'],
+    ['both then nevertheless', 'Fix both nevertheless'],
+    ['both across a place', 'Fix both across the repository'],
+    ['both towards a point', 'Fix both towards the end'],
+    ['both unless a condition', 'Fix both unless blocked'],
+    ['them versus a thing', 'Fix them versus the old'],
+    ['both then anyways', 'Fix both anyways'],
+    ['them then nonetheless', 'Fix them nonetheless'],
+    ['those then thus', 'Fix those thus'],
+    ['both with a preposition before a noun', 'Fix both via patches'],
+    ['these across a noun', 'Fix these across files'],
+    ['both minus a noun', 'Fix both minus docs'],
+  ];
+  const pass = [
+    ['those before a noun', 'Fix those tests'],
+    ['both before a noun', 'Fix both tests'],
+    ['those two before a noun', 'Fix those two tests'],
+    ['both of the before a noun', 'Fix both of the tests'],
+    ['all the before a noun', 'Fix all the tests'],
+    ['everything else', 'Fix everything else'],
+    ['all of it', 'Fix all of it'],
+    ['both the before a noun', 'Fix both the tests'],
+    ['both your before a noun', 'Fix both your tests'],
+    ['all with a modifier before a noun', 'Fix all failing tests'],
+    ['all with two modifiers before a noun', 'Fix all failing unit tests'],
+    ['all with three modifiers before a noun', 'Fix all old failing unit tests'],
+    ['the two with a modifier before a noun', 'Fix the two failing tests'],
+    ['those two with a modifier before a noun', 'Fix those two failing tests'],
+    ['all three before a noun', 'Fix all three tests'],
+    ['all three', 'Fix all three'],
+    ['all before a noun without s', 'Fix all children'],
+    ['all before a mass noun', 'Fix all code'],
+    ['all with a hyphenated modifier', 'Fix all first-party tests'],
+    ['all with a possessive time', "Fix all this week's tests"],
+    ['all this before a noun', 'Fix all this code'],
+    ['all that before a noun', 'Fix all that output'],
+    ['all your before a noun', 'Fix all your tests'],
+    ['all other before a finding word', 'Fix all other findings'],
+    ['singular it', 'Fix it'],
+    ['singular this', 'Remove this'],
+    ['singular that', 'Fix that'],
+    ['bare verb', 'Fix'],
+    ['each', 'Fix each'],
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, label] of rows) {
+      const ask = [askAbout(question, { label, description: 'Line 2' }, keepIt)];
+      const kept = buildSession(recordedStream([...keptLogSteps, ...ask], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream([...keptBeforeSteps, ...ask], { result: 'Nothing is committed.' }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+});
+
 test('a bare second finding pairs with the kept name when a closed time or scope tail follows it', () => {
   const ask = (question) => [askAbout(question, { label: 'Fix it', description: 'Line 2' }, keepIt)];
   const pass = [

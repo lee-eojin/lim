@@ -209,6 +209,10 @@ const DUE = String.raw`\b(?:${MODAL}|ought to|needs? to|has to|is to|are to)(?:\
 const OPENING = String.raw`(?:(?:and|but|so|then|also|still)[,\s]+)?`;
 const ONE = String.raw`(?!(?:when|where|why|how|what|which|who|whether|if|then|so|not|now|later|it|its|their|i|we|you|keep|leave|commit|${ACT}|${MODAL}|move|go|proceed|continue|skip|ship|merge|do|add|rerun|run|decide|push|[a-z]+ing)\b|[\w-]+\s+(?:it|this|that|them|these|those|on|up|later)\b)[a-z][\w-]*`;
 const FINDING_NOUN = 'check|coverage|flake|script|cleanup|deadlock|leak|race|condition|bug|typo|timeout';
+const PLURAL = 'them|these|those|both';
+const WHOLE = String.raw`(?:all|both)\s+of\s+(?:them|these|those)|(?:these|those|the)\s+two|all|everything`;
+const FOLLOW = String.raw`findings|issues|now|first|then|too|again|perhaps|always|afterwards|as\s+well|(?:this|that)\s+(?:time|round|week|way)`;
+const NOT_NOUN = 'findings|issues|bugs|things|plus|perhaps|sometimes|besides|across|versus|thus|minus|whereas|overseas|thanks|cheers|pls|yours|ours|hers|theirs|his|its|this';
 const TAIL = String.raw`(?:before|after|during|until|in)\s+(?:the|this|that|our|your|next)\s+[\w-]+(?:\s+[\w-]+)?\s*\?`;
 const BARE = String.raw`${ONE}(?:\s+[a-z][\w-]*)?`;
 const OTHER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?!(?:[\w-]+\s+){0,2}(?:it|this|that|them|these|those)\b)[^\s?;,]+(?:\s+[^\s?;,]+){0,2}\s*\?|[A-Z]+-\d+\b|\x60[^\x60]|(?=[\w$]*(?:[._][\w$]|\())[a-z_$])`;
@@ -265,7 +269,7 @@ function optionActs(anchor, question) {
   const code = `\\x60?${anchor}\\x60?`;
   const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|${BARE}(?:\\s+(?:first|too|as\\s+well))?\\s*\\?|(?=${BARE}\\s+${TAIL})(?:[a-z][\\w-]*\\s+)?(?:${FINDING_NOUN})\\s+${TAIL})`, 'i').test(asked);
   const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|[\\s.!]*$)`, 'i');
-  const plural = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b\\s+(?:them|these|those|both)\\b`, 'i');
+  const plural = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b\\s+(?:(?:${PLURAL})\\b(?!\\s+(?:(?:the|your|of|two)\\b|(?!(?:${NOT_NOUN})\\b)(?![a-z]*(?:wards|ways|adays|less|doors|stairs)\\b)[a-z][\\w-]+s\\b))|(?:${WHOLE})\\b(?=[\\s.!]*$|\\s*,|\\s+(?:${FOLLOW})\\b(?![-'’])))`, 'i');
   return named && choices.some((text) => (paired ? plural : pronoun).test(text));
 }
 
