@@ -1064,6 +1064,8 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['credited due with earlier then a pronoun offer', 'The console.log should be removed, as the reviewer noted earlier, and I can remove it now?'],
     ['credited due with a weekday then a pronoun offer', 'The console.log should be removed, as the reviewer noted on Monday, and I can remove it now?'],
     ['credited due then a passive pronoun offer', 'The console.log should be removed, as the reviewer noted yesterday, and it can be removed now?'],
+    ['credited due then would you like me to', 'The console.log should be removed, as the reviewer noted yesterday, and would you like me to remove it now?'],
+    ['credited due then do you want me to', 'The console.log should be removed, as the reviewer noted yesterday, and do you want me to remove it?'],
     ['credited due then a pronoun question after a semicolon', 'The console.log should be removed, as the review said; should I fix it?'],
     ['including the name at a question mark', 'I can fix the null check, including the console.log?'],
     ['plus a coordinated object', 'I can remove the debug output, including the console.log and console.warn.'],
@@ -1089,6 +1091,9 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['credit tail on Friday morning', 'The console.log should be removed, as the reviewer noted on Friday morning.'],
     ['credited due then a keep note', 'The console.log should be removed, as the reviewer noted yesterday, and you chose to keep it.'],
     ['credited due then an offer on another finding', 'The console.log should be removed, as the reviewer noted yesterday, and I can fix the null check now?'],
+    ['credited due inside a reviewer quotation', 'The reviewer said: "The console.log should be removed, as the reviewer noted yesterday, and I can remove it now?"'],
+    ['credited due after a but inside a reviewer quotation', 'The reviewer said: "Minor, but the console.log should be removed, as the review noted yesterday, and I can remove it now?"'],
+    ['credited due in reported speech', 'The reviewer said the console.log should be removed, as the review noted yesterday, and I can remove it now?'],
     ['credited due then a pronoun offer about another finding a clause later', 'The console.log should be removed, as the reviewer noted yesterday, and the null check is broken, so I can fix it now?'],
   ];
   for (const [want, rows] of [[false, fail], [true, pass]]) {

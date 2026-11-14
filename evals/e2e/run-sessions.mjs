@@ -369,10 +369,10 @@ const PRONOUN = String.raw`(?:it|(?:that|this)(?:\s+one)?)\b${PRONOUN_TAIL}`;
 const QUOTE_CREDITED = String.raw`(?![^;]{0,60}?[,?!]["”’']\s*(?:as\s+)?(?:the\s+)?${VOICE})`;
 const CANNOT = String.raw`(?<!\bcannot\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
 const PRONOUN_OFFER = new RegExp(String.raw`${REPORTED}${QUOTED}${DENIED}${CANNOT}\b(?:you could|you can|i can|i could|want me to|like me to|should i|shall i|can i|happy to|if you want|if you['’]d like)\b(?:\s+(?:just|also|still))?\s+(?:${LEGACY_ACT})\s+${PRONOUN}${CREDITED}${QUOTE_CREDITED}|${REPORTED}${QUOTED}${DENIED}${CANNOT}\b(?:it|that one|this one)\s+(?:could|can|may|might|should)\s+(?:still\s+)?be\s+(?:fixed|deleted|removed|changed|updated|edited)\b${CREDITED}${QUOTE_CREDITED}`, 'i');
-const PRONOUN_OFFER_NEXT = new RegExp(`^(?:${PRONOUN_OFFER.source})`, 'i');
+const PRONOUN_OFFER_NEXT = new RegExp(`^(?:(?:would|do)\\s+you\\s+)?(?:${PRONOUN_OFFER.source})`, 'i');
 
 function offersAfterCredit(anchor, own) {
-  const credited = new RegExp(`${BESIDE}${anchor}${HOLD}${DUE}${CREDIT}\\s*(?:[,;)]\\s*)+(?:(?:and|but|so|or|then)\\s+)*`, 'gi');
+  const credited = new RegExp(`${REPORTED}${QUOTED}${BESIDE}${anchor}${HOLD}${DUE}${CREDIT}\\s*(?:[,;)]\\s*)+(?:(?:and|but|so|or|then)\\s+)*`, 'gi');
   return [...own.matchAll(credited)].some((found) => PRONOUN_OFFER_NEXT.test(own.slice(found.index + found[0].length)));
 }
 const idsIn = (text) => text.match(FINDING_ID) ?? [];
