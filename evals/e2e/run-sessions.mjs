@@ -229,10 +229,19 @@ const QUOTED = String.raw`(?<!${VOICE}(?:(?:(?!${SPEAKER_CHANGE})[^"“]){0,30}|
 const REPORTED = String.raw`(?<!${VOICE}(?:(?!\bbut\b|${SPEAKER_CHANGE}${QUOTED})[^;])*)`;
 const TURN = String.raw`(?:${LEAD}|(?:${QUOTED}[,;]|[,;]\\?["”'’]${QUOTED}|${SPEAKER_CHANGE}${QUOTED}\s*:)\s*)${OPENING}`;
 const DENIED = String.raw`(?<!(?:\bnot|n['’]t|\bnever)\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
-const CREDITED = String.raw`(?![^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE}(?:\s+(?:so|too|earlier(?:\s+today)?|before|first|again|yesterday|today|tonight|just\s+now|last\s+night|this\s+(?:morning|afternoon)|in\s+(?:the\s+)?(?:previous|last|first|earlier)\s+(?:review|round)|in\s+round\s+\d+))?\s*(?:[,.;)!?]|$))`;
+const DAY = 'monday|tuesday|wednesday|thursday|friday|saturday|sunday';
+const DAYPART = 'morning|afternoon|evening|night';
+const COUNT = String.raw`an?|one|two|three|four|five|six|seven|eight|nine|ten|\d+|a\s+few|a\s+couple\s+of|several`;
+const WHEN = String.raw`so|too|before|first|again|just\s+now|earlier(?:\s+today)?|today|tonight|yesterday(?:\s+(?:${DAYPART}))?|(?:on\s+)?(?:${DAY})(?:\s+(?:${DAYPART}))?|(?:last|this)\s+(?:${DAYPART}|week|weekend|month|${DAY})|(?:${COUNT})\s+(?:minutes?|hours?|days?|nights?|weeks?|months?|rounds?|reviews?)\s+(?:ago|back|earlier|before)|in\s+(?:the\s+)?(?:previous|last|first|earlier)\s+(?:review|round)|in\s+round\s+\d+`;
+const CREDIT = String.raw`[^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE}(?:\s+(?:${WHEN}))?`;
+const CREDITED = String.raw`(?!${CREDIT}\s*(?:[,.;)!?]|$))`;
 const INCLUDING = String.raw`,\s*(?:including|plus|and\s+also|as\s+well\s+as|along\s+with|together\s+with)\s+(?:(?:the|this|that|your)\s+)?`;
 const TAG = String.raw`,?\s+(?:too|as\s+well)\b`;
-const OBJECT_END = String.raw`(?!\s+(?:(?:still|also|just|now)\s+)?(?:stays?|remains?|is|are|was|were|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|gets?|keeps?|sits?|lives?|goes|seems?|looks?)\b)`;
+const NOT_VERB = String.raw`its|yes|besides|sometimes|always|perhaps|[a-z]*(?:wards|ways|adays)`;
+const HEAD_NOUN = 'calls|statements|lines|logs|entries|usages|uses|references|occurrences|instances|messages|outputs|prints|imports|tests|checks|comments|leftovers|ones|findings|issues|things|bugs';
+const VERB_LIKE = String.raw`(?!(?:${NOT_VERB})\b)[a-z]+[b-hj-rtv-z]s\b`;
+const ASIDE = String.raw`(?:\s*,\s*(?:as|per|like|at|by)\s[^;,.?!]{1,40},)?`;
+const OBJECT_END = String.raw`(?!${ASIDE}\s+(?:(?:(?:still|also|just|now)\s+)?(?:stays?|remains?|is|are|was|were|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|gets?|keeps?|sits?|lives?|goes|seems?|looks?)\b|(?:still|also|just|now)\s+${VERB_LIKE}|(?!(?:${HEAD_NOUN})\b)${VERB_LIKE}(?!\s*\?)))`;
 const AND_TOO = String.raw`,\s*and\s+(?:(?:the|this|that|your)\s+)?`;
 const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+to\s+)?`;
 const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
@@ -250,7 +259,8 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${LEAD}${OPENING}${SUBJECT}${anchor}${NEAR}${DUE}${CREDITED}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
     || new RegExp(`${TURN}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${TURN}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
-    || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own);
+    || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own)
+    || offersAfterCredit(anchor, own);
 }
 
 const UNQUOTED = String.raw`(?:[^"“‘'\n]|(?<=\w)')*(?:(?:["“][^"”\n]*["”]|‘(?:[^’\n]|’(?=\w))*’(?!\w)|(?<!\w)'(?:[^'\n]|'(?=\w))*'(?!\w))(?:[^"“‘'\n]|(?<=\w)')*)*`;
@@ -359,6 +369,12 @@ const PRONOUN = String.raw`(?:it|(?:that|this)(?:\s+one)?)\b${PRONOUN_TAIL}`;
 const QUOTE_CREDITED = String.raw`(?![^;]{0,60}?[,?!]["”’']\s*(?:as\s+)?(?:the\s+)?${VOICE})`;
 const CANNOT = String.raw`(?<!\bcannot\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
 const PRONOUN_OFFER = new RegExp(String.raw`${REPORTED}${QUOTED}${DENIED}${CANNOT}\b(?:you could|you can|i can|i could|want me to|like me to|should i|shall i|can i|happy to|if you want|if you['’]d like)\b(?:\s+(?:just|also|still))?\s+(?:${LEGACY_ACT})\s+${PRONOUN}${CREDITED}${QUOTE_CREDITED}|${REPORTED}${QUOTED}${DENIED}${CANNOT}\b(?:it|that one|this one)\s+(?:could|can|may|might|should)\s+(?:still\s+)?be\s+(?:fixed|deleted|removed|changed|updated|edited)\b${CREDITED}${QUOTE_CREDITED}`, 'i');
+const PRONOUN_OFFER_NEXT = new RegExp(`^(?:${PRONOUN_OFFER.source})`, 'i');
+
+function offersAfterCredit(anchor, own) {
+  const credited = new RegExp(`${BESIDE}${anchor}${HOLD}${DUE}${CREDIT}\\s*(?:[,;)]\\s*)+(?:(?:and|but|so|or|then)\\s+)*`, 'gi');
+  return [...own.matchAll(credited)].some((found) => PRONOUN_OFFER_NEXT.test(own.slice(found.index + found[0].length)));
+}
 const idsIn = (text) => text.match(FINDING_ID) ?? [];
 const UNQUOTED_END = new RegExp(String.raw`${QUOTED}$`, 'i');
 const pronounOffer = (id, part, next) => idsIn(part).includes(id) && idsIn(part).every((found) => found === id) && !idsIn(next).length && UNQUOTED_END.test(part) && PRONOUN_OFFER.test(next);

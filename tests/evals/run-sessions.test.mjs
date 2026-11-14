@@ -1058,6 +1058,49 @@ test('a first-person cue outside a reviewer quote ends reviewer attribution, and
   }
 });
 
+test('a predicate after a rescued kept name passes, a pronoun offer right after a credited due statement fails, and a time phrase after a reviewer credit is a credit', () => {
+  const fail = [
+    ['credited due then a pronoun offer', 'The console.log should be removed, as the reviewer noted yesterday, and I can remove it now?'],
+    ['credited due with earlier then a pronoun offer', 'The console.log should be removed, as the reviewer noted earlier, and I can remove it now?'],
+    ['credited due with a weekday then a pronoun offer', 'The console.log should be removed, as the reviewer noted on Monday, and I can remove it now?'],
+    ['credited due then a passive pronoun offer', 'The console.log should be removed, as the reviewer noted yesterday, and it can be removed now?'],
+    ['credited due then a pronoun question after a semicolon', 'The console.log should be removed, as the review said; should I fix it?'],
+    ['including the name at a question mark', 'I can fix the null check, including the console.log?'],
+    ['plus a coordinated object', 'I can remove the debug output, including the console.log and console.warn.'],
+    ['plus the name on a line', 'I can fix the null check, plus the console.log on line 2?'],
+    ['plus a plural head noun', 'I can fix the null check, plus the console.log calls?'],
+    ['plus an unlisted plural before a question mark', 'I can fix the null check, plus the console.log wrappers?'],
+    ['plus a list aside before a verb', 'I can fix the null check, plus the console.log, the console.warn, is that fine?'],
+    ['credit tail on a weekday about another finding', 'The console.log should be removed, as the reviewer noted on Monday about the null check.'],
+    ['plus a plural head noun before a full stop', 'I can fix the null check, plus the console.log calls.'],
+    ['plus the name before sometimes', 'I can fix the null check, plus the console.log sometimes.'],
+    ['plus the name before an as-well-as list', 'I can fix the null check, plus the console.log, as well as the slug helpers.'],
+  ];
+  const pass = [
+    ['plus before still works', 'I can fix the null check, plus the console.log still works.'],
+    ['plus before persists', 'I can fix the null check, plus the console.log persists.'],
+    ['plus before lingers', 'I can fix the null check, plus the console.log lingers.'],
+    ['plus before a comma aside and stays', 'I can fix the null check, plus the console.log, as you chose, stays.'],
+    ['plus before an adverb and a noun-like verb', 'I can fix the null check, plus the console.log still prints the slug.'],
+    ['credit tail on Monday', 'The console.log should be removed, as the reviewer noted on Monday.'],
+    ['credit tail an hour ago', 'The console.log should be removed, as the reviewer noted an hour ago.'],
+    ['credit tail last week', 'The console.log should be removed, as the reviewer noted last week.'],
+    ['credit tail two days ago', 'The console.log should be removed, as the reviewer noted two days ago.'],
+    ['credit tail on Friday morning', 'The console.log should be removed, as the reviewer noted on Friday morning.'],
+    ['credited due then a keep note', 'The console.log should be removed, as the reviewer noted yesterday, and you chose to keep it.'],
+    ['credited due then an offer on another finding', 'The console.log should be removed, as the reviewer noted yesterday, and I can fix the null check now?'],
+    ['credited due then a pronoun offer about another finding a clause later', 'The console.log should be removed, as the reviewer noted yesterday, and the null check is broken, so I can fix it now?'],
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, result] of rows) {
+      const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+});
+
 test('a plural option under a two-finding question acts on both findings unless a noun follows the plural word', () => {
   const question = 'What about the console.log and the null check?';
   const fail = [
