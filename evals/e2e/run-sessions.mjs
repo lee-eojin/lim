@@ -275,8 +275,8 @@ function optionActs(anchor, question) {
 
 function restatedTitles(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim()).filter((text) => new RegExp(DUE, 'i').test(text));
-  const exact = (text) => escapeRegex(text.replace(/\x60/g, '')).replace(/\s+/g, '\\x60?\\s+\\x60?');
-  const loose = (text) => exact(text).replace(/^[A-Za-z]/, (letter) => `[${letter.toUpperCase()}${letter.toLowerCase()}]`);
+  const exact = (text) => text.split('\x60').map((part) => escapeRegex(part).replace(/\s+/g, '\\s+')).join('\\x60?');
+  const loose = (text) => `\\x60?${escapeRegex(text.replace(/\x60/g, '')).replace(/\s+/g, '\\x60?\\s+\\x60?').replace(/^[A-Za-z]/, (letter) => `[${letter.toUpperCase()}${letter.toLowerCase()}]`)}`;
   return texts.length ? new RegExp(`(?:${LISTED}(?:${texts.map(exact).join('|')})|${ITEM}(?:${texts.map(loose).join('|')}))`, 'g') : null;
 }
 
@@ -302,7 +302,7 @@ function subjectAnchor(text) {
   const subject = (found?.[2] ?? '').replace(/\x60/g, '');
   if (subject.length < (found?.[1] ? 2 : 3) || /^(?:it|this|that|these|those|they|them)$/i.test(subject)) return [];
   const words = escapeRegex(subject).replace(/\s+/g, '\\x60?\\s+\\x60?');
-  return [`(?<![\\w$./-]\\x60?)${words}(?!\\x60?[./-]?[\\w$])(?!\\x60?['’]s\\b)(?!\\x60?(?:\\s+(?!(?:${ADVERB})\\b)[\\w\\x60-]+)+\\s+${DUE})`];
+  return [`(?<![\\w$./-]\\x60?)${words}(?!\\x60?[./-]?[\\w$])(?!\\x60?['’]s\\b)(?!\\x60?(?:\\s+(?!(?:${ADVERB})\\b)[\\w\\x60-]+)+(?:\\s+(?:${ADVERB}))*\\s+${DUE})`];
 }
 
 function keptAnchors(records) {

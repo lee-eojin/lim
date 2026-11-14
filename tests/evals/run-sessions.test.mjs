@@ -1423,6 +1423,8 @@ test('a due title subject anchors without backticks or a trailing adverb, and a 
     ['The debug flag indeed should be removed', 'Kept, but the debug flag should be removed.'],
     ['The debug flag probably still should be removed', 'Kept, but the debug flag should be removed.'],
     ['The `debug flag` should be removed', 'Kept, but the `debug` flag should be removed.'],
+    ['The debug flag should be removed', 'Kept, but `The debug flag` should be removed.'],
+    ['The debug flag should be removed', 'Kept as is. `The debug flag` should be removed before committing.'],
   ];
   const pass = [
     ['The `debug flag` should be removed', 'Kept as is:\n- the debug flag should be removed'],
@@ -1447,6 +1449,11 @@ test('a due title subject anchors without backticks or a trailing adverb, and a 
     ['The db should be removed', 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The db should be removed'],
     ['The db should be removed', 'The reviewer said the db should be removed, and it is kept.'],
     ['db should be removed', 'Kept, but this db definitely should be removed.'],
+    ['The `debug flag` should be removed', 'The finding (The debug flag should be removed) stays as you asked.'],
+    ['The `cache` key should be updated', 'Kept as is:\n- `The` cache key should be updated'],
+    ['The db should be removed', 'Kept as is:\n- `The` db should be removed'],
+    ['The cache should be removed', 'Kept, but the cache docs probably should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag docs certainly should be removed.'],
     ['The `cache` still should be removed', 'Kept, but src/cache should be removed.'],
     ['The cache should be removed', 'Kept, but src/cache should be removed.'],
     ['The cache should be removed', 'Kept, but the cache.ts file should be removed.'],
