@@ -962,6 +962,59 @@ test('a first-person change of speaker before a quote ends the reviewer attribut
   }
 });
 
+test('a bare second finding pairs with the kept name when a closed time or scope tail follows it', () => {
+  const ask = (question) => [askAbout(question, { label: 'Fix it', description: 'Line 2' }, keepIt)];
+  const pass = [
+    ['before the release', 'Should we review the console.log and null check before the release?'],
+    ['after the merge', 'Should we look at the console.log and deadlock after the merge?'],
+    ['in the next round', 'Should we review the console.log and null check in the next round?'],
+    ['until the release', 'Should we review the console.log or null check until the release?'],
+    ['during this review', 'Should we look at the console.log and null check during this review?'],
+    ['after that merge', 'Should we review the console.log and null check after that merge?'],
+    ['in our next round', 'Should we review the console.log and null check in our next round?'],
+    ['before your release', 'Should we review the console.log and null check before your release?'],
+    ['before next release', 'Should we review the console.log and null check before next release?'],
+    ['a noun finding that starts like a verb', 'Should we review the console.log and test coverage before the release?'],
+    ['test flake after the merge', 'Should we review the console.log and test flake after the merge?'],
+    ['release script in the next round', 'Should we review the console.log and release script in the next round?'],
+    ['tag cleanup before the release', 'Should we review the console.log and tag cleanup before the release?'],
+    ['memory leak before the release', 'Should we review the console.log and memory leak before the release?'],
+    ['data race after the merge', 'Should we review the console.log and data race after the merge?'],
+    ['race condition in the next round', 'Should we review the console.log and race condition in the next round?'],
+    ['parser bug before the release', 'Should we review the console.log and parser bug before the release?'],
+    ['typo after the merge', 'Should we review the console.log and typo after the merge?'],
+    ['request timeout before the release', 'Should we review the console.log and request timeout before the release?'],
+  ];
+  const fail = [
+    ['a verb-led tail before the release', 'Should we review the console.log and run tests before the release?'],
+    ['send notes before the release', 'Should we review the console.log and send notes before the release?'],
+    ['write docs after the merge', 'Should we look at the console.log and write docs after the merge?'],
+    ['check logs in the next round', 'Should we review the console.log and check logs in the next round?'],
+    ['update docs before the release', 'Should we review the console.log and update docs before the release?'],
+    ['a verb outside the lists with a plural object', 'Should we review the console.log and translate strings before the release?'],
+    ['a verb with a singular object', 'Should we review the console.log and translate string before the release?'],
+    ['a bare verb', 'Should we review the console.log and translate before the release?'],
+    ['an excluded verb before a listed finding noun', 'Should we review the console.log and run check before the release?'],
+    ['fetch logs before the release', 'Should we review the console.log and fetch logs before the release?'],
+    ['release builds before the release', 'Should we review the console.log and release builds before the release?'],
+    ['a bare verb that doubles as a noun before the tail', 'Should we review the console.log and test before the release?'],
+    ['a for tail after a bare finding', 'Should we review the console.log and null check for the team?'],
+    ['a verb-led tail with for the team', 'Should we look at the console.log and send notes for the team?'],
+    ['a pronoun after the tail word', 'Should we look at the console.log and send notes for it?'],
+    ['a tail with no article', 'Should we review the console.log and null check before release?'],
+    ['a tail with an indefinite article', 'Should we review the console.log and null check before a release?'],
+    ['a tail with three words after the article', 'Should we review the console.log and null check before the big final release?'],
+  ];
+  for (const [want, rows] of [[true, pass], [false, fail]]) {
+    for (const [name, question] of rows) {
+      const kept = buildSession(recordedStream([...keptLogSteps, ...ask(question)], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream([...keptBeforeSteps, ...ask(question)], { result: 'Nothing is committed.' }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+});
+
 test('an and-too offer after a neighbor fails, a reviewer credit with a time tail or a rescue word before a verb about the kept finding passes, and every neighbor word reads like near', () => {
   const words = ['beside', 'alongside', 'around', 'above', 'below', 'after', 'before', 'behind', 'under'];
   const fail = [
