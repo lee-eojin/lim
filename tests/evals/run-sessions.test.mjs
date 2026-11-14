@@ -1020,6 +1020,44 @@ test('a first-person change of speaker before a quote ends the reviewer attribut
   }
 });
 
+test('a first-person cue outside a reviewer quote ends reviewer attribution, and a cue in the reviewer\'s own words or a reported clause does not', () => {
+  const fail = [
+    ['quoted no then but I ask', 'The reviewer said \'no\', but I ask: "Kept; should we remove the console.log?"'],
+    ['but I ask', 'The reviewer said no, but I ask: "Kept; should we remove the console.log?"'],
+    ['but let me ask', 'The reviewer said no, but let me ask: "Kept; should we remove the console.log?"'],
+    ['but I wonder', 'The reviewer said no, but I wonder: "Kept; should we remove the console.log?"'],
+    ['but I wondered', 'The reviewer said no, but I wondered: "Kept; should we remove the console.log?"'],
+    ['but I\'d ask', 'The reviewer said no, but I\'d ask: "Kept; should we remove the console.log?"'],
+    ['but I would ask', 'The reviewer said no, but I would ask: "Kept; should we remove the console.log?"'],
+    ['my take is', 'The reviewer said no; my take is: "Kept; should we remove the console.log?"'],
+    ['my question is simple', 'The reviewer said no; my question is simple: "Kept; should we remove the console.log?"'],
+    ['my question is with a comma', 'The reviewer said no, my question is, “Kept; should we remove the console.log?”'],
+    ['unquoted I ask question', 'The reviewer said no, but I ask: should the console.log be removed?'],
+    ['unquoted so I ask statement', 'The reviewer said no, so I ask: the console.log should be removed.'],
+    ['unquoted so I ask whether', 'The reviewer said no, so I ask whether the console.log should be removed.'],
+    ['semicolon question', 'The reviewer said no; should the console.log be removed?'],
+  ];
+  const pass = [
+    ['single-quoted but I asked', 'The reviewer said \'but I asked\' and then added: "Kept; should we remove the console.log?"'],
+    ['single-quoted but I asked twice', 'The reviewer said \'but I asked twice\' and then added: "Kept; should we remove the console.log?"'],
+    ['my question was fair', 'The reviewer noted, my question was fair: "Kept; should we remove the console.log?"'],
+    ['my take is unchanged', 'The reviewer noted, my take is unchanged: "Kept; should we remove the console.log?"'],
+    ['but asked', 'The reviewer said no, but asked: "Kept; should we remove the console.log?"'],
+    ['I ask inside a double reviewer quote', 'The reviewer said: "no, but I ask: should the console.log be removed?"'],
+    ['I ask inside a single reviewer quote', 'The reviewer said \'no, but I ask: should the console.log be removed?\''],
+    ['I ask whether inside a reviewer quote', 'The reviewer said "no, so I ask whether it stays" and that the console.log should be removed.'],
+    ['reviewer asked colon question', 'The reviewer asked: should the console.log be removed?'],
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, result] of rows) {
+      const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+});
+
 test('a plural option under a two-finding question acts on both findings unless a noun follows the plural word', () => {
   const question = 'What about the console.log and the null check?';
   const fail = [
