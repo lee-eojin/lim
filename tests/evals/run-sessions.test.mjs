@@ -1125,7 +1125,6 @@ test('a plural option under a two-finding question acts on both findings unless 
     ['both of them and a next step', 'Fix both of them and rerun tests'],
     ['those two before an action', 'Fix those two before committing'],
     ['these two please', 'Fix these two please'],
-    ['those two with a modifier before a noun', 'Fix those two failing tests'],
     ['both indoors', 'Fix both indoors'],
     ['both upstairs', 'Fix both upstairs'],
     ['both whereas', 'Fix both whereas the docs wait'],
@@ -1213,6 +1212,7 @@ test('a plural option under a two-finding question acts on both findings unless 
     ['singular that', 'Fix that'],
     ['bare verb', 'Fix'],
     ['each', 'Fix each'],
+    ['those two with a modifier before a noun', 'Fix those two failing tests'],
   ];
   for (const [want, rows] of [[false, fail], [true, pass]]) {
     for (const [name, label] of rows) {
@@ -1273,6 +1273,65 @@ test('a bare second finding pairs with the kept name when a closed time or scope
       const kept = buildSession(recordedStream([...keptLogSteps, ...ask(question)], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog));
       assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
       const before = buildSession(recordedStream([...keptBeforeSteps, ...ask(question)], { result: 'Nothing is committed.' }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+});
+
+test('a verb-led second phrase does not pair with the kept name, a whole option acts on a lone kept finding, and a modifier or of-these before a final plural noun names other things', () => {
+  const fail = [
+    ['send notes first', 'Fix it', 'Should we review the console.log and send notes first?'],
+    ['translate check tail', 'Fix it', 'Should we review the console.log and translate check before the release?'],
+    ['send notes too', 'Fix it', 'Should we review the console.log and send notes too?'],
+    ['send notes as well', 'Fix it', 'Should we review the console.log and send notes as well?'],
+    ['send notes plain', 'Fix it', 'Should we review the console.log and send notes?'],
+    ['rename check first', 'Fix it', 'Should we review the console.log and rename check first?'],
+    ['send-verb or', 'Fix it', 'Should we review the console.log or share notes first?'],
+    ['let docs first', 'Fix it', 'Should we review the console.log and let docs first?'],
+    ['translate strings tail', 'Fix it', 'Should we review the console.log and translate strings before the release?'],
+    ['null pointer tail', 'Fix it', 'Should we review the console.log and null pointer before the release?'],
+    ['Fix all single', 'Fix all', 'What about the console.log?'],
+    ['Fix everything single', 'Fix everything', 'What about the console.log?'],
+    ['Fix all of them single', 'Fix all of them', 'What about the console.log?'],
+    ['Fix all then push single', 'Fix all, then push', 'What about the console.log?'],
+    ['Fix it single', 'Fix it', 'What about the console.log?'],
+    ['both of these', 'Fix both of these', 'What about the console.log and the null check?'],
+    ['both of these findings', 'Fix both of these findings', 'What about the console.log and the null check?'],
+    ['both using patches', 'Fix both using patches', 'What about the console.log and the null check?'],
+    ['both assuming tests pass', 'Fix both assuming tests pass', 'What about the console.log and the null check?'],
+    ['both failing tests then push', 'Fix both, failing tests aside', 'What about the console.log and the null check?'],
+    ['both of them and rerun tests', 'Fix both of them and rerun tests', 'What about the console.log and the null check?'],
+    ['those two before committing', 'Fix those two before committing', 'What about the console.log and the null check?'],
+    ['both', 'Fix both', 'What about the console.log and the null check?'],
+    ['both of them', 'Fix both of them', 'What about the console.log and the null check?'],
+    ['all of these findings', 'Fix all of these findings', 'What about the console.log and the null check?'],
+    ['both via patches', 'Fix both via patches', 'What about the console.log and the null check?'],
+    ['both before tests', 'Fix both before tests', 'What about the console.log and the null check?'],
+    ['both in tests', 'Fix both in tests', 'What about the console.log and the null check?'],
+    ['both of these tests now', 'Fix both of these, tests later', 'What about the console.log and the null check?'],
+  ];
+  const pass = [
+    ['null check tail', 'Fix it', 'Should we review the console.log and null check before the release?'],
+    ['null check first', 'Fix it', 'Should we review the console.log and null check first?'],
+    ['the null check first', 'Fix it', 'Should we review the console.log and the null check first?'],
+    ['send-off hyphen', 'Fix it', 'Should we review the console.log and send-off check first?'],
+    ['test flake tail', 'Fix it', 'Should we review the console.log and test flake before the release?'],
+    ['Fix all the tests single', 'Fix all the tests', 'What about the console.log?'],
+    ['Fix all in tests single', 'Fix all in tests', 'What about the console.log?'],
+    ['both of these tests', 'Fix both of these tests', 'What about the console.log and the null check?'],
+    ['both of those tests', 'Fix both of those tests', 'What about the console.log and the null check?'],
+    ['both of these failing tests', 'Fix both of these failing tests', 'What about the console.log and the null check?'],
+    ['both failing tests', 'Fix both failing tests', 'What about the console.log and the null check?'],
+    ['those test cases', 'Fix those test cases', 'What about the console.log and the null check?'],
+    ['those two failing tests', 'Fix those two failing tests', 'What about the console.log and the null check?'],
+    ['those tests', 'Fix those tests', 'What about the console.log and the null check?'],
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, label, question] of rows) {
+      const ask = [askAbout(question, { label, description: 'Line 2' }, keepIt)];
+      const kept = buildSession(recordedStream([...keptLogSteps, ...ask], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream([...keptBeforeSteps, ...ask], { result: 'Nothing is committed.' }), keptBeforeRepo);
       assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
     }
   }
