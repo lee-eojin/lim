@@ -1447,6 +1447,11 @@ test('a due title subject anchors without backticks or a trailing adverb, and a 
     ['The db should be removed', 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The db should be removed'],
     ['The db should be removed', 'The reviewer said the db should be removed, and it is kept.'],
     ['db should be removed', 'Kept, but this db definitely should be removed.'],
+    ['The db should be removed', 'Kept, but the `db`-backed store should be removed.'],
+    ['The db should be removed', 'Kept, but src/`db` should be removed.'],
+    ['The debug flag should be removed', 'Kept as is:\n- The `debug flag` should be removed'],
+    ['The debug flag should be removed', 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The `debug` flag should be removed'],
+    ['The debug console.log should be removed', 'Kept as is:\n- The debug `console.log` should be removed'],
     ['The db should be removed', 'Kept, but src/db should be removed.'],
     ['The `debug flag` should be removed', 'Kept, but the debug flag `docs` should be removed.'],
   ];

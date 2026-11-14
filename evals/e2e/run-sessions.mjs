@@ -275,7 +275,7 @@ function optionActs(anchor, question) {
 
 function restatedTitles(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim()).filter((text) => new RegExp(DUE, 'i').test(text));
-  const exact = (text) => text.split('\x60').map((part) => escapeRegex(part).replace(/\s+/g, '\\s+')).join('\\x60?');
+  const exact = (text) => escapeRegex(text.replace(/\x60/g, '')).replace(/\s+/g, '\\x60?\\s+\\x60?');
   const loose = (text) => exact(text).replace(/^[A-Za-z]/, (letter) => `[${letter.toUpperCase()}${letter.toLowerCase()}]`);
   return texts.length ? new RegExp(`(?:${LISTED}(?:${texts.map(exact).join('|')})|${ITEM}(?:${texts.map(loose).join('|')}))`, 'g') : null;
 }
@@ -301,7 +301,7 @@ function subjectAnchor(text) {
   const found = text.match(DUE_SUBJECT);
   const subject = (found?.[2] ?? '').replace(/\x60/g, '');
   if (subject.length < (found?.[1] ? 2 : 3) || /^(?:it|this|that|these|those|they|them)$/i.test(subject)) return [];
-  const [before, after] = subject.length < 3 ? ['[\\w$./-]', '[./-]?[\\w$]'] : ['[\\w$]', '[\\w$]'];
+  const [before, after] = subject.length < 3 ? ['[\\w$./-]\\x60?', '\\x60?[./-]?[\\w$]'] : ['[\\w$]', '[\\w$]'];
   const words = escapeRegex(subject).replace(/\s+/g, '\\x60?\\s+\\x60?');
   return [`(?<!${before})${words}(?!${after})(?!\\x60?['’]s\\b)(?!\\x60?(?:\\s+(?!(?:${ADVERB})\\b)[\\w\\x60-]+)+\\s+${DUE})`];
 }
