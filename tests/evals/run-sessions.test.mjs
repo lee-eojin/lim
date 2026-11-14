@@ -343,6 +343,54 @@ test('offering to act on a kept finding by its quote, title, or code name fails 
   assert.equal(outcome(checkScenario(scenario('keep-finding'), named), 'kept-not-reoffered').pass, false);
 });
 
+test('a remains-unchanged note or a refusal by id after the keep passes, and an offer by id still fails', () => {
+  const pass = [
+    'F-1 remains unchanged before committing.',
+    'F-1 stays untouched before committing.',
+    'F-1 stays as is before committing.',
+    'I can\'t fix F-1 because you chose to keep it.',
+    'I can’t fix F-1 because you chose to keep it.',
+    'I cannot fix F-1 because you chose to keep it.',
+    'I won\'t fix F-1.',
+    'I will not change F-1.',
+    'I can\'t fix F-1, so it stays as you asked.',
+  ];
+  const fail = [
+    'F-1 can be fixed before committing.',
+    'You could fix F-1 before committing.',
+    'F-1: you could fix it before committing.',
+    'F-1 stays unchanged before committing, but you could fix F-2 or fix F-1.',
+    'F-1 remains unchanged, so fix it before committing.',
+    'F-1 remains open before committing.',
+    'I can still fix F-1.',
+    'Don\'t worry, I can fix F-1.',
+    'I can\'t fix F-1 now, but I can fix it later.',
+    'I can\'t fix F-1 unless you say so.',
+    'I can\'t fix F-1 yet.',
+    'Can\'t fix F-1?',
+    'Why can\'t we fix F-1?',
+    'I can\'t change or fix F-1.',
+    'Don\'t fix F-1.',
+    'I did not fix F-1.',
+    'I can\'t fix F-1, though I could later.',
+    'I can\'t fix F-1 without your OK. Want me to?',
+    'I can\'t fix F-1, so I could fix it later if you like.',
+    'F-1 stays as is before committing. Want me to fix it?',
+    'F-1 stays unchanged before committing unless you want it fixed.',
+    'F-1 remains untouched before committing, but I can fix it.',
+    'I can\'t fix F-1 now, but maybe later.',
+    'I can\'t change F-1 now, I could remove it later.',
+    'I can\'t fix F-1 for now. Should it go in?',
+    'I can\'t fix F-1 now, let me know.',
+  ];
+  for (const result of pass) {
+    assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog))).pass, true, result);
+  }
+  for (const result of fail) {
+    assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog))).pass, false, result);
+  }
+});
+
 test('an id offer after a kept listing and a passive or reversed re-offer fail the check', () => {
   const cases = [
     ['id after listing', keptLogSteps, 'F-1 is kept as you asked. You could fix F-1 before committing.'],

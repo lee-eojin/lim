@@ -337,6 +337,13 @@ function proseFrom(session, start) {
   return messagesFrom(session, start).join('\n');
 }
 
+const LEGACY_ACT = 'fix|delete|remove|change|update|edit';
+const OFFER_TAIL = String.raw`\?|\b(?:but|unless|until|yet|though|however|if you|let me know|want me|happy to)\b`;
+const REFUSED = String.raw`(?<!\b(?:can['’]t|cannot|won['’]t|will\s+not)\s+)`;
+const STILL_OFFERS = String.raw`(?=.*(?:${OFFER_TAIL}))`;
+const UNCHANGED = String.raw`(?!\s+(?:stays?|remains?)\s+(?:unchanged|untouched|as\s+is)\s+before committing\b(?!.*(?:${OFFER_TAIL}|\b(?:${LEGACY_ACT})\b)))`;
+const LATER_OFFER = /\?|\b(?:want me|should i|shall i|let me know|if you|happy to)\b/i;
+
 export function keptNotReoffered(session) {
   const keptRecords = [
     ...ledgerEvents(session, 'decision').filter((entry) => entry.choice === 'keep' && entry.id),
@@ -356,12 +363,13 @@ export function keptNotReoffered(session) {
     askText,
   ].join('\n');
   const reoffered = keptIds.filter((id) => {
-    const offer = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
+    const legacy = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
+    const offer = new RegExp(`(?:${REFUSED}|${STILL_OFFERS}|(?=(?:${LEGACY_ACT})\\b.*\\b(?:${LEGACY_ACT})\\b))(?:${LEGACY_ACT}).{0,60}${id}\\b|${id}\\b(?:.{0,60}(?:you could|or delete|or fix)|${UNCHANGED}.{0,60}before committing)`, 'i');
     const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
     const keepAt = keepStep(session, id);
     const offered = keepAt === -1
       ? offer.test(prose) && !listedKeep.test(prose)
-      : messagesFrom(session, keepAt + 1).some((text) => segmentsOf(text).some((part) => offer.test(part)) && !listedKeep.test(text));
+      : messagesFrom(session, keepAt + 1).some((text) => segmentsOf(text).some((part, index, parts) => offer.test(part) || (legacy.test(part) && LATER_OFFER.test(parts.slice(index + 1).join('\n')))) && !listedKeep.test(text));
     if (offered) return true;
     const records = keptRecords.filter((item) => item.id === id);
     const anchors = [...keptAnchors(records), `\\b${escapeRegex(id)}\\b`];
