@@ -1425,6 +1425,8 @@ test('a due title subject anchors without backticks or a trailing adverb, and a 
     ['The `debug flag` should be removed', 'Kept, but the `debug` flag should be removed.'],
     ['The debug flag should be removed', 'Kept, but `The debug flag` should be removed.'],
     ['The debug flag should be removed', 'Kept as is. `The debug flag` should be removed before committing.'],
+    ['The debug flag should be removed', 'I can remove the debug flag if it still should be removed.'],
+    ['The debug flag should be removed', 'I can remove the debug flag if it probably should be removed.'],
   ];
   const pass = [
     ['The `debug flag` should be removed', 'Kept as is:\n- the debug flag should be removed'],
