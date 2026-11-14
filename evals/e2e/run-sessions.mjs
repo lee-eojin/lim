@@ -224,7 +224,7 @@ const MARK = String.raw`[\s*_>•-]*`;
 const BESIDE = String.raw`(?<!\b(?:near|next\s+to|beside|alongside|around|above|below|after|before|behind|under)\s+(?:(?:the|this|that|your|a|an)\s+)?(?:[\w-]+\s+)?)`;
 const SAID = 'said|says|noted|notes|flagged|flags|suggested|suggests|recommended|recommends|found|thought|thinks|wrote|reported|reports|asked|wanted|wants|raised|mentioned|argued';
 const VOICE = String.raw`\b(?:(?:reviewer|review|finding|report)\s+(?:(?:also|had|has)\s+)?(?:${SAID})|you\s+(?:said|answered|noted|wrote|mentioned)|(?:according\s+to|per)\s+(?:the\s+|your\s+)?(?:reviewer|review|finding|report)|reviewer['’]s\s+[\w-]+)\b`;
-const SPEAKER_CHANGE = String.raw`(?=\S)(?<=[,;:.!?—–]\s*|\b(?:but|so|and|then)\s+)(?:(?:i\s+ask(?:ed)?|let\s+me\s+ask|i\s+wonder(?:ed)?|i(?:['’]d|\s+would)\s+ask)\b|my\s+(?:own\s+)?(?:question|take)\s+(?:is|was)(?=\s*(?:[:"“'‘]|,\s*["“'‘])))(?<!(?<!\w)['‘](?!\s)(?:[^'’\n]|\b['’]\b)*)`;
+const SPEAKER_CHANGE = String.raw`(?=\S)(?<=[,;:.!?—–]\s*|\b(?:but|so|and|then)\s+)(?:(?:i\s+ask(?:ed)?|let\s+me\s+ask|i\s+wonder(?:ed)?|i(?:['’]d|\s+would)\s+ask)\b|(?<!${VOICE},\s*)my\s+(?:own\s+)?(?:question|take)\s+(?:is|was)\b)(?<!(?<!\w)['‘](?!\s)(?:[^'’\n]|\b['’]\b)*)`;
 const QUOTED = String.raw`(?<!${VOICE}(?:(?:(?!${SPEAKER_CHANGE})[^"“]){0,30}|(?:(?!${SPEAKER_CHANGE})[^"“.?!,;:\n]){0,80}[:,]\s*)(?:\\?["“][^"”]*|(?<!\w)['‘](?!\s)(?:[^'’]|\b['’]\b)*))`;
 const REPORTED = String.raw`(?<!${VOICE}(?:(?!\bbut\b|${SPEAKER_CHANGE}${QUOTED})[^;])*)`;
 const TURN = String.raw`(?:${LEAD}|(?:${QUOTED}[,;]|[,;]\\?["”'’]${QUOTED}|${SPEAKER_CHANGE}${QUOTED}\s*:)\s*)${OPENING}`;

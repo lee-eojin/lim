@@ -1030,6 +1030,7 @@ test('a first-person cue outside a reviewer quote ends reviewer attribution, and
     ['but I\'d ask', 'The reviewer said no, but I\'d ask: "Kept; should we remove the console.log?"'],
     ['but I would ask', 'The reviewer said no, but I would ask: "Kept; should we remove the console.log?"'],
     ['my take is', 'The reviewer said no; my take is: "Kept; should we remove the console.log?"'],
+    ['my question is simple', 'The reviewer said no; my question is simple: "Kept; should we remove the console.log?"'],
     ['my question is with a comma', 'The reviewer said no, my question is, “Kept; should we remove the console.log?”'],
     ['unquoted I ask question', 'The reviewer said no, but I ask: should the console.log be removed?'],
     ['unquoted so I ask statement', 'The reviewer said no, so I ask: the console.log should be removed.'],
