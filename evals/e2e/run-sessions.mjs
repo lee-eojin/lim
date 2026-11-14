@@ -268,7 +268,7 @@ function optionActs(anchor, question) {
   const code = `\\x60?${anchor}\\x60?`;
   const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|${BARE}(?:\\s+(?:first|too|as\\s+well))?\\s*\\?|(?=${BARE}\\s+${TAIL})(?:[a-z][\\w-]*\\s+)?(?:${FINDING_NOUN})\\s+${TAIL})`, 'i').test(asked);
   const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|[\\s.!]*$)`, 'i');
-  const plural = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b\\s+(?:${PLURAL})\\b(?!\\s+(?:(?:the|a|an|my|our|your|else|other|of|two)\\b|(?:this|that)\\b(?!\\s+(?:time|round|week|way)\\b)|(?:(?<=\\ball\\s+)(?!(?:${NOT_MODIFIER})\\b)[a-z][\\w-]*\\s+)?(?!(?:${NOT_NOUN})\\b)[a-z][\\w-]+s\\b))`, 'i');
+  const plural = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b\\s+(?:${PLURAL})\\b(?!\\s+(?:(?:the|a|an|my|our|your|else|other|of|two)\\b|(?<=\\ball\\s+)(?:this|that)\\b(?!\\s+(?:time|round|week|way)\\b)|(?:(?<=\\b(?:all|two)\\s+)(?:(?!(?:${NOT_MODIFIER})\\b)[a-z][\\w-]*\\s+){1,3})?(?!(?:${NOT_NOUN})\\b)[a-z][\\w-]+s\\b))`, 'i');
   return named && choices.some((text) => (paired ? plural : pronoun).test(text));
 }
 
