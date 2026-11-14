@@ -992,6 +992,10 @@ test('a plural option under a two-finding question acts on both findings unless 
     ['both then regardless', 'Fix both regardless'],
     ['both this time', 'Fix both this time'],
     ['all this round', 'Fix all this round'],
+    ['both this week', 'Fix both this week'],
+    ['both that way', 'Fix both that way'],
+    ['both then besides', 'Fix both besides'],
+    ['both then nevertheless', 'Fix both nevertheless'],
   ];
   const pass = [
     ['those before a noun', 'Fix those tests'],
