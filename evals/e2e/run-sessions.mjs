@@ -301,9 +301,8 @@ function subjectAnchor(text) {
   const found = text.match(DUE_SUBJECT);
   const subject = (found?.[2] ?? '').replace(/\x60/g, '');
   if (subject.length < (found?.[1] ? 2 : 3) || /^(?:it|this|that|these|those|they|them)$/i.test(subject)) return [];
-  const [before, after] = subject.length < 3 ? ['[\\w$./-]\\x60?', '\\x60?[./-]?[\\w$]'] : ['[\\w$]', '[\\w$]'];
   const words = escapeRegex(subject).replace(/\s+/g, '\\x60?\\s+\\x60?');
-  return [`(?<!${before})${words}(?!${after})(?!\\x60?['’]s\\b)(?!\\x60?(?:\\s+(?!(?:${ADVERB})\\b)[\\w\\x60-]+)+\\s+${DUE})`];
+  return [`(?<![\\w$./-]\\x60?)${words}(?!\\x60?[./-]?[\\w$])(?!\\x60?['’]s\\b)(?!\\x60?(?:\\s+(?!(?:${ADVERB})\\b)[\\w\\x60-]+)+\\s+${DUE})`];
 }
 
 function keptAnchors(records) {
