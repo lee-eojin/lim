@@ -275,7 +275,7 @@ function optionActs(anchor, question) {
 
 function restatedTitles(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim()).filter((text) => new RegExp(DUE, 'i').test(text));
-  const exact = (text) => escapeRegex(text).replace(/\s+/g, '\\s+');
+  const exact = (text) => text.split('\x60').map((part) => escapeRegex(part).replace(/\s+/g, '\\s+')).join('\\x60?');
   const loose = (text) => exact(text).replace(/^[A-Za-z]/, (letter) => `[${letter.toUpperCase()}${letter.toLowerCase()}]`);
   return texts.length ? new RegExp(`(?:${LISTED}(?:${texts.map(exact).join('|')})|${ITEM}(?:${texts.map(loose).join('|')}))`, 'g') : null;
 }
@@ -294,15 +294,24 @@ function actsOn(anchors, records, segments, questions) {
   return anchors.some((anchor) => pairs.some(([segment, own]) => offersToAct(anchor, segment, own)) || questions.some((question) => optionActs(anchor, question)));
 }
 
-const DUE_SUBJECT = new RegExp(String.raw`^(?:(?:the|a|an|this|that|your)\s+)?(.+?)\s+${DUE}`, 'i');
+const ADVERB = 'still|also|always|really|just|now|definitely|probably|certainly|clearly|obviously|surely|likely|perhaps|maybe|actually|honestly|simply|truly|indeed';
+const DUE_SUBJECT = new RegExp(String.raw`^(?:(the|a|an|this|that|your)\s+)?(.+?)(?:\s+(?:${ADVERB}))*\s+${DUE}`, 'i');
+
+function subjectAnchor(text) {
+  const found = text.match(DUE_SUBJECT);
+  const subject = (found?.[2] ?? '').replace(/\x60/g, '');
+  if (subject.length < (found?.[1] ? 2 : 3) || /^(?:it|this|that|these|those|they|them)$/i.test(subject)) return [];
+  const [before, after] = subject.length < 3 ? ['[\\w$./-]', '[./-]?[\\w$]'] : ['[\\w$]', '[\\w$]'];
+  const words = escapeRegex(subject).replace(/\s+/g, '\\x60?\\s+\\x60?');
+  return [`(?<!${before})${words}(?!${after})(?!\\x60?['’]s\\b)(?!\\x60?(?:\\s+(?!(?:${ADVERB})\\b)[\\w\\x60-]+)+\\s+${DUE})`];
+}
 
 function keptAnchors(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim().replace(/[;,]+$/, ''));
   const files = records.map((item) => item.file ?? '').join('\n');
   const names = texts.flatMap((text) => text.match(DOTTED_NAME) ?? []).filter((name) => !files.includes(name));
-  const subjects = texts.map((text) => text.match(DUE_SUBJECT)?.[1] ?? '').filter((text) => text.length >= 3 && !/^(?:it|this|that|these|those|they|them)$/i.test(text));
   const anchors = [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
-  return [...new Set([...anchors, ...subjects.map((text) => `(?<![\\w$])${escapeRegex(text).replace(/\s+/g, '\\s+')}(?![\\w$])(?!['’]s\\b)(?!(?:\\s+(?!(?:still|also|always|really|just|now|definitely)\\b)[\\w-]+)+\\s+${DUE})`)])];
+  return [...new Set([...anchors, ...texts.flatMap(subjectAnchor)])];
 }
 
 function keepStep(session, id) {
