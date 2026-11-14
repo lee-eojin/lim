@@ -1284,6 +1284,9 @@ test('a pronoun offer in the sentence right after one naming only the kept id fa
     'F-1 stays unchanged. You could fix this test instead.',
     'F-1 stays unchanged. You could fix that typo.',
     'F-1 stays unchanged. According to the review, it could be fixed.',
+    'F-1 stays unchanged. It could be fixed, as the reviewer said.',
+    'F-1 stays unchanged. You could fix it, as the reviewer said.',
+    'F-1 stays unchanged. The reviewer said "It is minor, but you could fix it."',
   ];
   for (const [want, rows] of [[false, fail], [true, pass]]) {
     for (const result of rows) {
