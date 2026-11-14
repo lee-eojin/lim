@@ -354,6 +354,7 @@ test('a remains-unchanged note or a refusal by id after the keep passes, and an 
     'I won\'t fix F-1.',
     'I will not change F-1.',
     'I can\'t fix F-1, so it stays as you asked.',
+    'I won\'t change F-1. I can\'t edit it either.',
   ];
   const fail = [
     'F-1 can be fixed before committing.',
@@ -382,6 +383,8 @@ test('a remains-unchanged note or a refusal by id after the keep passes, and an 
     'I can\'t change F-1 now, I could remove it later.',
     'I can\'t fix F-1 for now. Should it go in?',
     'I can\'t fix F-1 now, let me know.',
+    'I can\'t fix F-1 because you chose to keep it. I can still fix it later.',
+    'I can\'t fix F-1 now. I could remove it later.',
   ];
   for (const result of pass) {
     assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog))).pass, true, result);
@@ -389,6 +392,13 @@ test('a remains-unchanged note or a refusal by id after the keep passes, and an 
   for (const result of fail) {
     assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog))).pass, false, result);
   }
+  const split = buildSession(recordedStream([...keptLogSteps, 'I can\'t fix F-1 because you chose to keep it.'], { result: 'Want me to fix it?' }), keptRepoOf(keptConsoleLog));
+  assert.equal(keptNotReoffered(split).pass, false, 'refusal then a closing offer');
+  const quiet = buildSession(recordedStream([...keptLogSteps, 'I can\'t fix F-1 because you chose to keep it.'], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog));
+  assert.equal(keptNotReoffered(quiet).pass, true, 'refusal then a plain closing');
+  const earlier = keptLogSteps.slice(0, 4);
+  assert.equal(keptNotReoffered(buildSession(recordedStream(earlier, { result: 'I can\'t fix F-1 now.' }), keptRepoOf(keptConsoleLog))).pass, true, 'refusal with the keep from an earlier session');
+  assert.equal(keptNotReoffered(buildSession(recordedStream(earlier, { result: 'I can\'t fix F-1 now.\nWant me to?' }), keptRepoOf(keptConsoleLog))).pass, false, 'refusal then an offer line with the keep from an earlier session');
 });
 
 test('an id offer after a kept listing and a passive or reversed re-offer fail the check', () => {
