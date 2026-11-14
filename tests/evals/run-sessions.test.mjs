@@ -1308,6 +1308,10 @@ test('a pronoun offer in the sentence right after one naming only the kept id fa
     'F-1 stays unchanged. I can no longer fix it.',
     'F-1 stays unchanged. You could fix that one\'s tests instead.',
     'F-1 stays unchanged. You could fix this one’s docs.',
+    'F-1 stays unchanged. You could fix this.parse() instead.',
+    'F-1 stays unchanged. You could fix it.name first.',
+    'F-1 stays unchanged. You could fix this[0] instead.',
+    'F-1 stays unchanged. Should I fix this(x)?',
   ];
   for (const [want, rows] of [[false, fail], [true, pass]]) {
     for (const result of rows) {
