@@ -354,7 +354,9 @@ const STILL_OFFERS = String.raw`(?=.*(?:${OFFER_TAIL}))`;
 const UNCHANGED = String.raw`(?!\s+(?:stays?|remains?)\s+(?:unchanged|untouched|as\s+is)\s+before committing\b(?!.*(?:${OFFER_TAIL}|\b(?:${LEGACY_ACT})\b)))`;
 const LATER_OFFER = new RegExp(String.raw`\?|\b(?:want me|should i|shall i|let me know|if you|happy to)\b|${REFUSED}\b(?:${LEGACY_ACT})\b`, 'i');
 const FINDING_ID = /\b[A-Z]+-\d+\b/g;
-const PRONOUN_OFFER = new RegExp(String.raw`\b(?:you could|you can|i can|i could|want me to|like me to|should i|shall i|can i|happy to|if you want|if you['’]d like)\b(?!['’]t)(?:(?!\b(?:not|never)\b|n['’]t\b).){0,40}?\b(?:${LEGACY_ACT})\s+(?:it|that|this)\b|\b(?:it|that one|this one)\s+(?:could|can|may|might|should)\s+(?:still\s+)?be\s+(?:fixed|deleted|removed|changed|updated|edited)\b`, 'i');
+const PRONOUN_NEXT = 'for|later|now|before|after|if|when|too|again|instead|first|then|please|and|or|so|as|yourself|right|today|tomorrow|soon|here|there';
+const PRONOUN = String.raw`(?:it\b|(?:that|this)(?:\s+one)?\b(?!\s+(?!(?:${PRONOUN_NEXT})\b)[a-z]))`;
+const PRONOUN_OFFER = new RegExp(String.raw`${REPORTED}${DENIED}\b(?:you could|you can|i can|i could|want me to|like me to|should i|shall i|can i|happy to|if you want|if you['’]d like)\b(?!['’]t)(?:(?!\b(?:not|never)\b|n['’]t\b).){0,40}?\b(?:${LEGACY_ACT})\s+${PRONOUN}|${REPORTED}${DENIED}\b(?:it|that one|this one)\s+(?:could|can|may|might|should)\s+(?:still\s+)?be\s+(?:fixed|deleted|removed|changed|updated|edited)\b`, 'i');
 const idsIn = (text) => text.match(FINDING_ID) ?? [];
 const pronounOffer = (id, part, next) => idsIn(part).includes(id) && idsIn(part).every((found) => found === id) && !idsIn(next).length && PRONOUN_OFFER.test(next);
 
