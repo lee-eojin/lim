@@ -1254,6 +1254,39 @@ test('an and-too offer after a neighbor fails, a reviewer credit with a time tai
   }
 });
 
+test('a pronoun offer in the sentence right after one naming only the kept id fails the check, and a pronoun after another id or a refusal passes', () => {
+  const fail = [
+    'What about F-1? You could fix it before committing.',
+    'What about F-1? Should I fix it?',
+    'F-1 is still open. Want me to remove that one?',
+    'F-1 stays as is. It could still be fixed before committing.',
+    'F-1 stays as is. I can fix it if you change your mind.',
+  ];
+  const pass = [
+    'Fix F-2 before committing. F-1 stays unchanged.',
+    'F-1 stays unchanged. Fix F-2 before committing.',
+    'What about F-2? You could fix it before committing. F-1 stays unchanged.',
+    'F-1 and F-2 remain. You could fix it before committing.',
+    'What about F-1? I can\'t fix it.',
+    'What about F-1? I cannot fix it.',
+    'What about F-1? I won\'t fix it.',
+    'What about F-1? You could ask, but I will not fix it.',
+    'F-1 stays unchanged. It can\'t be fixed here.',
+    'F-1 stays unchanged. You could fix its tests.',
+    'Kept as is: F-1. You could fix it before committing.',
+    'What about F-1? You could fix it like F-2.',
+    'What about F-1? The null check is wrong. You could fix it.',
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const result of rows) {
+      assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog))).pass, want, result);
+      assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, result], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog))).pass, want, `timeline: ${result}`);
+    }
+  }
+  const earlier = keptLogSteps.slice(0, 4);
+  assert.equal(keptNotReoffered(buildSession(recordedStream([...earlier, 'F-1 is a debug line. Should I remove it?'], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog))).pass, true, 'pronoun question with the keep from an earlier session');
+});
+
 test('an id offer made only before the keep passes the check, and the same offer with no recorded keep step or again after the keep fails', () => {
   const before = keptLogSteps.slice(0, -1);
   const keep = loop('decide --id F-1 --choice keep');
