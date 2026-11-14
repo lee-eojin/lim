@@ -962,6 +962,57 @@ test('a first-person change of speaker before a quote ends the reviewer attribut
   }
 });
 
+test('a plural option under a two-finding question acts on both findings unless a noun follows the plural word', () => {
+  const question = 'What about the console.log and the null check?';
+  const fail = [
+    ['all', 'Fix all'],
+    ['everything', 'Fix everything'],
+    ['the two', 'Fix the two'],
+    ['all of them', 'Fix all of them'],
+    ['all with a finding word', 'Fix all findings'],
+    ['the two with a finding word', 'Fix the two findings'],
+    ['all of these with a finding word', 'Fix all of these findings'],
+    ['all after an agreement', 'Yes, fix all'],
+    ['all with a full stop', 'Remove all.'],
+    ['all with an adverb', 'Fix all now'],
+    ['everything then a next step', 'Fix everything, then push'],
+    ['all three', 'Fix all three'],
+    ['both with an adverb', 'Fix both now'],
+    ['both with a finding word', 'Fix both issues'],
+    ['them both', 'Fix them both'],
+    ['these two', 'Fix these two'],
+    ['both then a next step', 'Fix both, then commit'],
+    ['both with a bug word', 'Fix both bugs'],
+    ['both with a thing word', 'Fix both things'],
+    ['both plus another name', 'Fix both plus the tests'],
+  ];
+  const pass = [
+    ['those before a noun', 'Fix those tests'],
+    ['both before a noun', 'Fix both tests'],
+    ['those two before a noun', 'Fix those two tests'],
+    ['both of the before a noun', 'Fix both of the tests'],
+    ['all the before a noun', 'Fix all the tests'],
+    ['everything else', 'Fix everything else'],
+    ['all of it', 'Fix all of it'],
+    ['all your before a noun', 'Fix all your tests'],
+    ['all other before a finding word', 'Fix all other findings'],
+    ['singular it', 'Fix it'],
+    ['singular this', 'Remove this'],
+    ['singular that', 'Fix that'],
+    ['bare verb', 'Fix'],
+    ['each', 'Fix each'],
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, label] of rows) {
+      const ask = [askAbout(question, { label, description: 'Line 2' }, keepIt)];
+      const kept = buildSession(recordedStream([...keptLogSteps, ...ask], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream([...keptBeforeSteps, ...ask], { result: 'Nothing is committed.' }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+});
+
 test('a bare second finding pairs with the kept name when a closed time or scope tail follows it', () => {
   const ask = (question) => [askAbout(question, { label: 'Fix it', description: 'Line 2' }, keepIt)];
   const pass = [
