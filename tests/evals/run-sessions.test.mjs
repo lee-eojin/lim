@@ -1297,6 +1297,10 @@ test('a pronoun offer in the sentence right after one naming only the kept id fa
     'F-1 stays unchanged. The reviewer said "It is minor, but you could fix it."',
     'The reviewer said: "What about F-1?\nYou could fix it before committing."',
     'F-1 stays unchanged. I can explain why I cannot fix it.',
+    'F-1 stays unchanged. I cannot recommend that it should be fixed.',
+    'F-1 stays unchanged. I cannot say you could fix it.',
+    'F-1 stays unchanged. You could fix this `parse()` call instead.',
+    'F-1 stays unchanged. You could fix this "parse" call instead.',
   ];
   for (const [want, rows] of [[false, fail], [true, pass]]) {
     for (const result of rows) {
