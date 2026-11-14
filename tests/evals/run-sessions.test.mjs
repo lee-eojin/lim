@@ -1282,6 +1282,8 @@ test('a pronoun offer in the sentence right after one naming only the kept id fa
     'F-1 stays unchanged. The reviewer said you could fix it.',
     'F-1 stays unchanged. I don\'t think I can fix it.',
     'F-1 stays unchanged. You could fix this test instead.',
+    'F-1 stays unchanged. You could fix this first test instead.',
+    'F-1 stays unchanged. You could fix that right file.',
     'F-1 stays unchanged. You could fix that typo.',
     'F-1 stays unchanged. According to the review, it could be fixed.',
     'F-1 stays unchanged. It could be fixed, as the reviewer said.',

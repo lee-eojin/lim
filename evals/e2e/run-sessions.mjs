@@ -354,7 +354,7 @@ const STILL_OFFERS = String.raw`(?=.*(?:${OFFER_TAIL}))`;
 const UNCHANGED = String.raw`(?!\s+(?:stays?|remains?)\s+(?:unchanged|untouched|as\s+is)\s+before committing\b(?!.*(?:${OFFER_TAIL}|\b(?:${LEGACY_ACT})\b)))`;
 const LATER_OFFER = new RegExp(String.raw`\?|\b(?:want me|should i|shall i|let me know|if you|happy to)\b|${REFUSED}\b(?:${LEGACY_ACT})\b`, 'i');
 const FINDING_ID = /\b[A-Z]+-\d+\b/g;
-const PRONOUN_NEXT = 'for|later|now|before|after|if|when|too|again|instead|first|then|please|and|or|so|as|yourself|right|today|tomorrow|soon|here|there';
+const PRONOUN_NEXT = 'for|later|now|before|after|if|when|too|again|instead|then|please|and|or|so|as|yourself|today|tomorrow|soon|here|there';
 const PRONOUN = String.raw`(?:it\b|(?:that|this)(?:\s+one)?\b(?!\s+(?!(?:${PRONOUN_NEXT})\b)[a-z]))`;
 const QUOTE_CREDITED = String.raw`(?![^;]{0,60}?,["”’']\s*(?:as\s+)?(?:the\s+)?${VOICE})`;
 const PRONOUN_OFFER = new RegExp(String.raw`${REPORTED}${QUOTED}${DENIED}\b(?:you could|you can|i can|i could|want me to|like me to|should i|shall i|can i|happy to|if you want|if you['’]d like)\b(?!['’]t)(?:(?!\b(?:not|never|avoid|avoiding|without)\b|n['’]t\b).){0,40}?\b(?:${LEGACY_ACT})\s+${PRONOUN}${CREDITED}${QUOTE_CREDITED}|${REPORTED}${QUOTED}${DENIED}\b(?:it|that one|this one)\s+(?:could|can|may|might|should)\s+(?:still\s+)?be\s+(?:fixed|deleted|removed|changed|updated|edited)\b${CREDITED}${QUOTE_CREDITED}`, 'i');
