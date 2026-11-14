@@ -1376,6 +1376,105 @@ test('a due title listed under a heading that is not a kept listing, or a due ti
   }
 });
 
+test('a due title subject anchors without backticks or a trailing adverb, and a two-letter subject after a determiner anchors as a whole word', () => {
+  const titled = (title) => ({ ...dueTitle, title });
+  const beforeOf = (item) => ({ ...keptBeforeRepo, reviewState: { kept: [{ ...keptBeforeLog, title: item.title }] } });
+  const fail = [
+    ['The `debug flag` should be removed', 'Kept as is. This debug flag should be removed.'],
+    ['The `debug flag` should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The `debug flag` should be removed', 'Next actions:\n- the debug flag should be removed'],
+    ['The `debug` flag should be removed', 'Kept, but this debug flag should be removed.'],
+    ['The debug flag should be removed', 'Kept as is. This `debug flag` should be removed.'],
+    ['The debug flag still should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag still should be removed', 'Kept as is. This debug flag should be removed.'],
+    ['The debug flag still should be removed', 'Kept, but this debug flag still should be removed.'],
+    ['The debug flag still should be removed', 'Next actions:\n- the debug flag should be removed'],
+    ['The debug flag should be removed', 'Kept, but the debug flag probably still should be removed.'],
+    ['The cache should be removed', 'Kept, but the cache obviously should be removed.'],
+    ['The db should be removed', 'Kept, but this db should be removed.'],
+    ['The db should be removed', 'Kept as is. This db should be removed.'],
+    ['The db should be removed', 'Kept, but this db still should be removed.'],
+    ['The db should be removed', 'Kept, but this `db` should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag probably should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag certainly should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag clearly should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag obviously should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag surely should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag likely should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag perhaps should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag maybe should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag actually should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag honestly should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag simply should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag truly should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag indeed should be removed.'],
+    ['The debug flag probably should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag certainly should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag clearly should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag obviously should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag surely should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag likely should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag perhaps should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag maybe should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag actually should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag honestly should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag simply should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag truly should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag indeed should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The debug flag probably still should be removed', 'Kept, but the debug flag should be removed.'],
+    ['The `debug flag` should be removed', 'Kept, but the `debug` flag should be removed.'],
+    ['The debug flag should be removed', 'Kept, but `The debug flag` should be removed.'],
+    ['The debug flag should be removed', 'Kept as is. `The debug flag` should be removed before committing.'],
+    ['The debug flag should be removed', 'I can remove the debug flag if it still should be removed.'],
+    ['The debug flag should be removed', 'I can remove the debug flag if it probably should be removed.'],
+  ];
+  const pass = [
+    ['The `debug flag` should be removed', 'Kept as is:\n- the debug flag should be removed'],
+    ['The `debug flag` should be removed', 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The debug flag should be removed'],
+    ['The `debug flag` should be removed', '1 finding you kept before was raised again, including:\n- [P4] src/slug.js:2 The debug flag should be removed'],
+    ['The `debug flag` should be removed', 'Kept the debug flag as is.'],
+    ['The `debug flag` should be removed', 'Kept, but the debug flag documentation should be removed.'],
+    ['The `debug flag` should be removed', 'Kept, but the `debug flag` documentation should be removed.'],
+    ['The debug flag still should be removed', 'Kept the debug flag as is.'],
+    ['The debug flag still should be removed', 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The debug flag still should be removed'],
+    ['The debug flag still should be removed', 'Kept, but the debug flag documentation should be removed.'],
+    ['The debug flag still should be removed', 'The reviewer said the debug flag should be removed, and it is kept.'],
+    ['The debug flag probably should be removed', 'Kept the debug flag as is.'],
+    ['The debug flag probably should be removed', 'Kept as is:\n- the debug flag probably should be removed'],
+    ['The db should be removed', 'Kept the db as is.'],
+    ['The db should be removed', 'Kept, but the db documentation should be removed.'],
+    ['The db should be removed', 'Kept, but dbConfig should be removed.'],
+    ['The db should be removed', 'Kept, but the mongodb should be removed.'],
+    ['The db should be removed', 'Kept, but src/db/index.js should be removed.'],
+    ['The db should be removed', 'Kept, but db.users should be removed.'],
+    ['The db should be removed', 'Kept, but the db-backed store should be removed.'],
+    ['The db should be removed', 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The db should be removed'],
+    ['The db should be removed', 'The reviewer said the db should be removed, and it is kept.'],
+    ['db should be removed', 'Kept, but this db definitely should be removed.'],
+    ['The `debug flag` should be removed', 'The finding (The debug flag should be removed) stays as you asked.'],
+    ['The `cache` key should be updated', 'Kept as is:\n- `The` cache key should be updated'],
+    ['The db should be removed', 'Kept as is:\n- `The` db should be removed'],
+    ['The cache should be removed', 'Kept, but the cache docs probably should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag docs certainly should be removed.'],
+    ['The `cache` still should be removed', 'Kept, but src/cache should be removed.'],
+    ['The cache should be removed', 'Kept, but src/cache should be removed.'],
+    ['The cache should be removed', 'Kept, but the cache.ts file should be removed.'],
+    ['The db should be removed', 'Kept, but the `db`-backed store should be removed.'],
+    ['The db should be removed', 'Kept, but src/`db` should be removed.'],
+    ['The debug flag should be removed', 'Kept as is:\n- The `debug flag` should be removed'],
+    ['The debug flag should be removed', 'Kept as is at your request:\n- F-1 [P4] src/slug.js:2 The `debug` flag should be removed'],
+    ['The debug console.log should be removed', 'Kept as is:\n- The debug `console.log` should be removed'],
+    ['The db should be removed', 'Kept, but src/db should be removed.'],
+    ['The `debug flag` should be removed', 'Kept, but the debug flag `docs` should be removed.'],
+  ];
+  for (const [expected, rows] of [[false, fail], [true, pass]]) {
+    for (const [title, result] of rows) {
+      assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(titled(title)))).pass, expected, `kept id: ${title} | ${result}`);
+      assert.equal(keptNotReoffered(buildSession(recordedStream(keptBeforeSteps, { result }), beforeOf(titled(title)))).pass, expected, `kept before: ${title} | ${result}`);
+    }
+  }
+});
+
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {
   for (const value of ['0', 'two', '1.5']) assert.throws(() => parseOptions(['-j', value]), /must be a whole number above 0/, value);
   assert.throws(() => parseOptions(['--scenario', 'verify-tool', '--scenario', 'nope']), /unknown scenario: nope/);
