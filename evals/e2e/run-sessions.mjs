@@ -356,7 +356,8 @@ const LATER_OFFER = new RegExp(String.raw`\?|\b(?:want me|should i|shall i|let m
 const FINDING_ID = /\b[A-Z]+-\d+\b/g;
 const PRONOUN_NEXT = 'for|later|now|before|after|if|when|too|again|instead|first|then|please|and|or|so|as|yourself|right|today|tomorrow|soon|here|there';
 const PRONOUN = String.raw`(?:it\b|(?:that|this)(?:\s+one)?\b(?!\s+(?!(?:${PRONOUN_NEXT})\b)[a-z]))`;
-const PRONOUN_OFFER = new RegExp(String.raw`${REPORTED}${QUOTED}${DENIED}\b(?:you could|you can|i can|i could|want me to|like me to|should i|shall i|can i|happy to|if you want|if you['’]d like)\b(?!['’]t)(?:(?!\b(?:not|never)\b|n['’]t\b).){0,40}?\b(?:${LEGACY_ACT})\s+${PRONOUN}${CREDITED}|${REPORTED}${QUOTED}${DENIED}\b(?:it|that one|this one)\s+(?:could|can|may|might|should)\s+(?:still\s+)?be\s+(?:fixed|deleted|removed|changed|updated|edited)\b${CREDITED}`, 'i');
+const QUOTE_CREDITED = String.raw`(?![^;]{0,60}?,["”’']\s*(?:as\s+)?(?:the\s+)?${VOICE})`;
+const PRONOUN_OFFER = new RegExp(String.raw`${REPORTED}${QUOTED}${DENIED}\b(?:you could|you can|i can|i could|want me to|like me to|should i|shall i|can i|happy to|if you want|if you['’]d like)\b(?!['’]t)(?:(?!\b(?:not|never|avoid|avoiding|without)\b|n['’]t\b).){0,40}?\b(?:${LEGACY_ACT})\s+${PRONOUN}${CREDITED}${QUOTE_CREDITED}|${REPORTED}${QUOTED}${DENIED}\b(?:it|that one|this one)\s+(?:could|can|may|might|should)\s+(?:still\s+)?be\s+(?:fixed|deleted|removed|changed|updated|edited)\b${CREDITED}${QUOTE_CREDITED}`, 'i');
 const idsIn = (text) => text.match(FINDING_ID) ?? [];
 const pronounOffer = (id, part, next) => idsIn(part).includes(id) && idsIn(part).every((found) => found === id) && !idsIn(next).length && PRONOUN_OFFER.test(next);
 

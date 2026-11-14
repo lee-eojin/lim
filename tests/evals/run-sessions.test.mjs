@@ -1285,6 +1285,10 @@ test('a pronoun offer in the sentence right after one naming only the kept id fa
     'F-1 stays unchanged. You could fix that typo.',
     'F-1 stays unchanged. According to the review, it could be fixed.',
     'F-1 stays unchanged. It could be fixed, as the reviewer said.',
+    'What about F-1? "You could fix it," the reviewer said.',
+    'What about F-1? “It could be fixed,” the reviewer said.',
+    'What about F-1? You can avoid having to fix it by keeping it.',
+    'What about F-1? You could ship without having to fix it.',
     'F-1 stays unchanged. You could fix it, as the reviewer said.',
     'F-1 stays unchanged. The reviewer said "It is minor, but you could fix it."',
   ];
