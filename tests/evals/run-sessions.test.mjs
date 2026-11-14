@@ -1264,6 +1264,8 @@ test('a pronoun offer in the sentence right after one naming only the kept id fa
     'F-1 stays as is. I could fix this one later.',
     'F-1 stays as is. Want me to fix that for you?',
     'F-1 stays as is. You could fix this before committing.',
+    'The reviewer flagged F-1. You could fix it later.',
+    'The reviewer said: "What about F-1?" You could fix it later.',
   ];
   const pass = [
     'Fix F-2 before committing. F-1 stays unchanged.',
@@ -1293,6 +1295,8 @@ test('a pronoun offer in the sentence right after one naming only the kept id fa
     'What about F-1? You could ship without having to fix it.',
     'F-1 stays unchanged. You could fix it, as the reviewer said.',
     'F-1 stays unchanged. The reviewer said "It is minor, but you could fix it."',
+    'The reviewer said: "What about F-1?\nYou could fix it before committing."',
+    'F-1 stays unchanged. I can explain why I cannot fix it.',
   ];
   for (const [want, rows] of [[false, fail], [true, pass]]) {
     for (const result of rows) {
