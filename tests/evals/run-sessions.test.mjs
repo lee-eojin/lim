@@ -995,6 +995,8 @@ test('a reviewer quotation stays open across lines until it closes or a blank li
     ['offer after a blank line ends an unclosed reviewer quotation', 'The reviewer said: "It was minor.\n\nWant me to remove the console.log?'],
     ['question after a blank line and a short reply ends an unclosed reviewer quotation', 'The reviewer said: "It was minor.\n\nAgreed. Should we remove the console.log?'],
     ['quote after a blank line ends an unclosed reviewer quotation', 'The reviewer said: "It was minor.\n\n“The console.log should be removed.”'],
+    ['quote after a blank line ends a reviewer quotation carried across a line', 'The reviewer said: "It was minor.\nIt remains minor.\n\n“The console.log should be removed.”'],
+    ['quote after a blank line ends a reviewer quotation carried across two lines', 'The reviewer said: "It was minor.\nIt is minor.\nIt remains minor.\n\n“The console.log should be removed.”'],
     ['question after a blank line ends an unclosed reviewer quotation', 'The reviewer said: "It was minor.\n\nShould we remove the console.log?'],
     ['question after a blank line inside a reviewer quotation', 'The reviewer asked: "It was kept.\n\nShould we remove the console.log?"'],
     ['question after a closed reviewer quotation', 'The reviewer asked: "It was kept."\nShould we remove the console.log?'],
