@@ -273,8 +273,9 @@ const SENTENCE_END = new RegExp(`${SENTENCE_BREAK.source}$`, 'i');
 const OWN_TURN = String.raw`(?:;\s*|[.?!]\s+|,\s*(?=(?:but|so)\b(?!\s+(?:${SAID})\b).*\b(?:i|me|my|we|us|our)\b))(?=\S)|(?=${SPEAKER_CHANGE})`;
 const LINE_TOKEN = new RegExp(String.raw`(?<voice>${VOICE})|(?<mine>${OWN_TURN})|(?=(?<open>["“‘]|(?<!\w)')?)(?=(?<shut>["”]|[’'](?!\w))?)["“”‘’']`, 'gi');
 const QUOTE_ENDS = { '"': '"”', '“': '"”', '‘': '’', "'": "'" };
-const POSSESSIVE = new RegExp(String.raw`^\ws'[ \t]+(?!(?:${LINK})\b)\w(?:(?!\n\s*\n)[^])*?'(?!\w)`, 'i');
+const POSSESSIVE = new RegExp(String.raw`^\ws'[ \t]+(?!(?:${LINK})\b)\w(?:(?!\n\s*\n)(?:[^']|(?<=\w)'(?=\w)))*?(?<=\S)'(?!\w)`, 'i');
 const OFFERED_ACT = new RegExp(String.raw`${OFFER_OPENER}.{0,40}\b(?:${ACT})\s*$`, 'i');
+const OFFER_OPENS = new RegExp(OFFER_OPENER, 'i');
 
 function blocksOf(prose) {
   const blocks = [];
@@ -288,17 +289,17 @@ function blocksOf(prose) {
       const at = from + found.index;
       if (quote) {
         if (shut && QUOTE_ENDS[quote].includes(shut) && !(quote === "'" && POSSESSIVE.test(prose.slice(at - 2)))) quote = '';
-      } else if (open) [quote, theirs] = [open, reviewer];
+      } else if (open) [quote, theirs] = [open, reviewer && !OFFER_OPENS.test(prose.slice(heard, at))];
       else if (voice) [reviewer, cut, heard] = [true, -1, at + voice.length];
       else if (mine !== undefined && reviewer) [reviewer, cut] = [false, at + mine.length];
     }
-    if (gap[0].includes('\n', 1)) quote = '';
+    if (gap[0].includes('\n', 1) && theirs) quote = '';
     const text = prose.slice(start, gap.index);
     const quoteNext = /["“'‘]/.test(prose[to]);
     from = to;
     if (quote ? quoteNext || (theirs && !UNQUOTED_END.test(text)) : quoteNext && (!reviewer || /[:,]\s*$/.test(text) || OFFERED_ACT.test(prose.slice(heard, gap.index)))) {
-      if (!quote && reviewer) [quote, theirs, from] = [prose[to], true, to + 1];
-      else if (!quote && cut !== -1) {
+      if (!quote && reviewer) [quote, theirs, from] = [prose[to], !OFFER_OPENS.test(prose.slice(heard, gap.index)), to + 1];
+      else if ((!quote || !theirs) && cut !== -1) {
         blocks.push([prose.slice(start, cut).trimEnd(), startsLine]);
         [start, startsLine] = [cut, false];
       }
