@@ -270,6 +270,8 @@ function offersToAct(anchor, segment, own = segment) {
 const UNQUOTED = String.raw`(?:[^"“‘'\n]|(?<=\w)')*(?:(?:["“][^"”\n]*["”]|‘(?:[^’\n]|’(?=\w))*’(?!\w)|(?<!\w)'(?:[^'\n]|'(?=\w))*'(?!\w))(?:[^"“‘'\n]|(?<=\w)')*)*`;
 const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<=(?:^|\n)${UNQUOTED}${VOICE}${UNQUOTED})(?<![:,]\s*)(?<!\b(?:${ACT})\s*)\n\s*(?=["“'‘])|(?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+`, 'i');
 const segmentsOf = (prose) => prose.split(SENTENCE);
+const SENTENCE_BREAK = new RegExp(`(${SENTENCE.source})`, 'i');
+const lineSegmentsOf = (prose) => prose.split(SENTENCE_BREAK).flatMap((part, index, parts) => (index % 2 ? [] : [[part, index === 0 || parts[index - 1].includes('\n')]]));
 
 function optionActs(anchor, question) {
   const options = Array.isArray(question?.options) ? question.options : [];
@@ -298,9 +300,9 @@ function restatedTitles(records) {
 function actsOn(anchors, records, segments, questions) {
   const listed = restatedTitles(records);
   let underKept = false;
-  const pairs = segments.map((segment) => {
+  const pairs = segments.map(([segment, startsLine]) => {
     const prefix = segment.match(LIST_PREFIX)?.[0];
-    if (prefix === undefined) underKept = KEPT_LISTING.test(segment);
+    if (prefix === undefined && (startsLine || KEPT_LISTING.test(segment))) underKept = KEPT_LISTING.test(segment);
     if (!listed) return [segment, segment];
     if (prefix === undefined || underKept) return [segment, segment.replace(listed, ' ')];
     const lead = segment.slice(prefix.length).match(/^[\s"'“‘\x60*_]*/)[0];
@@ -332,9 +334,10 @@ function keptAnchors(records) {
 
 function keepStep(session, id) {
   const keepOf = new RegExp(`--id[= ]${escapeRegex(id)}(?:\\s|$)`);
-  const keeps = session.timeline.flatMap((item, index) => (item.kind === 'tool' && !item.parent && /^loop decide\b.*--choice keep\b/.test(item.label) && keepOf.test(item.label) && item.isError !== true ? [index] : []));
+  const decides = session.timeline.flatMap((item, index) => (item.kind === 'tool' && !item.parent && /^loop decide\b/.test(item.label) && item.isError !== true ? [index] : []));
+  const keeps = decides.filter((index) => /^loop decide\b.*--choice keep\b/.test(session.timeline[index].label) && keepOf.test(session.timeline[index].label));
   const confirmed = keeps.filter((index) => session.timeline[index].isError === false);
-  return (confirmed.length ? confirmed : keeps).at(-1) ?? -1;
+  return (confirmed.length ? confirmed : keeps.length ? keeps : decides)[0] ?? -1;
 }
 
 function proseAfterKeep(session, id) {
@@ -415,9 +418,9 @@ export function keptNotReoffered(session) {
     const records = keptRecords.filter((item) => item.id === id);
     const anchors = [...keptAnchors(records), `\\b${escapeRegex(id)}\\b`];
     const questions = keepAt === -1 ? [] : questionsFrom(session, keepAt + 1);
-    return actsOn(anchors, records, segmentsOf(proseAfterKeep(session, id)), questions);
+    return actsOn(anchors, records, lineSegmentsOf(proseAfterKeep(session, id)), questions);
   });
-  const sessionSegments = segmentsOf(proseFrom(session, 0));
+  const sessionSegments = lineSegmentsOf(proseFrom(session, 0));
   const sessionQuestions = questionsFrom(session, 0);
   const reofferedBefore = keptBefore.filter((item) => actsOn(keptAnchors([item]), [item], sessionSegments, sessionQuestions));
   const named = (items) => items.map((item) => `"${item.title}"`);

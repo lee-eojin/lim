@@ -1485,6 +1485,7 @@ test('an id offer made only before the keep passes the check, and the same offer
     ['no keep step, kept listing in the closing message', [...before, 'Remove F-1 before committing?'], 'Kept as is: F-1.'],
     ['offer for another finding in the sentence before the kept id', [...before, keep, 'Fix F-2 before committing. F-1 stays unchanged.'], 'Kept as is: F-1.'],
     ['offer before the only keep call, which has no result', [...before, 'Remove F-1 before committing?', keep], settled, 'tool-5'],
+    ['offer before a keep step for another id', [...before, 'Remove F-1 before committing?', loop('decide --id F-12 --choice keep')]],
   ];
   const unanswered = (steps, result, missing, denied = []) => recordedStream(steps, { result, denied }).filter((event) => missing === undefined || event.message?.content?.[0]?.tool_use_id !== missing);
   for (const [name, steps, result = settled, missing] of pass) {
@@ -1495,7 +1496,6 @@ test('an id offer made only before the keep passes the check, and the same offer
   const fail = [
     ['no keep step', [...before, 'Remove F-1 before committing?']],
     ['no keep step question tool', [...before, ['AskUserQuestion', { questions: [{ question: 'Fix F-1 before committing?' }] }]]],
-    ['keep step for another id', [...before, 'Remove F-1 before committing?', loop('decide --id F-12 --choice keep')]],
     ['offer before and after the keep', [...before, 'Remove F-1 before committing?', keep, 'Remove F-1 before committing?']],
     ['id offer right after the keep', [...before, keep, 'Change F-1 later if needed.'], 'Nothing is committed.'],
     ['kept listing only before the keep', [...before, 'Kept as is: F-1.', keep, 'Change F-1 later if needed.'], 'Nothing is committed.'],
@@ -1510,6 +1510,56 @@ test('an id offer made only before the keep passes the check, and the same offer
     const session = buildSession(unanswered(steps, result, missing, denied), keptRepoOf(keptConsoleLog));
     assert.equal(keptNotReoffered(session).pass, false, name);
     assert.match(keptNotReoffered(session).evidence, /re-offered: F-1/, name);
+  }
+});
+
+test('the keep window starts at the first keep of the id or, with no keep call for it, at the first loop decide, and a kept listing holds across sentences on one list line', () => {
+  const before = keptLogSteps.slice(0, -1);
+  const keep = loop('decide --id F-1 --choice keep');
+  const other = loop('decide --id F-2 --choice once');
+  const settled = 'Kept F-1 as is.';
+  const offer = 'Change F-1 later if needed.';
+  const open = 'Nothing is committed.';
+  const removeIt = askAbout(logQuestion, { label: 'Remove it', description: 'Line 2' }, keepIt);
+  const session = (steps, result, missing = [], denied = []) => buildSession(recordedStream(steps, { result, denied }).filter((event) => !missing.includes(event.message?.content?.[0]?.tool_use_id)), keptRepoOf(keptConsoleLog));
+  const fail = [
+    ['keep, offer, keep again', [...before, keep, offer, keep], open],
+    ['keep, offer, keep again, with no keep results', [...before, keep, offer, keep], open, ['tool-4', 'tool-6']],
+    ['no keep call, offer after the first loop decide', [...before, other, offer], open],
+    ['no keep call, offer after a keep step for another id', [...before, loop('decide --id F-12 --choice keep'), offer], open],
+    ['no keep call, offer before the only loop decide, denied', [...before, 'Remove F-1 before committing?', other], settled, [], [5]],
+    ['no keep call, option after the first loop decide', [...before, other, removeIt], open],
+    ['no keep call, offer after a later loop decide only', [...before, other, offer, loop('decide --id F-3 --choice fix')], open],
+  ];
+  const pass = [
+    ['offer before the first keep, then a second keep', [...before, 'Remove F-1 before committing?', keep, keep], settled],
+    ['two keeps with no offer', [...before, keep, 'Kept F-1 as is.', keep], settled],
+    ['offer before the first keep, with no keep results', [...before, 'Remove F-1 before committing?', keep, keep], settled, ['tool-5', 'tool-6']],
+    ['no keep call, offer before the first loop decide', [...before, 'Remove F-1 before committing?', other], settled],
+    ['no keep call, option before the first loop decide', [...before, removeIt, other], open],
+    ['offer after a keep with no result, before the first confirmed keep', [...before, keep, offer, keep], settled, ['tool-4']],
+    ['offer after a keep of another id, before the first keep of the id', [...before, loop('decide --id F-12 --choice keep'), offer, keep], settled],
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, steps, result, missing, denied] of rows) assert.equal(keptNotReoffered(session(steps, result, missing, denied)).pass, want, name);
+  }
+  const items = '- F-2 [P3] src/cache.js:1 Stale cache entry. It is read once per request.\n- The debug console.log should be removed';
+  const listed = [
+    [true, 'two-sentence item under a kept listing', `Kept as is:\n${items}`],
+    [true, 'two-sentence item under a kept listing at your request', `Kept as is at your request:\n${items}`],
+    [true, 'heading-like second sentence on a kept list line', 'Kept as is:\n- F-2 [P3] src/cache.js:1 Stale cache entry. Next actions:\n- The debug console.log should be removed'],
+    [true, 'kept listing after another sentence on its line', 'Round 2 is done. Kept as is:\n- The debug console.log should be removed'],
+    [true, 'kept-before report line after another sentence on its line', 'Round 2 is done. 1 finding you kept before was raised again, including:\n- [P4] src/slug.js:2 The debug console.log should be removed'],
+    [false, 'two-sentence item under an action heading', `Next actions:\n${items}`],
+    [false, 'two-sentence item under a rephrased heading', `Left unchanged at your request:\n${items}`],
+    [false, 'offer on a line after the kept listing', `Kept as is:\n${items}\nWant me to remove the console.log?`],
+    [false, 'action line after the kept listing', `Kept as is:\n${items}\nNext actions:\n- The debug console.log should be removed`],
+    [false, 'kept title as the second sentence of an item', 'Kept as is:\n- F-2 [P3] src/cache.js:1 Stale cache entry. The debug console.log should be removed.'],
+  ];
+  const beforeOf = (item) => ({ ...keptBeforeRepo, reviewState: { kept: [{ ...keptBeforeLog, title: item.title }] } });
+  for (const [want, name, result] of listed) {
+    assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(dueTitle))).pass, want, `kept id: ${name}`);
+    assert.equal(keptNotReoffered(buildSession(recordedStream(keptBeforeSteps, { result }), beforeOf(dueTitle))).pass, want, `kept before: ${name}`);
   }
 });
 
