@@ -229,10 +229,10 @@ const MARK = String.raw`[\s*_>•-]*`;
 const BESIDE = String.raw`(?<!\b(?:near|next\s+to|beside|alongside|around|above|below|after|before|behind|under)\s+(?:(?:the|this|that|your|a|an)\s+)?(?:[\w-]+\s+)?)`;
 const SAID = 'said|says|noted|notes|flagged|flags|suggested|suggests|recommended|recommends|found|thought|thinks|wrote|reported|reports|asked|wanted|wants|raised|mentioned|argued';
 const VOICE = String.raw`\b(?:(?:reviewer|review|finding|report)\s+(?:(?:also|had|has)\s+)?(?:${SAID})|you\s+(?:said|answered|noted|wrote|mentioned)|(?:according\s+to|per)\s+(?:the\s+|your\s+)?(?:reviewer|review|finding|report)|reviewer['’]s\s+[\w-]+)\b`;
-const SPEAKER_CHANGE = String.raw`(?=\S)(?<=[,;:.!?—–]\s*|\b(?:but|so|and|then)\s+)(?:(?:i\s+ask(?:ed)?|let\s+me\s+ask|i\s+wonder(?:ed)?|i(?:['’]d|\s+would)\s+ask)\b|(?<!${VOICE},\s*)my\s+(?:own\s+)?(?:question|take)\s+(?:is|was)\b)(?<!(?<!\w)['‘](?!\s)(?:[^'’\n]|\b['’]\b)*)`;
-const QUOTED = String.raw`(?<!${VOICE}(?:(?:(?!${SPEAKER_CHANGE})[^"“]){0,30}|(?:(?!${SPEAKER_CHANGE})[^"“.?!,;:\n]){0,80}[:,]\s*)(?:\\?["“][^"”]*|(?<!\w)['‘](?!\s)(?:[^'’]|\b['’]\b)*))`;
+const SPEAKER_CHANGE = String.raw`(?=\S)(?<=[,;:.!?—–]\s*|\b(?:but|so|and|then)\s+)(?:(?:i\s+ask(?:ed)?|let\s+me\s+ask|i\s+wonder(?:ed)?|i(?:['’]d|\s+would)\s+ask)\b|(?<!${VOICE},\s*)my\s+(?:own\s+)?(?:question|take)\s+(?:is|was)\b)(?<!(?<![\w.!?,])['‘](?!\s)(?:[^'’\n]|\b['’]\b)*)`;
+const QUOTED = String.raw`(?<!${VOICE}(?:(?:(?!${SPEAKER_CHANGE})[^"“]){0,30}|(?:(?!${SPEAKER_CHANGE})[^"“.?!,;:\n]){0,80}[:,]\s*)(?:\\?["“][^"”]*|(?<![\w.!?,])['‘](?!\s)(?:[^'’]|\b['’]\b)*))`;
 const REPORTED = String.raw`(?<!${VOICE}(?:(?!\bbut\b|${SPEAKER_CHANGE}${QUOTED})[^;])*)`;
-const TURN = String.raw`(?:${LEAD}|(?:${QUOTED}[,;]|[,;]\\?["”'’]${QUOTED}|${SPEAKER_CHANGE}${QUOTED}\s*:)\s*)${OPENING}`;
+const TURN = String.raw`(?:${LEAD}|(?:${QUOTED}[,;]|[,;]\\?["”'’]${QUOTED}|${SPEAKER_CHANGE}${QUOTED}\s*:(?:\s*\\?["“'‘])?)\s*)${OPENING}`;
 const DENIED = String.raw`(?<!(?:\bnot|n['’]t|\bnever)\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
 const DAY = 'monday|tuesday|wednesday|thursday|friday|saturday|sunday';
 const DAYPART = 'morning|afternoon|evening|night';
@@ -268,7 +268,7 @@ function offersToAct(anchor, segment, own = segment) {
     || offersAfterCredit(anchor, own);
 }
 
-const SENTENCE_BREAK = new RegExp(String.raw`((?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+)`, 'i');
+const SENTENCE_BREAK = new RegExp(String.raw`((?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}(?!(?<=${OFFER_OPENER}.{0,40}\b(?:${ACT})\s*:?\s*["“][^"”]*)[^"”\n]*\s+["“'‘])\s+)`, 'i');
 const SENTENCE_END = new RegExp(`${SENTENCE_BREAK.source}$`, 'i');
 const OWN_TURN = String.raw`(?:[.?!]\s+|,\s*(?=(?:but|so)\b(?:[^"“”‘’']|(?<=\w)['’](?=\w))*?\b(?:i|me|my|we|us|our)\b))(?=\S)|(?=${SPEAKER_CHANGE})`;
 const LINE_TOKEN = new RegExp(String.raw`(?<voice>${VOICE})|(?<mine>${OWN_TURN})|(?=(?<open>["“‘]|(?<!\w)')?)(?=(?<shut>["”]|[’'](?!\w))?)["“”‘’']`, 'gi');
