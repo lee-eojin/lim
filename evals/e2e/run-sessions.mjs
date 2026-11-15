@@ -194,7 +194,8 @@ const hookOwnsLoopReports = {
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const DOTTED_NAME = /[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+/g;
-const OFFER_TO_ACT = String.raw`\b(?:want me to|would you like|should i|shall i|can i|i can(?!['’]t)|i could|you could|you may want to|if you want|if you'd like|let me know if|happy to)\b.{0,40}\b(?:fix|delete|remove|change|update|edit|drop|strip|clean up)\b[^;,]{0,60}`;
+const OFFER_OPENER = String.raw`\b(?:want me to|would you like|should i|shall i|can i|i can(?!['’]t)|i could|you could|you may want to|if you want|if you'd like|let me know if|happy to)\b`;
+const OFFER_TO_ACT = String.raw`${OFFER_OPENER}.{0,40}\b(?:fix|delete|remove|change|update|edit|drop|strip|clean up)\b[^;,]{0,60}`;
 const OFFER_CUE = String.raw`\b(?:if you(?:['’]d| would)? (?:like|prefer|want)|let me know|just say the word)\b`;
 const PASSIVE_ACT = String.raw`\b(?:could|can|may|might|should|would)(?:\s+(?:still|also|always|easily|just))?\s+be\s+(?:fixed|deleted|removed|changed|updated|edited|dropped|stripped|cleaned up)\b`;
 
@@ -267,11 +268,50 @@ function offersToAct(anchor, segment, own = segment) {
     || offersAfterCredit(anchor, own);
 }
 
-const UNQUOTED = String.raw`(?:[^"“‘'\n]|(?<=\w)')*(?:(?:["“][^"”\n]*["”]|‘(?:[^’\n]|’(?=\w))*’(?!\w)|(?<!\w)'(?:[^'\n]|'(?=\w))*'(?!\w))(?:[^"“‘'\n]|(?<=\w)')*)*`;
-const SENTENCE = new RegExp(String.raw`\n\s*(?=[^\s"“'‘])|(?<=(?:^|\n)${UNQUOTED}${VOICE}${UNQUOTED})(?<![:,]\s*)(?<!\b(?:${ACT})\s*)\n\s*(?=["“'‘])|(?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+`, 'i');
-const segmentsOf = (prose) => prose.split(SENTENCE);
-const SENTENCE_BREAK = new RegExp(`(${SENTENCE.source})`, 'i');
-const lineSegmentsOf = (prose) => prose.split(SENTENCE_BREAK).flatMap((part, index, parts) => (index % 2 ? [] : [[part, index === 0 || parts[index - 1].includes('\n')]]));
+const SENTENCE_BREAK = new RegExp(String.raw`((?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+)`, 'i');
+const SENTENCE_END = new RegExp(`${SENTENCE_BREAK.source}$`, 'i');
+const OWN_TURN = String.raw`(?:;\s*|[.?!]\s+|,\s*(?=(?:but|so)\b(?!\s+(?:${SAID})\b).*\b(?:i|me|my|we|us|our)\b))(?=\S)|(?=${SPEAKER_CHANGE})`;
+const LINE_TOKEN = new RegExp(String.raw`(?<voice>${VOICE})|(?<mine>${OWN_TURN})|(?=(?<open>["“‘]|(?<!\w)')?)(?=(?<shut>["”]|[’'](?!\w))?)["“”‘’']`, 'gi');
+const QUOTE_ENDS = { '"': '"”', '“': '"”', '‘': '’', "'": "'" };
+const POSSESSIVE = new RegExp(String.raw`^\ws'[ \t]+(?!(?:${LINK})\b)\w(?:(?!\n\s*\n)[^])*?'(?!\w)`, 'i');
+const OFFERED_ACT = new RegExp(String.raw`${OFFER_OPENER}.{0,40}\b(?:${ACT})\s*$`, 'i');
+
+function blocksOf(prose) {
+  const blocks = [];
+  let [start, from, startsLine, quote, theirs] = [0, 0, true, '', false];
+  for (const gap of prose.matchAll(/\n\s*/g)) {
+    const to = gap.index + gap[0].length;
+    if (to === prose.length) break;
+    let [reviewer, cut, heard] = [false, -1, 0];
+    for (const found of prose.slice(from, gap.index).matchAll(LINE_TOKEN)) {
+      const { voice, mine, open, shut } = found.groups;
+      const at = from + found.index;
+      if (quote) {
+        if (shut && QUOTE_ENDS[quote].includes(shut) && !(quote === "'" && POSSESSIVE.test(prose.slice(at - 2)))) quote = '';
+      } else if (open) [quote, theirs] = [open, reviewer];
+      else if (voice) [reviewer, cut, heard] = [true, -1, at + voice.length];
+      else if (mine !== undefined && reviewer) [reviewer, cut] = [false, at + mine.length];
+    }
+    if (gap[0].includes('\n', 1)) quote = '';
+    const text = prose.slice(start, gap.index);
+    const quoteNext = /["“'‘]/.test(prose[to]);
+    from = to;
+    if (quote ? quoteNext || (theirs && !UNQUOTED_END.test(text)) : quoteNext && (!reviewer || /[:,]\s*$/.test(text) || OFFERED_ACT.test(prose.slice(heard, gap.index)))) {
+      if (!quote && reviewer) [quote, theirs, from] = [prose[to], true, to + 1];
+      else if (!quote && cut !== -1) {
+        blocks.push([prose.slice(start, cut).trimEnd(), startsLine]);
+        [start, startsLine] = [cut, false];
+      }
+    } else {
+      blocks.push([text.replace(SENTENCE_END, ''), startsLine]);
+      [start, startsLine, quote] = [to, true, ''];
+    }
+  }
+  return [...blocks, [prose.slice(start), startsLine]];
+}
+
+const lineSegmentsOf = (prose) => blocksOf(prose).flatMap(([block, startsLine]) => block.split(SENTENCE_BREAK).flatMap((part, index, parts) => (index % 2 ? [] : [[part, index ? parts[index - 1].includes('\n') : startsLine]])));
+const segmentsOf = (prose) => lineSegmentsOf(prose).map(([part]) => part);
 
 function optionActs(anchor, question) {
   const options = Array.isArray(question?.options) ? question.options : [];
