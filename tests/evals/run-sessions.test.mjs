@@ -980,6 +980,10 @@ test('a quote on the next line joins a reviewer attribution only when the line b
 
 test('a reviewer quotation stays open across lines until it closes or a blank line, and a next-line quote joins by who is speaking', () => {
   const fail = [
+    ['my quotation after a sentence end spans a newline', 'The reviewer said it was minor. My note:\n“It was kept.\nShould we remove the console.log?”'],
+    ['plural before and closes a straight single reviewer quotation', 'The reviewer said: \'the files\' and the tests\n“The console.log should be removed.”\''],
+    ['plural in my own quotation then a blank line', 'The reviewer said no, so here is my note: \'the files\' names are fine\n\n“The console.log should be removed.”\''],
+    ['curly close mark ends a straight double reviewer quotation', 'The reviewer said: "The note reads”\n“The console.log should be removed.”'],
     ['plural then my own straight single quote on the next line', 'The reviewer said \'the files\' names are fine\n\'The console.log should be removed.\''],
     ['offer after and I can opens a quote that a blank line does not end', 'The reviewer said it was minor, and I can remove: “The note reads\n\n\'console.log\''],
     ['offer after a sentence end opens a quote that a blank line does not end', 'The reviewer said it was minor. I can remove: "It was kept.\n\n“console.log”'],
@@ -1040,6 +1044,7 @@ test('a reviewer quotation stays open across lines until it closes or a blank li
     ['own line before a reviewer colon line', 'I can remove the console.log.\nThe reviewer asked:\n“Kept?”'],
   ];
   const pass = [
+    ['offer opener before a reviewer clause ending in to remove', 'Happy to help; the reviewer said to remove\n“console.log”'],
     ['newline inside an open reviewer quotation', 'The reviewer asked: "It was kept.\nShould we remove the console.log?"'],
     ['newline inside a next-line reviewer quotation', 'The reviewer asked:\n“It was kept.\nShould we remove the console.log?”'],
     ['two newlines inside an open reviewer quotation', 'The reviewer asked: "It was kept.\nIt is minor.\nShould we remove the console.log?"'],

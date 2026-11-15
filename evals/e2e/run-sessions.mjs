@@ -270,7 +270,7 @@ function offersToAct(anchor, segment, own = segment) {
 
 const SENTENCE_BREAK = new RegExp(String.raw`((?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+)`, 'i');
 const SENTENCE_END = new RegExp(`${SENTENCE_BREAK.source}$`, 'i');
-const OWN_TURN = String.raw`(?:;\s*|[.?!]\s+|,\s*(?=(?:but|so)\b(?!\s+(?:${SAID})\b).*\b(?:i|me|my|we|us|our)\b))(?=\S)|(?=${SPEAKER_CHANGE})`;
+const OWN_TURN = String.raw`(?:[.?!]\s+|,\s*(?=(?:but|so)\b.*\b(?:i|me|my|we|us|our)\b))(?=\S)|(?=${SPEAKER_CHANGE})`;
 const LINE_TOKEN = new RegExp(String.raw`(?<voice>${VOICE})|(?<mine>${OWN_TURN})|(?=(?<open>["“‘]|(?<!\w)')?)(?=(?<shut>["”]|[’'](?!\w))?)["“”‘’']`, 'gi');
 const QUOTE_ENDS = { '"': '"”', '“': '"”', '‘': '’', "'": "'" };
 const POSSESSIVE = new RegExp(String.raw`^\ws'[ \t]+(?!(?:${LINK})\b)\w(?:(?!\n\s*\n)(?:[^']|(?<=\w)'(?=\w)))*?(?<=\S)'(?!\w)`, 'i');
@@ -298,7 +298,7 @@ function blocksOf(prose) {
     const quoteNext = /["“'‘]/.test(prose[to]);
     from = to;
     if (quote ? quoteNext || (theirs && !UNQUOTED_END.test(text)) : quoteNext && (!reviewer || /[:,]\s*$/.test(text) || OFFERED_ACT.test(prose.slice(heard, gap.index)))) {
-      if (!quote && reviewer) [quote, theirs, from] = [prose[to], !OFFER_OPENS.test(prose.slice(heard, gap.index)), to + 1];
+      if (!quote && reviewer) [quote, theirs, from] = [prose[to], true, to + 1];
       else if ((!quote || !(theirs || gap[0].includes('\n', 1))) && cut !== -1) {
         blocks.push([prose.slice(start, cut).trimEnd(), startsLine]);
         [start, startsLine] = [cut, false];
