@@ -980,6 +980,7 @@ test('a quote on the next line joins a reviewer attribution only when the line b
 
 test('a reviewer quotation stays open across lines until it closes or a blank line, and a next-line quote joins by who is speaking', () => {
   const fail = [
+    ['contraction before my in the clause after so', 'The reviewer said no, so it\'s my note:\n“The console.log should be removed.”'],
     ['quote after a blank line ends an unclosed reviewer quotation that ends in a colon', 'The reviewer said: "The note reads:\n\n“The console.log should be removed.”'],
     ['quote after a blank line ends an unclosed reviewer quotation that ends in a comma', 'The reviewer said: "The note reads,\n\n“The console.log should be removed.”'],
     ['my quotation after a sentence end spans a newline', 'The reviewer said it was minor. My note:\n“It was kept.\nShould we remove the console.log?”'],
@@ -1046,6 +1047,8 @@ test('a reviewer quotation stays open across lines until it closes or a blank li
     ['own line before a reviewer colon line', 'I can remove the console.log.\nThe reviewer asked:\n“Kept?”'],
   ];
   const pass = [
+    ['first person inside a curly reviewer quotation after so she added', 'The reviewer said no, so she added: ‘I checked it\n“The console.log should be removed.”’'],
+    ['first person inside a reviewer quotation after so she added', 'The reviewer said no, so she added: "I checked it\n“The console.log should be removed.”"'],
     ['offer opener before a reviewer clause ending in to remove', 'Happy to help; the reviewer said to remove\n“console.log”'],
     ['newline inside an open reviewer quotation', 'The reviewer asked: "It was kept.\nShould we remove the console.log?"'],
     ['newline inside a next-line reviewer quotation', 'The reviewer asked:\n“It was kept.\nShould we remove the console.log?”'],

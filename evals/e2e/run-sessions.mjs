@@ -270,7 +270,7 @@ function offersToAct(anchor, segment, own = segment) {
 
 const SENTENCE_BREAK = new RegExp(String.raw`((?<=[.?!])(?<!(?:^|\n)[ \t>]*\d+\.)${QUOTED}\s+)`, 'i');
 const SENTENCE_END = new RegExp(`${SENTENCE_BREAK.source}$`, 'i');
-const OWN_TURN = String.raw`(?:[.?!]\s+|,\s*(?=(?:but|so)\b.*\b(?:i|me|my|we|us|our)\b))(?=\S)|(?=${SPEAKER_CHANGE})`;
+const OWN_TURN = String.raw`(?:[.?!]\s+|,\s*(?=(?:but|so)\b(?:[^"“”‘’']|(?<=\w)['’](?=\w))*?\b(?:i|me|my|we|us|our)\b))(?=\S)|(?=${SPEAKER_CHANGE})`;
 const LINE_TOKEN = new RegExp(String.raw`(?<voice>${VOICE})|(?<mine>${OWN_TURN})|(?=(?<open>["“‘]|(?<!\w)')?)(?=(?<shut>["”]|[’'](?!\w))?)["“”‘’']`, 'gi');
 const QUOTE_ENDS = { '"': '"”', '“': '"”', '‘': '’', "'": "'" };
 const POSSESSIVE = new RegExp(String.raw`^\ws'[ \t]+(?!(?:${LINK})\b)\w(?:(?!\n\s*\n)(?:[^']|(?<=\w)'(?=\w)))*?(?<=\S)'(?!\w)`, 'i');
