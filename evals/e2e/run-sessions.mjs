@@ -299,7 +299,7 @@ function blocksOf(prose) {
     from = to;
     if (quote ? quoteNext || (theirs && !UNQUOTED_END.test(text)) : quoteNext && (!reviewer || /[:,]\s*$/.test(text) || OFFERED_ACT.test(prose.slice(heard, gap.index)))) {
       if (!quote && reviewer) [quote, theirs, from] = [prose[to], !OFFER_OPENS.test(prose.slice(heard, gap.index)), to + 1];
-      else if ((!quote || !theirs) && cut !== -1) {
+      else if ((!quote || !(theirs || gap[0].includes('\n', 1))) && cut !== -1) {
         blocks.push([prose.slice(start, cut).trimEnd(), startsLine]);
         [start, startsLine] = [cut, false];
       }
