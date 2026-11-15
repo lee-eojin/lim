@@ -980,6 +980,8 @@ test('a quote on the next line joins a reviewer attribution only when the line b
 
 test('a reviewer quotation stays open across lines until it closes or a blank line, and a next-line quote joins by who is speaking', () => {
   const fail = [
+    ['quote after a blank line ends an unclosed reviewer quotation that ends in a colon', 'The reviewer said: "The note reads:\n\n“The console.log should be removed.”'],
+    ['quote after a blank line ends an unclosed reviewer quotation that ends in a comma', 'The reviewer said: "The note reads,\n\n“The console.log should be removed.”'],
     ['my quotation after a sentence end spans a newline', 'The reviewer said it was minor. My note:\n“It was kept.\nShould we remove the console.log?”'],
     ['plural before and closes a straight single reviewer quotation', 'The reviewer said: \'the files\' and the tests\n“The console.log should be removed.”\''],
     ['plural in my own quotation then a blank line', 'The reviewer said no, so here is my note: \'the files\' names are fine\n\n“The console.log should be removed.”\''],

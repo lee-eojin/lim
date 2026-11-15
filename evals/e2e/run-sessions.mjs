@@ -293,11 +293,12 @@ function blocksOf(prose) {
       else if (voice) [reviewer, cut, heard] = [true, -1, at + voice.length];
       else if (mine !== undefined && reviewer) [reviewer, cut] = [false, at + mine.length];
     }
-    if (gap[0].includes('\n', 1) && theirs) quote = '';
+    const ended = Boolean(quote) && theirs && gap[0].includes('\n', 1);
+    if (ended) quote = '';
     const text = prose.slice(start, gap.index);
     const quoteNext = /["“'‘]/.test(prose[to]);
     from = to;
-    if (quote ? quoteNext || (theirs && !UNQUOTED_END.test(text)) : quoteNext && (!reviewer || /[:,]\s*$/.test(text) || OFFERED_ACT.test(prose.slice(heard, gap.index)))) {
+    if (quote ? quoteNext || (theirs && !UNQUOTED_END.test(text)) : quoteNext && (!reviewer || (!ended && /[:,]\s*$/.test(text)) || OFFERED_ACT.test(prose.slice(heard, gap.index)))) {
       if (!quote && reviewer) [quote, theirs, from] = [prose[to], true, to + 1];
       else if ((!quote || !(theirs || gap[0].includes('\n', 1))) && cut !== -1) {
         blocks.push([prose.slice(start, cut).trimEnd(), startsLine]);
