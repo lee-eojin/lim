@@ -213,13 +213,14 @@ const FINDING_NOUN = 'check|coverage|flake|script|cleanup|deadlock|leak|race|con
 const PLURAL = String.raw`(?:these|those)\s+two|them|these|those|both`;
 const WHOLE = String.raw`all\s+of\s+(?:them|these|those)|the\s+two|all|everything`;
 const FOLLOW = String.raw`findings|issues|now|first|then|too|again|perhaps|always|afterwards|as\s+well|(?:this|that)\s+(?:time|round|week|way)`;
-const NOT_NOUN = 'findings|issues|bugs|things|plus|perhaps|sometimes|besides|across|versus|thus|minus|whereas|overseas|thanks|cheers|pls|yours|ours|hers|theirs|his|its|this';
+const NOT_NOUN = 'findings|issues|bugs|things|plus|perhaps|sometimes|besides|across|versus|thus|minus|whereas|overseas|thanks|cheers|pls|yours|ours|hers|theirs|his|its|this|towards|backwards|forwards|afterwards|upwards|downwards|onwards|inwards|outwards|always|sideways|anyways|nowadays|less|unless|regardless|nevertheless|nonetheless|doubtless|indoors|outdoors|upstairs|downstairs';
 const TAIL = String.raw`(?:before|after|during|until|in)\s+(?:the|this|that|our|your|next)\s+[\w-]+(?:\s+[\w-]+)?\s*\?`;
 const BARE = String.raw`${ONE}(?:\s+[a-z][\w-]*)?`;
 const TASK_VERB = 'send|translate|write|publish|refactor|rename|notify|announce|ask|tell|share|discuss|explain|verify|investigate|inspect|revisit|bump|rebase|squash|revert|rewrite|reword|rework|recheck|retest|finish|try|see|make|create|let';
-const NOUNS = String.raw`(?!(?:${NOT_NOUN})\b)(?![a-z]*(?:wards|ways|adays|less|doors|stairs)\b)[a-z][\w-]+s\b`;
+const NOUNS = String.raw`(?!(?:${NOT_NOUN})\b)[a-z][\w-]+s\b`;
 const LINK = 'in|on|at|by|to|for|from|with|without|within|into|onto|over|under|via|per|about|around|against|among|between|behind|beside|beyond|inside|outside|near|off|out|up|down|through|throughout|toward|than|as|like|unlike|except|before|after|during|until|till|since|and|or|but|nor|so|yet|if|unless|when|whenever|while|where|wherever|once|because|though|although|then|now|not|also|too|again|first|later|today|tomorrow|tonight|please|just|only|still|even|using|including|excluding|regarding|following|pending';
-const MODIFIER = String.raw`(?!(?:${NOT_NOUN}|${LINK})(?![\w-]))(?![a-z]*(?:wards|ways|adays)\b)[a-z][\w-]*`;
+const MODIFIER = String.raw`(?!(?:${NOT_NOUN}|${LINK})(?![\w-]))[a-z][\w-]*`;
+const NARROW = 'but|except|without|excluding|unlike|than|not|only|just|even|beyond|inside|outside|near|off|out|up|down|behind|like|still|following|pending|later';
 const OTHER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?!(?:[\w-]+\s+){0,2}(?:it|this|that|them|these|those)\b)[^\s?;,]+(?:\s+[^\s?;,]+){0,2}\s*\?|[A-Z]+-\d+\b|\x60[^\x60]|(?=[\w$]*(?:[._][\w$]|\())[a-z_$])`;
 const FORMER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?:[\w-]+\s+){0,2}[\w-]+|[A-Z]+-\d+|[._\x60(][\w$\x60)]+|(?<=\b(?:about|with|for)\s+)${BARE}|(?<=\bat\s+)${ONE})`;
 const SUBJECT = String.raw`(?:(?:the|this|that|your)\s+)?(?:[\w-]+\s+)?`;
@@ -326,9 +327,9 @@ function optionActs(anchor, question) {
   const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(asked);
   const code = `\\x60?${anchor}\\x60?`;
   const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|(?!(?:${TASK_VERB})(?![\\w-]))(?:${BARE}(?:\\s+(?:first|too|as\\s+well))?\\s*\\?|(?=${BARE}\\s+${TAIL})(?:[a-z][\\w-]*\\s+)?(?:${FINDING_NOUN})\\s+${TAIL}))`, 'i').test(asked);
-  const whole = `(?:${WHOLE})\\b(?=[\\s.!]*$|\\s*,|\\s+(?:${FOLLOW})\\b(?![-'’]))`;
-  const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|\\s+${whole}|[\\s.!]*$)`, 'i');
-  const plural = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b\\s+(?:(?:${PLURAL})\\b(?!\\s+(?:(?:the|your|of(?!\\s+(?:them|these|those)\\b)|two)\\b|${NOUNS}|(?:of\\s+(?:these|those)\\s+(?:${MODIFIER}\\s+)?|${MODIFIER}\\s+)${NOUNS}(?=[\\s.!]*$)))|${whole})`, 'i');
+  const wholeBefore = (next) => `(?:${WHOLE})\\b(?=[\\s.!]*$|\\s*,|\\s+(?:${next})\\b(?![-'’]))`;
+  const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|\\s+${wholeBefore(FOLLOW)}|[\\s.!]*$)`, 'i');
+  const plural = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b\\s+(?:(?:${PLURAL})\\b(?!\\s+(?:(?:the|your|of(?!\\s+(?:them|these|those)\\b)|two)\\b|${NOUNS}|(?:of\\s+(?:these|those)\\s+(?:${MODIFIER}\\s+)?|${MODIFIER}\\s+)${NOUNS}(?=[\\s.!]*$)))|${wholeBefore(`${FOLLOW}|(?!(?:${NARROW})\\b)(?:${LINK})`)})`, 'i');
   return named && choices.some((text) => (paired ? plural : pronoun).test(text));
 }
 
