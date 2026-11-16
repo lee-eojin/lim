@@ -358,14 +358,14 @@ function actsOn(anchors, records, segments, questions) {
 const ADVERB = 'still|also|always|really|just|now|definitely|probably|certainly|clearly|obviously|surely|likely|perhaps|maybe|actually|honestly|simply|truly|indeed';
 const DUE_SUBJECT = new RegExp(String.raw`^(?:(the|a|an|this|that|your)\s+)?(.+?)(?:\s+(?:${ADVERB}))*\s+${DUE}`, 'i');
 
-const CLAUSE = 'if|when|unless|because|since|and|or|but|so|then|which|while|though|although|once|until|whether';
+const CLAUSE = 'if|when|unless|because|since|and|or|but|so|then|which|while|though|although|once|until|whether|before|after|as|whenever|till';
 
 function subjectAnchor(text) {
   const found = text.match(DUE_SUBJECT);
   const subject = (found?.[2] ?? '').replace(/\x60/g, '');
   if (subject.length < (found?.[1] ? 2 : 3) || /^(?:it|this|that|these|those|they|them)$/i.test(subject)) return [];
   const words = escapeRegex(subject).replace(/\s+/g, '\\x60?\\s+\\x60?');
-  return [`(?<![\\w$./-]\\x60?)${words}(?!\\x60?[./-]?[\\w$])(?!\\x60?['’]s\\b)(?!\\x60?(?:\\s+(?!(?:${ADVERB}|${CLAUSE})\\b)[\\w\\x60-]+)+(?:\\s+(?:${ADVERB}))*\\s+${DUE})`];
+  return [`(?<![\\w$./-]\\x60?)${words}(?!\\x60?[./-]?\\x60?[\\w$])(?!\\x60?['’]s\\b)(?!\\x60?(?:\\s+(?!(?:${ADVERB}|${CLAUSE})(?![\\w-]))[\\w\\x60-]+)+(?:\\s+(?:${ADVERB}))*\\s+${DUE})`];
 }
 
 function keptAnchors(records) {
