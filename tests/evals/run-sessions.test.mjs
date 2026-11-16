@@ -625,8 +625,6 @@ test('a first-person offer with a same-sentence cue re-offers a kept finding, wh
   const fail = [
     'I will remove the console.log if you want.',
     'I will remove the `console.log` if you want.',
-    'I will remove the console.log and the null check if you want.',
-    'I will remove the console.log and the debug flag if you want.',
     'I\'ll remove the console.log if you want.',
     'We can remove the console.log if that helps.',
     'I’ll remove the console.log if you’d like.',
@@ -640,6 +638,13 @@ test('a first-person offer with a same-sentence cue re-offers a kept finding, wh
     'We can remove the console.log for you, if that helps.',
   ];
   const pass = [
+    'I will remove the console.log and the null check if you want.',
+    'I will remove the console.log and the debug flag if you want.',
+    'I will remove the console.log or the tests break if you want them.',
+    'I will remove the console.log and the tests pass if you want proof.',
+    'I will remove the console.log and the build runs if that helps.',
+    'Earlier I said I will remove the console.log if you want, but it stays.',
+    'I wrote that we can remove the console.log if that helps, but it stays.',
     'I will remove the console.log.',
     'We can remove the console.log.',
     'I won\'t remove the console.log if you want it kept.',
@@ -667,6 +672,7 @@ test('a first-person offer with a same-sentence cue re-offers a kept finding, wh
     'I will update the `console.log` tests if you want.',
     'I will fix the null check and keep the console.log if you want.',
     'The reviewer said we can remove the console.log if that helps.',
+    'The reviewer suggested we can remove the console.log if that helps.',
     'The reviewer wrote "I will remove the console.log if you want", and you kept it.',
     '"I will remove the console.log if you want," the reviewer said, and you kept it.',
     '"I will remove the console.log if you want", the reviewer said.',
