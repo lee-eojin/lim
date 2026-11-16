@@ -355,6 +355,11 @@ test('a remains-unchanged note or a refusal by id after the keep passes, and an 
     'I will not change F-1.',
     'I can\'t fix F-1, so it stays as you asked.',
     'I won\'t change F-1. I can\'t edit it either.',
+    'I won\'t fix F-1, and I won\'t edit F-1.',
+    'I won\'t fix F-1, and I will not edit F-1.',
+    'I can\'t fix F-1 and cannot change F-1.',
+    'I won’t fix F-1, and I can’t remove F-1.',
+    'I won\'t fix F-1, and I won\'t edit it.',
   ];
   const fail = [
     'F-1 can be fixed before committing.',
@@ -385,12 +390,19 @@ test('a remains-unchanged note or a refusal by id after the keep passes, and an 
     'I can\'t fix F-1 now, let me know.',
     'I can\'t fix F-1 because you chose to keep it. I can still fix it later.',
     'I can\'t fix F-1 now. I could remove it later.',
+    'I won\'t fix F-1, and I can edit F-1.',
+    'I won\'t fix or edit F-1.',
+    'I won\'t fix F-1, and I won\'t edit F-1. Want me to?',
+    'I won\'t fix F-1, but I won\'t edit F-1 either.',
+    'I won\'t fix F-1, and I won\'t ever edit F-1.',
   ];
   for (const result of pass) {
     assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog))).pass, true, result);
+    assert.equal(keptNotReoffered(buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo)).pass, true, `kept before: ${result}`);
   }
   for (const result of fail) {
     assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog))).pass, false, result);
+    assert.equal(keptNotReoffered(buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo)).pass, true, `kept before: ${result}`);
   }
   const split = buildSession(recordedStream([...keptLogSteps, 'I can\'t fix F-1 because you chose to keep it.'], { result: 'Want me to fix it?' }), keptRepoOf(keptConsoleLog));
   assert.equal(keptNotReoffered(split).pass, false, 'refusal then a closing offer');
@@ -1171,6 +1183,7 @@ test('a first-person cue outside a reviewer quote ends reviewer attribution, and
 test('a predicate after a rescued kept name passes, a pronoun offer right after a credited due statement fails, and a time phrase after a reviewer credit is a credit', () => {
   const fail = [
     ['credited due then a pronoun offer', 'The console.log should be removed, as the reviewer noted yesterday, and I can remove it now?'],
+    ['credited due then a pronoun offer with first', 'The console.log should be removed, as the reviewer said, and you could fix it first.'],
     ['credited due with earlier then a pronoun offer', 'The console.log should be removed, as the reviewer noted earlier, and I can remove it now?'],
     ['credited due with a weekday then a pronoun offer', 'The console.log should be removed, as the reviewer noted on Monday, and I can remove it now?'],
     ['credited due then a passive pronoun offer', 'The console.log should be removed, as the reviewer noted yesterday, and it can be removed now?'],
@@ -1232,6 +1245,7 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['credit tail two days ago', 'The console.log should be removed, as the reviewer noted two days ago.'],
     ['credit tail on Friday morning', 'The console.log should be removed, as the reviewer noted on Friday morning.'],
     ['credited due then a keep note', 'The console.log should be removed, as the reviewer noted yesterday, and you chose to keep it.'],
+    ['credited due then a pronoun naming another object', 'The console.log should be removed, as the reviewer said, and you could fix it first test.'],
     ['credited due then an offer on another finding', 'The console.log should be removed, as the reviewer noted yesterday, and I can fix the null check now?'],
     ['credited due inside a reviewer quotation', 'The reviewer said: "The console.log should be removed, as the reviewer noted yesterday, and I can remove it now?"'],
     ['credited due after a but inside a reviewer quotation', 'The reviewer said: "Minor, but the console.log should be removed, as the review noted yesterday, and I can remove it now?"'],
@@ -1559,6 +1573,13 @@ test('a pronoun offer in the sentence right after one naming only the kept id fa
     'F-1 stays as is. I could still fix that one later.',
     'F-1 stays as is. You could fix it without me.',
     'F-1 stays unchanged.  \nYou could fix it.',
+    'F-1 stays unchanged. You could fix this first.',
+    'F-1 stays unchanged. You could fix that right now.',
+    'F-1 stays unchanged. You could fix it first.',
+    'F-1 stays unchanged. You could fix it first, then commit.',
+    'F-1 stays unchanged. You could fix this first if you want.',
+    'F-1 stays unchanged. Want me to fix it first?',
+    'F-1 stays unchanged. You could fix this first right now.',
   ];
   const pass = [
     'Fix F-2 before committing. F-1 stays unchanged.',
@@ -1578,6 +1599,13 @@ test('a pronoun offer in the sentence right after one naming only the kept id fa
     'F-1 stays unchanged. I don\'t think I can fix it.',
     'F-1 stays unchanged. You could fix this test instead.',
     'F-1 stays unchanged. You could fix this first test instead.',
+    'F-1 stays unchanged. You could fix this first test.',
+    'F-1 stays unchanged. You could fix that right now test.',
+    'F-1 stays unchanged. You could fix it first-hand.',
+    'F-1 stays unchanged. You could fix this first.name instead.',
+    'F-1 stays unchanged. I won\'t fix it first.',
+    'F-1 stays unchanged. The reviewer said you could fix it first.',
+    'F-1 stays unchanged. "You could fix it first," the reviewer said.',
     'F-1 stays unchanged. You could fix that right file.',
     'F-1 stays unchanged. You could fix that typo.',
     'F-1 stays unchanged. According to the review, it could be fixed.',
@@ -1611,6 +1639,8 @@ test('a pronoun offer in the sentence right after one naming only the kept id fa
     for (const result of rows) {
       assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog))).pass, want, result);
       assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, result], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog))).pass, want, `timeline: ${result}`);
+      assert.equal(keptNotReoffered(buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo)).pass, true, `kept before: ${result}`);
+      assert.equal(keptNotReoffered(buildSession(recordedStream([...keptBeforeSteps, result], { result: 'Nothing is committed.' }), keptBeforeRepo)).pass, true, `kept before timeline: ${result}`);
     }
   }
   const earlier = keptLogSteps.slice(0, 4);

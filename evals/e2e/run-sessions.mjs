@@ -416,7 +416,7 @@ const STILL_OFFERS = String.raw`(?=.*(?:${OFFER_TAIL}))`;
 const UNCHANGED = String.raw`(?!\s+(?:stays?|remains?)\s+(?:unchanged|untouched|as\s+is)\s+before committing\b(?!.*(?:${OFFER_TAIL}|\b(?:${LEGACY_ACT})\b)))`;
 const LATER_OFFER = new RegExp(String.raw`\?|\b(?:want me|should i|shall i|let me know|if you|happy to)\b|${REFUSED}\b(?:${LEGACY_ACT})\b`, 'i');
 const FINDING_ID = /\b[A-Z]+-\d+\b/g;
-const PRONOUN_TAIL = String.raw`(?:(?=\s*(?:[.?!,;:)](?![.\w])|$))|\s+(?:for\s+you|later|now|too|again|instead|then|please|before|after|if\s+you|when\s+you|as\s+well|yourself|today|tomorrow|soon|here|without|in\s+the\s+next)\b)`;
+const PRONOUN_TAIL = String.raw`(?:\s+(?:first|right\s+now)\b)*(?:(?=\s*(?:[.?!,;:)](?![.\w])|$))|\s+(?:for\s+you|later|now|too|again|instead|then|please|before|after|if\s+you|when\s+you|as\s+well|yourself|today|tomorrow|soon|here|without|in\s+the\s+next)\b)`;
 const PRONOUN = String.raw`(?:it|(?:that|this)(?:\s+one)?)\b${PRONOUN_TAIL}`;
 const QUOTE_CREDITED = String.raw`(?![^;]{0,60}?[,?!]["”’']\s*(?:as\s+)?(?:the\s+)?${VOICE})`;
 const CANNOT = String.raw`(?<!\bcannot\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
@@ -451,7 +451,7 @@ export function keptNotReoffered(session) {
   ].join('\n');
   const reoffered = keptIds.filter((id) => {
     const legacy = new RegExp(`(?:fix|delete|remove|change|update|edit).{0,60}${id}\\b|${id}\\b.{0,60}(?:before committing|you could|or delete|or fix)`, 'i');
-    const offer = new RegExp(`(?:${REFUSED}|${STILL_OFFERS}|(?=(?:${LEGACY_ACT})\\b.*\\b(?:${LEGACY_ACT})\\b))(?:${LEGACY_ACT}).{0,60}${id}\\b|${id}\\b(?:.{0,60}(?:you could|or delete|or fix)|${UNCHANGED}.{0,60}before committing)`, 'i');
+    const offer = new RegExp(`(?:${REFUSED}|${STILL_OFFERS}|(?=(?:${LEGACY_ACT})\\b.*${REFUSED}\\b(?:${LEGACY_ACT})\\b))(?:${LEGACY_ACT}).{0,60}${id}\\b|${id}\\b(?:.{0,60}(?:you could|or delete|or fix)|${UNCHANGED}.{0,60}before committing)`, 'i');
     const listedKeep = new RegExp(`kept as is[\\s\\S]{0,120}${id}\\b|${id}\\b[\\s\\S]{0,80}kept`, 'i');
     const keepAt = keepStep(session, id);
     const reoffers = (texts) => texts.some((text, at) => segmentsOf(text).some((part, index, parts) => offer.test(part) || (legacy.test(part) && LATER_OFFER.test([...parts.slice(index + 1), ...texts.slice(at + 1)].join('\n'))) || (keepAt !== -1 && pronounOffer(id, part, parts[index + 1] ?? ''))) && !listedKeep.test(text));
