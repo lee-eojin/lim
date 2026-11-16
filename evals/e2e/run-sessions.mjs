@@ -265,7 +265,6 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${TURN}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${TURN}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own)
-    || new RegExp(`${REPORTED}${QUOTED}${DENIED}${CANNOT}(?<!\\b(?:said|wrote|mentioned|noted|promised)\\s+(?:that\\s+)?)\\b(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+${BOUND}(?:${ACT})\\b\\s+(?:(?:the|this|that|your|its|our|their|my|a|an)\\s+)?(?:[\\w-]+\\s+)?[\\x60*_]*${anchor}[\\x60*_]*(?:\\s+(?:now|first|later|today|too|again|also|as\\s+well|for\\s+you|right\\s+away|instead))*\\s*,?\\s*(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)${QUOTE_CREDITED}`, 'i').test(own)
     || offersAfterCredit(anchor, own);
 }
 
@@ -417,7 +416,7 @@ const LATER_OFFER = new RegExp(String.raw`\?|\b(?:want me|should i|shall i|let m
 const FINDING_ID = /\b[A-Z]+-\d+\b/g;
 const PRONOUN_TAIL = String.raw`(?:\s+(?:first|right\s+now)\b)*(?:(?=\s*(?:[.?!,;:)](?![.\w])|$))|\s+(?:for\s+you|later|now|too|again|instead|then|please|before|after|if\s+you|when\s+you|as\s+well|yourself|today|tomorrow|soon|here|without|in\s+the\s+next)\b)`;
 const PRONOUN = String.raw`(?:it|(?:that|this)(?:\s+one)?)\b${PRONOUN_TAIL}`;
-const QUOTE_CREDITED = String.raw`(?![^;]{0,60}?(?:[,?!]["”’']|["”’'][,?!])\s*(?:as\s+)?(?:the\s+)?${VOICE})`;
+const QUOTE_CREDITED = String.raw`(?![^;]{0,60}?[,?!]["”’']\s*(?:as\s+)?(?:the\s+)?${VOICE})`;
 const CANNOT = String.raw`(?<!\bcannot\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
 const PRONOUN_OFFER = new RegExp(String.raw`${REPORTED}${QUOTED}${DENIED}${CANNOT}\b(?:you could|you can|i can|i could|want me to|like me to|should i|shall i|can i|happy to|if you want|if you['’]d like)\b(?:\s+(?:just|also|still))?\s+(?:${LEGACY_ACT})\s+${PRONOUN}${CREDITED}${QUOTE_CREDITED}|${REPORTED}${QUOTED}${DENIED}${CANNOT}\b(?:it|that one|this one)\s+(?:could|can|may|might|should)\s+(?:still\s+)?be\s+(?:fixed|deleted|removed|changed|updated|edited)\b${CREDITED}${QUOTE_CREDITED}`, 'i');
 const PRONOUN_OFFER_NEXT = new RegExp(`^(?:(?:would|do)\\s+you\\s+)?(?:${PRONOUN_OFFER.source})`, 'i');
