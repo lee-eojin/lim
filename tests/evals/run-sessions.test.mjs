@@ -1891,6 +1891,13 @@ test('a due title subject anchors without backticks or a trailing adverb, and a 
     ['The debug flag should be removed', 'Kept as is. `The debug flag` should be removed before committing.'],
     ['The debug flag should be removed', 'I can remove the debug flag if it still should be removed.'],
     ['The debug flag should be removed', 'I can remove the debug flag if it probably should be removed.'],
+    ['The debug flag should be removed', 'I can remove the debug flag before the cache should be removed.'],
+    ['The debug flag should be removed', 'I can remove the debug flag after the cache should be removed.'],
+    ['The debug flag should be removed', 'I can remove the debug flag as soon as the cache should be removed.'],
+    ['The debug flag should be removed', 'I can remove the debug flag whenever the cache should be removed.'],
+    ['The debug flag should be removed', 'I can remove the debug flag till the cache should be removed.'],
+    ['The cache should be removed', 'Kept, but the `cache` should be removed.'],
+    ['The cache should be removed', 'I can remove the `cache`.'],
   ];
   const pass = [
     ['The `debug flag` should be removed', 'Kept as is:\n- the debug flag should be removed'],
@@ -1930,6 +1937,15 @@ test('a due title subject anchors without backticks or a trailing adverb, and a 
     ['The debug console.log should be removed', 'Kept as is:\n- The debug `console.log` should be removed'],
     ['The db should be removed', 'Kept, but src/db should be removed.'],
     ['The `debug flag` should be removed', 'Kept, but the debug flag `docs` should be removed.'],
+    ['The cache should be removed', 'Kept, but the `cache`.`meta` should be removed.'],
+    ['The cache should be removed', 'Kept, but the `cache`/`meta` should be removed.'],
+    ['The cache should be removed', 'Kept, but the `cache`-`x` should be removed.'],
+    ['The cache should be removed', 'Kept, but the `cache`. `meta` should be removed.'],
+    ['The cache should be removed', 'Kept, but `cache`. It should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag docs should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag aftercare docs should be removed.'],
+    ['The debug flag should be removed', 'Kept, but the debug flag before-hook should be removed.'],
+    ['The cache should be removed', 'I can remove the `cache`.`meta` entry.'],
   ];
   for (const [expected, rows] of [[false, fail], [true, pass]]) {
     for (const [title, result] of rows) {
