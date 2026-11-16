@@ -265,7 +265,7 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${TURN}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${TURN}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own)
-    || new RegExp(`${REPORTED}${QUOTED}${DENIED}${CANNOT}(?<!\\b(?:said|wrote|mentioned|noted|promised)\\s+(?:that\\s+)?)\\b(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}(?<![\\w$])${anchor}[\\x60*_]*(?:\\s+(?:now|first|later|today|too|again|also|as\\s+well|for\\s+you|right\\s+away|instead))*\\s*,?\\s*(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)${QUOTE_CREDITED}`, 'i').test(own)
+    || new RegExp(`${REPORTED}${QUOTED}${DENIED}${CANNOT}(?<!\\b(?:said|wrote|mentioned|noted|promised)\\s+(?:that\\s+)?)\\b(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+${BOUND}(?:${ACT})\\b\\s+(?:(?:the|this|that|your|its|our|their|my|a|an)\\s+)?(?:[\\w-]+\\s+)?[\\x60*_]*${anchor}[\\x60*_]*(?:\\s+(?:now|first|later|today|too|again|also|as\\s+well|for\\s+you|right\\s+away|instead))*\\s*,?\\s*(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)${QUOTE_CREDITED}`, 'i').test(own)
     || offersAfterCredit(anchor, own);
 }
 
