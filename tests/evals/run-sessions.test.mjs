@@ -992,6 +992,13 @@ test('a quote on the next line joins a reviewer attribution only when the line b
 
 test('a reviewer quotation stays open across lines until it closes or a blank line, and a next-line quote joins by who is speaking', () => {
   const fail = [
+    ['offer quotation after minor spans a sentence end and a newline', 'The reviewer said it was minor. I can remove: "It was kept.\n“console.log”'],
+    ['offer quotation after a minor thing spans a sentence end and a newline', 'The reviewer said it was a minor thing. I can remove: "It was kept.\n“console.log”'],
+    ['offer quotation without a colon spans a sentence end and a newline', 'The reviewer said it was a minor thing. I can remove "It was kept.\n“console.log”'],
+    ['offer quotation after a minor thing spans a sentence end and a blank line', 'The reviewer said it was a minor thing. I can remove: "It was kept.\n\n“console.log”'],
+    ['offer quotation spans a sentence end and a newline', 'I can remove: "It was kept.\n“console.log”'],
+    ['offer quotation spans two sentence ends before a next-line quote', 'The reviewer said it was a minor thing. I can remove: "It was kept. It is minor.\n“console.log”'],
+    ['long offer quotation splits before a question without a following quote', 'I can remove: "It was kept as is at your request during the previous review round last week. Should we remove the console.log?"'],
     ['contraction before my in the clause after so', 'The reviewer said no, so it\'s my note:\n“The console.log should be removed.”'],
     ['quote after a blank line ends an unclosed reviewer quotation that ends in a colon', 'The reviewer said: "The note reads:\n\n“The console.log should be removed.”'],
     ['quote after a blank line ends an unclosed reviewer quotation that ends in a comma', 'The reviewer said: "The note reads,\n\n“The console.log should be removed.”'],
@@ -1061,6 +1068,11 @@ test('a reviewer quotation stays open across lines until it closes or a blank li
     ['own line before a reviewer colon line', 'I can remove the console.log.\nThe reviewer asked:\n“Kept?”'],
   ];
   const pass = [
+    ['closed offer quotation splits before a next-line quote', 'I can remove: "the null check." It was kept.\n“console.log”'],
+    ['closed offer quotation with a space before the closing quote splits', 'I can remove: "the null check. " The console.log stays.'],
+    ['closed offer quotation with two spaces before the closing quote splits', 'I can remove: "the null check.  " The console.log stays.'],
+    ['a single-quoted offer quotation still splits at a sentence end', 'I can remove: \'It was kept.\n“console.log”'],
+    ['own quotation without an offer splits before a next-line quote', 'I wrote: "It was kept.\n“console.log”'],
     ['first person inside a curly reviewer quotation after so she added', 'The reviewer said no, so she added: ‘I checked it\n“The console.log should be removed.”’'],
     ['first person inside a reviewer quotation after so she added', 'The reviewer said no, so she added: "I checked it\n“The console.log should be removed.”"'],
     ['offer opener before a reviewer clause ending in to remove', 'Happy to help; the reviewer said to remove\n“console.log”'],
@@ -1144,6 +1156,16 @@ test('a first-person change of speaker before a quote ends the reviewer attribut
 
 test('a first-person cue outside a reviewer quote ends reviewer attribution, and a cue in the reviewer\'s own words or a reported clause does not', () => {
   const fail = [
+    ['exclamation closes a reviewer quote before my quoted question', 'The reviewer said \'no!\', but I ask: "Kept; should we remove the console.log?"'],
+    ['question mark closes a reviewer quote before my quoted question', 'The reviewer said \'really?\', but I ask: "Kept; should we remove the console.log?"'],
+    ['period closes a reviewer quote before my quoted question', 'The reviewer said \'no.\'; I ask: "Kept; should we remove the console.log?"'],
+    ['comma closes a reviewer quote before my quoted question', 'The reviewer said \'no,\', so I ask: "Kept; should we remove the console.log?"'],
+    ['exclamation closes a reviewer quote before my unquoted question', 'The reviewer said \'no!\', but I ask: should the console.log be removed?'],
+    ['let me ask before a quoted question without a preamble', 'The reviewer said no, so let me ask: "should we remove the console.log?"'],
+    ['I ask before a quoted question without a preamble', 'The reviewer said no, but I ask: "should we remove the console.log?"'],
+    ['I ask before a curly quoted question without a preamble', 'The reviewer said no, but I ask: “should we remove the console.log?”'],
+    ['I asked before a single-quoted question without a preamble', 'The reviewer said no, so I asked: \'should we remove the console.log?\''],
+    ['let me ask after a reviewer quote ending in an exclamation', 'The reviewer said \'no!\', so let me ask: "should we remove the console.log?"'],
     ['quoted no then but I ask', 'The reviewer said \'no\', but I ask: "Kept; should we remove the console.log?"'],
     ['but I ask', 'The reviewer said no, but I ask: "Kept; should we remove the console.log?"'],
     ['but let me ask', 'The reviewer said no, but let me ask: "Kept; should we remove the console.log?"'],
@@ -1160,6 +1182,14 @@ test('a first-person cue outside a reviewer quote ends reviewer attribution, and
     ['semicolon question', 'The reviewer said no; should the console.log be removed?'],
   ];
   const pass = [
+    ['I ask inside a curly reviewer quote immediately after a comma', 'The reviewer said,‘but I ask: should the console.log be removed?’'],
+    ['I ask inside a curly reviewer quote after a comma and space', 'The reviewer said, ‘but I ask: should the console.log be removed?’'],
+    ['I ask after an exclamation inside a reviewer quote', 'The reviewer said \'no! But I ask: should the console.log be removed?\''],
+    ['I ask inside a second reviewer quote after an exclamation', 'The reviewer said \'wait!\', \'but I ask: should the console.log be removed?\''],
+    ['reviewer asks after a quoted question mark and comma', 'The reviewer said, \'Really?,\' and asked: "Kept; should we remove the console.log?"'],
+    ['reviewer asks a quoted question without a preamble', 'The reviewer asked: "should we remove the console.log?"'],
+    ['single-quoted question inside a double reviewer quote', 'The reviewer said: "no, but I ask: \'should we remove the console.log?\'"'],
+    ['reported I asked before a quoted question without a preamble', 'The reviewer said that I asked: "should we remove the console.log?"'],
     ['single-quoted but I asked', 'The reviewer said \'but I asked\' and then added: "Kept; should we remove the console.log?"'],
     ['single-quoted but I asked twice', 'The reviewer said \'but I asked twice\' and then added: "Kept; should we remove the console.log?"'],
     ['my question was fair', 'The reviewer noted, my question was fair: "Kept; should we remove the console.log?"'],
