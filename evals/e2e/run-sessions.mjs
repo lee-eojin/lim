@@ -265,7 +265,7 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${TURN}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${TURN}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own)
-    || new RegExp(`${REPORTED}${QUOTED}${DENIED}${CANNOT}\\b(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}(?<![\\w$])${anchor}(?![\\w$])(?!\\s+(?!(?:${LINK}|if)\\b)[a-z])(?:(?!,\\s*(?:but|and|or|so|then|though|although|while|yet|unless|because)\\b|\\s+(?:but|while|whereas|because|unless|though|although)\\s+|\\s+(?:and|or|so|then)\\s+(?:you|i|we|they|he|she)\\b)[^;]){0,60}?(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)${QUOTE_CREDITED}`, 'i').test(own)
+    || new RegExp(`${REPORTED}${QUOTED}${DENIED}${CANNOT}\\b(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}(?<![\\w$])${anchor}(?![\\w$])(?![\\x60*_]*\\s+(?!(?:${LINK}|if)\\b)[a-z])(?:(?!,\\s*(?:but|and|or|so|then|though|although|while|yet|unless|because)\\b|\\s+(?:but|while|whereas|because|unless|though|although)\\s+|\\s+(?:and|or|so|then|when|whenever|once|until|till|since|where|wherever|after|before|as)\\s+(?:you|i|we|they|he|she)\\b)[^;]){0,60}?(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)${QUOTE_CREDITED}`, 'i').test(own)
     || offersAfterCredit(anchor, own);
 }
 

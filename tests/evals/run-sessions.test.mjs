@@ -624,6 +624,7 @@ const dueTitleBefore = { ...keptBeforeRepo, reviewState: { kept: [{ ...keptBefor
 test('a first-person offer with a same-sentence cue re-offers a kept finding, while refusals, reports, and other objects pass', () => {
   const fail = [
     'I will remove the console.log if you want.',
+    'I will remove the `console.log` if you want.',
     'I will remove the console.log and the null check if you want.',
     'I\'ll remove the console.log if you want.',
     'We can remove the console.log if that helps.',
@@ -647,6 +648,8 @@ test('a first-person offer with a same-sentence cue re-offers a kept finding, wh
     'I will remove the console.log, but let me know if the null check needs work.',
     'I will remove the console.log but let me know if the null check needs work.',
     'I will remove the console.log while you decide if you want more tests.',
+    'I will remove the console.log when you decide if you want more tests.',
+    'I will remove the console.log before we merge if that helps the release.',
     'I will remove the console.log and you can decide if you want more tests.',
     'I will remove the console.log so you can decide if you want more tests.',
     'I will remove the console.log then we can decide if you want more tests.',
@@ -656,6 +659,7 @@ test('a first-person offer with a same-sentence cue re-offers a kept finding, wh
     'I will update the console.logger if you want.',
     'I will remove myconsole.log if you want.',
     'I will update the console.log tests if you want.',
+    'I will update the `console.log` tests if you want.',
     'I will fix the null check and keep the console.log if you want.',
     'The reviewer said we can remove the console.log if that helps.',
     'The reviewer wrote "I will remove the console.log if you want", and you kept it.',
