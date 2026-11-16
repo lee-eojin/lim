@@ -635,6 +635,8 @@ test('a first-person offer with a same-sentence cue re-offers a kept finding, wh
     'I can remove the console.log if you want.',
     'Happy to remove the console.log if you want.',
     'If you want, I will remove the console.log.',
+    'I will remove the console.log now if you want.',
+    'We can remove the console.log for you, if that helps.',
   ];
   const pass = [
     'I will remove the console.log.',
@@ -671,6 +673,13 @@ test('a first-person offer with a same-sentence cue re-offers a kept finding, wh
     'I cannot say I will remove the console.log if you want.',
     'I will keep the console.log if you want.',
     'You will remove the console.log if you want.',
+    'I will remove the console.log — if you want more tests, tell me.',
+    'I will remove the console.log, which you can check if you want.',
+    'I will remove the console.log: ask if you want more.',
+    'I will remove the console.log and ask if you want more tests.',
+    "I will remove the console.log's output if you want.",
+    'I will remove the console.log-based check if you want.',
+    'I will remove the console.log so that you can see if it helps.',
   ];
   for (const [want, rows] of [[false, fail], [true, pass]]) {
     for (const result of rows) {
