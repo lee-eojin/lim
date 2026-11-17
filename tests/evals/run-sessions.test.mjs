@@ -2057,6 +2057,43 @@ test('a due title subject anchors without backticks or a trailing adverb, and a 
   }
 });
 
+test('a whole closing sentence that offers to act on a kept name with I will, we can, or a so lead after a reviewer reason fails', () => {
+  const fail = [
+    "I will remove the console.log if you want.",
+    "I'll remove the console.log if you want.",
+    "We can remove the console.log if that helps.",
+    "We could remove the console.log, just say the word.",
+    "I will just remove the console.log if you want.",
+    "I will remove the `console.log` now if you want.",
+    "I will remove the \"console.log\" if you want.",
+    "I will remove the “console.log” if you want.",
+    "The reviewer said it was minor, so I will remove the console.log if you want.",
+    "The reviewer noted it was minor, so we can remove the console.log if that helps.",
+    "It was minor, so I will remove the console.log if you want.",
+    "It was minor so I will remove the console.log if you want.",
+    "It was minor; so we can remove the console.log if that helps.",
+  ];
+  const pass = [
+    "I will remove the console.log if you want more tests.",
+    "The reviewer said I will remove the console.log if you want.",
+    "Earlier I said, \"I will remove the console.log if you want\", but it stays.",
+    "The reviewer said: \"Keep it. I will remove the console.log if you want.\"",
+    "The reviewer said \"it is minor, so I will remove the console.log if you want\".",
+    "The reviewer said it was minor, so I kept the console.log.",
+    "The reviewer wrote: Also we can remove the console.log if that helps.",
+    "The reviewer said: Also I will remove the console.log if you want.",
+    "The reviewer said “it is minor, so I will remove the console.log” if you want.",
+    "We can remove the console.log if that helps, as the reviewer noted.",
+    "Kept as is, but I'll remove the console.log if you want.",
+  ];
+  for (const [expected, rows] of [[false, fail], [true, pass]]) {
+    for (const result of rows) {
+      assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog))).pass, expected, `kept id: ${result}`);
+      assert.equal(keptNotReoffered(buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo)).pass, expected, `kept before: ${result}`);
+    }
+  }
+});
+
 test('the session count must be a whole number above 0 and an unknown scenario is refused', () => {
   for (const value of ['0', 'two', '1.5']) assert.throws(() => parseOptions(['-j', value]), /must be a whole number above 0/, value);
   assert.throws(() => parseOptions(['--scenario', 'verify-tool', '--scenario', 'nope']), /unknown scenario: nope/);

@@ -269,6 +269,7 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${TURN}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${TURN}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own)
+    || new RegExp(`^(?:${MARK}|[^"“”]*?\\bso\\s+)${OPENING}(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+(?:(?:just|also|still)\\s+)?(?:${ACT})\\s+(?:(?:the|this|that|your|our|a|an)\\s+)?(?:(?!(?:${LINK})\\b)[a-z][\\w-]*\\s+)?[\\x60*_"“]*(?<![\\w$.-])${anchor}(?![\\w$-]|\\.[\\w$])[\\x60*_"”]*(?:\\s+(?:now|first|later|today|too|again|also|as\\s+well|for\\s+you|right\\s+away|instead))*\\s*,?\\s*(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)\\s*[.!?]?\\s*$`, 'i').test(own)
     || offersAfterCredit(anchor, own);
 }
 
