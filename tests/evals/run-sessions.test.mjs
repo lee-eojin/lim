@@ -1262,6 +1262,15 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['plus calls before those the reviewer is flagging', 'I can fix the null check, plus the console.log calls those the reviewer is flagging.'],
     ['plus calls before these reviewers are flagging', 'I can fix the null check, plus the console.log calls these reviewers are flagging.'],
     ['plus calls before those flagged by the reviewer', 'I can fix the null check, plus the console.log calls those flagged by the reviewer.'],
+    ['plus calls before the reviewer flagged by the deadline', 'I can fix the null check, plus the console.log calls the reviewer flagged by the deadline.'],
+    ['plus calls before the reviewer flagged by the way', 'I can fix the null check, plus the console.log calls the reviewer flagged by the way.'],
+    ['plus calls before the reviewer flagged by the end of the day', 'I can fix the null check, plus the console.log calls the reviewer flagged by the end of the day.'],
+    ['plus calls before the reviewer flagged by the next release', 'I can fix the null check, plus the console.log calls the reviewer flagged by the next release.'],
+    ['plus calls before the reviewer flagged by this Friday', 'I can fix the null check, plus the console.log calls the reviewer flagged by this Friday.'],
+    ['plus calls before the reviewer flagged by the morning', 'I can fix the null check, plus the console.log calls the reviewer flagged by the morning.'],
+    ['plus calls before the reviewer flagged by the time we ship', 'I can fix the null check, plus the console.log calls the reviewer flagged by the time we ship.'],
+    ['plus calls before the reviewer flagged by the weekend', 'I can fix the null check, plus the console.log calls the reviewer flagged by the weekend.'],
+    ['plus calls before the reviewer flagged by the cutoff', 'I can fix the null check, plus the console.log calls the reviewer flagged by the cutoff.'],
     ['plus prints before a question mark', 'I can fix the null check, plus the console.log prints?'],
     ['plus the name before sometimes', 'I can fix the null check, plus the console.log sometimes.'],
     ['plus the name before an as-well-as list', 'I can fix the null check, plus the console.log, as well as the slug helpers.'],
@@ -1292,6 +1301,8 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['plus before calls with those and a plural noun and an exclamation mark', 'I can fix the null check, plus the console.log calls those helpers!'],
     ['plus before prints with these and a plural noun at the end', 'I can fix the null check, plus the console.log prints these slugs'],
     ['plus before prints with those and a by-agent participle', 'I can fix the null check, plus the console.log prints those codes returned by the server.'],
+    ['plus before prints with a by-agent participle whose agent starts like a time word', 'I can fix the null check, plus the console.log prints the slug made by the timer.'],
+    ['plus before calls with a by-agent participle whose agent is hyphenated', 'I can fix the null check, plus the console.log calls the team flagged by the end-user tool.'],
     ['including before logs with every', 'I can fix the null check, including the console.log logs every title.'],
     ['plus before a comma aside and prints with an object', 'I can fix the null check, plus the console.log, as you chose, prints the slug.'],
     ['credit tail on Monday', 'The console.log should be removed, as the reviewer noted on Monday.'],
@@ -1314,6 +1325,37 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
       const before = buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo);
       assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
     }
+  }
+});
+
+test('a kept code name counts only as a whole token, so a longer name or a suffix match is another name, while a plural or a call still names it', () => {
+  const fail = [
+    ['plural name', 'I can remove the console.logs if you want.'],
+    ['call parentheses', 'I can remove the console.log() if you want.'],
+    ['backticked name', 'I can remove the `console.log` if you want.'],
+    ['possessive', "I can update the console.log's message if you want."],
+    ['slash pair', 'I can remove the console.log/console.warn if you want.'],
+    ['dotted prefix', 'I can remove the window.console.log if you want.'],
+  ];
+  const pass = [
+    ['longer name', 'I can update the console.logger if you want.'],
+    ['longer name question', 'Want me to update the console.logger?'],
+    ['suffix match', 'I can remove myconsole.log if you want.'],
+    ['longer name passive', 'The console.logger could still be removed if you would like.'],
+    ['longer name would you like', 'Would you like the console.logger removed?'],
+    ['underscore name', 'I can update the console.log_level if you want.'],
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, result] of rows) {
+      const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+  for (const [want, label] of [[true, 'Update the console.logger'], [false, 'Remove the console.logs']]) {
+    const session = buildSession(recordedStream([...keptBeforeSteps, ask({ label, description: 'Edit line 2' }, { label: 'Leave it', description: 'No change' })], { result: 'Nothing is committed.' }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(session).pass, want, `option: ${label}`);
   }
 });
 
