@@ -224,7 +224,7 @@ const NARROW = 'but|except|without|excluding|unlike|than|not|only|just|even|beyo
 const OTHER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?!(?:[\w-]+\s+){0,2}(?:it|this|that|them|these|those)\b)[^\s?;,]+(?:\s+[^\s?;,]+){0,2}\s*\?|[A-Z]+-\d+\b|\x60[^\x60]|(?=[\w$]*(?:[._][\w$]|\())[a-z_$])`;
 const FORMER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?:[\w-]+\s+){0,2}[\w-]+|[A-Z]+-\d+|[._\x60(][\w$\x60)]+|(?<=\b(?:about|with|for)\s+)${BARE}|(?<=\bat\s+)${ONE})`;
 const SUBJECT = String.raw`(?:(?:the|this|that|your)\s+)?(?:[\w-]+\s+)?`;
-const REACH = String.raw`(?:(?!\b(?:and|or|but|not|nothing|no|none)\b)[^;,:?"]){0,40}?`;
+const REACH = String.raw`(?:(?!\b(?:and|or|but|not|nothing|no|none|except|excluding)\b)[^;,:?"]){0,40}?`;
 const HOLD = String.raw`(?:(?!\b(?:and|or|but|not|while|whereas|though|although|unless|until|if|when|once|since|because)\b)[^;,]){0,20}?`;
 const MARK = String.raw`[\s*_>•-]*`;
 const BESIDE = String.raw`(?<!\b(?:near|next\s+to|beside|alongside|around|above|below|after|before|behind|under)\s+(?:(?:the|this|that|your|a|an)\s+)?(?:[\w-]+\s+)?)`;
