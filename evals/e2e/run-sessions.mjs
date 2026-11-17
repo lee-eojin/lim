@@ -246,10 +246,11 @@ const TAG = String.raw`,?\s+(?:too|as\s+well)\b`;
 const NOT_VERB = String.raw`its|yes|besides|sometimes|always|perhaps|[a-z]*(?:wards|ways|adays)`;
 const HEAD_NOUN = 'calls|statements|lines|logs|entries|usages|uses|references|occurrences|instances|messages|outputs|prints|imports|tests|checks|comments|leftovers|ones|findings|issues|things|bugs';
 const OBJECT_LEAD = 'the|a|an|this|its|their|our|your|my';
+const BY_TIME = `deadline|cutoff|end|time|way|next|weekend|${DAYPART}|${DAY}`;
 const QUANTIFIER = 'each|every|all|some|no';
 const VERB_LIKE = String.raw`(?!(?:${NOT_VERB})\b)[a-z]+[b-hj-rtv-z]s\b`;
 const ASIDE = String.raw`(?:\s*,\s*(?:as|per|like|at|by)\s[^;,.?!]{1,40},)?`;
-const OBJECT_END = String.raw`(?!${ASIDE}\s+(?:(?:(?:still|also|just|now)\s+)?(?:stays?|remains?|is|are|was|were|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|gets?|keeps?|sits?|lives?|goes|seems?|looks?)\b|(?:still|also|just|now)\s+${VERB_LIKE}|(?!(?:${HEAD_NOUN})\b)${VERB_LIKE}(?!\s*\?)|(?:${HEAD_NOUN})\s+(?!(?:${OBJECT_LEAD}|${QUANTIFIER})\s+[\w$\x60.-]+(?:\s+[\w$\x60.-]+)?\s+(?:${SAID}|[a-z]+ed)(?![\w-])(?!\s+by\s+(?:${OBJECT_LEAD})\s+[\w$\x60]))(?:(?:${OBJECT_LEAD})\s+(?:[\w$\x60]|(?:["“][^"”?\n]*["”]|['‘][^'’?\n]*['’])\s*(?:[.!]|$))|(?:these|those)\s+${NOUNS}(?=\s*(?:[.!?;]|$)|\s+[a-z]+ed\s+by\b)|(?:${QUANTIFIER})\s+(?!(?:${LINK}|across|along|above|below)(?![\w-]))[\w$\x60]|["“'‘\x60])))`;
+const OBJECT_END = String.raw`(?!${ASIDE}\s+(?:(?:(?:still|also|just|now)\s+)?(?:stays?|remains?|is|are|was|were|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|gets?|keeps?|sits?|lives?|goes|seems?|looks?)\b|(?:still|also|just|now)\s+${VERB_LIKE}|(?!(?:${HEAD_NOUN})\b)${VERB_LIKE}(?!\s*\?)|(?:${HEAD_NOUN})\s+(?!(?:${OBJECT_LEAD}|${QUANTIFIER})\s+[\w$\x60.-]+(?:\s+[\w$\x60.-]+)?\s+(?:${SAID}|[a-z]+ed)(?![\w-])(?!\s+by\s+(?:${OBJECT_LEAD})\s+(?!(?:${BY_TIME})(?![\w-]))[\w$\x60]))(?:(?:${OBJECT_LEAD})\s+(?:[\w$\x60]|(?:["“][^"”?\n]*["”]|['‘][^'’?\n]*['’])\s*(?:[.!]|$))|(?:these|those)\s+${NOUNS}(?=\s*(?:[.!?;]|$)|\s+[a-z]+ed\s+by\b)|(?:${QUANTIFIER})\s+(?!(?:${LINK}|across|along|above|below)(?![\w-]))[\w$\x60]|["“'‘\x60])))`;
 const AND_TOO = String.raw`,\s*and\s+(?:(?:the|this|that|your)\s+)?`;
 const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+to\s+)?`;
 const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
@@ -373,7 +374,8 @@ function keptAnchors(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim().replace(/[;,]+$/, ''));
   const files = records.map((item) => item.file ?? '').join('\n');
   const names = texts.flatMap((text) => text.match(DOTTED_NAME) ?? []).filter((name) => !files.includes(name));
-  const anchors = [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
+  const whole = (text) => (names.includes(text) ? `(?<![\\w$])${escapeRegex(text)}(?=s?(?![\\w$]))` : escapeRegex(text).replace(/\s+/g, '\\s+'));
+  const anchors = [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map(whole);
   return [...new Set([...anchors, ...texts.flatMap(subjectAnchor)])];
 }
 
