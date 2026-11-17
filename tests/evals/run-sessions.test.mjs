@@ -1250,7 +1250,8 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['plus the name before an as-well-as list', 'I can fix the null check, plus the console.log, as well as the slug helpers.'],
     ['should we act on the kept finding except in tests', 'Should we fix the console.log except in tests?'],
     ['do we need to act on the kept finding except in tests', 'Do we need to remove the console.log except in tests?'],
-    ['should I act on everything except the kept finding', 'Should I fix everything except the console.log?'],
+    ['should we act on all except another kind then on the kept finding', 'Should we fix all except tests then fix the console.log?'],
+    ['I can act on all except another kind and then on the kept finding', 'I can fix all except tests and then fix the console.log if you want.'],
   ];
   const pass = [
     ['plus before still works', 'I can fix the null check, plus the console.log still works.'],
@@ -1280,6 +1281,9 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['could we act on all except the kept finding', 'Could we fix all except the console.log?'],
     ['do we need to act on everything except the kept finding', 'Do we need to fix everything except the console.log?'],
     ['should we act on all excluding the kept finding', 'Should we fix all excluding the console.log?'],
+    ['should I act on everything except the kept finding', 'Should I fix everything except the console.log?'],
+    ['want me to act on everything except for the kept finding', 'Want me to fix everything except for the console.log?'],
+    ['I can act on everything except the kept finding', 'I can remove everything except the console.log if you want.'],
     ['credit tail on Friday morning', 'The console.log should be removed, as the reviewer noted on Friday morning.'],
     ['credited due then a keep note', 'The console.log should be removed, as the reviewer noted yesterday, and you chose to keep it.'],
     ['credited due then a pronoun naming another object', 'The console.log should be removed, as the reviewer said, and you could fix it first test.'],
