@@ -227,7 +227,8 @@ const SUBJECT = String.raw`(?:(?:the|this|that|your)\s+)?(?:[\w-]+\s+)?`;
 const REACH = String.raw`(?:(?!\b(?:and|or|but|not|nothing|no|none)\b)[^;,:?"]){0,40}?`;
 const HOLD = String.raw`(?:(?!\b(?:and|or|but|not|while|whereas|though|although|unless|until|if|when|once|since|because)\b)[^;,]){0,20}?`;
 const MARK = String.raw`[\s*_>•-]*`;
-const BESIDE = String.raw`(?<!\b(?:except(?:\s+for)?|excluding|near|next\s+to|beside|alongside|around|above|below|after|before|behind|under)\s+(?:(?:the|this|that|your|a|an)\s+)?(?:[\w-]+\s+)?)`;
+const BESIDE = String.raw`(?<!\b(?:near|next\s+to|beside|alongside|around|above|below|after|before|behind|under)\s+(?:(?:the|this|that|your|a|an)\s+)?(?:[\w-]+\s+)?)`;
+const EXCLUDED = String.raw`(?<!\b(?:except(?:\s+for)?|excluding)\s+(?:(?:the|this|that|your|a|an)\s+)?(?:[\w-]+\s+)?[\x60*_]*)`;
 const SAID = 'said|says|noted|notes|flagged|flags|suggested|suggests|recommended|recommends|found|thought|thinks|wrote|reported|reports|asked|wanted|wants|raised|mentioned|argued';
 const VOICE = String.raw`\b(?:(?:reviewer|review|finding|report)\s+(?:(?:also|had|has)\s+)?(?:${SAID})|you\s+(?:said|answered|noted|wrote|mentioned)|(?:according\s+to|per)\s+(?:the\s+|your\s+)?(?:reviewer|review|finding|report)|reviewer['’]s\s+[\w-]+)\b`;
 const SPEAKER_CHANGE = String.raw`(?=\S)(?<=[,;:.!?—–]\s*|\b(?:but|so|and|then)\s+)(?:(?:i\s+ask(?:ed)?|let\s+me\s+ask|i\s+wonder(?:ed)?|i(?:['’]d|\s+would)\s+ask)\b|(?<!${VOICE},\s*)my\s+(?:own\s+)?(?:question|take)\s+(?:is|was)\b)(?<!(?:(?<![\w.!?,])'|(?<!\w)‘)(?!\s)(?:[^'’\n]|\b['’]\b)*)`;
@@ -265,8 +266,8 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${LEAD}(?:(?:and|or|so|then|also|maybe|still)\\s+)?(?=(?:${ACT})\\b)${GAP}${BESIDE}${anchor}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
     || new RegExp(`(?:\\b(?:would you (?:like|prefer)|do you (?:want|need))\\b|${LEAD}want\\b|${OFFER_CUE})${NEAR}${BESIDE}${anchor}${NEAR}\\b(?:${DONE})\\b`, 'i').test(segment)
     || new RegExp(`${LEAD}${OPENING}${SUBJECT}${anchor}${NEAR}${DUE}${CREDITED}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
-    || new RegExp(`${TURN}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
-    || new RegExp(`${TURN}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
+    || new RegExp(`${TURN}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${EXCLUDED}${anchor})`, 'i').test(segment)
+    || new RegExp(`${TURN}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${EXCLUDED}${anchor})`, 'i').test(segment)
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own)
     || offersAfterCredit(anchor, own);
 }
@@ -321,7 +322,7 @@ const segmentsOf = (prose) => lineSegmentsOf(prose).map(([part]) => part);
 function optionActs(anchor, question) {
   const options = Array.isArray(question?.options) ? question.options : [];
   const choices = options.flatMap((option) => [option?.label, option?.description]).flatMap((text) => segmentsOf(String(text ?? '')));
-  const direct = new RegExp(`^${MARK}${AGREE}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor}`, 'i');
+  const direct = new RegExp(`^${MARK}${AGREE}(?=(?:${ACT})\\b)${REACH}${BESIDE}${EXCLUDED}${anchor}`, 'i');
   if ([...segmentsOf(String(question?.header ?? '')), ...choices].some((text) => direct.test(text))) return true;
   const due = new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i');
   if (choices.some((text) => due.test(text))) return true;
