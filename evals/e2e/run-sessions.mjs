@@ -250,7 +250,7 @@ const BY_TIME = `deadline|cutoff|end|time|way|next|weekend|${DAYPART}|${DAY}`;
 const QUANTIFIER = 'each|every|all|some|no';
 const VERB_LIKE = String.raw`(?!(?:${NOT_VERB})\b)[a-z]+[b-hj-rtv-z]s\b`;
 const ASIDE = String.raw`(?:\s*,\s*(?:as|per|like|at|by)\s[^;,.?!]{1,40},)?`;
-const OBJECT_END = String.raw`(?!${ASIDE}\s+(?:(?:(?:still|also|just|now)\s+)?(?:stays?|remains?|is|are|was|were|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|gets?|keeps?|sits?|lives?|goes|seems?|looks?)\b|(?:still|also|just|now)\s+${VERB_LIKE}|(?!(?:${HEAD_NOUN})\b)${VERB_LIKE}(?!\s*\?)|(?:${HEAD_NOUN})\s+(?!(?:${OBJECT_LEAD}|${QUANTIFIER})\s+[\w$\x60.-]+(?:\s+[\w$\x60.-]+)?\s+(?:${SAID}|[a-z]+ed)(?![\w-])(?!\s+by\s+(?:${OBJECT_LEAD})\s+(?!(?:${BY_TIME})(?![\w-]))[\w$\x60]))(?:(?:${OBJECT_LEAD})\s+(?:[\w$\x60]|(?:["“][^"”?\n]*["”]|['‘][^'’?\n]*['’])\s*(?:[.!]|$))|(?:these|those)\s+${NOUNS}(?=\s*(?:[.!?;]|$)|\s+[a-z]+ed\s+by\b)|(?:${QUANTIFIER})\s+(?!(?:${LINK}|across|along|above|below)(?![\w-]))[\w$\x60]|["“'‘\x60])))`;
+const OBJECT_END = String.raw`(?!${ASIDE}\s+(?:(?:(?:still|also|just|now)\s+)?(?:stays?|remains?|is|are|was|were|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|gets?|keeps?|sits?|lives?|goes|seems?|looks?)\b|(?:still|also|just|now)\s+${VERB_LIKE}|(?!(?:${HEAD_NOUN})\b)${VERB_LIKE}(?!\s*\?)|(?:${HEAD_NOUN})\s+(?!(?:${OBJECT_LEAD}|${QUANTIFIER})\s+[\w$\x60.-]+(?:\s+[\w$\x60.-]+)?\s+(?:${SAID}|[a-z]+ed)(?![\w-])(?!\s+by\s+(?:${OBJECT_LEAD})\s+(?!(?:${BY_TIME})(?![\w-]))[\w$\x60]))(?:(?:${OBJECT_LEAD})\s+(?:[\w$\x60]|(?:["“][^"”?\n]*["”]|['‘][^'’?\n]*['’])\s*(?:[.!]|$))|(?:these|those)\s+${NOUNS}(?=\s*(?:[.!?;]|$)|\s+[a-z]+ed\s+by\s+(?:${OBJECT_LEAD})\s+(?!(?:${BY_TIME})(?![\w-]))[\w$\x60])|(?:${QUANTIFIER})\s+(?!(?:${LINK}|across|along|above|below)(?![\w-]))[\w$\x60]|["“'‘\x60])))`;
 const AND_TOO = String.raw`,\s*and\s+(?:(?:the|this|that|your)\s+)?`;
 const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+to\s+)?`;
 const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
@@ -269,6 +269,7 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${TURN}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${TURN}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own)
+    || new RegExp(`^(?:${MARK}|[^"“”]*?\\bso\\s+)${OPENING}(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+(?:(?:just|also|still)\\s+)?(?:${ACT})\\s+(?:(?:the|this|that|your|our|a|an)\\s+)?(?:(?!(?:${LINK})\\b)[a-z][\\w-]*\\s+)?[\\x60*_"“]*(?<![\\w$.-])${anchor}(?![\\w$-]|\\.[\\w$])[\\x60*_"”]*(?:\\s+(?:now|first|later|today|too|again|also|as\\s+well|for\\s+you|right\\s+away|instead))*\\s*,?\\s*(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)\\s*[.!?]?\\s*$`, 'i').test(own)
     || offersAfterCredit(anchor, own);
 }
 
