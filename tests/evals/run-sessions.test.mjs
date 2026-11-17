@@ -1292,6 +1292,37 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
   }
 });
 
+test('a kept code name counts only as a whole token, so a longer name or a suffix match is another name, while a plural or a call still names it', () => {
+  const fail = [
+    ['plural name', 'I can remove the console.logs if you want.'],
+    ['call parentheses', 'I can remove the console.log() if you want.'],
+    ['backticked name', 'I can remove the `console.log` if you want.'],
+    ['possessive', "I can update the console.log's message if you want."],
+    ['slash pair', 'I can remove the console.log/console.warn if you want.'],
+    ['dotted prefix', 'I can remove the window.console.log if you want.'],
+  ];
+  const pass = [
+    ['longer name', 'I can update the console.logger if you want.'],
+    ['longer name question', 'Want me to update the console.logger?'],
+    ['suffix match', 'I can remove myconsole.log if you want.'],
+    ['longer name passive', 'The console.logger could still be removed if you would like.'],
+    ['longer name would you like', 'Would you like the console.logger removed?'],
+    ['underscore name', 'I can update the console.log_level if you want.'],
+  ];
+  for (const [want, rows] of [[false, fail], [true, pass]]) {
+    for (const [name, result] of rows) {
+      const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog));
+      assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+      const before = buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo);
+      assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+    }
+  }
+  for (const [want, label] of [[true, 'Update the console.logger'], [false, 'Remove the console.logs']]) {
+    const session = buildSession(recordedStream([...keptBeforeSteps, ask({ label, description: 'Edit line 2' }, { label: 'Leave it', description: 'No change' })], { result: 'Nothing is committed.' }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(session).pass, want, `option: ${label}`);
+  }
+});
+
 test('a plural option under a two-finding question acts on both findings unless a noun follows the plural word', () => {
   const question = 'What about the console.log and the null check?';
   const fail = [

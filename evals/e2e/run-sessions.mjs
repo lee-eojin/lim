@@ -374,7 +374,8 @@ function keptAnchors(records) {
   const texts = records.flatMap((item) => [item.title, item.quote]).map((text) => String(text ?? '').trim().replace(/[;,]+$/, ''));
   const files = records.map((item) => item.file ?? '').join('\n');
   const names = texts.flatMap((text) => text.match(DOTTED_NAME) ?? []).filter((name) => !files.includes(name));
-  const anchors = [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map((text) => escapeRegex(text).replace(/\s+/g, '\\s+'));
+  const whole = (text) => (names.includes(text) ? `(?<![\\w$])${escapeRegex(text)}(?=s?(?![\\w$]))` : escapeRegex(text).replace(/\s+/g, '\\s+'));
+  const anchors = [...new Set([...texts, ...names])].filter((text) => text.length >= 6).map(whole);
   return [...new Set([...anchors, ...texts.flatMap(subjectAnchor)])];
 }
 
