@@ -1281,6 +1281,14 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['plus prints before a question mark', 'I can fix the null check, plus the console.log prints?'],
     ['plus the name before sometimes', 'I can fix the null check, plus the console.log sometimes.'],
     ['plus the name before an as-well-as list', 'I can fix the null check, plus the console.log, as well as the slug helpers.'],
+    ['should we act on the kept finding except in tests', 'Should we fix the console.log except in tests?'],
+    ['do we need to act on the kept finding except in tests', 'Do we need to remove the console.log except in tests?'],
+    ['should we act on all except another kind then on the kept finding', 'Should we fix all except tests then fix the console.log?'],
+    ['I can act on all except another kind and then on the kept finding', 'I can fix all except tests and then fix the console.log if you want.'],
+    ['agree with an except that clause and a due kept finding', 'I agree, except that the console.log should be removed.'],
+    ['agree with an except clause and a due kept finding', 'I agree, except the console.log should be removed.'],
+    ['should we act on everything except the kept finding or on the kept finding', 'Should we fix everything except the console.log or remove the console.log instead?'],
+    ['should we act on everything except the kept finding in tests', 'Should we fix everything except the console.log in tests?'],
   ];
   const pass = [
     ['plus before still works', 'I can fix the null check, plus the console.log still works.'],
@@ -1461,6 +1469,9 @@ test('a plural option under a two-finding question acts on both findings unless 
     ['both with a preposition before a noun', 'Fix both via patches'],
     ['these across a noun', 'Fix these across files'],
     ['both minus a noun', 'Fix both minus docs'],
+    ['the kept finding except in tests', 'Fix the console.log except in tests'],
+    ['the kept finding except the one in tests', 'Remove the console.log except the one in tests'],
+    ['the kept finding excluding tests', 'Fix the console.log excluding tests'],
   ];
   const pass = [
     ['those before a noun', 'Fix those tests'],
