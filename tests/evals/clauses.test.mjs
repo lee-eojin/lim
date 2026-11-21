@@ -21,6 +21,7 @@ test('object phrases separate compound agents and sources from time phrases and 
   const objects = [
     'the code returned by the time server.',
     'the code returned by the end node.',
+    'the code returned by the time server, too.',
     'those codes returned by the time server.',
     'those codes returned by the end node.',
     'the code returned by the server.',
@@ -42,6 +43,9 @@ test('object phrases separate compound agents and sources from time phrases and 
     'the reviewer flagged by the deadline anyway.',
     'the reviewer flagged by the time tests finish.',
     'the reviewer flagged by the time server tool.',
+    'the reviewer flagged by the time tests are done.',
+    'the code returned by the time server is up.',
+    'the code returned by the end node really.',
     'the reviewer flagged from the start.',
     'the reviewer flagged from the diff.',
     'the reviewer noted from the review.',

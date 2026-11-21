@@ -58,16 +58,17 @@ export function phraseAfter(tokens, at) {
   return { from: at, to, words: tokens.slice(at, to).map(wordOf) };
 }
 
-function isTimePhrase(words, extra) {
+function isTimePhrase(words, extra, closed) {
   const isTime = (word) => TIMES.has(word) || extra.has(word);
   if (!isTime(words[0])) return false;
-  return words[0] === 'next' || words.length !== 2 || isTime(words[1]);
+  return words[0] === 'next' || words.length !== 2 || isTime(words[1]) || !closed;
 }
 
 function linkedPhrase(tokens, at, link, times = new Set()) {
   if (wordOf(tokens[at]) !== link || !LEADS.has(wordOf(tokens[at + 1])) || !namesThing(tokens[at + 2])) return false;
-  const { words } = phraseAfter(tokens, at + 2);
-  return !isTimePhrase(words.length ? words : [wordOf(tokens[at + 2])], times);
+  const { words, to } = phraseAfter(tokens, at + 2);
+  const closed = endsSentence(tokens[to]) || [',', ';'].includes(tokens[to].text);
+  return !isTimePhrase(words.length ? words : [wordOf(tokens[at + 2])], times, closed);
 }
 
 const isParticiple = (token, speech) => token?.kind === 'word' && (/^[a-z]+ed$/i.test(token.text) || (speech && SPEECH.has(wordOf(token))));
