@@ -2137,6 +2137,8 @@ test('a whole closing sentence that offers to act on a kept name with I will, we
     "The reviewer wrote: Also we can remove the console.log if that helps.",
     "The reviewer said: Also I will remove the console.log if you want.",
     "The reviewer said “it is minor, so I will remove the console.log” if you want.",
+    "The reviewer said \" it was minor, so I will remove the console.log if you want.",
+    "The reviewer said “ it was minor, so I will remove the console.log if you want.",
     "We can remove the console.log if that helps, as the reviewer noted.",
     "Kept as is, but I'll remove the console.log if you want.",
     "Earlier I said, 'I will remove the console.log if you want', but it stays.",

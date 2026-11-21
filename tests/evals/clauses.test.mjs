@@ -9,6 +9,8 @@ test('a so lead starts an own-voice clause only outside a double-quoted span', (
   assert.deepEqual(leadStarts('He said "it is minor, so I will" so we can.'), [35]);
   assert.deepEqual(leadStarts("He said 'it is minor, so I will'."), [24]);
   assert.deepEqual(leadStarts('Also, soon we can.'), []);
+  assert.deepEqual(leadStarts('He said " it is minor, so I will.'), []);
+  assert.deepEqual(leadStarts('He said “ it is minor, so I will.'), []);
 });
 
 test('quotes open and close by side, and an apostrophe stays part of its word', () => {
