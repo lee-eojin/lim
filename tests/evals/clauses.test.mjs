@@ -13,11 +13,6 @@ test('token offsets preserve dotted names, contractions, and quoted code', () =>
 test('object phrases separate compound agents and sources from time phrases and relatives', () => {
   const objects = [
     'the code returned by the server.',
-    'the code returned from the server.',
-    'the code returned from the main server.',
-    'the code copied from the module.',
-    'the code returned from the `api` server.',
-    'those codes returned from the server.',
     'these issues.',
     'these children.',
     'those findings.',
@@ -28,6 +23,8 @@ test('object phrases separate compound agents and sources from time phrases and 
   const relatives = [
     'the reviewer flagged by the deadline specified.',
     'the reviewer flagged by running tests.',
+    'the code returned from the server.',
+    'the code returned from the very \'start\'.',
     'the reviewer flagged by the deadline.',
     'the reviewer flagged by the end of the day.',
     'the reviewer flagged by the time we ship.',

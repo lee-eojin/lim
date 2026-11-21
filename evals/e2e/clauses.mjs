@@ -15,12 +15,9 @@ const QUANTITIES = setOf(QUANTIFIER);
 const TIMES = setOf(BY_TIME);
 const LINKS = setOf(LINK);
 const SPEECH = setOf(SAID);
-const ACTED = setOf(DONE.replace('|cleaned up', '|cleaned'));
 const FINDING_WORDS = setOf('findings|issues|bugs|things');
 const NOT_OBJECT_NOUN = new Set([...setOf(NOT_NOUN)].filter((word) => !FINDING_WORDS.has(word)));
 const PLURAL_NOUN = setOf('children|people|men|women|data|metadata|media|criteria|feet|teeth|mice');
-const SOURCE_TIME = setOf('start|beginning|outset');
-const PERSON = setOf('reviewer|reviewers|author|authors|team|teams|user|users|maintainer|maintainers|developer|developers|contributor|contributors|owner|owners|person|people');
 const TOKEN = /\x60[^\x60\n]*\x60|[A-Za-z0-9_$]+(?:[.'’-][A-Za-z0-9_$]+)*|["“”‘’']|[^\sA-Za-z0-9_$]/g;
 
 export function tokensOf(text) {
@@ -56,16 +53,8 @@ function agentPhrase(tokens, at) {
   return wordOf(tokens[at]) === 'by' && LEADS.has(wordOf(tokens[at + 1])) && namesThing(tokens[at + 2]) && !TIMES.has(wordOf(tokens[at + 2]));
 }
 
-function sourcePhrase(tokens, at) {
-  if (wordOf(tokens[at]) !== 'from' || !LEADS.has(wordOf(tokens[at + 1])) || !namesThing(tokens[at + 2])) return false;
-  const words = [];
-  for (let next = at + 2; words.length < 3 && tokens[next]?.kind === 'word'; next += 1) words.push(wordOf(tokens[next]));
-  return !words.some((word) => TIMES.has(word) || SOURCE_TIME.has(word));
-}
-
 const isParticiple = (token, speech) => token?.kind === 'word' && (/^[a-z]+ed$/i.test(token.text) || (speech && SPEECH.has(wordOf(token))));
-const describesObject = (tokens, at) => agentPhrase(tokens, at + 1)
-  || (!SPEECH.has(wordOf(tokens[at])) && !ACTED.has(wordOf(tokens[at])) && !PERSON.has(wordOf(tokens[at - 1])) && sourcePhrase(tokens, at + 1));
+const describesObject = (tokens, at) => agentPhrase(tokens, at + 1);
 const isPluralNoun = (token) => token?.kind === 'word' && (PLURAL_NOUN.has(wordOf(token)) || (/^[a-z][\w-]+s$/i.test(token.text) && !NOT_OBJECT_NOUN.has(wordOf(token))));
 
 const QUOTED_OBJECT = /^\s+(?:["“][^"”?\n]*["”]|['‘][^'’?\n]*['’])\s*(?:[.!]|$)/;
