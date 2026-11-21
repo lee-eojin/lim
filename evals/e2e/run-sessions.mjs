@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { parseRunnerArgs, runClaude } from '../clear-explain/run-explain.mjs';
 import { serializeResults } from '../review-loop/run-detection.mjs';
 import { pool, readEvidence } from '../verify/run-benchmark.mjs';
+import { leadStarts } from './clauses.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
@@ -260,6 +261,8 @@ const LIST_PREFIX = /^[\s>]*(?:[*•–—-]|\d+[.)])\s+(?:[A-Z]+-\d+\s+)?(?:\[\
 const KEPT_LISTING = /^[\s>#*_]*(?:kept as is(?:\s+at\s+your\s+request)?|[^\n]*\byou\s+kept\s+before\s+(?:was|were)\s+raised\s+again(?:,\s*including)?):[\s*_]*$/i;
 
 function offersToAct(anchor, segment, own = segment) {
+  const name = `(?<![\\w$.-])${anchor}(?![\\w$-]|\\.[\\w$])`;
+  const closing = `${OPENING}(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+(?:(?:just|also|still)\\s+)?(?:${ACT})\\s+(?:(?:the|this|that|your|our|a|an)\\s+)?(?:(?!(?:${LINK})\\b)[a-z][\\w-]*\\s+)?(?:[\\x60*_"“]*${name}[\\x60*_"”]*|['‘]${name}['’])(?:\\s+(?:now|first|later|today|too|again|also|as\\s+well|for\\s+you|right\\s+away|instead))*\\s*,?\\s*(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)\\s*[.!?]?\\s*$`;
   return new RegExp(`${OFFER_TO_ACT}(?:${BESIDE}${anchor}|${INCLUDING}${anchor}${OBJECT_END}|${AND_TOO}${anchor}(?=${TAG}))`, 'i').test(segment)
     || new RegExp(`${BESIDE}${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
     || new RegExp(`${OFFER_CUE}[^;]{0,20}${BESIDE}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
@@ -269,7 +272,8 @@ function offersToAct(anchor, segment, own = segment) {
     || new RegExp(`${TURN}(?:${MODAL})(?:n['’]t)?\\b(?:${NEAR}${BESIDE}${anchor}${NEAR}\\bbe\\s+(?:${DONE})\\b|\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${TURN}(?:(?:is|are|do|does)(?:n['’]t)?\\b${NEAR}${BESIDE}${anchor}${NEAR}\\bto\\s+be\\s+(?:${DONE})\\b|(?:do|does)(?:n['’]t)?\\s+(?:i|we|you)\\s+${BOUND}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor})`, 'i').test(segment)
     || new RegExp(`${REPORTED}${DENIED}${BESIDE}${anchor}${HOLD}${DUE}${CREDITED}`, 'i').test(own)
-    || new RegExp(`^(?:${MARK}|[^"“”]*?\\bso\\s+)${OPENING}(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+(?:(?:just|also|still)\\s+)?(?:${ACT})\\s+(?:(?:the|this|that|your|our|a|an)\\s+)?(?:(?!(?:${LINK})\\b)[a-z][\\w-]*\\s+)?[\\x60*_"“]*(?<![\\w$.-])${anchor}(?![\\w$-]|\\.[\\w$])[\\x60*_"”]*(?:\\s+(?:now|first|later|today|too|again|also|as\\s+well|for\\s+you|right\\s+away|instead))*\\s*,?\\s*(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)\\s*[.!?]?\\s*$`, 'i').test(own)
+    || new RegExp(`^${MARK}${closing}`, 'i').test(own)
+    || leadStarts(own).some((at) => new RegExp(`^\\s+${closing}`, 'i').test(own.slice(at)))
     || offersAfterCredit(anchor, own);
 }
 

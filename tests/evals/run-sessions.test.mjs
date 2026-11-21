@@ -2098,6 +2098,14 @@ test('a whole closing sentence that offers to act on a kept name with I will, we
     "It was minor, so I will remove the console.log if you want.",
     "It was minor so I will remove the console.log if you want.",
     "It was minor; so we can remove the console.log if that helps.",
+    "I will remove the 'console.log' if you want.",
+    "I will remove the ‘console.log’ if you want.",
+    "We can remove the 'console.log' if that helps.",
+    "The reviewer said \"it was minor\", so I will remove the console.log if you want.",
+    "The reviewer said “it was minor”, so I will remove the console.log if you want.",
+    "The reviewer said 'it was minor', so I will remove the 'console.log' if you want.",
+    "The reviewer said 'it was minor, so I will remove the 'console.log' if you want.",
+    "The reviewer said 'it was minor, so we could remove 'console.log', just say the word.",
   ];
   const pass = [
     "I will remove the console.log if you want more tests.",
@@ -2111,6 +2119,13 @@ test('a whole closing sentence that offers to act on a kept name with I will, we
     "The reviewer said “it is minor, so I will remove the console.log” if you want.",
     "We can remove the console.log if that helps, as the reviewer noted.",
     "Kept as is, but I'll remove the console.log if you want.",
+    "Earlier I said, 'I will remove the console.log if you want', but it stays.",
+    "The reviewer's note says I will remove the console.log if you want.",
+    "The reviewer said 'it is minor, so I will remove the console.log' if you want.",
+    "I will remove the console.log' if you want.",
+    "I will remove the 'console.log if you want.",
+    "The reviewer said “it is minor, so I will remove the ‘console.log’” if you want.",
+    "The reviewer said \"it is minor, so I will remove the 'console.log' if you want\".",
   ];
   for (const [expected, rows] of [[false, fail], [true, pass]]) {
     for (const result of rows) {
