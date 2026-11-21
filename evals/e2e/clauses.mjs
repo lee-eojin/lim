@@ -58,22 +58,28 @@ export function phraseAfter(tokens, at) {
   return { from: at, to, words: tokens.slice(at, to).map(wordOf) };
 }
 
-function isTimePhrase(words, extra, closed) {
-  const isTime = (word) => TIMES.has(word) || extra.has(word);
-  if (!isTime(words[0])) return false;
-  return words[0] === 'next' || words.length !== 2 || isTime(words[1]) || !closed;
+function isTimePhrase(words, closed) {
+  if (!TIMES.has(words[0])) return false;
+  return words[0] === 'next' || words.length !== 2 || TIMES.has(words[1]) || !closed;
 }
 
-function linkedPhrase(tokens, at, link, times = new Set()) {
-  if (wordOf(tokens[at]) !== link || !LEADS.has(wordOf(tokens[at + 1])) || !namesThing(tokens[at + 2])) return false;
+function agentPhrase(tokens, at) {
+  if (wordOf(tokens[at]) !== 'by' || !LEADS.has(wordOf(tokens[at + 1])) || !namesThing(tokens[at + 2])) return false;
   const { words, to } = phraseAfter(tokens, at + 2);
   const closed = endsSentence(tokens[to]) || [',', ';'].includes(tokens[to].text);
-  return !isTimePhrase(words.length ? words : [wordOf(tokens[at + 2])], times, closed);
+  return !isTimePhrase(words.length ? words : [wordOf(tokens[at + 2])], closed);
+}
+
+function sourcePhrase(tokens, at) {
+  if (wordOf(tokens[at]) !== 'from' || !LEADS.has(wordOf(tokens[at + 1])) || !namesThing(tokens[at + 2])) return false;
+  const words = [];
+  for (let next = at + 2; words.length < 3 && tokens[next]?.kind === 'word'; next += 1) words.push(wordOf(tokens[next]));
+  return !words.some((word) => TIMES.has(word) || SOURCE_TIME.has(word));
 }
 
 const isParticiple = (token, speech) => token?.kind === 'word' && (/^[a-z]+ed$/i.test(token.text) || (speech && SPEECH.has(wordOf(token))));
-const describesObject = (tokens, at) => linkedPhrase(tokens, at + 1, 'by')
-  || (!SPEECH.has(wordOf(tokens[at])) && !ACTED.has(wordOf(tokens[at])) && linkedPhrase(tokens, at + 1, 'from', SOURCE_TIME));
+const describesObject = (tokens, at) => agentPhrase(tokens, at + 1)
+  || (!SPEECH.has(wordOf(tokens[at])) && !ACTED.has(wordOf(tokens[at])) && sourcePhrase(tokens, at + 1));
 const isPluralNoun = (token) => token?.kind === 'word' && (PLURAL_NOUN.has(wordOf(token)) || (/^[a-z][\w-]+s$/i.test(token.text) && !NOT_OBJECT_NOUN.has(wordOf(token))));
 
 const QUOTED_OBJECT = /^\s+(?:["“][^"”?\n]*["”]|['‘][^'’?\n]*['’])\s*(?:[.!]|$)/;
