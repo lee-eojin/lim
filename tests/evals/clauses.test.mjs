@@ -27,6 +27,7 @@ test('object phrases separate compound agents and sources from time phrases and 
   ];
   const relatives = [
     'the reviewer flagged by the deadline specified.',
+    'the reviewer flagged by running tests.',
     'the reviewer flagged by the deadline.',
     'the reviewer flagged by the end of the day.',
     'the reviewer flagged by the time we ship.',

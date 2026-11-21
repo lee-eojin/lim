@@ -1257,6 +1257,7 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['plus coordinated time nouns', 'I can fix the null check, plus the console.log calls the reviewer flagged by the weekend deadline.'],
     ['plus time noun with adverb', 'I can fix the null check, plus the console.log calls the reviewer flagged by the deadline anyway.'],
     ['plus a time phrase with a trailing participle', 'I can fix the null check, plus the console.log calls the reviewer flagged by the deadline specified.'],
+    ['plus a by phrase without a determiner', 'I can fix the null check, plus the console.log calls the reviewer flagged by running tests.'],
     ['plus a time clause with a plural subject', 'I can fix the null check, plus the console.log calls the reviewer flagged by the time tests are done.'],
     ['plus a plural time clause with a plural subject', 'I can fix the null check, plus the console.log calls those reviewers flagged by the time tests are done.'],
     ['plus an end clause with a subject', 'I can fix the null check, plus the console.log calls the reviewer flagged by the end users can see it.'],
