@@ -21,6 +21,7 @@ const NOT_OBJECT_NOUN = new Set([...setOf(NOT_NOUN)].filter((word) => !FINDING_W
 const PLURAL_NOUN = setOf('children|people|men|women|data|metadata|media|criteria|feet|teeth|mice');
 const PHRASE_STOP = setOf('of|the|a|an|this|that|these|those|my|our|your|its|their|i|we|you|they|he|she|it|is|are|was|were|be|been|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|anyway|anyhow|already|soon|instead|somehow|maybe|perhaps|always|really|actually');
 const SOURCE_TIME = setOf('start|beginning|outset');
+const PERSON = setOf('reviewer|reviewers|author|authors|team|teams|user|users|maintainer|maintainers|developer|developers|contributor|contributors|owner|owners|person|people');
 const TOKEN = /\x60[^\x60\n]*\x60|[A-Za-z0-9_$]+(?:[.'’-][A-Za-z0-9_$]+)*|["“”‘’']|[^\sA-Za-z0-9_$]/g;
 
 export function tokensOf(text) {
@@ -79,7 +80,7 @@ function sourcePhrase(tokens, at) {
 
 const isParticiple = (token, speech) => token?.kind === 'word' && (/^[a-z]+ed$/i.test(token.text) || (speech && SPEECH.has(wordOf(token))));
 const describesObject = (tokens, at) => agentPhrase(tokens, at + 1)
-  || (!SPEECH.has(wordOf(tokens[at])) && !ACTED.has(wordOf(tokens[at])) && sourcePhrase(tokens, at + 1));
+  || (!SPEECH.has(wordOf(tokens[at])) && !ACTED.has(wordOf(tokens[at])) && !PERSON.has(wordOf(tokens[at - 1])) && sourcePhrase(tokens, at + 1));
 const isPluralNoun = (token) => token?.kind === 'word' && (PLURAL_NOUN.has(wordOf(token)) || (/^[a-z][\w-]+s$/i.test(token.text) && !NOT_OBJECT_NOUN.has(wordOf(token))));
 
 const QUOTED_OBJECT = /^\s+(?:["“][^"”?\n]*["”]|['‘][^'’?\n]*['’])\s*(?:[.!]|$)/;

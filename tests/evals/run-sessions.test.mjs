@@ -1262,6 +1262,7 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['plus a time clause with a short subject', 'I can fix the null check, plus the console.log calls the reviewer flagged by the time CI is green.'],
     ['plus a modified source time phrase', 'I can fix the null check, plus the console.log prints the code returned from the very beginning.'],
     ['plus an early source time phrase', 'I can fix the null check, plus the console.log prints the code returned from the early start.'],
+    ['plus a person copying from a source', 'I can fix the null check, plus the console.log calls the reviewer copied from the module.'],
     ['plus speech from a source', 'I can fix the null check, plus the console.log calls the reviewer flagged from the diff.'],
     ['plus speech from the start', 'I can fix the null check, plus the console.log calls the reviewer flagged from the start.'],
     ['plus a source time phrase', 'I can fix the null check, plus the console.log prints the code returned from the start.'],
