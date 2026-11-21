@@ -19,7 +19,6 @@ const ACTED = setOf(DONE.replace('|cleaned up', '|cleaned'));
 const FINDING_WORDS = setOf('findings|issues|bugs|things');
 const NOT_OBJECT_NOUN = new Set([...setOf(NOT_NOUN)].filter((word) => !FINDING_WORDS.has(word)));
 const PLURAL_NOUN = setOf('children|people|men|women|data|metadata|media|criteria|feet|teeth|mice');
-const PHRASE_STOP = setOf('of|the|a|an|this|that|these|those|my|our|your|its|their|i|we|you|they|he|she|it|is|are|was|were|be|been|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|anyway|anyhow|already|soon|instead|somehow|maybe|perhaps|always|really|actually');
 const SOURCE_TIME = setOf('start|beginning|outset');
 const PERSON = setOf('reviewer|reviewers|author|authors|team|teams|user|users|maintainer|maintainers|developer|developers|contributor|contributors|owner|owners|person|people');
 const TOKEN = /\x60[^\x60\n]*\x60|[A-Za-z0-9_$]+(?:[.'’-][A-Za-z0-9_$]+)*|["“”‘’']|[^\sA-Za-z0-9_$]/g;
@@ -53,22 +52,8 @@ const wordOf = (token) => (token?.kind === 'word' ? token.text.toLowerCase() : '
 const namesThing = (token) => token?.kind === 'word' || token?.kind === 'code';
 const endsSentence = (token) => !token || (token.kind === 'punct' && '.!?'.includes(token.text));
 
-export function phraseAfter(tokens, at) {
-  let to = at;
-  while (tokens[to]?.kind === 'word' && !LINKS.has(wordOf(tokens[to])) && !PHRASE_STOP.has(wordOf(tokens[to])) && !/ly$/i.test(tokens[to].text)) to += 1;
-  return { from: at, to, words: tokens.slice(at, to).map(wordOf) };
-}
-
-function isTimePhrase(words, closed) {
-  if (!TIMES.has(words[0])) return false;
-  return words[0] === 'next' || words.length !== 2 || TIMES.has(words[1]) || !closed;
-}
-
 function agentPhrase(tokens, at) {
-  if (wordOf(tokens[at]) !== 'by' || !LEADS.has(wordOf(tokens[at + 1])) || !namesThing(tokens[at + 2])) return false;
-  const { words, to } = phraseAfter(tokens, at + 2);
-  const closed = endsSentence(tokens[to]) || [',', ';'].includes(tokens[to].text);
-  return !isTimePhrase(words.length ? words : [wordOf(tokens[at + 2])], closed);
+  return wordOf(tokens[at]) === 'by' && LEADS.has(wordOf(tokens[at + 1])) && namesThing(tokens[at + 2]) && !TIMES.has(wordOf(tokens[at + 2]));
 }
 
 function sourcePhrase(tokens, at) {
