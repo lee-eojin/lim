@@ -59,6 +59,8 @@ test('object phrases separate compound agents and sources from time phrases and 
     'the code returned from the first start.',
     'the code returned from the very end.',
     'the reviewer copied from the module.',
+    'the code flagged from the diff.',
+    'the code removed from the module.',
     'those reviewers copied from the module.',
     'the team fetched from the cache.',
     'the code returned from the same time.',
