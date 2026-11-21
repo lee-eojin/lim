@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { parseRunnerArgs, runClaude } from '../clear-explain/run-explain.mjs';
 import { serializeResults } from '../review-loop/run-detection.mjs';
 import { pool, readEvidence } from '../verify/run-benchmark.mjs';
+import { ACT, DAY, DAYPART, DONE, LINK, NOT_NOUN, SAID, objectAfter } from './clauses.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
@@ -199,8 +200,6 @@ const OFFER_TO_ACT = String.raw`${OFFER_OPENER}.{0,40}\b(?:fix|delete|remove|cha
 const OFFER_CUE = String.raw`\b(?:if you(?:['’]d| would)? (?:like|prefer|want)|let me know|just say the word)\b`;
 const PASSIVE_ACT = String.raw`\b(?:could|can|may|might|should|would)(?:\s+(?:still|also|always|easily|just))?\s+be\s+(?:fixed|deleted|removed|changed|updated|edited|dropped|stripped|cleaned up)\b`;
 
-const ACT = 'fix|delete|remove|change|update|edit|drop|strip|clean up';
-const DONE = 'fixed|deleted|removed|changed|updated|edited|dropped|stripped|cleaned up';
 const LEAD = String.raw`(?:^|[:\[]")[\s*_>•-]*`;
 const PUSH = String.raw`(?:\?|\bbefore (?:committing|you commit|the commit)\b)`;
 const NEAR = String.raw`(?:(?!\b(?:and|or|but|not)\b)[^;,]){0,20}?`;
@@ -213,12 +212,10 @@ const FINDING_NOUN = 'check|coverage|flake|script|cleanup|deadlock|leak|race|con
 const PLURAL = String.raw`(?:these|those)\s+two|them|these|those|both`;
 const WHOLE = String.raw`all\s+of\s+(?:them|these|those)|the\s+two|all|everything`;
 const FOLLOW = String.raw`findings|issues|now|first|then|too|again|perhaps|always|afterwards|as\s+well|(?:this|that)\s+(?:time|round|week|way)`;
-const NOT_NOUN = 'findings|issues|bugs|things|plus|perhaps|sometimes|besides|across|versus|thus|minus|whereas|overseas|thanks|cheers|pls|yours|ours|hers|theirs|his|its|this|towards|backwards|forwards|afterwards|upwards|downwards|onwards|inwards|outwards|always|sideways|anyways|nowadays|less|unless|regardless|nevertheless|nonetheless|doubtless|indoors|outdoors|upstairs|downstairs';
 const TAIL = String.raw`(?:before|after|during|until|in)\s+(?:the|this|that|our|your|next)\s+[\w-]+(?:\s+[\w-]+)?\s*\?`;
 const BARE = String.raw`${ONE}(?:\s+[a-z][\w-]*)?`;
 const TASK_VERB = 'send|translate|write|publish|refactor|rename|notify|announce|ask|tell|share|discuss|explain|verify|investigate|inspect|revisit|bump|rebase|squash|revert|rewrite|reword|rework|recheck|retest|finish|try|see|make|create|let';
 const NOUNS = String.raw`(?!(?:${NOT_NOUN})\b)[a-z][\w-]+s\b`;
-const LINK = 'in|on|at|by|to|for|from|with|without|within|into|onto|over|under|via|per|about|around|against|among|between|behind|beside|beyond|inside|outside|near|off|out|up|down|through|throughout|toward|than|as|like|unlike|except|before|after|during|until|till|since|and|or|but|nor|so|yet|if|unless|when|whenever|while|where|wherever|once|because|though|although|then|now|not|also|too|again|first|later|today|tomorrow|tonight|please|just|only|still|even|using|including|excluding|regarding|following|pending';
 const MODIFIER = String.raw`(?!(?:${NOT_NOUN}|${LINK})(?![\w-]))[a-z][\w-]*`;
 const NARROW = 'but|except|without|excluding|unlike|than|not|only|just|even|beyond|inside|outside|near|off|out|up|down|behind|like|still|following|pending|later';
 const OTHER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?!(?:[\w-]+\s+){0,2}(?:it|this|that|them|these|those)\b)[^\s?;,]+(?:\s+[^\s?;,]+){0,2}\s*\?|[A-Z]+-\d+\b|\x60[^\x60]|(?=[\w$]*(?:[._][\w$]|\())[a-z_$])`;
@@ -228,15 +225,12 @@ const REACH = String.raw`(?:(?!\b(?:and|or|but|not|nothing|no|none)\b)[^;,:?"]){
 const HOLD = String.raw`(?:(?!\b(?:and|or|but|not|while|whereas|though|although|unless|until|if|when|once|since|because)\b)[^;,]){0,20}?`;
 const MARK = String.raw`[\s*_>•-]*`;
 const BESIDE = String.raw`(?<!\b(?:near|next\s+to|beside|alongside|around|above|below|after|before|behind|under)\s+(?:(?:the|this|that|your|a|an)\s+)?(?:[\w-]+\s+)?)`;
-const SAID = 'said|says|noted|notes|flagged|flags|suggested|suggests|recommended|recommends|found|thought|thinks|wrote|reported|reports|asked|wanted|wants|raised|mentioned|argued';
 const VOICE = String.raw`\b(?:(?:reviewer|review|finding|report)\s+(?:(?:also|had|has)\s+)?(?:${SAID})|you\s+(?:said|answered|noted|wrote|mentioned)|(?:according\s+to|per)\s+(?:the\s+|your\s+)?(?:reviewer|review|finding|report)|reviewer['’]s\s+[\w-]+)\b`;
 const SPEAKER_CHANGE = String.raw`(?=\S)(?<=[,;:.!?—–]\s*|\b(?:but|so|and|then)\s+)(?:(?:i\s+ask(?:ed)?|let\s+me\s+ask|i\s+wonder(?:ed)?|i(?:['’]d|\s+would)\s+ask)\b|(?<!${VOICE},\s*)my\s+(?:own\s+)?(?:question|take)\s+(?:is|was)\b)(?<!(?:(?<![\w.!?,])'|(?<!\w)‘)(?!\s)(?:[^'’\n]|\b['’]\b)*)`;
 const QUOTED = String.raw`(?<!${VOICE}(?:(?:(?!${SPEAKER_CHANGE})[^"“]){0,30}|(?:(?!${SPEAKER_CHANGE})[^"“.?!,;:\n]){0,80}[:,]\s*)(?:\\?["“][^"”]*|(?:(?<![\w.!?,])'|(?<!\w)‘)(?!\s)(?:[^'’]|\b['’]\b)*))`;
 const REPORTED = String.raw`(?<!${VOICE}(?:(?!\bbut\b|${SPEAKER_CHANGE}${QUOTED})[^;])*)`;
 const TURN = String.raw`(?:${LEAD}|(?:${QUOTED}[,;]|[,;]\\?["”'’]${QUOTED}|${SPEAKER_CHANGE}${QUOTED}\s*:(?:\s*\\?["“'‘])?)\s*)${OPENING}`;
 const DENIED = String.raw`(?<!(?:\bnot|n['’]t|\bnever)\s+(?:(?!(?:and|but|or)\b)[\w-]+\s+){0,4})`;
-const DAY = 'monday|tuesday|wednesday|thursday|friday|saturday|sunday';
-const DAYPART = 'morning|afternoon|evening|night';
 const COUNT = String.raw`an?|one|two|three|four|five|six|seven|eight|nine|ten|\d+|a\s+few|a\s+couple\s+of|several`;
 const WHEN = String.raw`so|too|before|first|again|just\s+now|earlier(?:\s+today)?|today|tonight|yesterday(?:\s+(?:${DAYPART}))?|(?:on\s+)?(?:${DAY})(?:\s+(?:${DAYPART}))?|(?:last|this)\s+(?:${DAYPART}|week|weekend|month|${DAY})|(?:${COUNT})\s+(?:minutes?|hours?|days?|nights?|weeks?|months?|rounds?|reviews?)\s+(?:ago|back|earlier|before)|in\s+(?:the\s+)?(?:previous|last|first|earlier)\s+(?:review|round)|in\s+round\s+\d+`;
 const CREDIT = String.raw`[^;,]{0,60}[,(]\s*(?:as\s+)?(?:the\s+)?${VOICE}(?:\s+(?:${WHEN}))?`;
@@ -245,12 +239,13 @@ const INCLUDING = String.raw`,\s*(?:including|plus|and\s+also|as\s+well\s+as|alo
 const TAG = String.raw`,?\s+(?:too|as\s+well)\b`;
 const NOT_VERB = String.raw`its|yes|besides|sometimes|always|perhaps|[a-z]*(?:wards|ways|adays)`;
 const HEAD_NOUN = 'calls|statements|lines|logs|entries|usages|uses|references|occurrences|instances|messages|outputs|prints|imports|tests|checks|comments|leftovers|ones|findings|issues|things|bugs';
-const OBJECT_LEAD = 'the|a|an|this|its|their|our|your|my';
-const BY_TIME = `deadline|cutoff|end|time|way|next|weekend|${DAYPART}|${DAY}`;
-const QUANTIFIER = 'each|every|all|some|no';
 const VERB_LIKE = String.raw`(?!(?:${NOT_VERB})\b)[a-z]+[b-hj-rtv-z]s\b`;
 const ASIDE = String.raw`(?:\s*,\s*(?:as|per|like|at|by)\s[^;,.?!]{1,40},)?`;
-const OBJECT_END = String.raw`(?!${ASIDE}\s+(?:(?:(?:still|also|just|now)\s+)?(?:stays?|remains?|is|are|was|were|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|gets?|keeps?|sits?|lives?|goes|seems?|looks?)\b|(?:still|also|just|now)\s+${VERB_LIKE}|(?!(?:${HEAD_NOUN})\b)${VERB_LIKE}(?!\s*\?)|(?:${HEAD_NOUN})\s+(?!(?:${OBJECT_LEAD}|${QUANTIFIER})\s+[\w$\x60.-]+(?:\s+[\w$\x60.-]+)?\s+(?:${SAID}|[a-z]+ed)(?![\w-])(?!\s+by\s+(?:${OBJECT_LEAD})\s+(?!(?:${BY_TIME})(?![\w-]))[\w$\x60]))(?:(?:${OBJECT_LEAD})\s+(?:[\w$\x60]|(?:["“][^"”?\n]*["”]|['‘][^'’?\n]*['’])\s*(?:[.!]|$))|(?:these|those)\s+${NOUNS}(?=\s*(?:[.!?;]|$)|\s+[a-z]+ed\s+by\s+(?:${OBJECT_LEAD})\s+(?!(?:${BY_TIME})(?![\w-]))[\w$\x60])|(?:${QUANTIFIER})\s+(?!(?:${LINK}|across|along|above|below)(?![\w-]))[\w$\x60]|["“'‘\x60])))`;
+const PREDICATE = new RegExp(String.raw`^${ASIDE}\s+(?:(?:(?:still|also|just|now)\s+)?(?:stays?|remains?|is|are|was|were|will|would|can|could|should|shall|must|may|might|has|have|had|does|do|did|gets?|keeps?|sits?|lives?|goes|seems?|looks?)\b|(?:still|also|just|now)\s+${VERB_LIKE}|(?!(?:${HEAD_NOUN})\b)${VERB_LIKE}(?!\s*\?)|(?<head>${HEAD_NOUN})\s+)`, 'i');
+const predicateFollows = (rest) => {
+  const found = rest.match(PREDICATE);
+  return Boolean(found) && (found.groups.head === undefined || objectAfter(rest.slice(found[0].length)).object);
+};
 const AND_TOO = String.raw`,\s*and\s+(?:(?:the|this|that|your)\s+)?`;
 const BOUND = String.raw`(?:(?:still|also|just|now)\s+)?(?:(?:need|have|want)\s+to\s+)?`;
 const AGREE = String.raw`(?:(?:yes|ok|okay|sure)[,\s]+)?`;
@@ -260,7 +255,8 @@ const LIST_PREFIX = /^[\s>]*(?:[*•–—-]|\d+[.)])\s+(?:[A-Z]+-\d+\s+)?(?:\[\
 const KEPT_LISTING = /^[\s>#*_]*(?:kept as is(?:\s+at\s+your\s+request)?|[^\n]*\byou\s+kept\s+before\s+(?:was|were)\s+raised\s+again(?:,\s*including)?):[\s*_]*$/i;
 
 function offersToAct(anchor, segment, own = segment) {
-  return new RegExp(`${OFFER_TO_ACT}(?:${BESIDE}${anchor}|${INCLUDING}${anchor}${OBJECT_END}|${AND_TOO}${anchor}(?=${TAG}))`, 'i').test(segment)
+  return new RegExp(`${OFFER_TO_ACT}(?:${BESIDE}${anchor}|${AND_TOO}${anchor}(?=${TAG}))`, 'i').test(segment)
+    || [...segment.matchAll(new RegExp(`(?<=${OFFER_TO_ACT}${INCLUDING})(?=(${anchor}))`, 'gi'))].some((found) => !predicateFollows(segment.slice(found.index + found[1].length)))
     || new RegExp(`${BESIDE}${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
     || new RegExp(`${OFFER_CUE}[^;]{0,20}${BESIDE}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
     || new RegExp(`${LEAD}(?:(?:and|or|so|then|also|maybe|still)\\s+)?(?=(?:${ACT})\\b)${GAP}${BESIDE}${anchor}[^;,]{0,60}?${PUSH}`, 'i').test(segment)
