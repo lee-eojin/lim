@@ -35,6 +35,7 @@ test('a kept name left out by except or excluding at the end of an act sentence 
     'I can remove everything except the console.log if you want.',
     'Fix all except the debug console.log',
     'Fix all except the "console.log"',
+    'Fix all except the console.logs',
   ];
   const kept = [
     'Fix the console.log except in tests',
