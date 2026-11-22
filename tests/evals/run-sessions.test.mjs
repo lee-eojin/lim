@@ -2146,6 +2146,14 @@ test('a whole closing sentence that offers to act on a kept name with I will, we
     "The reviewer said 'it was minor', so I will remove the 'console.log' if you want.",
     "The reviewer said 'it was minor, so I will remove the 'console.log' if you want.",
     "The reviewer said 'it was minor, so we could remove 'console.log', just say the word.",
+    "I will remove the console.log and the null check if you want.",
+    "I'll remove the console.log and the null check if you want.",
+    "We can remove the console.log and the null check if you want.",
+    "I will remove the null check and the console.log if you want.",
+    "I will fix the null check and remove the console.log if you want.",
+    "I will remove the console.log and fix the null check if you want.",
+    "It was minor, so I will remove the console.log and the null check if you want.",
+    "I will remove the console.log and the tests pass if you want.",
   ];
   const pass = [
     "I will remove the console.log if you want more tests.",
@@ -2168,6 +2176,20 @@ test('a whole closing sentence that offers to act on a kept name with I will, we
     "I will remove the 'console.log if you want.",
     "The reviewer said “it is minor, so I will remove the ‘console.log’” if you want.",
     "The reviewer said \"it is minor, so I will remove the 'console.log' if you want\".",
+      "I will remove the console.log and the tests pass if you want proof.",
+    "I will remove the console.log.",
+    "I will remove the console.log and the null check.",
+    "I will remove the null check and then the console.log if you want.",
+    "I will remove the null check and everything except the console.log if you want.",
+    "I will fix the null check and keep console.log if you want.",
+    "I will fix the null check and not remove the console.log if you want.",
+    "I will remove the console.log and you can decide if you want.",
+    "I will remove the console.log and rerun the tests if you want.",
+    "I will update the null check and the console.log tests if you want.",
+    "I will update the console.logger and the null check if you want.",
+    "We can remove the console.log and the null check if that helps, as the reviewer noted.",
+    "Kept as is, but I'll remove the console.log and the null check if you want.",
+    "I will remove the console.log or the null check if you want.",
   ];
   for (const [expected, rows] of [[false, fail], [true, pass]]) {
     for (const result of rows) {

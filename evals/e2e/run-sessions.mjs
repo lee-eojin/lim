@@ -260,7 +260,16 @@ const KEPT_LISTING = /^[\s>#*_]*(?:kept as is(?:\s+at\s+your\s+request)?|[^\n]*\
 
 function offersToAct(anchor, segment, own = segment) {
   const name = `(?<![\\w$.-])${anchor}(?![\\w$-]|\\.[\\w$])`;
-  const closing = `${OPENING}(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+(?:(?:just|also|still)\\s+)?(?:${ACT})\\s+(?:(?:the|this|that|your|our|a|an)\\s+)?(?:(?!(?:${LINK})\\b)[a-z][\\w-]*\\s+)?(?:[\\x60*_"“]*${name}[\\x60*_"”]*|['‘]${name}['’])(?:\\s+(?:now|first|later|today|too|again|also|as\\s+well|for\\s+you|right\\s+away|instead))*\\s*,?\\s*(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)\\s*[.!?]?\\s*$`;
+  const act = `(?:(?:just|also|still)\\s+)?(?:${ACT})\\s+`;
+  const lead = '(?:the|this|that|your|our|a|an)\\s+';
+  const word = `(?!(?:${LINK})\\b)[a-z][\\w-]*`;
+  const thing = `${word}(?:\\s+${word}){0,2}`;
+  const kept = `(?:[\\x60*_"“]*${name}[\\x60*_"”]*|['‘]${name}['’])`;
+  const later = '(?:\\s+(?:now|first|later|today|too|again|also|as\\s+well|for\\s+you|right\\s+away|instead))*';
+  const first = `(?:${lead})?(?:${word}\\s+)?${kept}`;
+  const second = `(?:${lead})?${thing}${later}\\s+and\\s+(?:${act}${first}|(?:${lead}(?:${word}\\s+)?)?${kept})`;
+  const more = `(?:\\s+and\\s+(?:${act}(?:${lead})?|${lead})${thing}${later})?`;
+  const closing = `${OPENING}(?:(?:i|we)(?:\\s+will|['’]ll)|we\\s+(?:can|could))\\s+${act}(?:${first}|${second})${later}${more}\\s*,?\\s*(?:${OFFER_CUE}|\\bif\\s+(?:that|it)\\s+helps\\b)\\s*[.!?]?\\s*$`;
   return new RegExp(`${OFFER_TO_ACT}(?:${BESIDE}${anchor}|${INCLUDING}${anchor}${OBJECT_END}|${AND_TOO}${anchor}(?=${TAG}))`, 'i').test(segment)
     || new RegExp(`${BESIDE}${anchor}[^;,]{0,40}${PASSIVE_ACT}[^;]{0,60}${OFFER_CUE}`, 'i').test(segment)
     || new RegExp(`${OFFER_CUE}[^;]{0,20}${BESIDE}${anchor}[^;,]{0,40}${PASSIVE_ACT}`, 'i').test(segment)
