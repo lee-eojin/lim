@@ -2154,6 +2154,10 @@ test('a whole closing sentence that offers to act on a kept name with I will, we
     "I will remove the console.log and fix the null check if you want.",
     "It was minor, so I will remove the console.log and the null check if you want.",
     "I will remove the console.log and the tests pass if you want.",
+    "I will remove the console.error and the console.log if you want.",
+    "I will remove the console.log and the console.error if you want.",
+    "I will remove the console.log and fix `nullCheck` if you want.",
+    "I will remove the `nullCheck` and the console.log if you want.",
   ];
   const pass = [
     "I will remove the console.log if you want more tests.",
@@ -2190,6 +2194,7 @@ test('a whole closing sentence that offers to act on a kept name with I will, we
     "We can remove the console.log and the null check if that helps, as the reviewer noted.",
     "Kept as is, but I'll remove the console.log and the null check if you want.",
     "I will remove the console.log or the null check if you want.",
+    "I will remove the console.log and fix `nullCheck` if you want proof.",
   ];
   for (const [expected, rows] of [[false, fail], [true, pass]]) {
     for (const result of rows) {
