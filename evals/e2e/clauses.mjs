@@ -27,7 +27,7 @@ export function tokensOf(text) {
       open.length = pair;
       return token('close');
     }
-    const opens = mark !== '”' && mark !== '’' && (kind === 'double' || !/\w/.test(before)) && /\S/.test(after);
+    const opens = mark !== '”' && mark !== '’' && (kind === 'double' || (!/\w/.test(before) && /\S/.test(after)));
     if (!opens) return token('punct');
     const opened = token('open');
     open.push(kind);
