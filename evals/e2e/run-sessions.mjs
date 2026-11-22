@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { parseRunnerArgs, runClaude } from '../clear-explain/run-explain.mjs';
 import { serializeResults } from '../review-loop/run-detection.mjs';
 import { pool, readEvidence } from '../verify/run-benchmark.mjs';
-import { leadStarts } from './clauses.mjs';
+import { ACT, LINK, leadStarts, withoutLeftOut } from './clauses.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
@@ -200,7 +200,6 @@ const OFFER_TO_ACT = String.raw`${OFFER_OPENER}.{0,40}\b(?:fix|delete|remove|cha
 const OFFER_CUE = String.raw`\b(?:if you(?:['’]d| would)? (?:like|prefer|want)|let me know|just say the word)\b`;
 const PASSIVE_ACT = String.raw`\b(?:could|can|may|might|should|would)(?:\s+(?:still|also|always|easily|just))?\s+be\s+(?:fixed|deleted|removed|changed|updated|edited|dropped|stripped|cleaned up)\b`;
 
-const ACT = 'fix|delete|remove|change|update|edit|drop|strip|clean up';
 const DONE = 'fixed|deleted|removed|changed|updated|edited|dropped|stripped|cleaned up';
 const LEAD = String.raw`(?:^|[:\[]")[\s*_>•-]*`;
 const PUSH = String.raw`(?:\?|\bbefore (?:committing|you commit|the commit)\b)`;
@@ -219,7 +218,6 @@ const TAIL = String.raw`(?:before|after|during|until|in)\s+(?:the|this|that|our|
 const BARE = String.raw`${ONE}(?:\s+[a-z][\w-]*)?`;
 const TASK_VERB = 'send|translate|write|publish|refactor|rename|notify|announce|ask|tell|share|discuss|explain|verify|investigate|inspect|revisit|bump|rebase|squash|revert|rewrite|reword|rework|recheck|retest|finish|try|see|make|create|let';
 const NOUNS = String.raw`(?!(?:${NOT_NOUN})\b)[a-z][\w-]+s\b`;
-const LINK = 'in|on|at|by|to|for|from|with|without|within|into|onto|over|under|via|per|about|around|against|among|between|behind|beside|beyond|inside|outside|near|off|out|up|down|through|throughout|toward|than|as|like|unlike|except|before|after|during|until|till|since|and|or|but|nor|so|yet|if|unless|when|whenever|while|where|wherever|once|because|though|although|then|now|not|also|too|again|first|later|today|tomorrow|tonight|please|just|only|still|even|using|including|excluding|regarding|following|pending';
 const MODIFIER = String.raw`(?!(?:${NOT_NOUN}|${LINK})(?![\w-]))[a-z][\w-]*`;
 const NARROW = 'but|except|without|excluding|unlike|than|not|only|just|even|beyond|inside|outside|near|off|out|up|down|behind|like|still|following|pending|later';
 const OTHER = String.raw`(?:(?:the|this|that|your|a|an|another)\s+(?!(?:[\w-]+\s+){0,2}(?:it|this|that|them|these|those)\b)[^\s?;,]+(?:\s+[^\s?;,]+){0,2}\s*\?|[A-Z]+-\d+\b|\x60[^\x60]|(?=[\w$]*(?:[._][\w$]|\())[a-z_$])`;
@@ -351,15 +349,17 @@ function restatedTitles(records) {
 function actsOn(anchors, records, segments, questions) {
   const listed = restatedTitles(records);
   let underKept = false;
+  const spare = (text) => withoutLeftOut(String(text ?? ''), anchors);
+  const asked = questions.map((question) => ({ header: spare(question?.header), question: spare(question?.question), options: (Array.isArray(question?.options) ? question.options : []).map((option) => ({ label: spare(option?.label), description: spare(option?.description) })) }));
   const pairs = segments.map(([segment, startsLine]) => {
     const prefix = segment.match(LIST_PREFIX)?.[0];
     if (prefix === undefined && (startsLine || KEPT_LISTING.test(segment))) underKept = KEPT_LISTING.test(segment);
-    if (!listed) return [segment, segment];
-    if (prefix === undefined || underKept) return [segment, segment.replace(listed, ' ')];
+    if (!listed) return [spare(segment), spare(segment)];
+    if (prefix === undefined || underKept) return [spare(segment), spare(segment.replace(listed, ' '))];
     const lead = segment.slice(prefix.length).match(/^[\s"'“‘\x60*_]*/)[0];
-    return [segment, prefix + lead + segment.slice(prefix.length + lead.length).replace(listed, ' ')];
+    return [spare(segment), spare(prefix + lead + segment.slice(prefix.length + lead.length).replace(listed, ' '))];
   });
-  return anchors.some((anchor) => pairs.some(([segment, own]) => offersToAct(anchor, segment, own)) || questions.some((question) => optionActs(anchor, question)));
+  return anchors.some((anchor) => pairs.some(([segment, own]) => offersToAct(anchor, segment, own)) || asked.some((question) => optionActs(anchor, question)));
 }
 
 const ADVERB = 'still|also|always|really|just|now|definitely|probably|certainly|clearly|obviously|surely|likely|perhaps|maybe|actually|honestly|simply|truly|indeed';
