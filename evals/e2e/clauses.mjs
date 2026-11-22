@@ -48,7 +48,7 @@ function isLeftOut(text, tokens, [start, end]) {
   const last = tokens.findLastIndex((token) => token.start < end);
   if (first === -1 || last < first) return false;
   const inCode = first === last && tokens[first].kind === 'code' && tokens[first].start === start - 1 && tokens[first].end === end + 1;
-  const whole = tokens[first].start === start && (tokens[last].end === end || (tokens[last].end === end + 1 && text[end] === 's'));
+  const whole = tokens[first].start === start && tokens[last].end === end;
   if (!inCode && !whole) return false;
   const quoted = tokens[first - 1]?.kind === 'open' && tokens[last + 1]?.kind === 'close';
   const [before, after] = quoted ? [first - 2, last + 2] : [first - 1, last + 1];
