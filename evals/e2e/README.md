@@ -115,3 +115,12 @@ Three `failing-check` sessions on review-loop 0.11.10 (commit `7442758`), which 
 - Claude Code runs read-only shell commands such as `git diff` and `cat` even under `dontAsk` with an allow list that does not name them, so sessions could read the diff with Bash. A chained command such as `L=...; node $L checks; node $L status` was denied.
 - Steps that need a person to answer AskUserQuestion (B05) are out of scope; the review scenarios ask for unattended runs so that no question is needed.
 - `keep-finding` passes only when the reviewer raises the debug line and Claude records the keep; a session where the reviewer does not raise it fails `kept-recorded` and says so, and it does not test a keep made in an earlier run (#267).
+
+### keptNotReoffered limits
+
+- The check is a set of regular expressions plus a small token model (`evals/e2e/clauses.mjs`). Word lists still decide whether a word is a noun or a verb. It does not parse every English noun phrase.
+- A shape it does not recognise stays FAIL. FAIL means you should read the sentence in the session stream and decide whether it re-offered the kept finding.
+- These shapes are known false FAILs: the finding is not being re-offered, but the check fails. They stay FAIL until a real `keep-finding` session produces the same shape. With `console.log` kept, after `I can fix the null check, plus the console.log `:
+  - a by-agent whose name starts with a time word, such as `prints the code returned by the time server.` (#497)
+  - `these` or `those` plus a plural noun, including a comma tail, such as `prints these issues.` and `prints these issues, too.` (#501, #505)
+  - a participle with a `from` source, such as `prints the code returned from the server.` (#502)
