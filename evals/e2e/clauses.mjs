@@ -4,7 +4,7 @@ export const LINK = 'in|on|at|by|to|for|from|with|without|within|into|onto|over|
 const setOf = (words) => new Set(words.split('|'));
 const LINKS = setOf(LINK);
 const ACTS = setOf(ACT.replace('|clean up', ''));
-const NEGATION = /^(?:not|never|no|nothing|none|neither|nor|without|cannot)$|n['’]t$/i;
+const NEGATION = /^(?:not|never|no|nothing|none|neither|nor|without|cannot|zero|0)$|n['’]t$/i;
 const EXCLUDER = setOf('except|excluding');
 const NAME_LEAD = setOf('the|this|your');
 const CUE = /^\s*,?\s*(?:if\s+you(?:['’]d|\s+would)?\s+(?:like|prefer|want)|if\s+(?:that|it)\s+helps)\b/i;

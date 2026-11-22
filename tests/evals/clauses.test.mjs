@@ -45,6 +45,8 @@ test('a kept name left out by except or excluding at the end of an act sentence 
     'Fix everything except the console.log calls?',
     'Fix everything except that console.log?',
     'I can fix nothing except the console.log if you want.',
+    'I can fix zero issues except the console.log if you want.',
+    'I can fix 0 issues except the console.log if you want.',
     "I won't fix everything except the console.log.",
     'Fix everything but the console.log',
     'Fix all except tests and the console.log',

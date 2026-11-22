@@ -1313,6 +1313,7 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['should we act on everything except the kept finding or on the kept finding', 'Should we fix everything except the console.log or remove the console.log instead?'],
     ['should we act on everything except the kept finding in tests', 'Should we fix everything except the console.log in tests?'],
     ['I can act on nothing except the kept finding', 'I can fix nothing except the console.log if you want.'],
+    ['I can act on zero findings except the kept finding', 'I can fix zero issues except the console.log if you want.'],
     ['should we act on everything except that kept finding', 'Should we fix everything except that console.log?'],
     ['should we act on everything except calls of the kept finding', 'Should we fix everything except the console.log calls?'],
   ];
