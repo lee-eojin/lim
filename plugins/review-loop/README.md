@@ -118,4 +118,4 @@ State, diffs, check logs, and a decision ledger are stored in `.git/lim/review-l
 /plugin uninstall review-loop@lim
 ```
 
-Then delete `.git/lim/review-loop/` in each repository where you ran it, and the `.lim-review/` line in its `.git/info/exclude`. When `.git` is a file, the [Data](#data) section shows how to find those paths.
+Then delete `.lim-review/` if it is still in the working tree, delete `.git/lim/review-loop/` in each repository where you ran it, and then remove the `.lim-review/` line from `.git/info/exclude`. For a linked worktree, or when `.git` is a file, the [Data](#data) section shows the full-reset steps.
