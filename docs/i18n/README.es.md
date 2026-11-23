@@ -257,7 +257,7 @@ Una nueva ejecución de ambos conjuntos el 2026-11-05 con Opus, el mismo `review
 
 | Parte | Siempre activo, en cada sesión | Cada vez que se ejecuta |
 |---|---|---|
-| skill review-loop | unos 210 tokens | unos 7400 tokens |
+| skill review-loop | unos 210 tokens | unos 7900 tokens |
 | agente revisor | unos 60 tokens | unos 1800 tokens, más el diff y el código que lee |
 
 El costo de la skill se paga una vez por ejecución. El del revisor se paga una vez por ronda, y un ciclo tiene como máximo 3 rondas. El modelo del revisor cambia ese costo; la tabla del benchmark de arriba lo muestra para cada modelo. Tus comprobaciones se ejecutan en tu máquina y no cuestan tokens.

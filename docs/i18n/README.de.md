@@ -257,7 +257,7 @@ Ein erneuter Lauf beider Sets am 2026-11-05 mit Opus, derselben `reviewer.md` un
 
 | Teil | Immer aktiv, in jeder Session | Bei jedem Lauf |
 |---|---|---|
-| review-loop-Skill | etwa 210 Tokens | etwa 7.400 Tokens |
+| review-loop-Skill | etwa 210 Tokens | etwa 7.900 Tokens |
 | Reviewer-Agent | etwa 60 Tokens | etwa 1.800 Tokens, dazu der Diff und der Code, den er liest |
 
 Die Kosten des Skills fallen einmal pro Lauf an. Die Kosten des Reviewers fallen einmal pro Runde an, und eine Schleife hat höchstens 3 Runden. Das Reviewer-Modell ändert diese Kosten; die Benchmark-Tabelle oben zeigt sie für jedes Modell. Deine Checks laufen auf deinem Rechner und kosten keine Tokens.

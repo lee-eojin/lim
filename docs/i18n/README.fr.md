@@ -257,7 +257,7 @@ Une nouvelle exécution des deux jeux le 2026-11-05 avec Opus, le même `reviewe
 
 | Partie | Toujours actif, à chaque session | À chaque exécution |
 |---|---|---|
-| skill review-loop | environ 210 tokens | environ 7400 tokens |
+| skill review-loop | environ 210 tokens | environ 7900 tokens |
 | agent réviseur | environ 60 tokens | environ 1800 tokens, plus le diff et le code qu'il lit |
 
 Le coût de la skill est payé une fois par exécution. Celui du réviseur est payé une fois par tour, et une boucle compte au maximum 3 tours. Le modèle du réviseur change ce coût ; le tableau du benchmark ci-dessus le montre pour chaque modèle. Vos vérifications s'exécutent sur votre machine et ne coûtent aucun token.

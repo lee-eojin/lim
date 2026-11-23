@@ -255,7 +255,7 @@ A rerun of both sets on 2026-11-05 with Opus, the same `reviewer.md`, and Claude
 
 | Part | Always on, every session | Each time it runs |
 |---|---|---|
-| review-loop skill | about 210 tokens | about 7,400 tokens |
+| review-loop skill | about 210 tokens | about 7,900 tokens |
 | reviewer agent | about 60 tokens | about 1,800 tokens, plus the diff and the code it reads |
 
 The skill's cost is paid once per run. The reviewer's cost is paid once per round, and a loop runs at most 3 rounds. The reviewer model changes that cost; the benchmark table above shows it for each model. Your checks run on your machine and cost no tokens.
