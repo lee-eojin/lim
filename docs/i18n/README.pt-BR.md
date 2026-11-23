@@ -257,7 +257,7 @@ O `claude plugin details` estima o custo do review-loop assim:
 
 | Parte | Sempre ativo, em toda sessão | Cada vez que roda |
 |---|---|---|
-| skill review-loop | cerca de 210 tokens | cerca de 7.400 tokens |
+| skill review-loop | cerca de 210 tokens | cerca de 7.900 tokens |
 | agente revisor | cerca de 60 tokens | cerca de 1.800 tokens, mais o diff e o código que ele lê |
 
 O custo da skill é pago uma vez por execução. O custo do revisor é pago uma vez por rodada, e um ciclo roda no máximo 3 rodadas. O modelo do revisor muda esse custo; a tabela do benchmark acima mostra o custo de cada modelo. As suas verificações rodam na sua máquina e não custam tokens.

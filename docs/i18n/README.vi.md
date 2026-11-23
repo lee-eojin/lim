@@ -257,7 +257,7 @@ Một lần chạy lại cả hai bộ vào 2026-11-05 với Opus, cùng `review
 
 | Thành phần | Luôn bật, trong mọi session | Mỗi lần chạy |
 |---|---|---|
-| skill review-loop | khoảng 210 token | khoảng 7.400 token |
+| skill review-loop | khoảng 210 token | khoảng 7.900 token |
 | reviewer agent | khoảng 60 token | khoảng 1.800 token, cộng với diff và code mà nó đọc |
 
 Chi phí của skill được tính một lần cho mỗi lần chạy. Chi phí của reviewer được tính một lần cho mỗi vòng, và một vòng lặp chạy tối đa 3 vòng. Model của reviewer làm thay đổi chi phí đó; bảng benchmark ở trên cho thấy chi phí của từng model. Các check của bạn chạy trên máy của bạn và không tốn token.
