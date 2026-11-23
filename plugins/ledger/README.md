@@ -90,3 +90,11 @@ A case run costs more than on 2026-11-01 (median $0.38 against $0.30) because it
 - The script checks that evidence still holds, not that a claim's sentence follows from it. That part is for the reader, which is why each claim names its evidence.
 - REA Evidence is checked by its `evidence_id` appearing in the exported bundle; the bundle's own authentication is REA's job.
 - A saved output's SHA-256 catches an edit or a swap made by mistake. It is not a signature: someone who can write the folder can write a matching record. Review `ledger-evidence/` with the ledger when the stakes need it.
+
+## Uninstall
+
+```
+/plugin uninstall ledger@lim
+```
+
+The ledger file and the folders next to it stay until you delete them. The [Files](#files) section names them.

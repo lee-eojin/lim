@@ -111,3 +111,11 @@ State, diffs, check logs, and a decision ledger are stored in `.git/lim/review-l
 - A rule or a regression test is checked in a temporary copy with your tracked files and the `node_modules` of the root and of the projects that hold the finding and the drafts, with those projects' checks. A check that needs other ignored files, such as `.env`, can report it as unproven or as caught for the wrong reason. Claude reads the failure to tell which.
 - In Go, Rust, and Python projects, rules and regression tests run in that copy without untracked build caches or virtual environments, so they can be slow or report unproven.
 - On Windows, a check finds its program through `PATH` and `PATHEXT`, never in the project folder, which Windows would search first; review-loop starts `git` the same way. A PATH folder that cannot be read is skipped, and a `.cmd` or `.bat` program such as `npm.cmd` runs through `cmd.exe`. Gradle and Maven run `gradlew.bat` and `mvnw.cmd` when the project has them; a project with only the `gradlew` or `mvnw` shell script runs it through `sh`, which is reported as not installed unless Git Bash's `sh` is on PATH. A check past its time limit is stopped, but a program it started through `cmd.exe`, such as the test runner `npm` starts, can keep running until it ends. The commit gate reads `~` as `HOME` and `/c/...` as drive `C:`, as Git Bash does. The Windows CI job runs the same tests as macOS and Linux.
+
+## Uninstall
+
+```
+/plugin uninstall review-loop@lim
+```
+
+Then delete `.lim-review/` if it is still in the working tree, delete `.git/lim/review-loop/` in each repository where you ran it, and then remove the `.lim-review/` line from `.git/info/exclude`. For a linked worktree, or when `.git` is a file, the [Data](#data) section shows the full-reset steps.
