@@ -2374,3 +2374,19 @@ test('a fourth recordedStream argument is the tool result output', () => {
   const session = buildSession(recordedStream([['Bash', { command: `node ${LOOP} start` }, null, JSON.stringify({ reviewerModel: 'opus' })]]));
   assert.equal(session.steps[0].output, JSON.stringify({ reviewerModel: 'opus' }));
 });
+
+test('documented keptNotReoffered limit examples stay FAIL in both kept modes', () => {
+  const plus = 'I can fix the null check, plus the console.log ';
+  const rows = [
+    ['time-word by-agent', plus + 'prints the code returned by the time server.'],
+    ['these plus a plural noun', plus + 'prints these issues.'],
+    ['these plus a plural noun and a comma tail', plus + 'prints these issues, too.'],
+    ['participle with a from source', plus + 'prints the code returned from the server.'],
+  ];
+  for (const [name, result] of rows) {
+    const kept = buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(kept).pass, false, `kept id: ${name}`);
+    const before = buildSession(recordedStream(keptBeforeSteps, { result }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(before).pass, false, `kept before: ${name}`);
+  }
+});
