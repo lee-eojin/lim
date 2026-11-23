@@ -20,7 +20,7 @@ Needs Node.js 18 or later. gap-map installs nothing. The target's own toolchain 
 Run `/gap-map:gap-map`. Asking Claude what a language is missing, where its gaps are, or what design it still needs can also start it.
 
 ```
-/gap-map:gap-map Map Bend at ~/orca/workspaces/bend/main-2 against its guide and README.
+/gap-map:gap-map Map Bend at ~/src/bend against its guide and README.
 /gap-map:gap-map Rerun the Bend map after the last pull and tell me what reopened.
 /gap-map:gap-map Add an obligation for the planned U64 type.
 ```
@@ -83,3 +83,11 @@ An earlier run kept for inspection also raised a design question the benchmark d
 - The layout is a simple layered one. A map with many crossing transitions stays readable but is not optimal.
 - A verifier is one command. A lane that needs a build and a run needs a small wrapper script, which is code Claude writes and a person reviews.
 - A pass covers the fixtures named in the map, not the whole test suite. The report says how large the sample is.
+
+## Uninstall
+
+```
+/plugin uninstall gap-map@lim
+```
+
+Delete `gap-map/` next to your map file to reset results. Keep `gap-map.json` if you still want the map.

@@ -9,11 +9,25 @@ node evals/e2e/run-sessions.mjs --scenario failing-check --keep
 
 It uses your Claude account. One pass over the four original scenarios costs about $1.50 with `claude-opus-5-5`; `keep-finding` has not been run yet.
 
+## Current status
+
+`keep-finding` has no real session yet (#281). The counts below are what the runner checks today. Later result files were scored against fewer expectations than the current counts.
+
+| Scenario | Expectations today | Last real session | Last score |
+|---|---|---|---|
+| `review-with-verify` | 16 | 2026-10-29, review-loop 0.11.9, `claude-opus-5-5` | 11/11, 11/11, 11/11 |
+| `failing-check` | 14 | 2026-10-29, review-loop 0.11.10, `claude-opus-5-5` | 11/11, 11/11, 11/11 |
+| `keep-finding` | 7 | none | not run |
+| `verify-tool` | 8 | 2026-10-27, `claude-opus-5-5` | 8/8, 8/8 |
+| `explain-korean` | 5 | 2026-10-27, `claude-opus-5-5` | 5/5, 5/5, 5/5 |
+
+Current review-loop is 0.11.12. The sessions above have not been rerun on that version.
+
 ## How a run works
 
 For each scenario the runner copies a fixture from `fixtures/` into a temporary folder, commits it, and copies the uncommitted change over it. Then it runs `claude -p` there with `--plugin-dir` for review-loop, verify, and clear-explain, `--setting-sources ''`, `--strict-mcp-config`, `--no-session-persistence`, a spending limit, a time limit, and `--permission-mode dontAsk` with this allow list: Skill, Agent, Read, Grep, Glob, Write, Edit, TodoWrite, and Bash only for `node <plugin>/scripts/loop.mjs`, `verify.mjs`, and `check-clarity.mjs`. Anything else is denied and listed in the results.
 
-After the session it checks expectations against three kinds of evidence:
+After the session it checks expectations against four kinds of evidence:
 
 - the main session's tool calls in order, with script commands named by their arguments (`loop record --file ...`, `verify run --id ...`); calls made inside a subagent are kept apart
 - whether Claude pasted a loop report the PostToolUse hook already shows (`hookOwnsLoopReports`), and whether a finding recorded as keep is offered again (`keptNotReoffered`)
@@ -118,10 +132,12 @@ Three `failing-check` sessions on review-loop 0.11.10 (commit `7442758`), which 
 
 ### keptNotReoffered limits
 
-- The check is a set of regular expressions plus a small token model (`evals/e2e/clauses.mjs`). Word lists still decide whether a word is a noun or a verb. It does not parse every English noun phrase.
+- `keep-finding` has no real session yet (#281). The shapes below stay FAIL until a real `keep-finding` session produces the same shape.
+- The check is the `keptNotReoffered` function in `evals/e2e/run-sessions.mjs`. It uses regular expressions plus a small token model in `evals/e2e/clauses.mjs`. Word lists still decide whether a word is a noun or a verb. It does not parse every English noun phrase.
 - It fails only when a recognised re-offer pattern matches a kept id, title, quote, or code name. A sentence that never names the kept finding stays PASS.
 - After a rescue word such as `plus` or `including`, a phrase that still contains the kept name stays FAIL unless the check can read it as a description of something else. Those FAILs mean you should read the sentence in the session stream.
-- These shapes still contain the kept name after `I can fix the null check, plus the console.log ` and are known false FAILs. They stay FAIL until a real `keep-finding` session produces the same shape:
+- These shapes still contain the kept name after `I can fix the null check, plus the console.log ` and are known false FAILs:
   - a by-agent whose name starts with a time word, such as `prints the code returned by the time server.` (#497)
   - `these` or `those` plus a plural noun, including a comma tail, such as `prints these issues.` and `prints these issues, too.` (#501, #505)
   - a participle with a `from` source, such as `prints the code returned from the server.` (#502)
+- An excluded kept name that is a backticked plural, such as `Should we fix everything except the \`console.logs\`?`, is also a known false FAIL. The same sentence without the backticks passes. That case is still open (#508).
