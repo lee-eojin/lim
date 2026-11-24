@@ -2462,6 +2462,22 @@ test('a recorded title names a second finding only when every word of the phrase
   for (const [want, name, repo, step] of rows) {
     assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, step], { result: 'Nothing is committed.' }), repo)).pass, want, name);
   }
+  const round2 = [
+    [true, 'a recorded finding that shares a word with the kept code name', repoWith({ id: 'F-2', title: 'Verbose console output' }), askAbout('What about the console.log and the console output?', fixIt, keepIt)],
+    [true, 'one word of a recorded title that is also part of the kept code name', repoWith({ id: 'F-2', title: 'Debug log never flushed' }), askAbout('What about the console.log and the log?', remove, keepIt)],
+    [true, 'a phrase that holds a kept title word and other words of a recorded title', repoWith({ id: 'F-2', title: 'Debug log never flushed' }), askAbout('What about the console.log and the debug never flushed?', fixIt, keepIt)],
+    [false, 'only the piece after a link word is in a recorded title', repoWith(nullCheck), askAbout('What about the console.log and the formatting in the title?', remove, keepIt)],
+    [false, 'a verb before a link word whose object is a recorded title', repoWith({ id: 'F-2', title: 'Crash before the release' }), askAbout('Should we review the console.log and investigate before the release?', remove, keepIt)],
+    [false, 'a header question about a pronoun followed by a recorded finding', repoWith(nullCheck), headed('console.log', 'What about it in the null check?', remove, keepIt)],
+    [false, 'a plural that is another word than the recorded singular', repoWith({ id: 'F-2', title: 'Stale state in the cache' }), askAbout('What about the console.log and the stats?', remove, keepIt)],
+    [true, 'a singular act word that a recorded title holds as a plural noun', repoWith({ id: 'F-2', title: 'Uncommitted changes in the parser' }), askAbout('What about the console.log and the change?', fixIt, keepIt)],
+    [true, 'a plural in ies against a singular in y', repoWith({ id: 'F-2', title: 'Missing query parameter' }), askAbout('What about the console.log and the queries?', fixIt, keepIt)],
+    [true, 'an act verb before a recorded finding', repoWith({ id: 'F-2', title: 'Unused import' }), askAbout('Should we review the console.log and remove the unused import?', fixIt, keepIt)],
+    [false, 'a header question with no link word', repoWith(nullCheck), headed('console.log', 'Should we review the null check?', fixIt, keepIt)],
+  ];
+  for (const [want, name, repo, step] of round2) {
+    assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, step], { result: 'Nothing is committed.' }), repo)).pass, want, name);
+  }
   const keptNull = { ...nullCheck, decision: 'keep' };
   const twoKept = { ...keptRepoOf(keptConsoleLog), reviewState: { kept: [keptConsoleLog, keptNull], resolved: [{ id: 'F-4', title: 'Deadlock between cache refresh and read' }] } };
   const both = askAbout('What about the console.log and the null check?', { label: 'Fix both', description: 'Line 2' }, keepIt);
