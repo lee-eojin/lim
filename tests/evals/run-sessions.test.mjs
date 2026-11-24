@@ -2472,10 +2472,20 @@ test('a recorded title names a second finding only when every word of the phrase
     [false, 'a plural that is another word than the recorded singular', repoWith({ id: 'F-2', title: 'Stale state in the cache' }), askAbout('What about the console.log and the stats?', remove, keepIt)],
     [true, 'a singular act word that a recorded title holds as a plural noun', repoWith({ id: 'F-2', title: 'Uncommitted changes in the parser' }), askAbout('What about the console.log and the change?', fixIt, keepIt)],
     [true, 'a plural in ies against a singular in y', repoWith({ id: 'F-2', title: 'Missing query parameter' }), askAbout('What about the console.log and the queries?', fixIt, keepIt)],
-    [true, 'an act verb before a recorded finding', repoWith({ id: 'F-2', title: 'Unused import' }), askAbout('Should we review the console.log and remove the unused import?', fixIt, keepIt)],
+    [false, 'an act verb before a recorded finding is an action, as on main', repoWith({ id: 'F-2', title: 'Unused import' }), askAbout('Should we review the console.log and remove the unused import?', fixIt, keepIt)],
     [false, 'a header question with no link word', repoWith(nullCheck), headed('console.log', 'Should we review the null check?', fixIt, keepIt)],
   ];
-  for (const [want, name, repo, step] of round2) {
+  const round3 = [
+    [false, 'an act verb whose pronoun is skipped', repoWith({ id: 'F-2', title: 'Fix the race in refresh' }), askAbout('Should we look at the console.log and fix it?', fixIt, keepIt)],
+    [false, 'an act verb before a noun of a recorded title', repoWith({ id: 'F-2', title: 'Flaky tests in the helper' }), askAbout('Should we look at the console.log and fix tests?', remove, keepIt)],
+    [false, 'clean up before a recorded title', repoWith({ id: 'F-2', title: 'Unused import' }), askAbout('Should we review the console.log and clean up the unused import?', fixIt, keepIt)],
+    [true, 'a recorded finding first in a comma list before the kept name', repoWith(nullCheck), askAbout('What about the null check, the formatting, and the console.log?', fixIt, keepIt)],
+    [true, 'a recorded finding before an or and the kept name', repoWith(nullCheck), askAbout('What about the null check or the formatting and the console.log?', fixIt, keepIt)],
+    [true, 'a recorded finding second in a list after the kept name', repoWith(nullCheck), askAbout('What about the console.log and the tests and the null check?', fixIt, keepIt)],
+    [false, 'a phrase that starts with a link word', repoWith({ id: 'F-2', title: 'Crash before the release' }), askAbout('Should we review the console.log and before the release?', remove, keepIt)],
+    [false, 'an and in the header', repoWith({ id: 'F-2', title: 'Flaky tests in the helper' }), headed('Style and tests', 'What about the console.log?', remove, keepIt)],
+  ];
+  for (const [want, name, repo, step] of [...round2, ...round3]) {
     assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, step], { result: 'Nothing is committed.' }), repo)).pass, want, name);
   }
   const keptNull = { ...nullCheck, decision: 'keep' };

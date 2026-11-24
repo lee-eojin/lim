@@ -360,13 +360,24 @@ function otherFindings(session, kept) {
 
 const namesFinding = (others, words) => words.length > 0 && words.some((word) => !holds(others.kept, word))
   && others.titles.some((forms) => words.every((word) => holds(forms, word)));
-const ACTS = new Set(ACT.split('|'));
-const withoutLeadAct = (words) => (words.length > 1 && ACTS.has(words[0]) ? words.slice(1) : words);
-const headOf = (text) => withoutLeadAct(phrasesOf(text)[0]?.words ?? []);
-const tailOf = (text) => phrasesOf(text).at(-1)?.words ?? [];
+const LEADS_WITH_ACT = new RegExp(String.raw`^\s*(?:${ACT.replace(' ', String.raw`\s+`)})\b`, 'i');
+const nameWords = (words) => words.filter((word) => word.length > 1 && !TITLE_SKIP.has(word));
+const wordsOf = (text) => String(text ?? '').toLowerCase().match(/[a-z0-9_$]+(?:\.[a-z0-9_$]+)*/g) ?? [];
+function headOf(item) {
+  if (LEADS_WITH_ACT.test(item)) return [];
+  const words = wordsOf(item);
+  const link = words.findIndex((word) => LINKS.has(word));
+  return nameWords(link === -1 ? words : words.slice(0, link));
+}
+
+function tailOf(item) {
+  const words = wordsOf(item);
+  return nameWords(words.slice(words.findLastIndex((word) => LINKS.has(word)) + 1));
+}
+const itemsOf = (text) => String(text ?? '').split(/[?!;,\n]|\.(?![\w$])|\b(?:and|or)\b/i);
 const askedAboutOther = (others, question) => {
   const object = phrasesOf(question).find((phrase) => phrase.afterLink);
-  return object !== undefined && namesFinding(others, withoutLeadAct(object.words));
+  return object !== undefined && namesFinding(others, object.words);
 };
 
 function optionActs(anchor, question, others = { titles: [], kept: new Set() }) {
@@ -379,11 +390,10 @@ function optionActs(anchor, question, others = { titles: [], kept: new Set() }) 
   const asked = `${question?.header ?? ''}\n${question?.question ?? ''}`;
   const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(asked);
   const code = `\\x60?${anchor}\\x60?`;
-  const coordinated = [
-    ...[...asked.matchAll(/\b(?:and|or)\s+([^?!;\n]+)/gi)].map((found) => headOf(found[1])),
-    tailOf(new RegExp(`([^?!;\\n]+?)\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}`, 'i').exec(asked)?.[1]),
-  ];
   const askedAbout = String(question?.question ?? '');
+  const items = itemsOf(askedAbout);
+  const keptAt = items.findIndex((item) => new RegExp(`${BESIDE}${anchor}`, 'i').test(item));
+  const coordinated = keptAt === -1 ? [] : items.flatMap((item, index) => (index < keptAt ? [tailOf(item)] : index > keptAt ? [headOf(item)] : []));
   const elsewhere = !new RegExp(`${BESIDE}${anchor}`, 'i').test(askedAbout) && askedAboutOther(others, askedAbout);
   const paired = others.titles.length ? elsewhere || coordinated.some((words) => namesFinding(others, words)) : new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|(?!(?:${TASK_VERB})(?![\\w-]))(?:${BARE}(?:\\s+(?:first|too|as\\s+well))?\\s*\\?|(?=${BARE}\\s+${TAIL})(?:[a-z][\\w-]*\\s+)?(?:${FINDING_NOUN})\\s+${TAIL}))`, 'i').test(asked);
   const wholeBefore = (next) => `(?:${WHOLE})\\b(?=[\\s.!]*$|\\s*,|\\s+(?:${next})\\b(?![-'’]))`;
