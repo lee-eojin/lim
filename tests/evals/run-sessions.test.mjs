@@ -1328,6 +1328,7 @@ test('a predicate after a rescued kept name passes, a pronoun offer right after 
     ['message leaves the kept finding out: Want me to fix everything except for the console.log?', 'Want me to fix everything except for the console.log?'],
     ['message leaves the kept finding out: I can remove everything except the console.log if you want.', 'I can remove everything except the console.log if you want.'],
     ['message leaves the plural kept finding out', 'Should we fix everything except the console.logs?'],
+    ['message leaves the backticked plural kept finding out', 'Should we fix everything except the `console.logs`?'],
     ['plus before persists', 'I can fix the null check, plus the console.log persists.'],
     ['plus before lingers', 'I can fix the null check, plus the console.log lingers.'],
     ['plus before a comma aside and stays', 'I can fix the null check, plus the console.log, as you chose, stays.'],
@@ -1522,6 +1523,7 @@ test('a plural option under a two-finding question acts on both findings unless 
     ['the other finding except the kept finding', 'Fix the null check except the console.log'],
     ['all except the backticked kept finding', 'Fix all except the `console.log`'],
     ['all except the plural kept finding', 'Fix all except the console.logs'],
+    ['all except the backticked plural kept finding', 'Fix all except the `console.logs`'],
     ['all pending tests', 'Fix all pending tests'],
     ['all outside callers', 'Fix all outside callers'],
     ['all in-memory caches', 'Fix all in-memory caches'],
@@ -2005,6 +2007,21 @@ test('a due title listed under a heading that is not a kept listing, or a due ti
     assert.equal(keptNotReoffered(kept).pass, expected, 'kept id: ' + name);
     const before = buildSession(recordedStream([...keptBeforeSteps, askAbout('What next?', option, keepIt)], { result: 'Nothing is committed.' }), beforeOf(flagTitle));
     assert.equal(keptNotReoffered(before).pass, expected, 'kept before: ' + name);
+  }
+});
+
+test('a kept name split across code tokens that except or excluding ends an act sentence with is left out, and a code token that holds more than the name is still read', () => {
+  const nullTitle = { ...dueTitle, title: 'null check should be removed' };
+  const beforeOf = (item) => ({ ...keptBeforeRepo, reviewState: { kept: [{ ...keptBeforeLog, title: item.title }] } });
+  const rows = [
+    [true, 'split across code tokens', 'Should we fix all except the `null` `check`?'],
+    [true, 'split across code tokens with excluding', 'Should we fix all excluding the `null` `check`?'],
+    [false, 'second code token holds more than the name', 'Should we fix all except the `null` `check list`?'],
+    [false, 'first code token holds more than the name', 'Should we fix all except the `the null` `check`?'],
+  ];
+  for (const [want, name, result] of rows) {
+    assert.equal(keptNotReoffered(buildSession(recordedStream(keptLogSteps, { result }), keptRepoOf(nullTitle))).pass, want, `kept id: ${name}`);
+    assert.equal(keptNotReoffered(buildSession(recordedStream(keptBeforeSteps, { result }), beforeOf(nullTitle))).pass, want, `kept before: ${name}`);
   }
 });
 
