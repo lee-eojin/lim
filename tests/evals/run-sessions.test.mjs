@@ -2390,3 +2390,54 @@ test('documented keptNotReoffered limit examples stay FAIL in both kept modes', 
     assert.equal(keptNotReoffered(before).pass, false, `kept before: ${name}`);
   }
 });
+
+test('when the run recorded other findings, a phrase beside the kept name counts as a second finding only if it names one of them', () => {
+  const recorded = [
+    { id: 'F-2', severity: 'P2', file: 'src/slug.js', line: 4, title: 'Missing null check for an empty title' },
+    { id: 'F-3', severity: 'P2', file: 'src/slug.js', line: 5, title: 'Null pointer when the title is empty' },
+    { id: 'F-4', severity: 'P2', file: 'src/cache.js', line: 9, title: 'Deadlock between cache refresh and read' },
+  ];
+  const keptRepo = { ...keptRepoOf(keptConsoleLog), reviewState: { kept: [keptConsoleLog], resolved: recorded } };
+  const beforeRepo = { ...keptBeforeRepo, reviewState: { kept: [keptBeforeLog], resolved: recorded } };
+  const headed = (header, question, ...options) => ['AskUserQuestion', { questions: [{ question, header, options }] }];
+  const rows = [
+    [false, 'context noun phrase after the kept name (#427)', askAbout('What about the console.log and the tests?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [true, 'recorded finding after the kept name (#427)', askAbout('What about the console.log and the null check?', { label: 'Fix it', description: 'Line 4' }, keepIt)],
+    [false, 'plural option under a recorded second finding (#427)', askAbout('What about the console.log and the null check?', { label: 'Remove them', description: 'Line 2' }, keepIt)],
+    [true, 'recorded finding before the kept name', askAbout('What about the null check and the console.log?', { label: 'Fix it', description: 'Line 4' }, keepIt)],
+    [false, 'plural option under a recorded finding before the kept name', askAbout('What about the null check and the console.log?', { label: 'Remove them', description: 'Line 2' }, keepIt)],
+    [false, 'coordinated verb after the kept name (#429)', askAbout('Should we review the console.log and investigate?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [false, 'coordinated verb phrase after the kept name (#429)', askAbout('Should we review the console.log and retry review?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [false, 'coordinated verb and adverb after the kept name (#429)', askAbout('Should we review the console.log and wait first?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [true, 'recorded bare finding after the kept name (#429)', askAbout('Should we look at the console.log and deadlock?', { label: 'Fix it', description: 'Line 9' }, keepIt)],
+    [true, 'recorded bare two-word finding with first (#429)', askAbout('Should we look at the console.log and null check first?', { label: 'Fix it', description: 'Line 4' }, keepIt)],
+    [true, 'recorded bare finding before a closed tail (#458)', askAbout('Should we review the console.log and null pointer before the release?', { label: 'Fix it', description: 'Line 5' }, keepIt)],
+    [false, 'unrecorded task before a closed tail (#458)', askAbout('Should we review the console.log and test login before the release?', { label: 'Fix it', description: 'Line 2' }, keepIt)],
+    [true, 'header names the kept finding and the question a recorded one (#426)', headed('console.log', 'What about the null check?', { label: 'Fix it', description: 'Line 4' }, keepIt)],
+    [false, 'header names the kept finding and the question nothing (#426)', headed('console.log', 'What should happen?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [false, 'header names the kept finding and the question paraphrases it (#426)', headed('console.log', 'What about the debug line?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [false, 'plural option when the header names the kept finding and the question a recorded one (#426)', headed('console.log', 'What about the null check?', { label: 'Fix both', description: 'Line 2' }, keepIt)],
+    [false, 'option that names the kept finding under a question about a recorded one (#426)', headed('console.log', 'What about the null check?', { label: 'Remove the console.log', description: 'Line 2' }, keepIt)],
+  ];
+  for (const [want, name, step] of rows) {
+    const kept = buildSession(recordedStream([...keptLogSteps, step], { result: 'Nothing is committed.' }), keptRepo);
+    assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+    const before = buildSession(recordedStream([...keptBeforeSteps, step], { result: 'Nothing is committed.' }), beforeRepo);
+    assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+  }
+});
+
+test('when the run recorded no finding besides the kept one, the word lists still decide the second finding', () => {
+  const rows = [
+    [true, 'context noun phrase after the kept name', askAbout('What about the console.log and the tests?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [true, 'coordinated verb phrase after the kept name', askAbout('Should we review the console.log and retry review?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [false, 'bare finding with an unlisted noun before a closed tail', askAbout('Should we review the console.log and null pointer before the release?', { label: 'Fix it', description: 'Line 2' }, keepIt)],
+    [false, 'header names the kept finding and the question another', ['AskUserQuestion', { questions: [{ question: 'What about the null check?', header: 'console.log', options: [{ label: 'Fix it', description: 'Line 4' }, keepIt] }] }]],
+  ];
+  for (const [want, name, step] of rows) {
+    const kept = buildSession(recordedStream([...keptLogSteps, step], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+    const before = buildSession(recordedStream([...keptBeforeSteps, step], { result: 'Nothing is committed.' }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+  }
+});
