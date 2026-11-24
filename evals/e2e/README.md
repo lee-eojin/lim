@@ -142,4 +142,3 @@ Three `keep-finding` sessions on review-loop 0.11.12 (commit `bc82b94`, Claude C
   - a by-agent whose name starts with a time word, such as `prints the code returned by the time server.` (#497)
   - `these` or `those` plus a plural noun, including a comma tail, such as `prints these issues.` and `prints these issues, too.` (#501, #505)
   - a participle with a `from` source, such as `prints the code returned from the server.` (#502)
-- An excluded kept name that is a backticked plural, such as `Should we fix everything except the \`console.logs\`?`, is also a known false FAIL. The same sentence without the backticks passes. That case is still open (#508).

@@ -36,6 +36,7 @@ test('a kept name left out by except or excluding at the end of an act sentence 
     'Fix all except the debug console.log',
     'Fix all except the "console.log"',
     'Fix all except the console.logs',
+    'Fix all except the `console.logs`',
   ];
   const kept = [
     'Fix the console.log except in tests',
@@ -54,6 +55,9 @@ test('a kept name left out by except or excluding at the end of an act sentence 
     'Fix all in tests except the console.log',
     'Fix the old slug helper test files except the console.log',
     'Fix except the console.log',
+    'Fix all except the `console.logger`',
+    'Fix all except the `console.log.level`',
+    'Fix all except the `my console.log`',
   ];
   for (const text of blanked) {
     const result = withoutLeftOut(text, anchors);
@@ -63,4 +67,15 @@ test('a kept name left out by except or excluding at the end of an act sentence 
   for (const text of kept) assert.equal(withoutLeftOut(text, anchors), text, text);
   assert.equal(withoutLeftOut('Fix all except the console.log, then fix the console.log.', anchors), 'Fix all except the console.log, then fix the console.log.');
   assert.equal(withoutLeftOut('Fix all except the console.log. Then fix the console.log.', anchors), 'Fix all except the            . Then fix the console.log.');
+});
+
+test('a kept name split across code tokens is blanked only when the match covers each token whole', () => {
+  const anchors = ['null\\x60?\\s+\\x60?check'];
+  const blank = (text, part) => text.replace(part, ' '.repeat(part.length));
+  for (const [text, part] of [['Fix all except the `null` `check`', 'null` `check'], ['Fix all except the `null` `checks`', 'null` `check'], ['Fix all except the `null` check', 'null` check']]) {
+    assert.equal(withoutLeftOut(text, anchors), blank(text, part), text);
+  }
+  for (const text of ['Fix all except the `the null` `check`', 'Fix all except the `null` `check list`', 'Fix all except the `null` `checker`']) {
+    assert.equal(withoutLeftOut(text, anchors), text, text);
+  }
 });
