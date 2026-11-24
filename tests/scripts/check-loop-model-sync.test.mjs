@@ -30,7 +30,8 @@ function reportNotice() {
 `;
 const coverage = `- \`${loopPath}\`: \`decideNext\` (generated table), \`UNFINISHED\`.`;
 const skill = (sync, bullet = coverage) => `# Model\n\n${bullet}\n\nSync blob: \`${sync}\`. Confirmed here.\n`;
-const run = (cwd, options) => spawnSync(process.execPath, [script, cwd], { encoding: 'utf8', ...options });
+const { LIM_MAIN_REMOTE, ...parentEnv } = process.env;
+const run = (cwd, { env = {} } = {}) => spawnSync(process.execPath, [script, cwd], { encoding: 'utf8', env: { ...parentEnv, ...env } });
 
 function fixture(t) {
   const cwd = mkdtempSync(path.join(tmpdir(), 'loop-sync-'));
@@ -279,6 +280,43 @@ test('a pin that is not at HEAD exits 2 and names the ref when origin/main is mi
   assert.doesNotMatch(result.stderr, /neither/);
 });
 
+test('a clone whose main remote has another name passes once LIM_MAIN_REMOTE names that remote', (t) => {
+  const { cwd, git, commitLoop } = fixture(t);
+  git('update-ref', 'refs/remotes/upstream/main', 'refs/remotes/origin/main');
+  git('update-ref', '-d', 'refs/remotes/origin/main');
+  commitLoop(late);
+  const unset = run(cwd);
+  assert.equal(unset.status, 2, unset.stdout);
+  assert.match(unset.stderr, /set LIM_MAIN_REMOTE to that name/);
+  const named = run(cwd, { env: { LIM_MAIN_REMOTE: 'upstream' } });
+  assert.equal(named.status, 0, named.stderr);
+  assert.match(named.stdout, /no covered name touched/);
+});
+
+test('LIM_MAIN_REMOTE still refuses a pin to an intermediate branch blob, because only main of that remote counts', (t) => {
+  const { cwd, git, write, commitLoop } = fixture(t);
+  git('update-ref', 'refs/remotes/upstream/main', 'refs/remotes/origin/main');
+  git('update-ref', '-d', 'refs/remotes/origin/main');
+  git('checkout', '-q', '-b', 'edit');
+  const intermediate = commitLoop(mid);
+  write(skillPath, skill(intermediate.slice(0, 7)));
+  git('add', '-A');
+  git('commit', '-q', '-m', 'pin the intermediate blob');
+  commitLoop(late);
+  const result = run(cwd, { env: { LIM_MAIN_REMOTE: 'upstream' } });
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr, /neither the loop\.mjs blob at HEAD nor a loop\.mjs blob on upstream\/main/);
+  assert.match(result.stderr, /git rev-parse --short upstream\/main:/);
+});
+
+test('a LIM_MAIN_REMOTE that cannot name a remote exits 2', (t) => {
+  const { cwd, commitLoop } = fixture(t);
+  commitLoop(late);
+  const result = run(cwd, { env: { LIM_MAIN_REMOTE: 'up..stream' } });
+  assert.equal(result.status, 2, result.stdout);
+  assert.match(result.stderr, /LIM_MAIN_REMOTE=up\.\.stream is not a remote name/);
+});
+
 test('a pin equal to the loop.mjs blob at HEAD passes with no origin/main', (t) => {
   const { cwd, git } = fixture(t);
   git('update-ref', '-d', 'refs/remotes/origin/main');
@@ -321,7 +359,7 @@ test('a repository with no skill exits 2', (t) => {
 
 test('missing git exits 2', { skip: process.platform === 'win32' }, (t) => {
   const { cwd } = fixture(t);
-  const result = run(cwd, { env: { ...process.env, PATH: '' } });
+  const result = run(cwd, { env: { PATH: '' } });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Cannot run git/);
 });
@@ -331,7 +369,7 @@ test('this repository has no covered drift past its sync blob when the clone has
     t.skip('shallow clone, such as the one-commit clone on the Windows CI job');
     return;
   }
-  const result = run(root);
+  const result = run(root, { env: LIM_MAIN_REMOTE ? { LIM_MAIN_REMOTE } : {} });
   assert.equal(result.status, 0, result.stderr);
 });
 

@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 const LOOP = 'plugins/review-loop/skills/review-loop/scripts/loop.mjs';
 const SKILL = '.claude/skills/check-loop-model/SKILL.md';
-const BASE = 'refs/remotes/origin/main';
+const REMOTE = process.env.LIM_MAIN_REMOTE || 'origin';
+const MAIN = `${REMOTE}/main`;
+const BASE = `refs/remotes/${MAIN}`;
 const HUNK = /^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@ ?(.*)$/;
 const HEADER_NAME = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\s*\*?\s*|(?:const|let|var)\s+)?([\w$]+)/;
 const DEFINITIONS = [
@@ -72,8 +74,9 @@ function missingBlob(sync) {
 }
 
 function isOnBase(sync, blob) {
+  if (git('check-ref-format', BASE).status !== 0) stop(`LIM_MAIN_REMOTE=${REMOTE} is not a remote name: ${BASE} is not a valid ref.`);
   if (git('rev-parse', '--verify', '--quiet', `${BASE}^{commit}`).status !== 0) {
-    stop(`Cannot check that Sync blob ${sync} is on origin/main: ${BASE} is not in this repository. Fetch it (git fetch origin main:${BASE}) and run again.`);
+    stop(`Cannot check that Sync blob ${sync} is on ${MAIN}: ${BASE} is not in this repository. Fetch it (git fetch ${REMOTE} main:${BASE}) and run again. If your remote for lee-eojin/lim has another name, set LIM_MAIN_REMOTE to that name.`);
   }
   const objects = git('rev-list', '--objects', '--full-history', BASE, '--', LOOP);
   if (objects.status !== 0) stop(`git rev-list failed: ${objects.stderr.trim()}`);
@@ -88,9 +91,9 @@ if (head.status !== 0) stop(`${LOOP} is not in HEAD.`);
 const pinned = resolved.stdout.trim();
 const current = head.stdout.trim();
 if (pinned !== current && !isOnBase(sync, pinned)) {
-  if (isShallow()) stop(`Cannot tell whether Sync blob ${sync} is on origin/main in this shallow clone. Fetch full history (git fetch --unshallow) and run again.`);
-  console.error(`Sync blob ${sync} is neither the loop.mjs blob at HEAD nor a loop.mjs blob on origin/main. A squash merge keeps only the final files, so this blob would be gone from main and this check would fail there.`);
-  console.error(`Set it in ${SKILL} to the blob at HEAD once the model is confirmed against it (git rev-parse --short HEAD:${LOOP}), or to a blob on origin/main (git rev-parse --short origin/main:${LOOP}). On a pull request, update the branch from main first.`);
+  if (isShallow()) stop(`Cannot tell whether Sync blob ${sync} is on ${MAIN} in this shallow clone. Fetch full history (git fetch --unshallow) and run again.`);
+  console.error(`Sync blob ${sync} is neither the loop.mjs blob at HEAD nor a loop.mjs blob on ${MAIN}. A squash merge keeps only the final files, so this blob would be gone from main and this check would fail there.`);
+  console.error(`Set it in ${SKILL} to the blob at HEAD once the model is confirmed against it (git rev-parse --short HEAD:${LOOP}), or to a blob on ${MAIN} (git rev-parse --short ${MAIN}:${LOOP}). On a pull request, update the branch from main first.`);
   process.exit(1);
 }
 const diff = git('--no-pager', 'diff', '--unified=0', '--no-color', '--no-ext-diff', pinned, current);
