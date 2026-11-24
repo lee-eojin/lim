@@ -333,8 +333,19 @@ const lineSegmentsOf = (prose) => blocksOf(prose).flatMap(([block, startsLine]) 
 const segmentsOf = (prose) => lineSegmentsOf(prose).map(([part]) => part);
 
 const TITLE_SKIP = new Set([...LINK.split('|'), ...ACT.split('|'), 'the', 'a', 'an', 'this', 'that', 'these', 'those', 'is', 'are', 'was', 'were', 'be', 'it', 'its']);
-const singular = (word) => (word.length > 3 && word.endsWith('s') && !word.endsWith('ss') ? word.slice(0, -1) : word);
-const titleWords = (text) => (String(text ?? '').toLowerCase().match(/[a-z0-9_$]+(?:\.[a-z0-9_$]+)*/g) ?? []).map(singular).filter((word) => word.length > 1 && !TITLE_SKIP.has(word));
+const LINKS = new Set(LINK.split('|'));
+const stem = (word) => (word.length > 3 ? word.replace(/(?<![sui])s$/, '').replace(/e$/, '') : word);
+function phrasesOf(text) {
+  return String(text ?? '').toLowerCase().split(/[?.!,;:()\n]/).flatMap((part) => {
+    const phrases = [{ words: [], afterLink: false }];
+    for (const word of part.match(/[a-z0-9_$]+(?:\.[a-z0-9_$]+)*/g) ?? []) {
+      if (LINKS.has(word)) phrases.push({ words: [], afterLink: true });
+      else if (word.length > 1 && !TITLE_SKIP.has(word)) phrases.at(-1).words.push(stem(word));
+    }
+    return phrases.filter((phrase) => phrase.words.length);
+  });
+}
+const titleWords = (text) => phrasesOf(text).flatMap((phrase) => phrase.words);
 
 function otherFindings(session, kept) {
   const ids = new Set(kept.map((item) => item.id).filter(Boolean));
@@ -342,10 +353,15 @@ function otherFindings(session, kept) {
   const keptWords = new Set(kept.flatMap((item) => titleWords(item.title)));
   const recorded = [...['open', 'resolved', 'cards', 'deferred', 'kept'].flatMap((list) => session.reviewState?.[list] ?? []), ...ledgerEvents(session, 'decision')];
   const others = recorded.filter((item) => item.title && !ids.has(item.id) && !titles.has(item.title));
-  return [...new Set(others.map((item) => item.title))].map((title) => new Set(titleWords(title).filter((word) => !keptWords.has(word)))).filter((words) => words.size);
+  return [...new Set(others.map((item) => item.title))].map((title) => new Set(titleWords(title).filter((word) => !keptWords.has(word))));
 }
 
-const namesOther = (others, text) => titleWords(text).some((word) => others.some((words) => words.has(word)));
+const namesFinding = (others, phrase) => others.some((words) => phrase.words.every((word) => words.has(word)));
+const namesOther = (others, text) => phrasesOf(text).some((phrase) => namesFinding(others, phrase));
+const askedAboutOther = (others, question) => {
+  const object = phrasesOf(question).find((phrase) => phrase.afterLink);
+  return object !== undefined && namesFinding(others, object);
+};
 
 function optionActs(anchor, question, others = []) {
   const options = Array.isArray(question?.options) ? question.options : [];
@@ -358,11 +374,11 @@ function optionActs(anchor, question, others = []) {
   const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(asked);
   const code = `\\x60?${anchor}\\x60?`;
   const coordinated = [
-    new RegExp(`${code}\\s*,?\\s*(?:and|or)\\s+([^?.!;\\n]+)`, 'i').exec(asked)?.[1],
+    ...[...asked.matchAll(/\b(?:and|or)\s+([^?.!;\n]+)/gi)].map((found) => found[1]),
     new RegExp(`([^?.!;\\n]+?)\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}`, 'i').exec(asked)?.[1],
   ];
   const askedAbout = String(question?.question ?? '');
-  const elsewhere = !new RegExp(`${BESIDE}${anchor}`, 'i').test(askedAbout) && namesOther(others, askedAbout);
+  const elsewhere = !new RegExp(`${BESIDE}${anchor}`, 'i').test(askedAbout) && askedAboutOther(others, askedAbout);
   const paired = others.length ? elsewhere || coordinated.some((phrase) => phrase !== undefined && namesOther(others, phrase)) : new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|(?!(?:${TASK_VERB})(?![\\w-]))(?:${BARE}(?:\\s+(?:first|too|as\\s+well))?\\s*\\?|(?=${BARE}\\s+${TAIL})(?:[a-z][\\w-]*\\s+)?(?:${FINDING_NOUN})\\s+${TAIL}))`, 'i').test(asked);
   const wholeBefore = (next) => `(?:${WHOLE})\\b(?=[\\s.!]*$|\\s*,|\\s+(?:${next})\\b(?![-'’]))`;
   const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|\\s+${wholeBefore(FOLLOW)}|[\\s.!]*$)`, 'i');
@@ -479,7 +495,6 @@ export function keptNotReoffered(session) {
   const keptIds = [...new Set(keptRecords.map((item) => item.id))];
   const keptBefore = [...new Map((session.reviewState?.kept ?? []).filter((item) => !item.id && item.title).map((item) => [item.fingerprint ?? item.title, item])).values()];
   if (!keptIds.length && !keptBefore.length) return { pass: true, evidence: 'no kept findings' };
-  const others = otherFindings(session, [...keptRecords, ...keptBefore]);
   const askText = session.steps
     .filter((step) => step.tool === 'AskUserQuestion')
     .map((step) => JSON.stringify(step.input ?? {}))
@@ -500,13 +515,14 @@ export function keptNotReoffered(session) {
       : reoffers(messagesFrom(session, keepAt + 1));
     if (offered) return true;
     const records = keptRecords.filter((item) => item.id === id);
+    const others = otherFindings(session, records);
     const anchors = [...keptAnchors(records), `\\b${escapeRegex(id)}\\b`];
     const questions = keepAt === -1 ? [] : questionsFrom(session, keepAt + 1);
     return actsOn(anchors, records, lineSegmentsOf(proseAfterKeep(session, id)), questions, others);
   });
   const sessionSegments = lineSegmentsOf(proseFrom(session, 0));
   const sessionQuestions = questionsFrom(session, 0);
-  const reofferedBefore = keptBefore.filter((item) => actsOn(keptAnchors([item]), [item], sessionSegments, sessionQuestions, others));
+  const reofferedBefore = keptBefore.filter((item) => actsOn(keptAnchors([item]), [item], sessionSegments, sessionQuestions, otherFindings(session, [item])));
   const named = (items) => items.map((item) => `"${item.title}"`);
   const failed = [...reoffered, ...named(reofferedBefore)];
   return {

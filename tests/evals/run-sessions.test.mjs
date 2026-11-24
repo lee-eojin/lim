@@ -2427,6 +2427,30 @@ test('when the run recorded other findings, a phrase beside the kept name counts
   }
 });
 
+test('a recorded title names a second finding only when every word of the phrase is in that title', () => {
+  const nullCheck = { id: 'F-2', severity: 'P2', file: 'src/slug.js', line: 4, title: 'Missing null check for an empty title' };
+  const repoWith = (...resolved) => ({ ...keptRepoOf(keptConsoleLog), reviewState: { kept: [keptConsoleLog], resolved } });
+  const headed = (header, question, ...options) => ['AskUserQuestion', { questions: [{ question, header, options }] }];
+  const remove = { label: 'Remove it', description: 'Line 2' };
+  const fixIt = { label: 'Fix it', description: 'Line 2' };
+  const rows = [
+    [false, 'a verb that shares one word with a recorded title', repoWith(nullCheck), askAbout('Should we review the console.log and check tests?', remove, keepIt)],
+    [false, 'a header question about a phrase whose last word is in a recorded title', repoWith(nullCheck), headed('console.log', 'What about the debug line in the title?', remove, keepIt)],
+    [false, 'a header question about a pronoun that a recorded title starts with', repoWith({ id: 'F-2', title: 'This comparison ignores case' }), headed('console.log', 'What about this?', remove, keepIt)],
+    [false, 'a recorded title made only of kept words', repoWith({ id: 'F-9', title: 'Debug console.log' }), askAbout('What about the console.log and the tests?', remove, keepIt)],
+    [true, 'a plural noun that a recorded title holds', repoWith({ id: 'F-2', title: 'Uncommitted changes in the parser' }), askAbout('What about the console.log and the changes?', fixIt, keepIt)],
+    [true, 'a plural that ends in es against a singular title word', repoWith({ id: 'F-2', title: 'Stale status in the cache' }), askAbout('What about the console.log and the statuses?', fixIt, keepIt)],
+    [true, 'a recorded finding in a second or phrase', repoWith(nullCheck), askAbout('What about the console.log and the tests? Or the null check?', fixIt, keepIt)],
+  ];
+  for (const [want, name, repo, step] of rows) {
+    assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, step], { result: 'Nothing is committed.' }), repo)).pass, want, name);
+  }
+  const keptNull = { ...nullCheck, decision: 'keep' };
+  const twoKept = { ...keptRepoOf(keptConsoleLog), reviewState: { kept: [keptConsoleLog, keptNull], resolved: [{ id: 'F-4', title: 'Deadlock between cache refresh and read' }] } };
+  const both = askAbout('What about the console.log and the null check?', { label: 'Fix both', description: 'Line 2' }, keepIt);
+  assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, loop('decide --id F-2 --choice keep'), both], { result: 'Nothing is committed.' }), twoKept)).pass, false, 'both names a second kept finding');
+});
+
 test('when the run recorded no finding besides the kept one, the word lists still decide the second finding', () => {
   const rows = [
     [true, 'context noun phrase after the kept name', askAbout('What about the console.log and the tests?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
