@@ -128,6 +128,9 @@ test('division before a comment is not read as a regex', () => {
     'switch (x) { case a ? b : { n: 1 } / 2: break }', 'x = a ?? {} / 2', 'x = a?.b ? {} : {} / 2', 'const { a } = b; x = {} / 2',
   ];
   for (const source of cases) assert.equal(count(`${source} // c`), 1, source);
+  for (const source of ['x = async /* c */ function () {} / 2', 'x = async // c\nfunction () {} / 2', 'x = `${async /* c */ function () {} / 2}`']) {
+    assert.equal(count(`${source} // c`), 2, source);
+  }
 });
 
 test('a regex after if, while, for or with parentheses is not division', () => {
@@ -159,6 +162,7 @@ test('a regex after a } that closes a block is not division', () => {
     ['switch (a) { case 1: {}', ' }'], ['switch (a) { case b.c: {}', ' }'], ['switch (a) { default: {}', ' }'],
     ['class A { static { function f() {}', ' } }'], ['foo\n{}'], ['const x = {}\n{}'], ['if (a) l: {}'], ['async: {}'],
     ['const a = 1;\nexport { a }\n'], ['switch (a) { case b ? c : d: {}', ' }'], ['switch (a) { case b?.c: {}', ' }'],
+    ['x = { class: 1, m() { {}', ' } }'], ['x = { class() { {}', ' } }'],
   ];
   for (const [head, close = ''] of heads) {
     assert.equal(count(`${head} /'/.test(b) /* real */ || /'/.test(c);${close}`), 1, head);

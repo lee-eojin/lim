@@ -19,7 +19,9 @@ const EXPRESSION_KEYWORDS = new Set([
 const PAREN_REGEX_KEYWORDS = new Set(['if', 'while', 'for', 'with']);
 const BLOCK_AFTER = new Set(['start', ';', '}', ')', '=>', 'else', 'do', 'try', 'catch', 'finally', 'static', 'export']);
 const OPENS_EXPRESSION = new Set(['const', 'let', 'var', 'import', 'export', 'extends', 'of', 'from']);
-const BEFORE_FUNCTION = /\s*function\b/y;
+const GAP = String.raw`(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\n\r\u2028\u2029]*)*`;
+const BEFORE_FUNCTION = new RegExp(`${GAP}function\\b`, 'y');
+const BEFORE_KEY = new RegExp(`${GAP}[:(]`, 'y');
 const STATEMENT_AFTER = new Set(['start', ';', '}', 'else', 'do', 'export', 'default']);
 const HOLDS_STATEMENTS = new Set(['block', 'body']);
 const WORD = /[\p{ID_Continue}$\\\u200C\u200D]+/uy;
@@ -150,7 +152,8 @@ export function findComments(text) {
       const dotted = afterDot;
       const statement = atStatement() || endsExpression();
       if (!dotted && word === 'function' && !statement) bodies.push({ depth: parens.length, kind: 'body' });
-      if (!dotted && word === 'class') bodies.push({ depth: parens.length, kind: statement ? 'block' : 'object' });
+      BEFORE_KEY.lastIndex = WORD.lastIndex;
+      if (!dotted && word === 'class' && !BEFORE_KEY.test(text)) bodies.push({ depth: parens.length, kind: statement ? 'block' : 'object' });
       if (!dotted && word === 'case' && atStatement()) clause = { depth: depth(), ternaries: 0 };
       labelWord = !dotted && (atStatement() || last === ')') && (word === 'default' || !EXPRESSION_KEYWORDS.has(word)) ? word : null;
       BEFORE_FUNCTION.lastIndex = WORD.lastIndex;
