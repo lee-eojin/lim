@@ -1920,6 +1920,14 @@ function readSetting(repository, name, fallback) {
   return readJson(existsSync(shared) ? shared : repository.file(name), fallback);
 }
 
+const SETTING_FILES = ['gate.json', 'delegation.json', 'confirm.json', 'reviewer.json', 'unattended.json'];
+
+function olderSettings(repository) {
+  const older = SETTING_FILES.map((name) => repository.file(name))
+    .filter((file, index) => file !== repository.shared(SETTING_FILES[index]) && !existsSync(repository.shared(SETTING_FILES[index])) && existsSync(file));
+  return older.length ? { olderSettings: older } : {};
+}
+
 function readGate(repository) {
   const { enabled = false, configured = false, updatedAt = '' } = readSetting(repository, 'gate.json', {});
   return { enabled, configured, skipOnce: enabled && pendingSkip(repository, updatedAt) };
@@ -2694,7 +2702,7 @@ function status(cwd) {
   const unattended = state?.unattended === true || readUnattended(repository).enabled;
   const reviewerModel = readReviewerModel(repository);
   if (!state) {
-    return { review: null, unattended, reviewerModel, delegation, gate: gateSettings, confirm: confirmSettings, repeatedKinds };
+    return { review: null, unattended, reviewerModel, delegation, gate: gateSettings, confirm: confirmSettings, repeatedKinds, ...olderSettings(repository) };
   }
   const currentTree = snapshotTree(repository);
   return {
@@ -2724,6 +2732,7 @@ function status(cwd) {
     gate: gateSettings,
     confirm: confirmSettings,
     repeatedKinds,
+    ...olderSettings(repository),
   };
 }
 

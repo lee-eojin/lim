@@ -2487,6 +2487,29 @@ describe('commit gate', () => {
     assert.equal(commit(worktree).decision, 'deny');
   });
 
+  test('loop status lists the older settings files a linked worktree still reads from its own folder', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    const worktree = removeAfterTests(`${root}-worktree`);
+    execFileSync('git', ['worktree', 'add', '-q', worktree, '-b', 'side'], { cwd: root, stdio: 'ignore' });
+    const worktreeGitDir = execFileSync('git', ['rev-parse', '--absolute-git-dir'], { cwd: worktree, encoding: 'utf8' }).trim();
+    const older = (name) => path.join(worktreeGitDir, 'lim', 'review-loop', name);
+    writeFiles(worktreeGitDir, {
+      'lim/review-loop/gate.json': JSON.stringify({ enabled: true, configured: true }),
+      'lim/review-loop/delegation.json': JSON.stringify({ scope: 'repo' }),
+    });
+    const status = loop(worktree, ['status']);
+    assert.equal(status.gate.enabled, true);
+    assert.deepEqual(status.olderSettings, [older('gate.json'), older('delegation.json')]);
+    assert.equal('olderSettings' in loop(root, ['status']), false);
+    loop(root, ['gate', '--on']);
+    assert.deepEqual(loop(worktree, ['status']).olderSettings, [older('delegation.json')]);
+    writeFiles(worktree, { 'src/cart.js': brokenCart });
+    loop(worktree, ['start']);
+    assert.deepEqual(loop(worktree, ['status']).olderSettings, [older('delegation.json')]);
+    loop(root, ['delegate', '--scope', 'off']);
+    assert.equal('olderSettings' in loop(worktree, ['status']), false);
+  });
+
   test('skip once applies only to the worktree that asked for it', () => {
     const root = createRepository({ 'src/cart.js': correctCart });
     loop(root, ['gate', '--on']);

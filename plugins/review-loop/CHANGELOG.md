@@ -4,6 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
+- Added: `loop status` lists under `olderSettings` each settings file that a linked worktree still reads from its own folder, an older layout, so you can see which files to keep before you delete that folder. The settings stay where they are. (#407)
 - Changed: The README, the guide, and the skill now name `git rev-parse --git-path info/exclude` as the way to find the exclude file when `.git` is a file, as in a submodule, with `git init --separate-git-dir`, or in a linked worktree. (#423)
 - Changed: The README, the guide, and the skill now say to use the folder `git rev-parse --absolute-git-dir` prints when `.git` is a file in the main checkout, as in a submodule or with `git init --separate-git-dir`. They also say that after the shared folder is deleted, an older settings file in a linked worktree's folder is the setting in use again. (#408)
 - Changed: The README now says `git gc` can remove unreferenced snapshot blobs only once they are older than git's prune grace period, which is two weeks by default and set by `gc.pruneExpire`. (#406)
