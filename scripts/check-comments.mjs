@@ -17,6 +17,9 @@ const EXPRESSION_KEYWORDS = new Set([
   'new', 'return', 'throw', 'typeof', 'void', 'yield',
 ]);
 const PAREN_REGEX_KEYWORDS = new Set(['if', 'while', 'for', 'with']);
+const BLOCK_AFTER = new Set(['start', ';', '}', ')', '=>', 'else', 'do', 'try', 'finally']);
+const STATEMENT_AFTER = new Set(['start', ';', '}', 'else', 'do', 'export', 'default']);
+const HOLDS_STATEMENTS = new Set(['block', 'body']);
 const WORD = /[\p{ID_Continue}$\\\u200C\u200D]+/uy;
 const LINE_END = /[\n\r\u2028\u2029]/;
 const SPACE = /[\s\uFEFF]/;
@@ -89,6 +92,9 @@ export function findComments(text) {
   let regexAllowed = true;
   let afterDot = false;
   let regexAfterParen = false;
+  let last = 'start';
+  const bodies = [];
+  const atStatement = () => STATEMENT_AFTER.has(last) || (last === '{' && HOLDS_STATEMENTS.has(braces.at(-1)));
   let i = 0;
   if (text.startsWith('#!')) {
     const match = LINE_END.exec(text);
@@ -98,6 +104,7 @@ export function findComments(text) {
     const { end, opened } = scanTemplate(text, start, from);
     if (opened) braces.push(start);
     regexAllowed = opened;
+    last = opened ? '{' : 'value';
     afterDot = false;
     regexAfterParen = false;
     return end;
@@ -119,11 +126,13 @@ export function findComments(text) {
       i = close + 2;
     } else if (c === '/' && regexAllowed) {
       i = skipRegex(text, i);
+      last = 'value';
       regexAllowed = false;
       afterDot = false;
       regexAfterParen = false;
     } else if (c === '\'' || c === '"') {
       i = skipQuoted(text, i);
+      last = 'value';
       regexAllowed = false;
       afterDot = false;
       regexAfterParen = false;
@@ -132,57 +141,70 @@ export function findComments(text) {
     } else if ((WORD.lastIndex = i, WORD.test(text))) {
       const word = text.slice(i, WORD.lastIndex);
       const dotted = afterDot;
+      if (!dotted && word === 'function' && !atStatement()) bodies.push({ depth: parens.length, kind: 'body' });
+      if (!dotted && word === 'class' && atStatement()) bodies.push({ depth: parens.length, kind: 'block' });
+      if (word !== 'async') last = dotted ? 'value' : word;
       regexAllowed = !dotted && EXPRESSION_KEYWORDS.has(word);
       regexAfterParen = !dotted && (PAREN_REGEX_KEYWORDS.has(word) || (word === 'await' && regexAfterParen));
       afterDot = false;
       i = WORD.lastIndex;
     } else if ((c === '+' || c === '-') && next === c) {
+      last = 'value';
       afterDot = false;
       regexAfterParen = false;
       i += 2;
     } else if (c === '.' && next === '.' && text[i + 2] === '.') {
+      last = '...';
       regexAllowed = true;
       afterDot = false;
       regexAfterParen = false;
       i += 3;
     } else if (c === '.' || c === '#') {
+      last = '.';
       afterDot = true;
       regexAllowed = false;
       regexAfterParen = false;
       i += 1;
     } else if (c === '{') {
-      braces.push(null);
+      const body = bodies.at(-1)?.depth === parens.length ? bodies.pop().kind : undefined;
+      braces.push(body ?? (BLOCK_AFTER.has(last) || (last === '{' && HOLDS_STATEMENTS.has(braces.at(-1))) ? 'block' : 'object'));
+      last = '{';
       regexAllowed = true;
       afterDot = false;
       regexAfterParen = false;
       i += 1;
     } else if (c === '}') {
       const entry = braces.pop();
-      if (entry !== undefined && entry !== null) {
+      if (typeof entry === 'number') {
         i = enterTemplate(entry, i + 1);
       } else {
-        regexAllowed = false;
+        last = entry === 'block' ? '}' : 'value';
+        regexAllowed = entry === 'block';
         afterDot = false;
         regexAfterParen = false;
         i += 1;
       }
     } else if (c === '(') {
+      last = '(';
       parens.push(regexAfterParen);
       regexAfterParen = false;
       regexAllowed = true;
       afterDot = false;
       i += 1;
     } else if (c === ')') {
+      last = ')';
       regexAllowed = Boolean(parens.pop());
       afterDot = false;
       regexAfterParen = false;
       i += 1;
     } else if (c === ']') {
+      last = 'value';
       regexAllowed = false;
       afterDot = false;
       regexAfterParen = false;
       i += 1;
     } else {
+      last = c === '>' && text[i - 1] === '=' ? '=>' : c;
       regexAllowed = true;
       afterDot = false;
       regexAfterParen = false;
