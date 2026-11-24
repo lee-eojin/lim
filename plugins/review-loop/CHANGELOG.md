@@ -4,6 +4,7 @@ All notable changes to review-loop. Versions follow [Semantic Versioning](https:
 
 ## Unreleased
 
+- Fixed: The report no longer lists a kept finding you decided again with `once` or `rule` under "Kept as is at your request:". It lists it with its new decision under "Decided after you kept it (not re-reviewed):". (#395)
 - Changed: The README, the guide, and the skill now name `git rev-parse --git-path info/exclude` as the way to find the exclude file when `.git` is a file, as in a submodule, with `git init --separate-git-dir`, or in a linked worktree. (#423)
 - Changed: The README, the guide, and the skill now say to use the folder `git rev-parse --absolute-git-dir` prints when `.git` is a file in the main checkout, as in a submodule or with `git init --separate-git-dir`. They also say that after the shared folder is deleted, an older settings file in a linked worktree's folder is the setting in use again. (#408)
 - Changed: The README now says `git gc` can remove unreferenced snapshot blobs only once they are older than git's prune grace period, which is two weeks by default and set by `gc.pruneExpire`. (#406)

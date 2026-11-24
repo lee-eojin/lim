@@ -1183,6 +1183,24 @@ describe('loop.mjs in a git repository', () => {
     const decision = loop(root, ['decide', '--id', 'F-1', '--choice', 'keep']);
     assert.deepEqual([decision.recorded, decision.pending], [true, []]);
   });
+
+  test('the report lists a kept finding decided again under its new decision and not as kept', () => {
+    const root = createRepository({ 'src/cart.js': correctCart });
+    writeFiles(root, { 'src/cart.js': brokenCart });
+    loop(root, ['start']);
+    const skippedTax = { ...doubledPrice, title: 'Total skips tax', quote: 'items.reduce', scenario: 'one item priced 10 with 10% tax totals 10' };
+    loop(root, ['record'], { findings: [doubledPrice, skippedTax] });
+    loop(root, ['decide', '--id', 'F-1', '--choice', 'keep']);
+    loop(root, ['next', '--unchanged', 'the fix waits for the decision']);
+    const kept = loop(root, ['record'], { findings: [] });
+    assert.match(kept.report, /Kept as is at your request:\n- F-1 \[P2\] src\/cart\.js:1 Price is doubled/);
+    loop(root, ['next', '--unchanged', 'the fix waits for the decision']);
+    assert.deepEqual(loop(root, ['decide', '--id', 'F-1', '--choice', 'once']).pending, ['F-2']);
+    const decidedAgain = loop(root, ['record'], { findings: [] });
+    assert.doesNotMatch(decidedAgain.report, /Kept as is at your request:/);
+    assert.match(decidedAgain.report, /Decided after you kept it \(not re-reviewed\):\n- F-1 \[P2\] src\/cart\.js:1 Price is doubled \(Fix this time\)/);
+    assert.doesNotMatch(decidedAgain.report, /the kept ones are listed above/);
+  });
 });
 
 describe('rule drafts', () => {

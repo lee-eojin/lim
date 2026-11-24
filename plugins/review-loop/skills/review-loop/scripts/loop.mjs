@@ -276,7 +276,9 @@ export function renderReport(view) {
     if (items.length) lines.push('', title, ...reproducedFirst(items).flatMap(describe));
   };
   const outOfScope = cards.filter((card) => card.outOfScope && card.round === round);
-  const keptInLoop = kept.filter((item) => item.id);
+  const stillKept = kept.filter((item) => (item.decision ?? 'keep') === 'keep');
+  const keptInLoop = stillKept.filter((item) => item.id);
+  const decidedAgain = kept.filter((item) => !stillKept.includes(item));
   const keptBefore = kept.filter((item) => !item.id);
   section('Resolved since last round:', resolved, (item) => [
     `- ${item.id} [${item.severity}] ${item.title} ${fixBasis(item)}`,
@@ -300,6 +302,9 @@ export function renderReport(view) {
     `- ${item.id} [${item.severity}] ${location(item)} ${item.title}${item.basis ? ` (basis: ${item.basis})` : ''}`,
   ]);
   section('Kept as is at your request:', keptInLoop, (item) => [`- ${item.id} [${item.severity}] ${location(item)} ${item.title}`]);
+  section('Decided after you kept it (not re-reviewed):', decidedAgain, (item) => [
+    `- ${item.id} [${item.severity}] ${location(item)} ${item.title} (${DECISION_LABELS[item.decision]})`,
+  ]);
   if (keptBefore.length) {
     const keptBlocking = keptBefore.filter((item) => BLOCKING.has(item.severity));
     const count = keptBefore.length === 1 ? '1 finding you kept before was' : `${keptBefore.length} findings you kept before were`;
@@ -313,7 +318,7 @@ export function renderReport(view) {
     lines.push(`Next: fix, then re-review in round ${round + 1} of ${maxRounds}`);
   } else {
     let stopText = STOP_REASONS[reason] ?? reason;
-    if (reason === 'clean' && kept.some((item) => BLOCKING.has(item.severity))) {
+    if (reason === 'clean' && stillKept.some((item) => BLOCKING.has(item.severity))) {
       stopText = 'no P1 or P2 left to fix; the kept ones are listed above';
     } else if (reason === 'waiting') {
       stopText = `${stopText}; ${deferred.length} P1 or P2 waiting for you`;
