@@ -153,6 +153,14 @@ test('rescore refuses a saved trigger results file and names the mode that wrote
   assert.throws(() => rescore(savedResults('2026-10-27-opus-held-out-triggers.json')), /written by --held-out/);
 });
 
+test('rejudge keeps the stored judge unless --judge-model names another, and other modes still default to sonnet', () => {
+  assert.equal(parseOptions(['--rejudge', 'old.json']).rejudgeModel, undefined);
+  assert.equal(parseOptions(['--rejudge', 'old.json', '--judge-model', 'opus']).rejudgeModel, 'opus');
+  assert.equal(parseOptions(['--rejudge', 'old.json']).values['judge-model'], 'sonnet');
+  assert.equal(parseOptions([]).values['judge-model'], 'sonnet');
+  assert.equal(parseOptions(['--judge-model', 'haiku']).values['judge-model'], 'haiku');
+});
+
 test('rejudge refuses a saved trigger results file before any judge call', async () => {
   const judgeRun = async () => { throw new Error('judge called'); };
   await assert.rejects(rejudge(savedResults('2026-10-27-opus-triggers.json'), { judgeModel: 'sonnet' }, judgeRun), /written by --triggers.*--rejudge takes/);

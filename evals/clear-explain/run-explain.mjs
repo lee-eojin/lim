@@ -31,7 +31,8 @@ different model, which sees the two answers in random order, to pick the clearer
                           check-clarity.mjs, without a model, and write it back (or to --out)
   --rejudge <file>        judge the answers stored in a results file a second time, with each
                           pair in the opposite order from the first judge run, and store that
-                          pass next to the first one (or write to --out); no new answers
+                          pass next to the first one (or write to --out); no new answers; the
+                          judge is the file's judge model unless --judge-model names another
   --triggers              send each question and each request in --trigger-prompts once, with the
                           plugin loaded and the tools of a normal session, and record whether the
                           skill started; no judge
@@ -83,7 +84,7 @@ export function parseOptions(args) {
       questions: { type: 'string', default: path.join(here, 'questions.json') },
       question: { type: 'string', multiple: true },
       model: { type: 'string', default: 'opus' },
-      'judge-model': { type: 'string', default: 'sonnet' },
+      'judge-model': { type: 'string' },
       concurrency: { type: 'string', short: 'j', default: '4' },
       label: { type: 'string' },
       out: { type: 'string' },
@@ -102,7 +103,8 @@ export function parseOptions(args) {
     modeOf: (values) => ['--rescore', '--rejudge', '--calibrate', '--held-out', '--triggers'].find((mode) => values[mode.slice(2)]) ?? 'a judged run',
     counts: ['concurrency', 'timeout', 'max-turns'],
   });
-  return { ...parsed, values: { ...parsed.values, defect: selectDefects(parsed.values.defect) } };
+  const judgeModel = parsed.values['judge-model'];
+  return { ...parsed, rejudgeModel: judgeModel, values: { ...parsed.values, defect: selectDefects(parsed.values.defect), 'judge-model': judgeModel ?? 'sonnet' } };
 }
 
 export const DEFECTS = ['stacked', 'answer-moved', 'joined-sentences', 'removed-definition', 'factual-error'];
@@ -753,7 +755,7 @@ function defaultOut(model, label) {
 }
 
 async function main() {
-  const { values } = parseOptions(process.argv.slice(2));
+  const { values, rejudgeModel } = parseOptions(process.argv.slice(2));
   if (values.help) {
     process.stdout.write(usage);
     return;
@@ -770,7 +772,7 @@ async function main() {
     const source = path.resolve(values.rejudge);
     const stored = JSON.parse(readFileSync(source, 'utf8'));
     const results = await rejudge(stored, {
-      judgeModel: stored.judgeModel ?? values['judge-model'],
+      judgeModel: rejudgeModel ?? stored.judgeModel ?? values['judge-model'],
       timeout: Number(values.timeout),
       concurrency: Number(values.concurrency),
       claudeVersion: execFileSync('claude', ['--version'], { encoding: 'utf8' }).trim(),
