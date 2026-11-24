@@ -7,21 +7,21 @@ node evals/e2e/run-sessions.mjs                          # all five scenarios, o
 node evals/e2e/run-sessions.mjs --scenario failing-check --keep
 ```
 
-It uses your Claude account. One pass over the four original scenarios costs about $1.50 with `claude-opus-5-5`; `keep-finding` has not been run yet.
+It uses your Claude account. One pass over the four original scenarios costs about $1.50 with `claude-opus-5-5`; `keep-finding` costs about $0.31 per session (three sessions totaled $0.93).
 
 ## Current status
 
-`keep-finding` has no real session yet (#281). The counts below are what the runner checks today. Later result files were scored against fewer expectations than the current counts.
+`keep-finding` now has three live sessions on review-loop 0.11.12. The counts below are what the runner checks today. Earlier result files for the other four scenarios were scored against fewer expectations than the current counts.
 
 | Scenario | Expectations today | Last real session | Last score |
 |---|---|---|---|
 | `review-with-verify` | 16 | 2026-10-29, review-loop 0.11.9, `claude-opus-5-5` | 11/11, 11/11, 11/11 |
 | `failing-check` | 14 | 2026-10-29, review-loop 0.11.10, `claude-opus-5-5` | 11/11, 11/11, 11/11 |
-| `keep-finding` | 7 | none | not run |
+| `keep-finding` | 7 | 2026-11-23, review-loop 0.11.12, `claude-opus-5-5` | 7/7, 7/7, 7/7 |
 | `verify-tool` | 8 | 2026-10-27, `claude-opus-5-5` | 8/8, 8/8 |
 | `explain-korean` | 5 | 2026-10-27, `claude-opus-5-5` | 5/5, 5/5, 5/5 |
 
-Current review-loop is 0.11.12. The sessions above have not been rerun on that version.
+Current review-loop is 0.11.12. The other four scenarios above have not been rerun on that version.
 
 ## How a run works
 
@@ -124,6 +124,8 @@ The `regression-or-reason` miss came back in run 1, and it shows a gap in #184 r
 
 Three `failing-check` sessions on review-loop 0.11.10 (commit `7442758`), which holds the proof state when findings are waiting (#198), in `results/2026-10-29-claude-opus-5-5-v01110-1.json` to `-3.json`: 11/11 three times ($0.69, $0.54, $0.55). In all three the reviewer deferred nothing, each fixed finding got a regression test or a no-test reason in round 1, and round 2 stopped clean. None of them reached the case #198 fixed, a resolved finding with no proof while another waits, so these runs show no regression but do not show the fix in a session; the CLI test from #200 covers that case.
 
+Three `keep-finding` sessions on review-loop 0.11.12 (commit `bc82b94`, Claude Code 2.1.330, `claude-opus-5-5`), in `results/2026-11-23-claude-opus-5-5-keep-finding-run1.json` to `-run3.json`: 7/7 three times ($0.31, $0.27, $0.35; $0.93 total). In all three the reviewer raised the `console.log` line at `src/slug.js:2` as P3 `F-1`, Claude recorded it with `loop decide --id F-1 --choice keep`, and the after-keep prose was a plain recap with no re-offer (`kept-not-reoffered` passed with no false FAIL and no false PASS; none of the edge shapes below appeared, and run 1's commit-gate offer stayed PASS).
+
 ### Harness limits
 
 - Claude Code runs read-only shell commands such as `git diff` and `cat` even under `dontAsk` with an allow list that does not name them, so sessions could read the diff with Bash. A chained command such as `L=...; node $L checks; node $L status` was denied.
@@ -132,7 +134,7 @@ Three `failing-check` sessions on review-loop 0.11.10 (commit `7442758`), which 
 
 ### keptNotReoffered limits
 
-- `keep-finding` has no real session yet (#281). The shapes below stay FAIL until a real `keep-finding` session produces the same shape.
+- Three `keep-finding` sessions ran on review-loop 0.11.12 (all 7/7) and produced none of the shapes below. The shapes below stay FAIL until a real `keep-finding` session produces the same shape.
 - The check is the `keptNotReoffered` function in `evals/e2e/run-sessions.mjs`. It uses regular expressions plus a small token model in `evals/e2e/clauses.mjs`. Word lists still decide whether a word is a noun or a verb. It does not parse every English noun phrase.
 - It fails only when a recognised re-offer pattern matches a kept id, title, quote, or code name. A sentence that never names the kept finding stays PASS.
 - After a rescue word such as `plus` or `including`, a phrase that still contains the kept name stays FAIL unless the check can read it as a description of something else. Those FAILs mean you should read the sentence in the session stream.
