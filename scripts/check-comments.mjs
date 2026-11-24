@@ -17,7 +17,9 @@ const EXPRESSION_KEYWORDS = new Set([
   'new', 'return', 'throw', 'typeof', 'void', 'yield',
 ]);
 const PAREN_REGEX_KEYWORDS = new Set(['if', 'while', 'for', 'with']);
-const BLOCK_AFTER = new Set(['start', ';', '}', ')', '=>', 'else', 'do', 'try', 'catch', 'finally', 'static']);
+const BLOCK_AFTER = new Set(['start', ';', '}', ')', '=>', 'else', 'do', 'try', 'catch', 'finally', 'static', 'export']);
+const OPENS_EXPRESSION = new Set(['const', 'let', 'var', 'import', 'export', 'extends', 'of', 'from']);
+const BEFORE_FUNCTION = /\s*function\b/y;
 const STATEMENT_AFTER = new Set(['start', ';', '}', 'else', 'do', 'export', 'default']);
 const HOLDS_STATEMENTS = new Set(['block', 'body']);
 const WORD = /[\p{ID_Continue}$\\\u200C\u200D]+/uy;
@@ -95,10 +97,11 @@ export function findComments(text) {
   let regexAfterParen = false;
   let last = 'start';
   const bodies = [];
-  let clauseOpen = false;
+  let clause = null;
+  const depth = () => parens.length + braces.length;
   let labelWord = null;
   const atStatement = () => STATEMENT_AFTER.has(last) || (last === '{' && HOLDS_STATEMENTS.has(braces.at(-1)));
-  const endsExpression = () => ['value', ')', ']'].includes(last) || (NAME.test(last) && !EXPRESSION_KEYWORDS.has(last));
+  const endsExpression = () => ['value', ')', ']'].includes(last) || (NAME.test(last) && !EXPRESSION_KEYWORDS.has(last) && !OPENS_EXPRESSION.has(last));
   let i = 0;
   if (text.startsWith('#!')) {
     const match = LINE_END.exec(text);
@@ -147,10 +150,11 @@ export function findComments(text) {
       const dotted = afterDot;
       const statement = atStatement() || endsExpression();
       if (!dotted && word === 'function' && !statement) bodies.push({ depth: parens.length, kind: 'body' });
-      if (!dotted && word === 'class' && statement) bodies.push({ depth: parens.length, kind: 'block' });
-      if (!dotted && word === 'case' && atStatement()) clauseOpen = true;
-      labelWord = !dotted && atStatement() && (word === 'default' || !EXPRESSION_KEYWORDS.has(word)) ? word : null;
-      if (word !== 'async') last = dotted ? 'value' : word;
+      if (!dotted && word === 'class') bodies.push({ depth: parens.length, kind: statement ? 'block' : 'object' });
+      if (!dotted && word === 'case' && atStatement()) clause = { depth: depth(), ternaries: 0 };
+      labelWord = !dotted && (atStatement() || last === ')') && (word === 'default' || !EXPRESSION_KEYWORDS.has(word)) ? word : null;
+      BEFORE_FUNCTION.lastIndex = WORD.lastIndex;
+      if (word !== 'async' || !BEFORE_FUNCTION.test(text)) last = dotted ? 'value' : word;
       regexAllowed = !dotted && EXPRESSION_KEYWORDS.has(word);
       regexAfterParen = !dotted && (PAREN_REGEX_KEYWORDS.has(word) || (word === 'await' && regexAfterParen));
       afterDot = false;
@@ -174,7 +178,7 @@ export function findComments(text) {
       i += 1;
     } else if (c === '{') {
       const body = bodies.at(-1)?.depth === parens.length ? bodies.pop().kind : undefined;
-      braces.push(body ?? (BLOCK_AFTER.has(last) || (last === '{' && HOLDS_STATEMENTS.has(braces.at(-1))) ? 'block' : 'object'));
+      braces.push(body ?? (BLOCK_AFTER.has(last) || endsExpression() || (last === '{' && HOLDS_STATEMENTS.has(braces.at(-1))) ? 'block' : 'object'));
       last = '{';
       regexAllowed = true;
       afterDot = false;
@@ -211,8 +215,13 @@ export function findComments(text) {
       regexAfterParen = false;
       i += 1;
     } else {
-      const endsClause = c === ':' && (clauseOpen || (labelWord !== null && last === labelWord));
-      if (endsClause) clauseOpen = false;
+      const ternary = c === '?' && next !== '?' && text[i - 1] !== '?' && !(next === '.' && !/\d/.test(text[i + 2] ?? ''));
+      if (ternary && clause?.depth === depth()) clause.ternaries += 1;
+      const clauseColon = c === ':' && clause?.depth === depth();
+      const closesTernary = clauseColon && clause.ternaries > 0;
+      if (closesTernary) clause.ternaries -= 1;
+      const endsClause = (clauseColon && !closesTernary) || (c === ':' && labelWord !== null && last === labelWord);
+      if (clauseColon && !closesTernary) clause = null;
       last = endsClause ? ';' : c === '>' && text[i - 1] === '=' ? '=>' : c;
       regexAllowed = true;
       afterDot = false;
