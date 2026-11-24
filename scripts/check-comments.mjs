@@ -17,10 +17,11 @@ const EXPRESSION_KEYWORDS = new Set([
   'new', 'return', 'throw', 'typeof', 'void', 'yield',
 ]);
 const PAREN_REGEX_KEYWORDS = new Set(['if', 'while', 'for', 'with']);
-const BLOCK_AFTER = new Set(['start', ';', '}', ')', '=>', 'else', 'do', 'try', 'finally']);
+const BLOCK_AFTER = new Set(['start', ';', '}', ')', '=>', 'else', 'do', 'try', 'catch', 'finally', 'static']);
 const STATEMENT_AFTER = new Set(['start', ';', '}', 'else', 'do', 'export', 'default']);
 const HOLDS_STATEMENTS = new Set(['block', 'body']);
 const WORD = /[\p{ID_Continue}$\\\u200C\u200D]+/uy;
+const NAME = /^[\p{ID_Continue}$\\]/u;
 const LINE_END = /[\n\r\u2028\u2029]/;
 const SPACE = /[\s\uFEFF]/;
 
@@ -94,7 +95,10 @@ export function findComments(text) {
   let regexAfterParen = false;
   let last = 'start';
   const bodies = [];
+  let clauseOpen = false;
+  let labelWord = null;
   const atStatement = () => STATEMENT_AFTER.has(last) || (last === '{' && HOLDS_STATEMENTS.has(braces.at(-1)));
+  const endsExpression = () => ['value', ')', ']'].includes(last) || (NAME.test(last) && !EXPRESSION_KEYWORDS.has(last));
   let i = 0;
   if (text.startsWith('#!')) {
     const match = LINE_END.exec(text);
@@ -141,8 +145,11 @@ export function findComments(text) {
     } else if ((WORD.lastIndex = i, WORD.test(text))) {
       const word = text.slice(i, WORD.lastIndex);
       const dotted = afterDot;
-      if (!dotted && word === 'function' && !atStatement()) bodies.push({ depth: parens.length, kind: 'body' });
-      if (!dotted && word === 'class' && atStatement()) bodies.push({ depth: parens.length, kind: 'block' });
+      const statement = atStatement() || endsExpression();
+      if (!dotted && word === 'function' && !statement) bodies.push({ depth: parens.length, kind: 'body' });
+      if (!dotted && word === 'class' && statement) bodies.push({ depth: parens.length, kind: 'block' });
+      if (!dotted && word === 'case' && atStatement()) clauseOpen = true;
+      labelWord = !dotted && atStatement() && (word === 'default' || !EXPRESSION_KEYWORDS.has(word)) ? word : null;
       if (word !== 'async') last = dotted ? 'value' : word;
       regexAllowed = !dotted && EXPRESSION_KEYWORDS.has(word);
       regexAfterParen = !dotted && (PAREN_REGEX_KEYWORDS.has(word) || (word === 'await' && regexAfterParen));
@@ -204,7 +211,9 @@ export function findComments(text) {
       regexAfterParen = false;
       i += 1;
     } else {
-      last = c === '>' && text[i - 1] === '=' ? '=>' : c;
+      const endsClause = c === ':' && (clauseOpen || (labelWord !== null && last === labelWord));
+      if (endsClause) clauseOpen = false;
+      last = endsClause ? ';' : c === '>' && text[i - 1] === '=' ? '=>' : c;
       regexAllowed = true;
       afterDot = false;
       regexAfterParen = false;

@@ -124,6 +124,7 @@ test('division before a comment is not read as a regex', () => {
     'const of = 1; of / 2', 'a = b\n/c/g', 'x = async function () {} / 2', 'x = function* g() {} / 2',
     'x = function (a = {}) {} / 2', 'x = class {} / 2', 'x = class A extends B {} / 2', 'x = { a() {} } / 2',
     'x = { a: {} } / 2', 'f({}) / 2', 'x = [{}] / 2', 'x = `${{}}` / 2', 'return {} / 2', 'x = { function: 1, b: {} } / 2',
+    'x = { default: {} } / 2', 'x = { a: 1, case: {} } / 2', 'x = c ? {} : {} / 2', 'x = { static: {} } / 2', 'x = (async function () {}) / 2',
   ];
   for (const source of cases) assert.equal(count(`${source} // c`), 1, source);
 });
@@ -149,13 +150,15 @@ test('a regex after for await parentheses is not division', () => {
 
 test('a regex after a } that closes a block is not division', () => {
   const heads = [
-    'function f() {}', 'async function f() {}', 'function* f() {}', 'export function f() {}', 'export default function () {}',
-    'if (a) {}', 'if (a) {} else {}', 'try {} catch (e) {}', 'try {} finally {}', 'do {} while (a);', 'for (;;) {}', 'switch (a) {}',
-    '{}', 'a; {}', 'class A {}', 'class A extends B {}', 'export class A {}', 'x = function () { function g() {}',
-    'x = () => { if (a) {}', 'const f = () => {};\n{}',
+    ['function f() {}'], ['async function f() {}'], ['function* f() {}'], ['export function f() {}'], ['export default function () {}'],
+    ['if (a) {}'], ['if (a) {} else {}'], ['try {} catch (e) {}'], ['try {} catch {}'], ['try {} finally {}'], ['do {} while (a);'],
+    ['for (;;) {}'], ['switch (a) {}'], ['{}'], ['a; {}'], ['class A {}'], ['class A extends B {}'], ['export class A {}'],
+    ['foo()\nfunction f() {}'], ['const x = 1\nfunction f() {}'], ['foo()\nclass A {}'], ['label: {}'], ['a: b: {}'],
+    ['x = function () { function g() {}', ' }'], ['x = () => { if (a) {}', ' }'], ['const f = () => {};\n{}'],
+    ['switch (a) { case 1: {}', ' }'], ['switch (a) { case b.c: {}', ' }'], ['switch (a) { default: {}', ' }'],
+    ['class A { static { function f() {}', ' } }'],
   ];
-  for (const head of heads) {
-    const close = head.startsWith('x = ') ? ' }' : '';
+  for (const [head, close = ''] of heads) {
     assert.equal(count(`${head} /'/.test(b) /* real */ || /'/.test(c);${close}`), 1, head);
     assert.equal(count(`${head} /\\/\\//.test(b);${close}`), 0, head);
   }
@@ -174,7 +177,7 @@ test('blanking keeps length, line breaks and parsing', () => {
 });
 
 test('a misread regex stops with exit 2 instead of a false report', (t) => {
-  const result = fixture(t, { 'scripts/misread.mjs': 'label: {} /\\/\\//.test(b);\n' });
+  const result = fixture(t, { 'scripts/misread.mjs': 'if (a) l: {} /\\/\\//.test(b);\n' });
   assert.equal(result.status, 2, result.stderr);
   assert.match(result.stderr, /scripts\/misread\.mjs/);
   assert.ok(!result.stderr.includes('line comment'), result.stderr);
@@ -188,7 +191,7 @@ test('a comment-free file that does not parse stays exit 0', (t) => {
 
 test('a misread file and a real comment exit 2 and list both', (t) => {
   const result = fixture(t, {
-    'scripts/misread.mjs': 'label: {} /\\/\\//.test(b);\n',
+    'scripts/misread.mjs': 'if (a) l: {} /\\/\\//.test(b);\n',
     'scripts/real.mjs': '// x\n',
   });
   assert.equal(result.status, 2, result.stderr);
