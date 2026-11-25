@@ -587,7 +587,7 @@ function withoutFences(text) {
 export function fixBasisStated(session) {
   const claim = /\b(?:fixed|resolved)\b/i;
   const hedge = /\bshould (?:now )?(?:work|be (?:fixed|fine|resolved))\b|\bworks now\b/i;
-  const basis = /\b(?:measured|inferred)\b/i;
+  const basis = /\b(?:measured|inferred|pass(?:es|ed|ing)?)\b/i;
   const texts = [...session.timeline.filter((item) => item.kind === 'text').map((item) => item.text), session.finalMessage ?? ''].map(String);
   const split = (text) => text.split(/\n\s*\n/).filter((paragraph) => paragraph.trim());
   const paragraphs = texts.flatMap(split);
@@ -639,7 +639,7 @@ const reviewFindingsLabeled = {
 };
 const fixHowKnown = {
   id: 'fix-basis-stated',
-  text: 'when Claude says a finding is fixed, it says how it knows: measured or inferred',
+  text: 'when Claude says a finding is fixed, it says how it knows: measured, inferred, or the check that passes',
   check: fixBasisStated,
 };
 const reviewerOnReturnedModel = {

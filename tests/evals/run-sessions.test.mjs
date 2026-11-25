@@ -2353,6 +2353,30 @@ test('a resolved id named with measured or inferred requires every resolved id t
   }
 });
 
+test('a fix claim that names the check that passes on the fixed code states how the fix is known, and one without a check or label still fails', () => {
+  const passes = [
+    'F-1 is fixed. It fails on your original code and passes on the fixed code.',
+    'F-1 is fixed. `npm run test` passes all 4 tests on the fixed code.',
+    'Fixed. The new regression test passed after the change.',
+  ];
+  for (const text of passes) {
+    const result = outcomeOf(fixBasisStated, happySteps, happyRepository, text);
+    assert.equal(result.pass, true, `${text}: ${result.evidence}`);
+    assert.equal(result.evidence, 'how the fix is known is stated');
+  }
+  const fails = [
+    [happyRepository, 'F-1 is fixed. I read the new code.', /^F-1 resolved, prose never says measured or inferred$/],
+    [happyRepository, 'F-1 is fixed.\n\n`npm run test` passes all 4 tests.', /^F-1 resolved, prose never says measured or inferred$/],
+    [noneResolved, 'It should work now. The passport field is gone.', /"should work now" without measured or inferred/],
+    [happyRepository, 'F-1 is fixed. I bypassed the cache.', /^F-1 resolved, prose never says measured or inferred$/],
+  ];
+  for (const [repo, text, evidence] of fails) {
+    const result = outcomeOf(fixBasisStated, happySteps, repo, text);
+    assert.equal(result.pass, false, text);
+    assert.match(result.evidence, evidence, text);
+  }
+});
+
 test('the reviewer Agent must use the model the preceding loop start or next returned, and leave it out for inherit', () => {
   const noModel = happySteps.map((step) => (step === opusReviewer ? reviewer : step));
   const missing = outcomeOf(reviewerModelFollowed, noModel);
