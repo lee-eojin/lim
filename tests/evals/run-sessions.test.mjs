@@ -2358,6 +2358,8 @@ test('a fix claim that names the check that passes on the fixed code states how 
     'F-1 is fixed. It fails on your original code and passes on the fixed code.',
     'F-1 is fixed. `npm run test` passes all 4 tests on the fixed code.',
     'Fixed. The new regression test passed after the change.',
+    'F-1 is fixed. It did not pass before; now npm test passes.',
+    'F-1 is fixed: the test failed on the old code and passes on the new code.',
   ];
   for (const text of passes) {
     const result = outcomeOf(fixBasisStated, happySteps, happyRepository, text);
@@ -2369,6 +2371,11 @@ test('a fix claim that names the check that passes on the fixed code states how 
     [happyRepository, 'F-1 is fixed.\n\n`npm run test` passes all 4 tests.', /^F-1 resolved, prose never says measured or inferred$/],
     [noneResolved, 'It should work now. The passport field is gone.', /"should work now" without measured or inferred/],
     [happyRepository, 'F-1 is fixed. I bypassed the cache.', /^F-1 resolved, prose never says measured or inferred$/],
+    [happyRepository, 'F-1 is fixed. I did not run tests; they should pass.', /^F-1 resolved, prose never says measured or inferred$/],
+    [happyRepository, 'F-1 is fixed. The regression test did not pass.', /^F-1 resolved, prose never says measured or inferred$/],
+    [happyRepository, "F-1 is fixed. npm test won't pass until the fixture lands.", /^F-1 resolved, prose never says measured or inferred$/],
+    [happyRepository, 'F-1 is fixed. I expect npm test passes now.', /^F-1 resolved, prose never says measured or inferred$/],
+    [happyRepository, 'F-1 is fixed. No test passed before this change.', /^F-1 resolved, prose never says measured or inferred$/],
   ];
   for (const [repo, text, evidence] of fails) {
     const result = outcomeOf(fixBasisStated, happySteps, repo, text);

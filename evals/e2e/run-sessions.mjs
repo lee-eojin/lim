@@ -587,7 +587,10 @@ function withoutFences(text) {
 export function fixBasisStated(session) {
   const claim = /\b(?:fixed|resolved)\b/i;
   const hedge = /\bshould (?:now )?(?:work|be (?:fixed|fine|resolved))\b|\bworks now\b/i;
-  const basis = /\b(?:measured|inferred|pass(?:es|ed|ing)?)\b/i;
+  const label = /\b(?:measured|inferred)\b/i;
+  const unsure = /\b(?:not|never|no|should|would|will|might|may|could|expects?|expected)\b|n't\b/i;
+  const checkPassed = (paragraph) => [...paragraph.matchAll(/\bpass(?:es|ed|ing)?\b/gi)].some((match) => !unsure.test(paragraph.slice(0, match.index).split(/[.!?;:](?:\s|$)|\n/).at(-1)));
+  const stated = (paragraph) => label.test(paragraph) || checkPassed(paragraph);
   const texts = [...session.timeline.filter((item) => item.kind === 'text').map((item) => item.text), session.finalMessage ?? ''].map(String);
   const split = (text) => text.split(/\n\s*\n/).filter((paragraph) => paragraph.trim());
   const paragraphs = texts.flatMap(split);
@@ -595,18 +598,18 @@ export function fixBasisStated(session) {
   const resolved = session.reviewState?.resolved ?? [];
   const needed = resolved.length > 0 || paragraphs.some((paragraph) => claim.test(paragraph) || hedge.test(paragraph));
   if (!needed) return { pass: true, evidence: 'no fix claimed' };
-  if (paragraphs.some((paragraph) => hedge.test(paragraph) && !basis.test(paragraph))) {
+  if (paragraphs.some((paragraph) => hedge.test(paragraph) && !stated(paragraph))) {
     return { pass: false, evidence: '"should work now" without measured or inferred' };
   }
-  if (!paragraphs.some((paragraph) => claim.test(paragraph) && basis.test(paragraph))) {
+  if (!paragraphs.some((paragraph) => claim.test(paragraph) && stated(paragraph))) {
     const who = resolved.map((item) => item.id).filter(Boolean).join(', ') || 'a fix';
     return { pass: false, evidence: resolved.length ? `${who} resolved, prose never says measured or inferred` : 'prose never says measured or inferred' };
   }
   const ids = resolved.map((item) => item.id).filter(Boolean).map(String);
   const names = (id) => new RegExp(`(?<![\\w-])${escapeRegex(id)}(?![\\w-])`);
-  const bare = ids.filter((id) => prose.some((paragraph) => names(id).test(paragraph) && claim.test(paragraph) && !basis.test(paragraph)));
+  const bare = ids.filter((id) => prose.some((paragraph) => names(id).test(paragraph) && claim.test(paragraph) && !stated(paragraph)));
   if (bare.length) return { pass: false, evidence: `${bare.join(', ')} named as fixed without measured or inferred` };
-  const named = ids.filter((id) => prose.some((paragraph) => names(id).test(paragraph) && basis.test(paragraph)));
+  const named = ids.filter((id) => prose.some((paragraph) => names(id).test(paragraph) && stated(paragraph)));
   const unnamed = named.length ? ids.filter((id) => !named.includes(id)) : [];
   if (unnamed.length) return { pass: false, evidence: `${unnamed.join(', ')} resolved, never named with measured or inferred` };
   return { pass: true, evidence: 'how the fix is known is stated' };
