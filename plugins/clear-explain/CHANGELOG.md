@@ -2,6 +2,10 @@
 
 All notable changes to clear-explain. Versions follow [Semantic Versioning](https://semver.org); see "Releases" in [CONTRIBUTING.md](../../CONTRIBUTING.md) for what each number means here.
 
+## Unreleased
+
+- Changed: The README no longer says a sentence hard-wrapped across lines is counted in parts. `check-clarity.mjs` has joined the lines of a paragraph since 0.1.5. (#530)
+
 ## 0.1.5 (2026-10-28)
 
 - Fixed: `check-clarity.mjs` counts a sentence that a soft line break wraps across lines as one sentence, so wrapping a long sentence no longer hides it. List items, headings (also setext underlines), table rows (also without leading pipes), quotes, code blocks, front matter, and HTML lines still end a sentence. Front matter, lines that start with an HTML tag, and code indented under a list item are no longer checked. (#175)
