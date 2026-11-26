@@ -362,7 +362,7 @@ review-loop arbeitet mit den Checks, die du schon hast. Je besser deine Skripte 
 
 ## Roadmap
 
-- Evals auf Modell-Ebene mit `claude plugin eval` für die Verhaltensweisen, die Unit-Tests nicht abdecken können, und ein Blindvergleich von Review-Qualität und Kosten
+- Evals auf Modell-Ebene über die headless Claude-Code-Sitzungen in [`evals/e2e/`](../../evals/e2e/README.md) hinaus: `claude plugin eval`, sobald seine Sandbox review-loop git starten lässt, und ein Blindvergleich von Review-Qualität und Kosten
 
 ## Mitwirken
 

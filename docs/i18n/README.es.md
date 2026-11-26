@@ -362,7 +362,7 @@ review-loop funciona con las comprobaciones que ya tienes. Cuanto mejores sean t
 
 ## Hoja de ruta
 
-- Evals a nivel de modelo con `claude plugin eval` para los comportamientos que los tests unitarios no pueden cubrir, y una comparación a ciegas de la calidad y el costo de la revisión
+- Evals a nivel de modelo más allá de las sesiones headless de Claude Code en [`evals/e2e/`](../../evals/e2e/README.md): `claude plugin eval` cuando su sandbox deje que review-loop inicie git, y una comparación a ciegas de la calidad y el costo de la revisión
 
 ## Contribuir
 

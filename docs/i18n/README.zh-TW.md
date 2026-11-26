@@ -362,7 +362,7 @@ review-loop 使用你已有的檢查。你的 `typecheck`、`lint` 和 `test` �
 
 ## 路線圖
 
-- 使用 `claude plugin eval` 進行模型層級的 eval，涵蓋單元測試無法涵蓋的行為，並對審查品質和成本做盲測比較
+- 超出 [`evals/e2e/`](../../evals/e2e/README.md) 中無頭 Claude Code 工作階段的模型層級 eval：在其沙箱允許 review-loop 啟動 git 後使用 `claude plugin eval`，並對審查品質和成本做盲測比較
 
 ## 參與貢獻
 

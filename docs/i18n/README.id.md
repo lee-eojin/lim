@@ -362,7 +362,7 @@ review-loop bekerja dengan pemeriksaan yang sudah kamu punya. Semakin baik scrip
 
 ## Roadmap
 
-- Eval tingkat model dengan `claude plugin eval` untuk perilaku yang tidak dapat dicakup oleh unit test, serta perbandingan buta atas kualitas dan biaya review
+- Eval tingkat model di luar sesi Claude Code headless di [`evals/e2e/`](../../evals/e2e/README.md): `claude plugin eval` setelah sandbox-nya mengizinkan review-loop menjalankan git, serta perbandingan buta atas kualitas dan biaya review
 
 ## Berkontribusi
 

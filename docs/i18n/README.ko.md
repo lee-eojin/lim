@@ -362,7 +362,7 @@ review-loop는 이미 있는 검사를 그대로 씁니다. `typecheck`, `lint`,
 
 ## 로드맵
 
-- 단위 테스트로 다룰 수 없는 동작을 위한 `claude plugin eval` 기반 모델 수준 eval, 그리고 리뷰 품질과 비용의 블라인드 비교
+- [`evals/e2e/`](../../evals/e2e/README.md)의 헤드리스 Claude Code 세션을 넘어서는 모델 수준 eval: 샌드박스에서 review-loop가 git을 실행할 수 있게 된 뒤의 `claude plugin eval`, 그리고 리뷰 품질과 비용의 블라인드 비교
 
 ## 기여하기
 
