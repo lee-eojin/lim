@@ -660,11 +660,9 @@ function runCommand(root, run, { cwd, timeoutMs, stdin, env: extraEnv }) {
       child.stdin.end(stdin);
     }
     const collect = (stream) => (chunk) => {
-      if (output[stream].length >= CAPTURE_LIMIT) {
-        truncated.add(stream);
-        return;
-      }
-      output[stream] += chunk;
+      const room = CAPTURE_LIMIT - output[stream].length;
+      if (chunk.length > room) truncated.add(stream);
+      output[stream] += chunk.slice(0, Math.max(room, 0));
     };
     child.stdout.setEncoding('utf8').on('data', collect('stdout'));
     child.stderr.setEncoding('utf8').on('data', collect('stderr'));

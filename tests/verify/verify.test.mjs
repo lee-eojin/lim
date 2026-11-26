@@ -28,6 +28,7 @@ else if (command === 'flood') {
   for (let count = 0; count < 32; count += 1) fs.writeSync(1, 'a'.repeat(65536));
   fs.writeSync(1, 'FINAL ERROR');
 }
+else if (command === 'edge') process.stdout.write('a'.repeat(Number(value) - 2) + 'OK');
 else if (command === 'half') { console.log('HALF'); process.exit(3); }
 else if (command === 'read') {
   let text = '';
@@ -1184,6 +1185,16 @@ describe('evidence', () => {
       ['fail', ['exit code 0, expected 4', notJudged]],
     ]);
     assert.equal(JSON.parse(readFileSync(result.evidencePath, 'utf8')).checks[0].outputTruncated, true);
+  });
+
+  test('output one character over the capture limit is not judged, and output exactly at the limit is', () => {
+    const edge = (id, size) => ({ ...upper, id, run: ['node', 'cli.js', 'edge', String(size)], expect: { exitCode: 0, stdout: { matches: 'OK$' } } });
+    const root = createRepository([edge('over', 1048577), edge('at', 1048576)]);
+    const result = verify(root, 'run');
+    assert.deepEqual(result.checks.map((check) => [check.id, check.status, check.reasons]), [
+      ['over', 'not-verified', ['stdout was not judged: it is longer than the 1048576 characters verify keeps']],
+      ['at', 'pass', []],
+    ]);
   });
 
   test('a matches rule that runs past the check time limit leaves the check not verified and the run reported', () => {
