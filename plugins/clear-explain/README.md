@@ -206,7 +206,7 @@ clear-explain makes no network calls and stores nothing. The check script reads 
 ## Limits
 
 - Only English and Korean have their own rules and script checks. Other languages get the general rules, and the script checks only sentence length (by words) and the two characters there.
-- The script counts sentences per line, so a sentence hard-wrapped across lines is counted in parts, and an abbreviation such as "e.g." can end a sentence early.
+- The script joins the lines of a paragraph before it counts sentences, so a hard-wrapped sentence is counted whole, but an abbreviation such as "e.g." can end a sentence early.
 - Sentence limits are a rule of thumb. The Korean limit of 100 characters is an estimate from STE's 25 English words; Korean sources give no number.
 - The skill starts when Claude decides the question asks for an explanation. The trigger measurements above are one run each of 20 tuning and 19 held-out requests. Use the command when it matters.
 - ASD-STE100 is the basis, not the content: this plugin restates principles in its own words and is not an STE compliance tool. See `references/sources.md`.
