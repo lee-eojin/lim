@@ -86,4 +86,4 @@ If the report says a check changed after it failed, or was removed after it fail
 
 ## Files
 
-The feature map `verify.features.json` and the files in `verify-checks/` live in the repository so a team can review them. Each run's evidence (command, exit code, output excerpt, files, duration, the commit, and how many files were uncommitted) is saved as JSON in `.git/lim/verify/runs/`, which keeps the last 20 runs. `.git/lim/verify/checks.json` remembers each check's last status. Deleting `.git/lim/verify/` resets everything.
+The feature map `verify.features.json` and the files in `verify-checks/` live in the repository so a team can review them. Each run's evidence (command, exit code, output excerpt, files, duration, the commit, and how many files were uncommitted) is saved as JSON in `.git/lim/verify/runs/`, which keeps the last 20 runs. `.git/lim/verify/checks.json` remembers each check's last status. Deleting `.git/lim/verify/` resets everything. When `.git` is a file, as in a submodule, a `git init --separate-git-dir` repository, or a linked worktree, these are in `lim/verify/` under the folder `git rev-parse --absolute-git-dir` prints, one per worktree.
