@@ -362,7 +362,7 @@ review-loop làm việc với các check bạn đã có. Script `typecheck`, `li
 
 ## Lộ trình
 
-- Eval ở cấp mô hình với `claude plugin eval` cho các hành vi mà unit test không bao phủ được, và một phép so sánh mù về chất lượng và chi phí review
+- Eval ở cấp mô hình ngoài các phiên Claude Code headless trong [`evals/e2e/`](../../evals/e2e/README.md): `claude plugin eval` khi sandbox của nó cho phép review-loop chạy git, và một phép so sánh mù về chất lượng và chi phí review
 
 ## Đóng góp
 

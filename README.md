@@ -360,7 +360,7 @@ review-loop works with the checks you already have. The better your `typecheck`,
 
 ## Roadmap
 
-- Model-level evals with `claude plugin eval` for the behaviors unit tests cannot cover, and a blind comparison of review quality and cost
+- Model-level evals beyond the headless Claude Code sessions in [`evals/e2e/`](evals/e2e/README.md): `claude plugin eval` once its sandbox lets review-loop start git, and a blind comparison of review quality and cost
 
 ## Contributing
 
