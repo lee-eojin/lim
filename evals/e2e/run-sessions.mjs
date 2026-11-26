@@ -332,7 +332,55 @@ function blocksOf(prose) {
 const lineSegmentsOf = (prose) => blocksOf(prose).flatMap(([block, startsLine]) => block.split(SENTENCE_BREAK).flatMap((part, index, parts) => (index % 2 ? [] : [[part, index ? parts[index - 1].includes('\n') : startsLine]])));
 const segmentsOf = (prose) => lineSegmentsOf(prose).map(([part]) => part);
 
-function optionActs(anchor, question) {
+const TITLE_SKIP = new Set([...LINK.split('|'), 'the', 'a', 'an', 'this', 'that', 'these', 'those', 'is', 'are', 'was', 'were', 'be', 'it', 'its']);
+const LINKS = new Set(LINK.split('|'));
+const formsOf = (word) => [word, word.replace(/s$/, ''), word.replace(/es$/, ''), word.replace(/ies$/, 'y')];
+
+function phrasesOf(text) {
+  return String(text ?? '').toLowerCase().split(/[?!,;:()\n]|\.(?![\w$])/).flatMap((part) => {
+    const phrases = [{ words: [], afterLink: false }];
+    for (const word of part.match(/[a-z0-9_$]+(?:\.[a-z0-9_$]+)*/g) ?? []) {
+      if (LINKS.has(word)) phrases.push({ words: [], afterLink: true });
+      else if (word.length > 1 && !TITLE_SKIP.has(word)) phrases.at(-1).words.push(word);
+    }
+    return phrases.filter((phrase, index) => phrase.words.length || phrase.afterLink || index > 0);
+  });
+}
+
+const formSet = (text) => new Set(phrasesOf(text).flatMap((phrase) => phrase.words).flatMap(formsOf));
+const holds = (forms, word) => formsOf(word).some((form) => forms.has(form));
+
+function otherFindings(session, kept) {
+  const ids = new Set(kept.map((item) => item.id).filter(Boolean));
+  const titles = new Set(kept.map((item) => item.title));
+  const recorded = [...['open', 'resolved', 'cards', 'deferred', 'kept'].flatMap((list) => session.reviewState?.[list] ?? []), ...ledgerEvents(session, 'decision')];
+  const others = recorded.filter((item) => item.title && !ids.has(item.id) && !titles.has(item.title));
+  return { titles: [...new Set(others.map((item) => item.title))].map(formSet), kept: formSet(kept.map((item) => item.title).join('\n')) };
+}
+
+const namesFinding = (others, words) => words.length > 0 && words.some((word) => !holds(others.kept, word))
+  && others.titles.some((forms) => words.every((word) => holds(forms, word)));
+const LEADS_WITH_ACT = new RegExp(String.raw`^\s*(?:${ACT.replace(' ', String.raw`\s+`)})\b`, 'i');
+const nameWords = (words) => words.filter((word) => word.length > 1 && !TITLE_SKIP.has(word));
+const wordsOf = (text) => String(text ?? '').toLowerCase().match(/[a-z0-9_$]+(?:\.[a-z0-9_$]+)*/g) ?? [];
+function headOf(item) {
+  if (LEADS_WITH_ACT.test(item)) return [];
+  const words = wordsOf(item);
+  const link = words.findIndex((word) => LINKS.has(word));
+  return nameWords(link === -1 ? words : words.slice(0, link));
+}
+
+function tailOf(item) {
+  const words = wordsOf(item);
+  return nameWords(words.slice(words.findLastIndex((word) => LINKS.has(word)) + 1));
+}
+const itemsOf = (text) => String(text ?? '').split(/[?!;,\n]|\.(?![\w$])|\b(?:and|or)\b/i);
+const askedAboutOther = (others, question) => {
+  const object = phrasesOf(question).find((phrase) => phrase.afterLink);
+  return object !== undefined && namesFinding(others, object.words);
+};
+
+function optionActs(anchor, question, others = { titles: [], kept: new Set() }) {
   const options = Array.isArray(question?.options) ? question.options : [];
   const choices = options.flatMap((option) => [option?.label, option?.description]).flatMap((text) => segmentsOf(String(text ?? '')));
   const direct = new RegExp(`^${MARK}${AGREE}(?=(?:${ACT})\\b)${REACH}${BESIDE}${anchor}`, 'i');
@@ -342,7 +390,12 @@ function optionActs(anchor, question) {
   const asked = `${question?.header ?? ''}\n${question?.question ?? ''}`;
   const named = new RegExp(`${BESIDE}${anchor}`, 'i').test(asked);
   const code = `\\x60?${anchor}\\x60?`;
-  const paired = new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|(?!(?:${TASK_VERB})(?![\\w-]))(?:${BARE}(?:\\s+(?:first|too|as\\s+well))?\\s*\\?|(?=${BARE}\\s+${TAIL})(?:[a-z][\\w-]*\\s+)?(?:${FINDING_NOUN})\\s+${TAIL}))`, 'i').test(asked);
+  const askedAbout = String(question?.question ?? '');
+  const items = itemsOf(askedAbout);
+  const keptAt = items.findIndex((item) => new RegExp(`${BESIDE}${anchor}`, 'i').test(item));
+  const coordinated = keptAt === -1 ? [] : items.flatMap((item, index) => (index < keptAt ? [tailOf(item)] : index > keptAt ? [headOf(item)] : []));
+  const elsewhere = !new RegExp(`${BESIDE}${anchor}`, 'i').test(askedAbout) && askedAboutOther(others, askedAbout);
+  const paired = others.titles.length ? elsewhere || coordinated.some((words) => namesFinding(others, words)) : new RegExp(`${FORMER}\\s*,?\\s+(?:and|or)\\s+(?:(?:the|this|that|your)\\s+)?${code}|${code}\\s*,?\\s*(?:and|or)\\s+(?:${OTHER}|(?!(?:${TASK_VERB})(?![\\w-]))(?:${BARE}(?:\\s+(?:first|too|as\\s+well))?\\s*\\?|(?=${BARE}\\s+${TAIL})(?:[a-z][\\w-]*\\s+)?(?:${FINDING_NOUN})\\s+${TAIL}))`, 'i').test(asked);
   const wholeBefore = (next) => `(?:${WHOLE})\\b(?=[\\s.!]*$|\\s*,|\\s+(?:${next})\\b(?![-'’]))`;
   const pronoun = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b(?:\\s+(?:it|this|that|them|these|those)\\b|\\s+${wholeBefore(FOLLOW)}|[\\s.!]*$)`, 'i');
   const plural = new RegExp(`^${MARK}${AGREE}(?:${ACT})\\b\\s+(?:(?:${PLURAL})\\b(?!\\s+(?:(?:the|your|of(?!\\s+(?:them|these|those)\\b)|two)\\b|${NOUNS}|(?:of\\s+(?:these|those)\\s+(?:${MODIFIER}\\s+)?|${MODIFIER}\\s+)${NOUNS}(?=[\\s.!]*$)))|${wholeBefore(`${FOLLOW}|(?!(?:${NARROW})\\b)(?:${LINK})`)})`, 'i');
@@ -356,7 +409,7 @@ function restatedTitles(records) {
   return texts.length ? new RegExp(`(?:${LISTED}(?:${texts.map(exact).join('|')})|${ITEM}(?:${texts.map(loose).join('|')}))`, 'g') : null;
 }
 
-function actsOn(anchors, records, segments, questions) {
+function actsOn(anchors, records, segments, questions, others = { titles: [], kept: new Set() }) {
   const listed = restatedTitles(records);
   let underKept = false;
   const spare = (text) => withoutLeftOut(String(text ?? ''), anchors);
@@ -369,7 +422,7 @@ function actsOn(anchors, records, segments, questions) {
     const lead = segment.slice(prefix.length).match(/^[\s"'“‘\x60*_]*/)[0];
     return [spare(segment), spare(prefix + lead + segment.slice(prefix.length + lead.length).replace(listed, ' '))];
   });
-  return anchors.some((anchor) => pairs.some(([segment, own]) => offersToAct(anchor, segment, own)) || asked.some((question) => optionActs(anchor, question)));
+  return anchors.some((anchor) => pairs.some(([segment, own]) => offersToAct(anchor, segment, own)) || asked.some((question) => optionActs(anchor, question, others)));
 }
 
 const ADVERB = 'still|also|always|really|just|now|definitely|probably|certainly|clearly|obviously|surely|likely|perhaps|maybe|actually|honestly|simply|truly|indeed';
@@ -478,13 +531,14 @@ export function keptNotReoffered(session) {
       : reoffers(messagesFrom(session, keepAt + 1));
     if (offered) return true;
     const records = keptRecords.filter((item) => item.id === id);
+    const others = otherFindings(session, records);
     const anchors = [...keptAnchors(records), `\\b${escapeRegex(id)}\\b`];
     const questions = keepAt === -1 ? [] : questionsFrom(session, keepAt + 1);
-    return actsOn(anchors, records, lineSegmentsOf(proseAfterKeep(session, id)), questions);
+    return actsOn(anchors, records, lineSegmentsOf(proseAfterKeep(session, id)), questions, others);
   });
   const sessionSegments = lineSegmentsOf(proseFrom(session, 0));
   const sessionQuestions = questionsFrom(session, 0);
-  const reofferedBefore = keptBefore.filter((item) => actsOn(keptAnchors([item]), [item], sessionSegments, sessionQuestions));
+  const reofferedBefore = keptBefore.filter((item) => actsOn(keptAnchors([item]), [item], sessionSegments, sessionQuestions, otherFindings(session, [item])));
   const named = (items) => items.map((item) => `"${item.title}"`);
   const failed = [...reoffered, ...named(reofferedBefore)];
   return {

@@ -2431,3 +2431,104 @@ test('documented keptNotReoffered limit examples stay FAIL in both kept modes', 
     assert.equal(keptNotReoffered(before).pass, false, `kept before: ${name}`);
   }
 });
+
+test('when the run recorded other findings, a phrase beside the kept name counts as a second finding only if it names one of them', () => {
+  const recorded = [
+    { id: 'F-2', severity: 'P2', file: 'src/slug.js', line: 4, title: 'Missing null check for an empty title' },
+    { id: 'F-3', severity: 'P2', file: 'src/slug.js', line: 5, title: 'Null pointer when the title is empty' },
+    { id: 'F-4', severity: 'P2', file: 'src/cache.js', line: 9, title: 'Deadlock between cache refresh and read' },
+  ];
+  const keptRepo = { ...keptRepoOf(keptConsoleLog), reviewState: { kept: [keptConsoleLog], resolved: recorded } };
+  const beforeRepo = { ...keptBeforeRepo, reviewState: { kept: [keptBeforeLog], resolved: recorded } };
+  const headed = (header, question, ...options) => ['AskUserQuestion', { questions: [{ question, header, options }] }];
+  const rows = [
+    [false, 'context noun phrase after the kept name (#427)', askAbout('What about the console.log and the tests?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [true, 'recorded finding after the kept name (#427)', askAbout('What about the console.log and the null check?', { label: 'Fix it', description: 'Line 4' }, keepIt)],
+    [false, 'plural option under a recorded second finding (#427)', askAbout('What about the console.log and the null check?', { label: 'Remove them', description: 'Line 2' }, keepIt)],
+    [true, 'recorded finding before the kept name', askAbout('What about the null check and the console.log?', { label: 'Fix it', description: 'Line 4' }, keepIt)],
+    [false, 'plural option under a recorded finding before the kept name', askAbout('What about the null check and the console.log?', { label: 'Remove them', description: 'Line 2' }, keepIt)],
+    [false, 'coordinated verb after the kept name (#429)', askAbout('Should we review the console.log and investigate?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [false, 'coordinated verb phrase after the kept name (#429)', askAbout('Should we review the console.log and retry review?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [false, 'coordinated verb and adverb after the kept name (#429)', askAbout('Should we review the console.log and wait first?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [true, 'recorded bare finding after the kept name (#429)', askAbout('Should we look at the console.log and deadlock?', { label: 'Fix it', description: 'Line 9' }, keepIt)],
+    [true, 'recorded bare two-word finding with first (#429)', askAbout('Should we look at the console.log and null check first?', { label: 'Fix it', description: 'Line 4' }, keepIt)],
+    [true, 'recorded bare finding before a closed tail (#458)', askAbout('Should we review the console.log and null pointer before the release?', { label: 'Fix it', description: 'Line 5' }, keepIt)],
+    [false, 'unrecorded task before a closed tail (#458)', askAbout('Should we review the console.log and test login before the release?', { label: 'Fix it', description: 'Line 2' }, keepIt)],
+    [true, 'header names the kept finding and the question a recorded one (#426)', headed('console.log', 'What about the null check?', { label: 'Fix it', description: 'Line 4' }, keepIt)],
+    [false, 'header names the kept finding and the question nothing (#426)', headed('console.log', 'What should happen?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [false, 'header names the kept finding and the question paraphrases it (#426)', headed('console.log', 'What about the debug line?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [false, 'plural option when the header names the kept finding and the question a recorded one (#426)', headed('console.log', 'What about the null check?', { label: 'Fix both', description: 'Line 2' }, keepIt)],
+    [false, 'option that names the kept finding under a question about a recorded one (#426)', headed('console.log', 'What about the null check?', { label: 'Remove the console.log', description: 'Line 2' }, keepIt)],
+  ];
+  for (const [want, name, step] of rows) {
+    const kept = buildSession(recordedStream([...keptLogSteps, step], { result: 'Nothing is committed.' }), keptRepo);
+    assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+    const before = buildSession(recordedStream([...keptBeforeSteps, step], { result: 'Nothing is committed.' }), beforeRepo);
+    assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+  }
+});
+
+test('a recorded title names a second finding only when every word of the phrase is in that title', () => {
+  const nullCheck = { id: 'F-2', severity: 'P2', file: 'src/slug.js', line: 4, title: 'Missing null check for an empty title' };
+  const repoWith = (...resolved) => ({ ...keptRepoOf(keptConsoleLog), reviewState: { kept: [keptConsoleLog], resolved } });
+  const headed = (header, question, ...options) => ['AskUserQuestion', { questions: [{ question, header, options }] }];
+  const remove = { label: 'Remove it', description: 'Line 2' };
+  const fixIt = { label: 'Fix it', description: 'Line 2' };
+  const rows = [
+    [false, 'a verb that shares one word with a recorded title', repoWith(nullCheck), askAbout('Should we review the console.log and check tests?', remove, keepIt)],
+    [false, 'a header question about a phrase whose last word is in a recorded title', repoWith(nullCheck), headed('console.log', 'What about the debug line in the title?', remove, keepIt)],
+    [false, 'a header question about a pronoun that a recorded title starts with', repoWith({ id: 'F-2', title: 'This comparison ignores case' }), headed('console.log', 'What about this?', remove, keepIt)],
+    [false, 'a recorded title made only of kept words', repoWith({ id: 'F-9', title: 'Debug console.log' }), askAbout('What about the console.log and the tests?', remove, keepIt)],
+    [true, 'a plural noun that a recorded title holds', repoWith({ id: 'F-2', title: 'Uncommitted changes in the parser' }), askAbout('What about the console.log and the changes?', fixIt, keepIt)],
+    [true, 'a plural that ends in es against a singular title word', repoWith({ id: 'F-2', title: 'Stale status in the cache' }), askAbout('What about the console.log and the statuses?', fixIt, keepIt)],
+    [true, 'a recorded finding in a second or phrase', repoWith(nullCheck), askAbout('What about the console.log and the tests? Or the null check?', fixIt, keepIt)],
+  ];
+  for (const [want, name, repo, step] of rows) {
+    assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, step], { result: 'Nothing is committed.' }), repo)).pass, want, name);
+  }
+  const round2 = [
+    [true, 'a recorded finding that shares a word with the kept code name', repoWith({ id: 'F-2', title: 'Verbose console output' }), askAbout('What about the console.log and the console output?', fixIt, keepIt)],
+    [true, 'one word of a recorded title that is also part of the kept code name', repoWith({ id: 'F-2', title: 'Debug log never flushed' }), askAbout('What about the console.log and the log?', remove, keepIt)],
+    [true, 'a phrase that holds a kept title word and other words of a recorded title', repoWith({ id: 'F-2', title: 'Debug log never flushed' }), askAbout('What about the console.log and the debug never flushed?', fixIt, keepIt)],
+    [false, 'only the piece after a link word is in a recorded title', repoWith(nullCheck), askAbout('What about the console.log and the formatting in the title?', remove, keepIt)],
+    [false, 'a verb before a link word whose object is a recorded title', repoWith({ id: 'F-2', title: 'Crash before the release' }), askAbout('Should we review the console.log and investigate before the release?', remove, keepIt)],
+    [false, 'a header question about a pronoun followed by a recorded finding', repoWith(nullCheck), headed('console.log', 'What about it in the null check?', remove, keepIt)],
+    [false, 'a plural that is another word than the recorded singular', repoWith({ id: 'F-2', title: 'Stale state in the cache' }), askAbout('What about the console.log and the stats?', remove, keepIt)],
+    [true, 'a singular act word that a recorded title holds as a plural noun', repoWith({ id: 'F-2', title: 'Uncommitted changes in the parser' }), askAbout('What about the console.log and the change?', fixIt, keepIt)],
+    [true, 'a plural in ies against a singular in y', repoWith({ id: 'F-2', title: 'Missing query parameter' }), askAbout('What about the console.log and the queries?', fixIt, keepIt)],
+    [false, 'an act verb before a recorded finding is an action, as on main', repoWith({ id: 'F-2', title: 'Unused import' }), askAbout('Should we review the console.log and remove the unused import?', fixIt, keepIt)],
+    [false, 'a header question with no link word', repoWith(nullCheck), headed('console.log', 'Should we review the null check?', fixIt, keepIt)],
+  ];
+  const round3 = [
+    [false, 'an act verb whose pronoun is skipped', repoWith({ id: 'F-2', title: 'Fix the race in refresh' }), askAbout('Should we look at the console.log and fix it?', fixIt, keepIt)],
+    [false, 'an act verb before a noun of a recorded title', repoWith({ id: 'F-2', title: 'Flaky tests in the helper' }), askAbout('Should we look at the console.log and fix tests?', remove, keepIt)],
+    [false, 'clean up before a recorded title', repoWith({ id: 'F-2', title: 'Unused import' }), askAbout('Should we review the console.log and clean up the unused import?', fixIt, keepIt)],
+    [true, 'a recorded finding first in a comma list before the kept name', repoWith(nullCheck), askAbout('What about the null check, the formatting, and the console.log?', fixIt, keepIt)],
+    [true, 'a recorded finding before an or and the kept name', repoWith(nullCheck), askAbout('What about the null check or the formatting and the console.log?', fixIt, keepIt)],
+    [true, 'a recorded finding second in a list after the kept name', repoWith(nullCheck), askAbout('What about the console.log and the tests and the null check?', fixIt, keepIt)],
+    [false, 'a phrase that starts with a link word', repoWith({ id: 'F-2', title: 'Crash before the release' }), askAbout('Should we review the console.log and before the release?', remove, keepIt)],
+    [false, 'an and in the header', repoWith({ id: 'F-2', title: 'Flaky tests in the helper' }), headed('Style and tests', 'What about the console.log?', remove, keepIt)],
+  ];
+  for (const [want, name, repo, step] of [...round2, ...round3]) {
+    assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, step], { result: 'Nothing is committed.' }), repo)).pass, want, name);
+  }
+  const keptNull = { ...nullCheck, decision: 'keep' };
+  const twoKept = { ...keptRepoOf(keptConsoleLog), reviewState: { kept: [keptConsoleLog, keptNull], resolved: [{ id: 'F-4', title: 'Deadlock between cache refresh and read' }] } };
+  const both = askAbout('What about the console.log and the null check?', { label: 'Fix both', description: 'Line 2' }, keepIt);
+  assert.equal(keptNotReoffered(buildSession(recordedStream([...keptLogSteps, loop('decide --id F-2 --choice keep'), both], { result: 'Nothing is committed.' }), twoKept)).pass, false, 'both names a second kept finding');
+});
+
+test('when the run recorded no finding besides the kept one, the word lists still decide the second finding', () => {
+  const rows = [
+    [true, 'context noun phrase after the kept name', askAbout('What about the console.log and the tests?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [true, 'coordinated verb phrase after the kept name', askAbout('Should we review the console.log and retry review?', { label: 'Remove it', description: 'Line 2' }, keepIt)],
+    [false, 'bare finding with an unlisted noun before a closed tail', askAbout('Should we review the console.log and null pointer before the release?', { label: 'Fix it', description: 'Line 2' }, keepIt)],
+    [false, 'header names the kept finding and the question another', ['AskUserQuestion', { questions: [{ question: 'What about the null check?', header: 'console.log', options: [{ label: 'Fix it', description: 'Line 4' }, keepIt] }] }]],
+  ];
+  for (const [want, name, step] of rows) {
+    const kept = buildSession(recordedStream([...keptLogSteps, step], { result: 'Nothing is committed.' }), keptRepoOf(keptConsoleLog));
+    assert.equal(keptNotReoffered(kept).pass, want, `kept id: ${name}`);
+    const before = buildSession(recordedStream([...keptBeforeSteps, step], { result: 'Nothing is committed.' }), keptBeforeRepo);
+    assert.equal(keptNotReoffered(before).pass, want, `kept before: ${name}`);
+  }
+});
