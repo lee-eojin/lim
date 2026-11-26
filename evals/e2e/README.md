@@ -34,13 +34,13 @@ After the session it checks expectations against four kinds of evidence:
 - the scripts' saved state: `.git/lim/review-loop/ledger.jsonl` and `state.json`, and verify's runs in `.git/lim/verify/runs/`
 - the files the session changed and the commit count
 
-Each expectation in the results file has `pass` and the evidence for it. `--keep` keeps the repository and writes the raw stream next to it as `<folder>.stream.jsonl`. The expectation checks are pure functions of the stream and the saved state; `tests/evals/run-sessions.test.mjs` tests them on recorded streams without a model.
+Each expectation in the results file has `pass` and the evidence for it. `--keep` keeps the repository and writes the raw stream next to it as `<folder>.stream.jsonl`. The expectation checks are pure functions of the stream, the saved state, and the scenario's fixture files; `tests/evals/run-sessions.test.mjs` tests them on recorded streams without a model.
 
 ## Scenarios
 
 | Scenario | Repository and change | Prompt | What it proves when it passes |
 |---|---|---|---|
-| `review-with-verify` | A cents formatter CLI with a `verify.features.json` map and a passing `npm test`. The change adds `--symbol` and drops the zero padding, so `cents 5` prints `$0.5` and the map's `two-decimal-places` check fails. | An unattended review before committing | review-loop starts unattended, the reviewer names the map check, the finding is reproduced with `verify run --id` and `loop reproduce`, fixed, proven with a regression test, rerun with verify, re-reviewed, resolved as measured, and summarized, with no question and no commit |
+| `review-with-verify` | A cents formatter CLI with a `verify.features.json` map and a passing `npm test`. The change adds `--symbol` and drops the zero padding, so `cents 5` prints `$0.5` and the map's `two-decimal-places` check fails. | An unattended review before committing | review-loop starts unattended, the reviewer names the map check, the finding is reproduced with `verify run --id` and `loop reproduce`, fixed, given a regression test or a no-test reason, rerun with verify, re-reviewed, resolved as measured, and summarized, with no question and no commit |
 | `failing-check` | A slug library whose change drops the trailing hyphen trim, so `npm test` fails | An unattended review before committing | The failing test becomes a P1 from checks, gets fixed without weakening the test, and other fixed P1 or P2 findings get a regression test or a no-test reason |
 | `keep-finding` | The slug library; the change leaves a `console.log` debug line in `slugify` | A review before committing that says to keep the debug line if the review raises it | `hookOwnsLoopReports` passes (Claude does not paste a loop report the hook already shows), the finding is recorded with `loop decide --choice keep`, and `keptNotReoffered` passes |
 | `verify-tool` | The cents CLI without a map; the change adds `--symbol` correctly | "Can you check that this tool's features actually work?" | verify reads the README and its format reference, writes a map that covers the README, runs it, and shows the report first without touching the code |
